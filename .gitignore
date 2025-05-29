@@ -1,0 +1,85 @@
+# Ignore object files
+*.o
+
+# Ignore archives and shared libraries
+*.a
+*.so
+*.dylib
+*.lib
+
+# Ignore executables and output binaries
+*.out
+*.exe
+runTests
+
+# Ignore build directories
+/build/
+/build-*/
+bin/
+lib/
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile.cmake
+CTestTestfile.cmake
+
+# Flex/Bison generated files
+# (ignored by generic patterns below)
+
+# Ignore lex and yacc generated files
+*.tab.c
+*.tab.h
+*Scanner.c
+lex.*.c
+*.d
+
+# Xcode project files and workspace settings
+*.xcworkspace
+*.xcodeproj
+xcuserdata/
+*.xcuserstate
+*.xcscheme
+
+# macOS Finder metadata
+*.DS_Store
+.DS_Store
+
+# IDE directories
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Misc
+*.swp
+*~
+
+# Ignore debug symbol bundles
+*.dSYM
+*.asan
+*.debug
+
+# Doxygen output
+/doxygen/
+docs/doxygen/
+html/
+latex/
+
+# Sphinx build directories
+docs/_build/
+
+# Ignore downloaded OCTypes binaries and extracted files
+/third_party/libOCTypes*.zip
+/third_party/OCTypes/.DS_Store
+third_party/
+
+# Ignore XML files in the docs/xml directory
+docs/xml/*.xml
+doxygen/xml/.*
+doxygen/html/.*
+
+# Ignore generated parser documentation
+docs/api/*Parser.rst
