@@ -3,9 +3,7 @@
  * @brief Public API for RMNDatum, a data structure for managing scalar quantities with coordinates.
  */
 
-#include <SITypes/SILibrary.h>
-#include "SIScalar.h"
-#include "OCArray.h"
+#include "RMNLibrary.h"
 
 /**
  * @typedef RMNDatumRef

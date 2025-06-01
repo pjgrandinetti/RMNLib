@@ -1,5 +1,6 @@
 
 #include "RMNLibrary.h"
+#include <stdlib.h>
 
 static OCTypeID kRMNDatumID = _kOCNotATypeID;
 
@@ -10,6 +11,8 @@ struct __RMNDatum {
     // __SIQuantity Type attributes
     SIUnitRef       unit;
     SINumberType    type;
+
+    // __SIScalar Type attributes
     __SINumber      value;
 
     int             dependentVariableIndex;
@@ -35,7 +38,7 @@ static bool __RMNDatumEqual(const void * theType1, const void * theType2)
     int coordinateCount = OCArrayGetCount(input1->coordinates);
     for(int idim = 0; idim<coordinateCount; idim++) {
         if(SIScalarCompare((SIScalarRef) OCArrayGetValueAtIndex(input1->coordinates, idim),
-                          (SIScalarRef) OCArrayGetValueAtIndex(input2->coordinates, idim))!=kSICompareEqualTo) return false;
+                          (SIScalarRef) OCArrayGetValueAtIndex(input2->coordinates, idim))!=kOCCompareEqualTo) return false;
     }
 	return true;
 }
@@ -50,7 +53,7 @@ static void __RMNDatumFinalize(const void * theType)
 
 static OCStringRef __RMNDatumCopyFormattingDescription(OCTypeRef theType)
 {
-    return __SIScalarCopyFormattingDescription(theType);
+    return SIScalarCopyFormattingDescription((SIScalarRef) theType);
 }
 
 OCTypeID RMNDatumGetTypeID(void)
@@ -89,12 +92,12 @@ RMNDatumRef RMNDatumCreate(SIScalarRef theScalar,
     struct __RMNDatum *newDatum = RMNDatumAllocate();
 
     // *** Setup attributes ***
-    newDatum->elementType = SIQuantityGetElementType(theScalar);
+    newDatum->type = SIQuantityGetElementType((SIQuantityRef) theScalar);
     newDatum->unit = SIQuantityGetUnit(theScalar);
     newDatum->value = SIScalarGetValue(theScalar);
 
     // Optional Attributes
-    if(coordinates) newDatum->coordinates = OCArrayCreateCopy(kCFAllocatorDefault, coordinates);
+    if(coordinates) newDatum->coordinates = OCArrayCreateCopy(coordinates);
     newDatum->dependentVariableIndex = dependentVariableIndex;
     newDatum->componentIndex = componentIndex;
     newDatum->memOffset = memOffset;
@@ -129,18 +132,18 @@ bool RMNDatumHasSameReducedDimensionalities(RMNDatumRef input1, RMNDatumRef inpu
     if(input1->coordinates) coordinateCount1 = OCArrayGetCount(input1->coordinates);
     if(input2->coordinates) coordinateCount2 = OCArrayGetCount(input2->coordinates);
     if(coordinateCount1 != coordinateCount2) return false;
-    if((input1->dependentVariableIndex==input2->dependentVariableIndex) && !PSQuantityHasSameReducedDimensionality((PSQuantityRef) input1,(PSQuantityRef) input2)) return false;
+    if((input1->dependentVariableIndex==input2->dependentVariableIndex) && !SIQuantityHasSameReducedDimensionality((SIQuantityRef) input1,(SIQuantityRef) input2)) return false;
     
     for(int idim = 0; idim<coordinateCount1; idim++) {
-        if(!PSQuantityHasSameReducedDimensionality((PSQuantityRef) OCArrayGetValueAtIndex(input1->coordinates, idim), 
-                          (PSQuantityRef) OCArrayGetValueAtIndex(input2->coordinates, idim))) return false;
+        if(!SIQuantityHasSameReducedDimensionality((SIQuantityRef) OCArrayGetValueAtIndex(input1->coordinates, idim), 
+                          (SIQuantityRef) OCArrayGetValueAtIndex(input2->coordinates, idim))) return false;
     }
 	return true;
 }
 
 int RMNDatumGetComponentIndex(RMNDatumRef theDatum)
 {
-    if(NULL==theDatum) return kCFNotFound;
+    if(NULL==theDatum) return kOCNotFound;
     return theDatum->componentIndex;
 }
 
@@ -151,7 +154,7 @@ void RMNDatumSetComponentIndex(RMNDatumRef theDatum, int componentIndex)
 
 int RMNDatumGetDependentVariableIndex(RMNDatumRef theDatum)
 {
-    if(NULL==theDatum) return kCFNotFound;
+    if(NULL==theDatum) return kOCNotFound;
     return theDatum->dependentVariableIndex;
 }
 
@@ -162,7 +165,7 @@ void RMNDatumSetDependentVariableIndex(RMNDatumRef theDatum, int dependentVariab
 
 int RMNDatumGetMemOffset(RMNDatumRef theDatum)
 {
-    if(NULL==theDatum) return kCFNotFound;
+    if(NULL==theDatum) return kOCNotFound;
     return theDatum->memOffset;
 }
 
@@ -201,15 +204,15 @@ OCDictionaryRef RMNDatumCreatePList(RMNDatumRef theDatum)
     
     OCMutableDictionaryRef dictionary = OCDictionaryCreateMutable(0);
     
-    OCNumberRef number = PSOCNumberCreateWithint(theDatum->dependentVariableIndex);
+    OCNumberRef number = OCNumberCreateWithint(theDatum->dependentVariableIndex);
     OCDictionarySetValue(dictionary, STR("dependent_variable_index"), number);
     OCRelease(number);
     
-    number = PSOCNumberCreateWithint(theDatum->componentIndex);
+    number = OCNumberCreateWithint(theDatum->componentIndex);
     OCDictionarySetValue(dictionary, STR("component_index"), number);
     OCRelease(number);
     
-    number = PSOCNumberCreateWithint(theDatum->memOffset);
+    number = OCNumberCreateWithint(theDatum->memOffset);
     OCDictionarySetValue(dictionary, STR("mem_offset"), number);
     OCRelease(number);
     
@@ -221,7 +224,7 @@ OCDictionaryRef RMNDatumCreatePList(RMNDatumRef theDatum)
     
     if(theDatum->coordinates) {
         int coordinatesCount = OCArrayGetCount(theDatum->coordinates);
-        OCMutableArrayRef coordinates = OCArrayCreateMutable(coordinatesCount, &kCFTypeArrayCallBacks);
+        OCMutableArrayRef coordinates = OCArrayCreateMutable(coordinatesCount);
         for(int index =0; index<coordinatesCount; index++) {
             OCStringRef stringValue = SIScalarCreateStringValue(OCArrayGetValueAtIndex(theDatum->coordinates, index));
             OCArrayAppendValue(coordinates, stringValue);
@@ -235,7 +238,7 @@ OCDictionaryRef RMNDatumCreatePList(RMNDatumRef theDatum)
 
 
 
-RMNDatumRef RMNDatumCreateWithPList(OCDictionaryRef dictionary, CFErrorRef *error)
+RMNDatumRef RMNDatumCreateWithPList(OCDictionaryRef dictionary, OCStringRef *error)
 {
     if(error) if(*error) return NULL;
     IF_NO_OBJECT_EXISTS_RETURN(dictionary, NULL);
@@ -279,7 +282,7 @@ RMNDatumRef RMNDatumCreateWithPList(OCDictionaryRef dictionary, CFErrorRef *erro
     return datum;
 }
 
-RMNDatumRef RMNDatumCreateWithOldDataFormat(CFDataRef data, CFErrorRef *error)
+RMNDatumRef RMNDatumCreateWithOldDataFormat(OCDataRef data, OCStringRef *error)
 {
     if(error) if(*error) return NULL;
     IF_NO_OBJECT_EXISTS_RETURN(data, NULL);
@@ -301,7 +304,7 @@ RMNDatumRef RMNDatumCreateWithOldDataFormat(CFDataRef data, CFErrorRef *error)
         OCMutableArrayRef array = (OCMutableArrayRef) OCDictionaryGetValue(dictionary, STR("coordinates"));
         int count = OCArrayGetCount(array);
         for(int index=0; index<count; index++) {
-            CFDataRef coordinateData = OCArrayGetValueAtIndex(array, index);
+            OCDataRef coordinateData = OCArrayGetValueAtIndex(array, index);
             SIScalarRef coordinate = SIScalarCreateWithData(coordinateData, error);
             OCArrayAppendValue(coordinates, coordinate);
             OCRelease(coordinate);

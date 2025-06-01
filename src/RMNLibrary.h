@@ -9,8 +9,8 @@
 #ifndef RMNLIBRARY_H
 #define RMNLIBRARY_H
 
-#include <SITypes/SILibrary.h>
 #include <OCTypes/OCLibrary.h>
+#include <SITypes/SILibrary.h>
 
 #include "RMNDatum.h"
 #include "RMNDataset.h"

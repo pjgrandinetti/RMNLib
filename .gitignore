@@ -1,85 +1,88 @@
-# Ignore object files
-*.o
+# === Python Environments ===
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Ignore archives and shared libraries
+# === Object and Binary Artifacts ===
+*.o
 *.a
 *.so
 *.dylib
 *.lib
-
-# Ignore executables and output binaries
 *.out
 *.exe
-runTests
+*.debug
+*.asan
+*.dSYM
 
-# Ignore build directories
+# Test executables
+runTests
+runTests.debug
+runTests.asan
+
+# === Build Directories ===
 /build/
 /build-*/
-bin/
-lib/
+build-xcode/
+/bin/
+/lib/
+/install/
 
-# CMake files
+# === Generated Sources ===
+*.tab.c
+*.tab.h
+*Scanner.c
+lex.*.c
+*.yy.c
+*.d
+
+# === IDE and Tool Metadata ===
+
+# CMake
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile.cmake
 CTestTestfile.cmake
 
-# Flex/Bison generated files
-# (ignored by generic patterns below)
-
-# Ignore lex and yacc generated files
-*.tab.c
-*.tab.h
-*Scanner.c
-lex.*.c
-*.d
-
-# Xcode project files and workspace settings
+# Xcode
 *.xcworkspace
 *.xcodeproj
-xcuserdata/
 *.xcuserstate
 *.xcscheme
+xcuserdata/
 
-# macOS Finder metadata
-*.DS_Store
-.DS_Store
-
-# IDE directories
+# VSCode / IntelliJ
 .vscode/
 .idea/
 
-# Logs
-*.log
+# === macOS / System Files ===
+*.DS_Store
+.DS_Store
 
-# Misc
+# === Logs and Temporary Files ===
+*.log
 *.swp
 *~
+*.bak
 
-# Ignore debug symbol bundles
-*.dSYM
-*.asan
-*.debug
-
-# Doxygen output
-/doxygen/
-docs/doxygen/
-html/
-latex/
-
-# Sphinx build directories
-docs/_build/
-
-# Ignore downloaded OCTypes binaries and extracted files
-/third_party/libOCTypes*.zip
-/third_party/OCTypes/.DS_Store
-third_party/
-
-# Ignore XML files in the docs/xml directory
-docs/xml/*.xml
+# === Documentation Outputs ===
+/docs/_build/
+/docs/doxygen/
+/docs/xml/
+/docs/api/*Parser.rst
+/html/
+/latex/
 doxygen/xml/.*
 doxygen/html/.*
 
-# Ignore generated parser documentation
-docs/api/*Parser.rst
+# === Third-party Dependencies ===
+/third_party/
+/third_party/OCTypes/
+/third_party/SITypes/
+/third_party/OCTypes/.DS_Store
+/third_party/SITypes/.DS_Store
+/third_party/libOCTypes*.zip
+/third_party/libSITypes*.zip
