@@ -1,6 +1,5 @@
 
 #include "RMNLibrary.h"
-#include <stdlib.h>
 
 static OCTypeID kRMNDatumID = _kOCNotATypeID;
 
@@ -93,7 +92,7 @@ RMNDatumRef RMNDatumCreate(SIScalarRef theScalar,
 
     // *** Setup attributes ***
     newDatum->type = SIQuantityGetElementType((SIQuantityRef) theScalar);
-    newDatum->unit = SIQuantityGetUnit(theScalar);
+    newDatum->unit = SIQuantityGetUnit((SIQuantityRef)  theScalar);
     newDatum->value = SIScalarGetValue(theScalar);
 
     // Optional Attributes
@@ -204,15 +203,15 @@ OCDictionaryRef RMNDatumCreatePList(RMNDatumRef theDatum)
     
     OCMutableDictionaryRef dictionary = OCDictionaryCreateMutable(0);
     
-    OCNumberRef number = OCNumberCreateWithint(theDatum->dependentVariableIndex);
+    OCNumberRef number = OCNumberCreateWithInt(theDatum->dependentVariableIndex);
     OCDictionarySetValue(dictionary, STR("dependent_variable_index"), number);
     OCRelease(number);
     
-    number = OCNumberCreateWithint(theDatum->componentIndex);
+    number = OCNumberCreateWithInt(theDatum->componentIndex);
     OCDictionarySetValue(dictionary, STR("component_index"), number);
     OCRelease(number);
     
-    number = OCNumberCreateWithint(theDatum->memOffset);
+    number = OCNumberCreateWithInt(theDatum->memOffset);
     OCDictionarySetValue(dictionary, STR("mem_offset"), number);
     OCRelease(number);
     
@@ -224,7 +223,7 @@ OCDictionaryRef RMNDatumCreatePList(RMNDatumRef theDatum)
     
     if(theDatum->coordinates) {
         int coordinatesCount = OCArrayGetCount(theDatum->coordinates);
-        OCMutableArrayRef coordinates = OCArrayCreateMutable(coordinatesCount);
+        OCMutableArrayRef coordinates = OCArrayCreateMutable(coordinatesCount, &kOCTypeArrayCallBacks);
         for(int index =0; index<coordinatesCount; index++) {
             OCStringRef stringValue = SIScalarCreateStringValue(OCArrayGetValueAtIndex(theDatum->coordinates, index));
             OCArrayAppendValue(coordinates, stringValue);
@@ -245,21 +244,21 @@ RMNDatumRef RMNDatumCreateWithPList(OCDictionaryRef dictionary, OCStringRef *err
     
     int dependentVariableIndex = 0;
     if(OCDictionaryContainsKey(dictionary, STR("dependent_variable_index")))
-        OCNumberGetValue(OCDictionaryGetValue(dictionary, STR("dependent_variable_index")),kOCNumberintType,&dependentVariableIndex);
+        OCNumberGetValue(OCDictionaryGetValue(dictionary, STR("dependent_variable_index")),kOCNumberIntType,&dependentVariableIndex);
     else return NULL;
     
     int componentIndex = 0;
     if(OCDictionaryContainsKey(dictionary, STR("component_index")))
-        OCNumberGetValue(OCDictionaryGetValue(dictionary, STR("component_index")),kOCNumberintType,&componentIndex);
+        OCNumberGetValue(OCDictionaryGetValue(dictionary, STR("component_index")),kOCNumberIntType,&componentIndex);
     else return NULL;
     
     int memOffset = 0;
     if(OCDictionaryContainsKey(dictionary, STR("mem_offset")))
-        OCNumberGetValue(OCDictionaryGetValue(dictionary, STR("mem_offset")),kOCNumberintType,&memOffset);
+        OCNumberGetValue(OCDictionaryGetValue(dictionary, STR("mem_offset")),kOCNumberIntType,&memOffset);
     else return NULL;
     
     
-    OCMutableArrayRef coordinates = OCArrayCreateMutable(0, &kCFTypeArrayCallBacks);
+    OCMutableArrayRef coordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     if(OCDictionaryContainsKey (dictionary,STR("coordinates"))) {
         OCMutableArrayRef stringValues = (OCMutableArrayRef) OCDictionaryGetValue(dictionary, STR("coordinates"));
         int coordinatesCount = OCArrayGetCount(stringValues);
@@ -282,48 +281,3 @@ RMNDatumRef RMNDatumCreateWithPList(OCDictionaryRef dictionary, OCStringRef *err
     return datum;
 }
 
-RMNDatumRef RMNDatumCreateWithOldDataFormat(OCDataRef data, OCStringRef *error)
-{
-    if(error) if(*error) return NULL;
-    IF_NO_OBJECT_EXISTS_RETURN(data, NULL);
-    CFPropertyListFormat format;
-    OCDictionaryRef dictionary  = CFPropertyListCreateWithData(data,kCFPropertyListImmutable,&format,error);
-    IF_NO_OBJECT_EXISTS_RETURN(dictionary, NULL);
-    
-    int componentIndex = 0;
-    if(OCDictionaryContainsKey(dictionary, STR("signalIndex")))
-        OCNumberGetValue(OCDictionaryGetValue(dictionary, STR("signalIndex")),kOCNumberintType,&componentIndex);
-    
-    int memOffset = 0;
-    if(OCDictionaryContainsKey(dictionary, STR("memOffset")))
-        OCNumberGetValue(OCDictionaryGetValue(dictionary, STR("memOffset")),kOCNumberintType,&memOffset);
-    
-    OCMutableArrayRef coordinates = NULL;
-    if(OCDictionaryContainsKey (dictionary,STR("coordinates"))) {
-        coordinates = OCArrayCreateMutable(0, &kCFTypeArrayCallBacks);
-        OCMutableArrayRef array = (OCMutableArrayRef) OCDictionaryGetValue(dictionary, STR("coordinates"));
-        int count = OCArrayGetCount(array);
-        for(int index=0; index<count; index++) {
-            OCDataRef coordinateData = OCArrayGetValueAtIndex(array, index);
-            SIScalarRef coordinate = SIScalarCreateWithData(coordinateData, error);
-            OCArrayAppendValue(coordinates, coordinate);
-            OCRelease(coordinate);
-        }
-    }
-    
-    SIScalarRef response = NULL;
-    if(OCDictionaryContainsKey (dictionary,STR("response")))
-        response = SIScalarCreateWithData(OCDictionaryGetValue(dictionary, STR("response")), error);
-    
-    RMNDatumRef datum = RMNDatumCreate(response,
-                                     coordinates,
-                                     0,
-                                     componentIndex,
-                                     memOffset);
-
-    
-    if(response) OCRelease(response);
-    if(coordinates) OCRelease(coordinates);
-    OCRelease(dictionary);
-    return datum;
-}

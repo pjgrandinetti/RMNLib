@@ -9,6 +9,7 @@
 #ifndef RMNLIBRARY_H
 #define RMNLIBRARY_H
 
+#include <stdlib.h>
 #include <OCTypes/OCLibrary.h>
 #include <SITypes/SILibrary.h>
 
