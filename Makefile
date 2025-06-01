@@ -30,6 +30,30 @@ OCT_LIBDIR      := $(OCTYPES_DIR)/lib
 SIT_INCLUDE     := $(SITYPES_DIR)/include
 SIT_LIBDIR      := $(SITYPES_DIR)/lib
 
+# Auto-detect OS/ARCH for third-party archives
+UNAME_S := $(shell uname -s)
+ARCH := $(shell uname -m)
+ifeq ($(UNAME_S),Darwin)
+  OCT_LIB_BIN := libOCTypes-libOCTypes-macos-latest.zip
+  SIT_LIB_BIN := libSITypes-macos-latest.zip
+else ifeq ($(UNAME_S),Linux)
+  ifeq ($(ARCH),aarch64)
+    OCT_LIB_BIN := libOCTypes-libOCTypes-linux-arm64.zip
+    SIT_LIB_BIN := libSITypes-linux-arm64.zip
+  else
+    OCT_LIB_BIN := libOCTypes-libOCTypes-ubuntu-latest.zip
+    SIT_LIB_BIN := libSITypes-ubuntu-latest.zip
+  endif
+else ifneq ($(findstring MINGW,$(UNAME_S)),)
+  OCT_LIB_BIN := libOCTypes-libOCTypes-windows-latest.zip
+  SIT_LIB_BIN := libSITypes-windows-latest.zip
+endif
+
+OCT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(OCT_LIB_BIN)
+OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
+SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
+SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
+
 CPPFLAGS := -I. -I$(SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
 CFLAGS   := -O3 -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter \
             -Wno-missing-field-initializers -Wno-unused-function -MMD -MP
@@ -183,3 +207,19 @@ xcode:
 # === Dependency Tracking ===
 
 -include $(DEP)
+
+$(OCT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
+	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/$(OCT_LIB_BIN) -o $@
+
+$(OCT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@echo "Fetching OCTypes headers"
+	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/libOCTypes-headers.zip -o $@
+
+$(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
+	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/$(SIT_LIB_BIN) -o $@
+
+$(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@echo "Fetching SITypes headers"
+	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
