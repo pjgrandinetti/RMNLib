@@ -223,3 +223,33 @@ $(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
 $(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes headers"
 	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
+
+# Extract third-party libs and headers
+$(OCT_LIBDIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
+	@echo "Extracting OCTypes library"
+	@rm -rf $(OCT_LIBDIR)
+	@mkdir -p $(OCT_LIBDIR)
+	@unzip -q $< -d $(OCT_LIBDIR)
+
+$(OCT_INCLUDE)/OCTypes/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
+	@echo "Extracting OCTypes headers"
+	@rm -rf $(OCT_INCLUDE)
+	@mkdir -p $(OCT_INCLUDE)/OCTypes
+	@unzip -q $< -d $(OCT_INCLUDE)
+	@mv $(OCT_INCLUDE)/*.h $(OCT_INCLUDE)/OCTypes/ 2>/dev/null || true
+
+$(SIT_LIBDIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
+	@echo "Extracting SITypes library"
+	@rm -rf $(SIT_LIBDIR)
+	@mkdir -p $(SIT_LIBDIR)
+	@unzip -q $< -d $(SIT_LIBDIR)
+
+$(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
+	@echo "Extracting SITypes headers"
+	@rm -rf $(SIT_INCLUDE)
+	@mkdir -p $(SIT_INCLUDE)/SITypes
+	@unzip -q $< -d $(SIT_INCLUDE)
+	@mv $(SIT_INCLUDE)/*.h $(SIT_INCLUDE)/SITypes/ 2>/dev/null || true
+
+sync-libs: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes/OCLibrary.h \
+           $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SITypes/SILibrary.h
