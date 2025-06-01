@@ -197,7 +197,7 @@ int RMNDatumCoordinatesCount(RMNDatumRef theDatum)
 
 
 
-OCDictionaryRef RMNDatumCreatePList(RMNDatumRef theDatum)
+OCDictionaryRef RMNDatumCreateDictionary(RMNDatumRef theDatum)
 {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
     
@@ -237,7 +237,7 @@ OCDictionaryRef RMNDatumCreatePList(RMNDatumRef theDatum)
 
 
 
-RMNDatumRef RMNDatumCreateWithPList(OCDictionaryRef dictionary, OCStringRef *error)
+RMNDatumRef RMNDatumCreateWithDictionary(OCDictionaryRef dictionary, OCStringRef *error)
 {
     if(error) if(*error) return NULL;
     IF_NO_OBJECT_EXISTS_RETURN(dictionary, NULL);

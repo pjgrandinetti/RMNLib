@@ -14,7 +14,7 @@ RM      := rm -f
 MKDIR_P := mkdir -p
 
 SRC_DIR        := src
-TEST_SRC_DIR   := tests
+TEST_SRC_DIR   := test
 BUILD_DIR      := build
 OBJ_DIR        := $(BUILD_DIR)/obj
 GEN_DIR        := $(BUILD_DIR)/gen

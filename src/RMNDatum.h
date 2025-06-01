@@ -1,9 +1,19 @@
+#pragma once
+#ifndef RMNDATUM_H
+#define RMNDATUM_H
+
+#include "RMNLibrary.h"
+
 /**
  * @file RMNDatum.h
  * @brief Public API for RMNDatum, a data structure for managing scalar quantities with coordinates.
  */
 
-#include "RMNLibrary.h"
+/**
+ * @defgroup RMNDatum RMNDatum
+ * @brief Object model for data points with scalar value and coordinates.
+ * @{
+ */
 
 /**
  * @typedef RMNDatumRef
@@ -12,19 +22,21 @@
 typedef struct __RMNDatum *RMNDatumRef;
 
 /**
- * @brief Get the type ID for RMNDatum objects.
+ * @brief Get the OCTypeID for RMNDatum objects.
  * @return The type ID for RMNDatum.
+ * @ingroup RMNDatum
  */
 OCTypeID RMNDatumGetTypeID(void);
 
 /**
  * @brief Create a new RMNDatum object.
  * @param theScalar The scalar value.
- * @param coordinates An array of coordinates.
- * @param dependentVariableIndex The index of the dependent variable.
- * @param componentIndex The index of the component.
- * @param memOffset The memory offset.
- * @return A reference to the newly created RMNDatum object, or NULL on failure.
+ * @param coordinates An OCArray of coordinate scalars.
+ * @param dependentVariableIndex Index of the dependent variable.
+ * @param componentIndex Index of the component.
+ * @param memOffset Memory offset for internal indexing.
+ * @return A new RMNDatumRef, or NULL on failure.
+ * @ingroup RMNDatum
  */
 RMNDatumRef RMNDatumCreate(SIScalarRef theScalar,
                            OCArrayRef coordinates,
@@ -33,90 +45,112 @@ RMNDatumRef RMNDatumCreate(SIScalarRef theScalar,
                            int memOffset);
 
 /**
- * @brief Create a copy of an RMNDatum object.
- * @param theDatum The RMNDatum object to copy.
- * @return A reference to the copied RMNDatum object, or NULL on failure.
+ * @brief Create a copy of an RMNDatum.
+ * @param theDatum The RMNDatum to copy.
+ * @return A deep copy of the datum, or NULL on failure.
+ * @ingroup RMNDatum
  */
 RMNDatumRef RMNDatumCopy(RMNDatumRef theDatum);
 
 /**
- * @brief Check if two RMNDatum objects have the same reduced dimensionalities.
- * @param input1 The first RMNDatum object.
- * @param input2 The second RMNDatum object.
- * @return True if the reduced dimensionalities are the same, false otherwise.
+ * @brief Compare whether two datums share the same reduced dimensionalities.
+ * @param input1 First datum.
+ * @param input2 Second datum.
+ * @return true if reduced dimensionalities match, false otherwise.
+ * @ingroup RMNDatum
  */
 bool RMNDatumHasSameReducedDimensionalities(RMNDatumRef input1, RMNDatumRef input2);
 
 /**
- * @brief Get the component index of an RMNDatum object.
- * @param theDatum The RMNDatum object.
- * @return The component index, or -1 if theDatum is NULL.
+ * @brief Get the component index of a datum.
+ * @param theDatum The datum to query.
+ * @return The component index, or -1 if NULL.
+ * @ingroup RMNDatum
  */
 int RMNDatumGetComponentIndex(RMNDatumRef theDatum);
 
 /**
- * @brief Set the component index of an RMNDatum object.
- * @param theDatum The RMNDatum object.
- * @param componentIndex The new component index.
+ * @brief Set the component index.
+ * @param theDatum The datum to modify.
+ * @param componentIndex New component index.
+ * @ingroup RMNDatum
  */
 void RMNDatumSetComponentIndex(RMNDatumRef theDatum, int componentIndex);
 
 /**
- * @brief Get the dependent variable index of an RMNDatum object.
- * @param theDatum The RMNDatum object.
- * @return The dependent variable index, or -1 if theDatum is NULL.
+ * @brief Get the dependent variable index.
+ * @param theDatum The datum to query.
+ * @return Index of the dependent variable, or -1 if NULL.
+ * @ingroup RMNDatum
  */
 int RMNDatumGetDependentVariableIndex(RMNDatumRef theDatum);
 
 /**
- * @brief Set the dependent variable index of an RMNDatum object.
- * @param theDatum The RMNDatum object.
- * @param dependentVariableIndex The new dependent variable index.
+ * @brief Set the dependent variable index.
+ * @param theDatum The datum to modify.
+ * @param dependentVariableIndex New index.
+ * @ingroup RMNDatum
  */
 void RMNDatumSetDependentVariableIndex(RMNDatumRef theDatum, int dependentVariableIndex);
 
 /**
- * @brief Get the memory offset of an RMNDatum object.
- * @param theDatum The RMNDatum object.
- * @return The memory offset, or -1 if theDatum is NULL.
+ * @brief Get the memory offset.
+ * @param theDatum The datum to query.
+ * @return The offset value, or -1 if NULL.
+ * @ingroup RMNDatum
  */
 int RMNDatumGetMemOffset(RMNDatumRef theDatum);
 
 /**
- * @brief Set the memory offset of an RMNDatum object.
- * @param theDatum The RMNDatum object.
- * @param memOffset The new memory offset.
+ * @brief Set the memory offset.
+ * @param theDatum The datum to modify.
+ * @param memOffset New offset value.
+ * @ingroup RMNDatum
  */
 void RMNDatumSetMemOffset(RMNDatumRef theDatum, int memOffset);
 
 /**
- * @brief Get a coordinate at a specific index from an RMNDatum object.
- * @param theDatum The RMNDatum object.
- * @param index The index of the coordinate.
- * @return The coordinate at the specified index, or NULL if theDatum is NULL or index is invalid.
+ * @brief Get a coordinate at a given index.
+ * @param theDatum The datum to query.
+ * @param index Zero-based index.
+ * @return The scalar coordinate, or NULL on failure.
+ * @ingroup RMNDatum
  */
 SIScalarRef RMNDatumGetCoordinateAtIndex(RMNDatumRef theDatum, int index);
 
 /**
- * @brief Create a response scalar from an RMNDatum object.
- * @param theDatum The RMNDatum object.
- * @return A new scalar response, or NULL if theDatum is NULL.
+ * @brief Create a scalar response based on the datum’s configuration.
+ * @param theDatum The datum to process.
+ * @return A new SIScalarRef, or NULL on failure.
+ * @ingroup RMNDatum
  */
 SIScalarRef RMNDatumCreateResponse(RMNDatumRef theDatum);
 
 /**
- * @brief Get the number of coordinates in an RMNDatum object.
- * @param theDatum The RMNDatum object.
- * @return The number of coordinates, or 0 if theDatum is NULL.
+ * @brief Get the number of coordinates.
+ * @param theDatum The datum to query.
+ * @return Count of coordinates, or 0 on error.
+ * @ingroup RMNDatum
  */
 int RMNDatumCoordinatesCount(RMNDatumRef theDatum);
 
 /**
- * @brief Create a property list representation of an RMNDatum object.
- * @param theDatum The RMNDatum object.
- * @return A dictionary representing the RMNDatum, or NULL if theDatum is NULL.
+ * @brief Create a dictionary representation of the datum.
+ * @param theDatum The RMNDatum to serialize.
+ * @return An OCDictionaryRef containing key-value pairs.
+ * @ingroup RMNDatum
  */
-OCDictionaryRef RMNDatumCreatePList(RMNDatumRef theDatum);
+OCDictionaryRef RMNDatumCreateDictionary(RMNDatumRef theDatum);
 
-// Unit Test Suggestion:
-// Ensure all public functions are tested for valid and invalid inputs, including null checks and edge cases.
+/**
+ * @brief Create a new RMNDatum from a dictionary.
+ * @param dictionary The dictionary to parse.
+ * @param error Optional: Receives a descriptive error string.
+ * @return A new RMNDatumRef or NULL on error.
+ * @ingroup RMNDatum
+ */
+RMNDatumRef RMNDatumCreateWithDictionary(OCDictionaryRef dictionary, OCStringRef *error);
+
+/** @} */  // end of RMNDatum group
+
+#endif /* RMNDATUM_H */
