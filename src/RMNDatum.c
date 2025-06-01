@@ -199,7 +199,7 @@ OCDictionaryRef RMNDatumCreatePList(RMNDatumRef theDatum)
 {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
     
-    OCMutableDictionaryRef dictionary = OCDictionaryCreateMutable(kCFAllocatorDefault,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
+    OCMutableDictionaryRef dictionary = OCDictionaryCreateMutable(0);
     
     OCNumberRef number = PSOCNumberCreateWithint(theDatum->dependentVariableIndex);
     OCDictionarySetValue(dictionary, STR("dependent_variable_index"), number);
@@ -221,7 +221,7 @@ OCDictionaryRef RMNDatumCreatePList(RMNDatumRef theDatum)
     
     if(theDatum->coordinates) {
         int coordinatesCount = OCArrayGetCount(theDatum->coordinates);
-        OCMutableArrayRef coordinates = OCArrayCreateMutable(kCFAllocatorDefault, coordinatesCount, &kCFTypeArrayCallBacks);
+        OCMutableArrayRef coordinates = OCArrayCreateMutable(coordinatesCount, &kCFTypeArrayCallBacks);
         for(int index =0; index<coordinatesCount; index++) {
             OCStringRef stringValue = SIScalarCreateStringValue(OCArrayGetValueAtIndex(theDatum->coordinates, index));
             OCArrayAppendValue(coordinates, stringValue);
@@ -256,7 +256,7 @@ RMNDatumRef RMNDatumCreateWithPList(OCDictionaryRef dictionary, CFErrorRef *erro
     else return NULL;
     
     
-    OCMutableArrayRef coordinates = OCArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks);
+    OCMutableArrayRef coordinates = OCArrayCreateMutable(0, &kCFTypeArrayCallBacks);
     if(OCDictionaryContainsKey (dictionary,STR("coordinates"))) {
         OCMutableArrayRef stringValues = (OCMutableArrayRef) OCDictionaryGetValue(dictionary, STR("coordinates"));
         int coordinatesCount = OCArrayGetCount(stringValues);
@@ -284,7 +284,7 @@ RMNDatumRef RMNDatumCreateWithOldDataFormat(CFDataRef data, CFErrorRef *error)
     if(error) if(*error) return NULL;
     IF_NO_OBJECT_EXISTS_RETURN(data, NULL);
     CFPropertyListFormat format;
-    OCDictionaryRef dictionary  = CFPropertyListCreateWithData(kCFAllocatorDefault,data,kCFPropertyListImmutable,&format,error);
+    OCDictionaryRef dictionary  = CFPropertyListCreateWithData(data,kCFPropertyListImmutable,&format,error);
     IF_NO_OBJECT_EXISTS_RETURN(dictionary, NULL);
     
     int componentIndex = 0;
@@ -297,7 +297,7 @@ RMNDatumRef RMNDatumCreateWithOldDataFormat(CFDataRef data, CFErrorRef *error)
     
     OCMutableArrayRef coordinates = NULL;
     if(OCDictionaryContainsKey (dictionary,STR("coordinates"))) {
-        coordinates = OCArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks);
+        coordinates = OCArrayCreateMutable(0, &kCFTypeArrayCallBacks);
         OCMutableArrayRef array = (OCMutableArrayRef) OCDictionaryGetValue(dictionary, STR("coordinates"));
         int count = OCArrayGetCount(array);
         for(int index=0; index<count; index++) {
