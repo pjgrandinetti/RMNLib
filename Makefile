@@ -108,7 +108,7 @@ octypes: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes/OCLibrary.h
 # Fetch and extract SITypes
 sitypes: $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SITypes/SILibrary.h
 
-prepare: $(GEN_H)
+prepare: octypes sitypes $(GEN_H)
 
 # === Build Library ===
 
