@@ -244,7 +244,9 @@ $(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@unzip -o -j -q $< "*.h" -d $(SIT_INCLUDE)/SITypes
 
 $(OCT_INCLUDE)/OCTypes/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
-	@echo "Extracting OCTypes headers"
+	@echo "Extracting OCTypes headers to $(OCT_INCLUDE)/OCTypes"
 	@rm -rf $(OCT_INCLUDE)
 	@mkdir -p $(OCT_INCLUDE)/OCTypes
 	@unzip -o -j -q $< "*.h" -d $(OCT_INCLUDE)/OCTypes
+	@echo "Headers extracted:"
+	@ls -l $(OCT_INCLUDE)/OCTypes
