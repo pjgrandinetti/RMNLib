@@ -101,15 +101,8 @@ dirs:
 
 # === Dependency Sync ===
 
-sync-libs:
-	@echo "Copying OCTypes and SITypes from installed locations..."
-	@$(RM) -rf $(OCTYPES_DIR) $(SITYPES_DIR)
-	@$(MKDIR_P) $(OCT_LIBDIR) $(OCT_INCLUDE)/OCTypes
-	@$(MKDIR_P) $(SIT_LIBDIR) $(SIT_INCLUDE)/SITypes
-	@cp ../OCTypes/install/lib/libOCTypes.a $(OCT_LIBDIR)/
-	@cp ../OCTypes/install/include/OCTypes/*.h $(OCT_INCLUDE)/OCTypes/
-	@cp ../SITypes/install/lib/libSITypes.a $(SIT_LIBDIR)/
-	@cp ../SITypes/install/include/SITypes/*.h $(SIT_INCLUDE)/SITypes/
+sync-libs: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes/OCLibrary.h \
+           $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SITypes/SILibrary.h
 
 sync-deps: sync-libs
 
@@ -149,6 +142,7 @@ $(BIN_DIR)/runTests: $(LIB_NAME) $(TEST_OBJ)
 		-L. -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) \
 		$(GROUP_START) -lOCTypes -lSITypes -lRMNLib $(GROUP_END) -lm -o $@
 
+# Run tests
 test: $(BIN_DIR)/runTests
 	$<
 
@@ -208,21 +202,25 @@ xcode:
 
 -include $(DEP)
 
-$(OCT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
-	@echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
-	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/$(OCT_LIB_BIN) -o $@
+$(OCT_LIB_ARCHIVE):
+    @mkdir -p $(THIRD_PARTY_DIR)
+    @echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
+    @curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/$(OCT_LIB_BIN) -o $@
 
-$(OCT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
-	@echo "Fetching OCTypes headers"
-	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/libOCTypes-headers.zip -o $@
+$(OCT_HEADERS_ARCHIVE):
+    @mkdir -p $(THIRD_PARTY_DIR)
+    @echo "Fetching OCTypes headers"
+    @curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/libOCTypes-headers.zip -o $@
 
-$(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
-	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/$(SIT_LIB_BIN) -o $@
+$(SIT_LIB_ARCHIVE):
+    @mkdir -p $(THIRD_PARTY_DIR)
+    @echo "Fetching SITypes library: $(SIT_LIB_BIN)"
+    @curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/$(SIT_LIB_BIN) -o $@
 
-$(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
-	@echo "Fetching SITypes headers"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
+$(SIT_HEADERS_ARCHIVE):
+    @mkdir -p $(THIRD_PARTY_DIR)
+    @echo "Fetching SITypes headers"
+    @curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
 
 # Extract third-party libs and headers
 $(OCT_LIBDIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
@@ -233,10 +231,8 @@ $(OCT_LIBDIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
 
 $(OCT_INCLUDE)/OCTypes/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
 	@echo "Extracting OCTypes headers"
-	@rm -rf $(OCT_INCLUDE)
 	@mkdir -p $(OCT_INCLUDE)/OCTypes
-	@unzip -q $< -d $(OCT_INCLUDE)
-	@mv $(OCT_INCLUDE)/*.h $(OCT_INCLUDE)/OCTypes/ 2>/dev/null || true
+	@unzip -j -q $< "*.h" -d $(OCT_INCLUDE)/OCTypes
 
 $(SIT_LIBDIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
 	@echo "Extracting SITypes library"
@@ -246,10 +242,5 @@ $(SIT_LIBDIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
 
 $(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@echo "Extracting SITypes headers"
-	@rm -rf $(SIT_INCLUDE)
 	@mkdir -p $(SIT_INCLUDE)/SITypes
-	@unzip -q $< -d $(SIT_INCLUDE)
-	@mv $(SIT_INCLUDE)/*.h $(SIT_INCLUDE)/SITypes/ 2>/dev/null || true
-
-sync-libs: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes/OCLibrary.h \
-           $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SITypes/SILibrary.h
+	@unzip -j -q $< "*.h" -d $(SIT_INCLUDE)/SITypes
