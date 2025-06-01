@@ -112,7 +112,7 @@ prepare: $(GEN_H)
 
 # === Build Library ===
 
-$(LIB_NAME): $(OBJ)
+$(LIB_NAME): octypes sitypes $(OBJ)
 	$(AR) rcs $@ $^
 
 # === Pattern Rules ===
