@@ -7,7 +7,7 @@
 CC      := clang
 AR      := ar
 LEX     := flex
-YACC    := bison -y
+YACC    := bison
 YFLAGS  := -d
 
 RM      := rm -f
@@ -36,18 +36,18 @@ UNAME_S := $(shell uname -s)
 ARCH := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
   OCT_LIB_BIN := libOCTypes-libOCTypes-macos-latest.zip
-  SIT_LIB_BIN := libSITypes-macos-latest.zip
+  SIT_LIB_BIN := libSITypes-libSITypes-macos-latest.zip
 else ifeq ($(UNAME_S),Linux)
   ifeq ($(ARCH),aarch64)
     OCT_LIB_BIN := libOCTypes-libOCTypes-linux-arm64.zip
-    SIT_LIB_BIN := libSITypes-linux-arm64.zip
+    SIT_LIB_BIN := libSITypes-libSITypes-linux-arm64.zip
   else
     OCT_LIB_BIN := libOCTypes-libOCTypes-ubuntu-latest.zip
-    SIT_LIB_BIN := libSITypes-ubuntu-latest.zip
+    SIT_LIB_BIN := libSITypes-libSITypes-ubuntu-latest.zip
   endif
 else ifneq ($(findstring MINGW,$(UNAME_S)),)
   OCT_LIB_BIN := libOCTypes-libOCTypes-windows-latest.zip
-  SIT_LIB_BIN := libSITypes-windows-latest.zip
+  SIT_LIB_BIN := libSITypes-libSITypes-windows-latest.zip
 endif
 
 OCT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(OCT_LIB_BIN)
@@ -92,19 +92,21 @@ INSTALL_DIR := install
 INSTALL_LIB_DIR := $(INSTALL_DIR)/lib
 INSTALL_INC_DIR := $(INSTALL_DIR)/include/RMNLib
 
-.PHONY: all dirs prepare sync-libs sync-deps install uninstall clean clean-docs clean-objects \
+.PHONY: all dirs octypes sitypes prepare install uninstall clean clean-docs clean-objects \
         test test-debug test-asan test-werror docs doxygen html xcode
 
-all: dirs sync-libs prepare $(LIB_NAME)
+all: dirs octypes sitypes prepare $(LIB_NAME)
 
 dirs:
 	$(MKDIR_P) $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR)
 
-# === Dependency Sync ===
+# === Third-party dependencies ===
 
-sync-libs: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes/OCLibrary.h
+# Fetch and extract OCTypes
+octypes: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes/OCLibrary.h
 
-sync-deps: sync-libs
+# Fetch and extract SITypes
+sitypes: $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SITypes/SILibrary.h
 
 prepare: $(GEN_H)
 
@@ -226,8 +228,7 @@ $(SIT_HEADERS_ARCHIVE):
 # Extract third-party libs and headers
 $(OCT_LIBDIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
 	@echo "Extracting OCTypes library"
-	@rm -rf $(O
-	@unzip -j -q $< "*.h" -d $(OCT_INCLUDE)/OCTypes
+	@rm -rf $(OCT_LIBDIR)
 	@mkdir -p $(OCT_LIBDIR)
 	@unzip -q $< -d $(OCT_LIBDIR)
 
@@ -235,9 +236,15 @@ $(SIT_LIBDIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
 	@echo "Extracting SITypes library"
 	@rm -rf $(SIT_LIBDIR)
 	@mkdir -p $(SIT_LIBDIR)
-	@unzip -q $< -d $(SIT_LIBDIR)
+	@unzip -o -q $< -d $(SIT_LIBDIR)
 
 $(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@echo "Extracting SITypes headers"
 	@mkdir -p $(SIT_INCLUDE)/SITypes
-	@unzip -j -q $< "*.h" -d $(SIT_INCLUDE)/SITypes
+	@unzip -o -j -q $< "*.h" -d $(SIT_INCLUDE)/SITypes
+
+$(OCT_INCLUDE)/OCTypes/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
+	@echo "Extracting OCTypes headers"
+	@rm -rf $(OCT_INCLUDE)
+	@mkdir -p $(OCT_INCLUDE)/OCTypes
+	@unzip -o -j -q $< "*.h" -d $(OCT_INCLUDE)/OCTypes
