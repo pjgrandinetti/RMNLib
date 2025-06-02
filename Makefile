@@ -149,14 +149,14 @@ $(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs
 # Test binary
 $(BIN_DIR)/runTests: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ)
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
-		-L$(LIB_DIR) -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) \
-		-lRMNLib -lOCTypes -lSITypes -o $@
+		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
+		-lRMNLib -lSITypes -lOCTypes -o $@
 
 # AddressSanitizer test binary
 $(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ)
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
-		-L$(LIB_DIR) -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) \
-		-lRMNLib -lOCTypes -lSITypes -o $@
+		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
+		-lRMNLib -lSITypes -lOCTypes -o $@
 
 test: $(BIN_DIR)/runTests
 	$<
