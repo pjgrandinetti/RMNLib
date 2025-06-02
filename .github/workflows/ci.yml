@@ -26,12 +26,10 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           mkdir -p third_party
-          curl -L -o third_party/libOCTypes-headers.zip https://github.com/example/OCTypes/releases/latest/download/libOCTypes-headers.zip || { echo "Failed to download libOCTypes-headers.zip"; exit 1; }
-          curl -L -o third_party/libSITypes-headers.zip https://github.com/example/SITypes/releases/latest/download/libSITypes-headers.zip || { echo "Failed to download libSITypes-headers.zip"; exit 1; }
-          if [ ! -s third_party/libOCTypes-headers.zip ]; then echo "libOCTypes-headers.zip is empty or missing"; exit 1; fi
-          if [ ! -s third_party/libSITypes-headers.zip ]; then echo "libSITypes-headers.zip is empty or missing"; exit 1; fi
-          unzip -o third_party/libOCTypes-headers.zip -d third_party/OCTypes || { echo "Failed to unzip libOCTypes-headers.zip"; exit 1; }
-          unzip -o third_party/libSITypes-headers.zip -d third_party/SITypes || { echo "Failed to unzip libSITypes-headers.zip"; exit 1; }
+          curl -L -o third_party/libOCTypes-headers.zip https://github.com/example/OCTypes/releases/latest/download/libOCTypes-headers.zip
+          curl -L -o third_party/libSITypes-headers.zip https://github.com/example/SITypes/releases/latest/download/libSITypes-headers.zip
+          unzip -o third_party/libOCTypes-headers.zip -d third_party/OCTypes
+          unzip -o third_party/libSITypes-headers.zip -d third_party/SITypes
 
       - name: Build & test on Linux/macOS
         if: runner.os != 'Windows'
