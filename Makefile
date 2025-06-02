@@ -97,7 +97,7 @@ INSTALL_INC_DIR := $(INSTALL_DIR)/include/RMNLib
 
 all: dirs octypes sitypes prepare $(LIB_NAME)
 
-dirs:
+dirs: octypes
 	$(MKDIR_P) $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR)
 
 # === Third-party dependencies ===
