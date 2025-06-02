@@ -22,21 +22,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Download and prepare third-party libraries
-        if: runner.os != 'Windows'
-        run: |
-          mkdir -p third_party
-          curl -L -o third_party/libOCTypes-headers.zip https://github.com/example/OCTypes/releases/latest/download/libOCTypes-headers.zip
-          curl -L -o third_party/libSITypes-headers.zip https://github.com/example/SITypes/releases/latest/download/libSITypes-headers.zip
-          unzip -o third_party/libOCTypes-headers.zip -d third_party/OCTypes
-          unzip -o third_party/libSITypes-headers.zip -d third_party/SITypes
-
       - name: Build & test on Linux/macOS
         if: runner.os != 'Windows'
         run: |
           make clean
-          make all          # Ensures third-party headers and libs are prepared
-          make test-asan
+          make all          # Automatically downloads and extracts deps
+          make test-asan    # Also builds the AddressSanitizer variant
           cp lib/libRMNLib.a libRMNLib.a
 
       - name: Set up MSYS2 & MinGW (Windows)
@@ -69,7 +60,6 @@ jobs:
           name: libRMNLib-${{ matrix.os }}
           path: libRMNLib.a
 
-      # Package & upload public headers on Ubuntu only
       - name: Package public headers
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -127,4 +117,3 @@ jobs:
           files: packages/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
