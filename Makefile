@@ -13,22 +13,27 @@ YFLAGS  := -d
 RM      := rm -f
 MKDIR_P := mkdir -p
 
-SRC_DIR        := src
-TEST_SRC_DIR   := test
-BUILD_DIR      := build
-OBJ_DIR        := $(BUILD_DIR)/obj
-GEN_DIR        := $(BUILD_DIR)/gen
-BIN_DIR        := $(BUILD_DIR)/bin
-
-# Third-party dependencies
+# Directories
+SRC_DIR         := src
+TEST_SRC_DIR    := test
+BUILD_DIR       := build
+OBJ_DIR         := $(BUILD_DIR)/obj
+GEN_DIR         := $(BUILD_DIR)/gen
+BIN_DIR         := $(BUILD_DIR)/bin
 THIRD_PARTY_DIR := third_party
 OCTYPES_DIR     := $(THIRD_PARTY_DIR)/OCTypes
 SITYPES_DIR     := $(THIRD_PARTY_DIR)/SITypes
-OCT_INCLUDE     := $(OCTYPES_DIR)/include
-OCT_LIBDIR      := $(OCTYPES_DIR)/lib
-SIT_INCLUDE     := $(SITYPES_DIR)/include
-SIT_LIBDIR      := $(SITYPES_DIR)/lib
 
+# Include and library paths
+OCT_INCLUDE := $(OCTYPES_DIR)/include
+OCT_LIBDIR  := $(OCTYPES_DIR)/lib
+SIT_INCLUDE := $(SITYPES_DIR)/include
+SIT_LIBDIR  := $(SITYPES_DIR)/lib
+
+# All required directories
+REQUIRED_DIRS := $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(THIRD_PARTY_DIR)
+
+# Flags
 CPPFLAGS := -I. -I$(SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
 CFLAGS   := -O3 -Wall -Wextra \
              -Wno-sign-compare -Wno-unused-parameter \
@@ -36,7 +41,7 @@ CFLAGS   := -O3 -Wall -Wextra \
              -MMD -MP
 CFLAGS_DEBUG := -O0 -g -Wall -Wextra -Werror -MMD -MP
 
-# OS-specific linking
+# OS-specific library ZIP selection
 UNAME_S := $(shell uname -s)
 ARCH := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
@@ -55,17 +60,21 @@ else ifneq ($(findstring MINGW,$(UNAME_S)),)
   SIT_LIB_BIN := libSITypes-libSITypes-windows-latest.zip
 endif
 
+# Archives
 OCT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(OCT_LIB_BIN)
 OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
 SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
 SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
-.PHONY: all dirs octypes sitypes prepare clean test
+.PHONY: all dirs clean prepare octypes sitypes test test-asan
 
 all: dirs octypes sitypes prepare libRMNLib.a
 
-dirs:
-	$(MKDIR_P) $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR)
+# Create all necessary directories
+dirs: $(REQUIRED_DIRS)
+
+$(REQUIRED_DIRS):
+	$(MKDIR_P) $@
 
 # Define object files
 STATIC_SRC := $(wildcard $(SRC_DIR)/*.c)
@@ -123,10 +132,11 @@ $(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@unzip -q $< -d $(SIT_INCLUDE)
 	@mv $(SIT_INCLUDE)/*.h $(SIT_INCLUDE)/SITypes/ 2>/dev/null || true
 
+# Stub for generated files
 prepare:
 	@echo "Preparing generated files"
 
-# Library
+# Build static library
 libRMNLib.a: $(OBJ)
 	$(AR) rcs $@ $^
 
