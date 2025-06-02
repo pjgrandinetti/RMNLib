@@ -4,10 +4,14 @@
 #include <fcntl.h>
 #include "RMNLibrary.h"
 
-void test_RMNDatum(void) {
+void test_RMNDatum_NULL_cases(void) {
     // Redirect stderr to hide expected warnings
     int saved_err = dup(fileno(stderr));
     FILE *nullf = fopen("/dev/null", "w");
+    if (!nullf) {
+        perror("Failed to open /dev/null");
+        return;
+    }
     dup2(fileno(nullf), fileno(stderr));
 
     // NULL-case tests
@@ -31,21 +35,50 @@ void test_RMNDatum(void) {
     fclose(nullf);
 
     printf("RMNDatum NULL-case tests passed.\n");
+}
 
+void test_RMNDatum_functional(void) {
     // Functional tests
     SIScalarRef value = SIScalarCreateWithDouble(42.0, SIUnitDimensionlessAndUnderived());
+    if (!value) {
+        fprintf(stderr, "Failed to create SIScalar value.\n");
+        return;
+    }
+
     OCMutableArrayRef coords = OCArrayCreateMutable(2, &kOCTypeArrayCallBacks);
+    if (!coords) {
+        fprintf(stderr, "Failed to create coordinates array.\n");
+        OCRelease(value);
+        return;
+    }
+
     SIScalarRef c0 = SIScalarCreateWithDouble(1.1, SIUnitDimensionlessAndUnderived());
     SIScalarRef c1 = SIScalarCreateWithDouble(2.2, SIUnitDimensionlessAndUnderived());
+    if (!c0 || !c1) {
+        fprintf(stderr, "Failed to create coordinate scalars.\n");
+        OCRelease(value);
+        OCRelease(coords);
+        return;
+    }
+
     OCArrayAppendValue(coords, c0);
     OCArrayAppendValue(coords, c1);
 
     RMNDatumRef datum = RMNDatumCreate(value, coords, 1, 2, 3);
-    assert(datum != NULL);
+    if (!datum) {
+        fprintf(stderr, "Failed to create RMNDatum.\n");
+        OCRelease(value);
+        OCRelease(coords);
+        OCRelease(c0);
+        OCRelease(c1);
+        return;
+    }
+
     assert(RMNDatumGetDependentVariableIndex(datum) == 1);
     assert(RMNDatumGetComponentIndex(datum) == 2);
     assert(RMNDatumGetMemOffset(datum) == 3);
     assert(RMNDatumCoordinatesCount(datum) == 2);
+
     SIScalarRef fetched = RMNDatumGetCoordinateAtIndex(datum, 1);
     assert(fetched != NULL && SIScalarGetValue(fetched).doubleValue == 2.2);
 

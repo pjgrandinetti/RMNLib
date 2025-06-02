@@ -15,7 +15,7 @@ MKDIR_P := mkdir -p
 
 # Directories
 SRC_DIR         := src
-TEST_SRC_DIR    := test
+TEST_SRC_DIR    := tests
 BUILD_DIR       := build
 OBJ_DIR         := $(BUILD_DIR)/obj
 GEN_DIR         := $(BUILD_DIR)/gen

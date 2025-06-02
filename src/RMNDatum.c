@@ -48,6 +48,7 @@ static void __RMNDatumFinalize(const void * theType)
     RMNDatumRef theDatum = (RMNDatumRef) theType;
     if(theDatum->unit) OCRelease(theDatum->unit);
     free((void *)theDatum);
+    theDatum = NULL; // Set to NULL to avoid dangling pointer
 }
 
 static OCStringRef __RMNDatumCopyFormattingDescription(OCTypeRef theType)
