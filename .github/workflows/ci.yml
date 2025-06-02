@@ -26,9 +26,9 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           make clean
-          make all          # Automatically downloads and extracts deps
-          make test-asan    # Also builds the AddressSanitizer variant
-          cp lib/libRMNLib.a libRMNLib.a
+          make all
+          make test-asan
+          cp build/lib/libRMNLib.a libRMNLib-${{ matrix.os }}.a
 
       - name: Set up MSYS2 & MinGW (Windows)
         if: runner.os == 'Windows'
@@ -52,13 +52,13 @@ jobs:
                        -Wno-sign-compare -Wno-unused-parameter \
                        -Wno-missing-field-initializers" \
                LEX=flex YACC="bison -y"
-          cp lib/libRMNLib.a libRMNLib.a
+          cp build/lib/libRMNLib.a libRMNLib-${{ matrix.os }}.a
 
       - name: Upload library artifact
         uses: actions/upload-artifact@v4
         with:
           name: libRMNLib-${{ matrix.os }}
-          path: libRMNLib.a
+          path: libRMNLib-${{ matrix.os }}.a
 
       - name: Package public headers
         if: matrix.os == 'ubuntu-latest'
@@ -94,7 +94,7 @@ jobs:
         run: |
           mkdir -p packages
           for osdir in artifacts/*; do
-            lib="${osdir}/libRMNLib.a"
+            lib="${osdir}/libRMNLib-$(basename $osdir).a"
             if [ ! -f "$lib" ]; then
               echo "Skipping $osdir (no library to package)"
               continue
@@ -103,9 +103,9 @@ jobs:
             zipfile="packages/libRMNLib-${os}.zip"
 
             if [[ "$os" == windows-latest ]]; then
-              pwsh -Command "Compress-Archive -Path '${lib}' -DestinationPath '${zipfile}'"
+              pwsh -Command "Compress-Archive -Path '$lib' -DestinationPath '$zipfile'"
             else
-              zip -j "${zipfile}" "${lib}"
+              zip -j "$zipfile" "$lib"
             fi
           done
 

@@ -1,4 +1,4 @@
-# Makefile for RMNLib static library (modern build layout with OCTypes and SITypes dependencies)
+# Makefile for RMNLib with best-practice build structure (output in build/lib)
 
 .DEFAULT_GOAL := all
 .SUFFIXES:
@@ -20,6 +20,7 @@ BUILD_DIR       := build
 OBJ_DIR         := $(BUILD_DIR)/obj
 GEN_DIR         := $(BUILD_DIR)/gen
 BIN_DIR         := $(BUILD_DIR)/bin
+LIB_DIR         := $(BUILD_DIR)/lib
 THIRD_PARTY_DIR := third_party
 OCTYPES_DIR     := $(THIRD_PARTY_DIR)/OCTypes
 SITYPES_DIR     := $(THIRD_PARTY_DIR)/SITypes
@@ -31,7 +32,7 @@ SIT_INCLUDE := $(SITYPES_DIR)/include
 SIT_LIBDIR  := $(SITYPES_DIR)/lib
 
 # All required directories
-REQUIRED_DIRS := $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(THIRD_PARTY_DIR)
+REQUIRED_DIRS := $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(LIB_DIR) $(THIRD_PARTY_DIR)
 
 # Flags
 CPPFLAGS := -I. -I$(SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
@@ -68,9 +69,8 @@ SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
 .PHONY: all dirs clean prepare octypes sitypes test test-asan
 
-all: dirs octypes sitypes prepare libRMNLib.a
+all: dirs octypes sitypes prepare $(LIB_DIR)/libRMNLib.a
 
-# Create all necessary directories
 dirs: $(REQUIRED_DIRS)
 
 $(REQUIRED_DIRS):
@@ -132,43 +132,38 @@ $(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@unzip -q $< -d $(SIT_INCLUDE)
 	@mv $(SIT_INCLUDE)/*.h $(SIT_INCLUDE)/SITypes/ 2>/dev/null || true
 
-# Stub for generated files
 prepare:
 	@echo "Preparing generated files"
 
 # Build static library
-libRMNLib.a: $(OBJ)
+$(LIB_DIR)/libRMNLib.a: $(OBJ)
 	$(AR) rcs $@ $^
 
 # Test sources and objects
 TEST_SRC := $(wildcard $(TEST_SRC_DIR)/*.c)
 TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(TEST_SRC))
 
-# Pattern rule for compiling test object files
 $(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 # Test binary
-$(BIN_DIR)/runTests: libRMNLib.a $(TEST_OBJ)
+$(BIN_DIR)/runTests: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ)
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
-		-L. -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) \
+		-L$(LIB_DIR) -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) \
 		-lRMNLib -lOCTypes -lSITypes -o $@
 
 # AddressSanitizer test binary
-$(BIN_DIR)/runTests.asan: libRMNLib.a $(TEST_OBJ)
+$(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ)
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
-		-L. -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) \
+		-L$(LIB_DIR) -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) \
 		-lRMNLib -lOCTypes -lSITypes -o $@
 
-# Run tests
 test: $(BIN_DIR)/runTests
 	$<
 
-# Run AddressSanitizer tests
 test-asan: $(BIN_DIR)/runTests.asan
 	$<
 
-# Clean
 clean:
 	$(RM) -r $(BUILD_DIR) libRMNLib.a
 	$(RM) -rf $(THIRD_PARTY_DIR)/OCTypes $(THIRD_PARTY_DIR)/SITypes
