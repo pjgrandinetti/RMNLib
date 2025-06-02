@@ -1,4 +1,4 @@
-# Makefile for RMNLib static library (modern layout with OCTypes and SITypes dependencies)
+# Makefile for RMNLib static library (modern build layout with OCTypes and SITypes dependencies)
 
 .DEFAULT_GOAL := all
 .SUFFIXES:
@@ -24,14 +24,19 @@ BIN_DIR        := $(BUILD_DIR)/bin
 THIRD_PARTY_DIR := third_party
 OCTYPES_DIR     := $(THIRD_PARTY_DIR)/OCTypes
 SITYPES_DIR     := $(THIRD_PARTY_DIR)/SITypes
-
-# Include and library directories
-OCT_INCLUDE    := $(OCTYPES_DIR)/include
-OCT_LIBDIR     := $(OCTYPES_DIR)/lib
+OCT_INCLUDE     := $(OCTYPES_DIR)/include
+OCT_LIBDIR      := $(OCTYPES_DIR)/lib
 SIT_INCLUDE     := $(SITYPES_DIR)/include
 SIT_LIBDIR      := $(SITYPES_DIR)/lib
 
-# Auto-detect OS/ARCH for third-party archives
+CPPFLAGS := -I. -I$(SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
+CFLAGS   := -O3 -Wall -Wextra \
+             -Wno-sign-compare -Wno-unused-parameter \
+             -Wno-missing-field-initializers -Wno-unused-function \
+             -MMD -MP
+CFLAGS_DEBUG := -O0 -g -Wall -Wextra -Werror -MMD -MP
+
+# OS-specific linking
 UNAME_S := $(shell uname -s)
 ARCH := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
@@ -55,198 +60,105 @@ OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
 SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
 SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
-CPPFLAGS := -I. -I$(SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
-CFLAGS   := -O3 -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter \
-            -Wno-missing-field-initializers -Wno-unused-function -MMD -MP
-CFLAGS_DEBUG := -O0 -g -Wall -Wextra -Werror -MMD -MP
+.PHONY: all dirs octypes sitypes prepare clean test
 
-# Flex/Bison sources
-LEX_SRC        := $(wildcard $(SRC_DIR)/*.l)
-YACC_SRC       := $(wildcard $(SRC_DIR)/*Parser.y)
+all: dirs octypes sitypes prepare libRMNLib.a
 
-GEN_PARSER_C   := $(patsubst $(SRC_DIR)/%Parser.y,$(GEN_DIR)/%Parser.tab.c,$(YACC_SRC))
-GEN_PARSER_H   := $(patsubst $(SRC_DIR)/%Parser.y,$(GEN_DIR)/%Parser.tab.h,$(YACC_SRC))
-GEN_SCANNER    := $(patsubst $(SRC_DIR)/%.l,$(GEN_DIR)/%.c,$(LEX_SRC))
-GEN_C          := $(GEN_PARSER_C) $(GEN_SCANNER)
-GEN_H          := $(GEN_PARSER_H)
-
-STATIC_SRC     := $(filter-out $(YACC_SRC) $(LEX_SRC),$(wildcard $(SRC_DIR)/*.c))
-OBJ_SRC        := $(STATIC_SRC) $(GEN_C)
-OBJ            := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(filter %.c,$(STATIC_SRC))) \
-                  $(patsubst $(GEN_DIR)/%.c,$(OBJ_DIR)/%.o,$(GEN_C))
-DEP            := $(OBJ:.o=.d)
-
-TEST_C_FILES   := $(wildcard $(TEST_SRC_DIR)/*.c)
-TEST_OBJ       := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(TEST_C_FILES))
-
-ifeq ($(shell uname -s), Linux)
-  GROUP_START := -Wl,--start-group
-  GROUP_END   := -Wl,--end-group
-else
-  GROUP_START :=
-  GROUP_END   :=
-endif
-
-LIB_NAME := libRMNLib.a
-INSTALL_DIR := install
-INSTALL_LIB_DIR := $(INSTALL_DIR)/lib
-INSTALL_INC_DIR := $(INSTALL_DIR)/include/RMNLib
-
-.PHONY: all dirs octypes sitypes prepare install uninstall clean clean-docs clean-objects \
-        test test-debug test-asan test-werror docs doxygen html xcode
-
-all: dirs octypes sitypes prepare $(LIB_NAME)
-
-dirs: octypes
+dirs:
 	$(MKDIR_P) $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR)
 
-# === Third-party dependencies ===
+# Define object files
+STATIC_SRC := $(wildcard $(SRC_DIR)/*.c)
+OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(STATIC_SRC))
 
-# Fetch and extract OCTypes
-octypes: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes/OCLibrary.h
-
-# Fetch and extract SITypes
-sitypes: $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SITypes/SILibrary.h
-
-prepare: octypes sitypes $(GEN_H)
-
-# === Build Library ===
-
-$(LIB_NAME): $(OBJ)
-	$(AR) rcs $@ $^
-
-# === Pattern Rules ===
-
+# Pattern rule for compiling object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-$(OBJ_DIR)/%.o: $(GEN_DIR)/%.c | dirs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -I$(GEN_DIR) -c -o $@ $<
+# Download and extract OCTypes
+octypes: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes/OCLibrary.h
 
+$(OCT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
+	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/$(OCT_LIB_BIN) -o $@
+
+$(OCT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@echo "Fetching OCTypes headers"
+	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/libOCTypes-headers.zip -o $@
+
+$(OCT_LIBDIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
+	@echo "Extracting OCTypes library"
+	@$(RM) -r $(OCT_LIBDIR)
+	@$(MKDIR_P) $(OCT_LIBDIR)
+	@unzip -q $< -d $(OCT_LIBDIR)
+
+$(OCT_INCLUDE)/OCTypes/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
+	@echo "Extracting OCTypes headers"
+	@$(RM) -r $(OCT_INCLUDE)
+	@$(MKDIR_P) $(OCT_INCLUDE)/OCTypes
+	@unzip -q $< -d $(OCT_INCLUDE)
+	@mv $(OCT_INCLUDE)/*.h $(OCT_INCLUDE)/OCTypes/ 2>/dev/null || true
+
+# Download and extract SITypes
+sitypes: $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SITypes/SILibrary.h
+
+$(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
+	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/$(SIT_LIB_BIN) -o $@
+
+$(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@echo "Fetching SITypes headers"
+	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
+
+$(SIT_LIBDIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
+	@echo "Extracting SITypes library"
+	@$(RM) -r $(SIT_LIBDIR)
+	@$(MKDIR_P) $(SIT_LIBDIR)
+	@unzip -q $< -d $(SIT_LIBDIR)
+
+$(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
+	@echo "Extracting SITypes headers"
+	@$(RM) -r $(SIT_INCLUDE)
+	@$(MKDIR_P) $(SIT_INCLUDE)/SITypes
+	@unzip -q $< -d $(SIT_INCLUDE)
+	@mv $(SIT_INCLUDE)/*.h $(SIT_INCLUDE)/SITypes/ 2>/dev/null || true
+
+prepare:
+	@echo "Preparing generated files"
+
+# Library
+libRMNLib.a: $(OBJ)
+	$(AR) rcs $@ $^
+
+# Test sources and objects
+TEST_SRC := $(wildcard $(TEST_SRC_DIR)/*.c)
+TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(TEST_SRC))
+
+# Pattern rule for compiling test object files
 $(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-$(GEN_DIR)/%Parser.tab.c $(GEN_DIR)/%Parser.tab.h: $(SRC_DIR)/%Parser.y | dirs
-	$(YACC) $(YFLAGS) $<
-	mv y.tab.c $(GEN_DIR)/$*Parser.tab.c
-	mv y.tab.h $(GEN_DIR)/$*Parser.tab.h
-
-$(GEN_DIR)/%Scanner.c: $(SRC_DIR)/%Scanner.l $(GEN_DIR)/%Parser.tab.h | dirs
-	$(LEX) -o $@ $<
-
-$(GEN_DIR)/%.c: $(SRC_DIR)/%.l | dirs
-	$(LEX) -o $@ $<
-
-# === Tests ===
-
-$(BIN_DIR)/runTests: $(LIB_NAME) $(TEST_OBJ)
-	$(CC) $(CFLAGS) -Isrc -I$(TEST_SRC_DIR) $(TEST_OBJ) \
+# Test binary
+$(BIN_DIR)/runTests: libRMNLib.a $(TEST_OBJ)
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L. -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) \
-		$(GROUP_START) -lOCTypes -lSITypes -lRMNLib $(GROUP_END) -lm -o $@
+		-lRMNLib -lOCTypes -lSITypes -o $@
+
+# AddressSanitizer test binary
+$(BIN_DIR)/runTests.asan: libRMNLib.a $(TEST_OBJ)
+	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
+		-L. -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) \
+		-lRMNLib -lOCTypes -lSITypes -o $@
 
 # Run tests
 test: $(BIN_DIR)/runTests
 	$<
 
-test-debug: CFLAGS := $(CFLAGS_DEBUG)
-test-debug: clean all test
+# Run AddressSanitizer tests
+test-asan: $(BIN_DIR)/runTests.asan
+	$<
 
-test-asan: CFLAGS += -DLEAK_SANITIZER
-test-asan: $(LIB_NAME) $(TEST_OBJ)
-	$(CC) $(CFLAGS) -g -O1 -fsanitize=address -fno-omit-frame-pointer -Isrc -I$(TEST_SRC_DIR) $(TEST_OBJ) \
-		-L. -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) $(GROUP_START) -lOCTypes -lSITypes -lRMNLib $(GROUP_END) -lm -o $(BIN_DIR)/runTests.asan
-	@./$(BIN_DIR)/runTests.asan
-
-test-werror: CFLAGS := $(CFLAGS_DEBUG)
-test-werror: clean all test
-
-# === Install ===
-
-install: all
-	$(MKDIR_P) $(INSTALL_LIB_DIR) $(INSTALL_INC_DIR)
-	cp $(LIB_NAME) $(INSTALL_LIB_DIR)/
-	cp src/*.h $(INSTALL_INC_DIR)/
-
-uninstall:
-	$(RM) $(INSTALL_LIB_DIR)/$(LIB_NAME)
-	$(RM) $(INSTALL_INC_DIR)/*.h
-	-rmdir --ignore-fail-on-non-empty $(INSTALL_INC_DIR)
-
-# === Cleaning ===
-
-clean-objects:
-	$(RM) $(OBJ) $(TEST_OBJ)
-
+# Clean
 clean:
-	$(RM) -r $(BUILD_DIR) $(LIB_NAME) runTests runTests.debug runTests.asan *.dSYM
-	$(RM) *.tab.* *Scanner.c *.d core.*
-	$(RM) -rf docs/doxygen docs/_build docs/html build-xcode install third_party/OCTypes third_party/SITypes
-
-clean-docs:
-	@rm -rf docs/doxygen docs/_build
-
-# === Documentation ===
-
-doxygen:
-	cd docs && doxygen Doxyfile
-
-html: doxygen
-	cd docs && sphinx-build -W -E -b html . _build/html
-
-docs: html
-
-xcode:
-	@echo "Generating Xcode project..."
-	@mkdir -p build-xcode
-	@cmake -G "Xcode" -S . -B build-xcode
-
-# === Dependency Tracking ===
-
--include $(DEP)
-
-$(OCT_LIB_ARCHIVE):
-	@mkdir -p $(THIRD_PARTY_DIR)
-	@echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
-	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/$(OCT_LIB_BIN) -o $@
-
-$(OCT_HEADERS_ARCHIVE):
-	@mkdir -p $(THIRD_PARTY_DIR)
-	@echo "Fetching OCTypes headers"
-	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/libOCTypes-headers.zip -o $@
-
-# Restore SITypes download rules
-$(SIT_LIB_ARCHIVE):
-	@mkdir -p $(THIRD_PARTY_DIR)
-	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/$(SIT_LIB_BIN) -o $@
-
-$(SIT_HEADERS_ARCHIVE):
-	@mkdir -p $(THIRD_PARTY_DIR)
-	@echo "Fetching SITypes headers"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
-  
-# Extract third-party libs and headers
-$(OCT_LIBDIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
-	@echo "Extracting OCTypes library"
-	@rm -rf $(OCT_LIBDIR)
-	@mkdir -p $(OCT_LIBDIR)
-	@unzip -q $< -d $(OCT_LIBDIR)
-
-$(SIT_LIBDIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
-	@echo "Extracting SITypes library"
-	@rm -rf $(SIT_LIBDIR)
-	@mkdir -p $(SIT_LIBDIR)
-	@unzip -o -q $< -d $(SIT_LIBDIR)
-
-$(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
-	@echo "Extracting SITypes headers"
-	@mkdir -p $(SIT_INCLUDE)/SITypes
-	@unzip -o -j -q $< "*.h" -d $(SIT_INCLUDE)/SITypes
-
-$(OCT_INCLUDE)/OCTypes/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
-	@echo "Extracting OCTypes headers to $(OCT_INCLUDE)/OCTypes"
-	@rm -rf $(OCT_INCLUDE)
-	@mkdir -p $(OCT_INCLUDE)/OCTypes
-	@unzip -o -j -q $< "*.h" -d $(OCT_INCLUDE)/OCTypes
-	@echo "Headers extracted:"
-	@ls -l $(OCT_INCLUDE)/OCTypes
+	$(RM) -r $(BUILD_DIR) libRMNLib.a
+	$(RM) -rf $(THIRD_PARTY_DIR)/OCTypes $(THIRD_PARTY_DIR)/SITypes

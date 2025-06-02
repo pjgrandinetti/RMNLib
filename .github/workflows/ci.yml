@@ -22,10 +22,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Download and prepare third-party libraries
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p third_party
+          curl -L -o third_party/libOCTypes-headers.zip https://github.com/example/OCTypes/releases/latest/download/libOCTypes-headers.zip
+          curl -L -o third_party/libSITypes-headers.zip https://github.com/example/SITypes/releases/latest/download/libSITypes-headers.zip
+          unzip -o third_party/libOCTypes-headers.zip -d third_party/OCTypes
+          unzip -o third_party/libSITypes-headers.zip -d third_party/SITypes
+
       - name: Build & test on Linux/macOS
         if: runner.os != 'Windows'
         run: |
           make clean
+          make all          # Ensures third-party headers and libs are prepared
           make test-asan
           cp lib/libRMNLib.a libRMNLib.a
 
@@ -41,7 +51,7 @@ jobs:
             flex
             bison
 
-      - name: Build on Windows
+      - name: Build & test on Windows (AddressSanitizer not supported)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
@@ -66,6 +76,7 @@ jobs:
           mkdir -p header-pkg/include
           cp src/*.h header-pkg/include/
           zip -j header-pkg/libRMNLib-headers.zip header-pkg/include/*.h
+
       - name: Upload headers artifact
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
@@ -84,7 +95,6 @@ jobs:
         with:
           path: artifacts
 
-      # Copy the header bundle into the packages folder
       - name: Copy header bundle
         run: |
           mkdir -p packages
@@ -117,3 +127,4 @@ jobs:
           files: packages/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
