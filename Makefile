@@ -91,11 +91,16 @@ $(OCT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching OCTypes headers"
 	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/libOCTypes-headers.zip -o $@
 
+# Extract OCTypes library
 $(OCT_LIBDIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
 	@echo "Extracting OCTypes library"
 	@$(RM) -r $(OCT_LIBDIR)
 	@$(MKDIR_P) $(OCT_LIBDIR)
-	@unzip -q $< -d $(OCT_LIBDIR)
+	ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
+		@powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(OCT_LIBDIR)'"
+	else
+		@unzip -q $< -d $(OCT_LIBDIR)
+	endif
 
 $(OCT_INCLUDE)/OCTypes/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
 	@echo "Extracting OCTypes headers"
@@ -115,11 +120,16 @@ $(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes headers"
 	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
 
+# Extract SITypes library
 $(SIT_LIBDIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
 	@echo "Extracting SITypes library"
 	@$(RM) -r $(SIT_LIBDIR)
 	@$(MKDIR_P) $(SIT_LIBDIR)
-	@unzip -q $< -d $(SIT_LIBDIR)
+	ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
+		@powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(SIT_LIBDIR)'"
+	else
+		@unzip -q $< -d $(SIT_LIBDIR)
+	endif
 
 $(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@echo "Extracting SITypes headers"
