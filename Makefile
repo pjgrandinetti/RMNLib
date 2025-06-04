@@ -44,7 +44,7 @@ CFLAGS_DEBUG := -O0 -g -Wall -Wextra -Werror -MMD -MP
 
 # OS-specific library ZIP selection
 UNAME_S := $(shell uname -s)
-ARCH := $(shell uname -m)
+ARCH    := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
   OCT_LIB_BIN := libOCTypes-libOCTypes-macos-latest.zip
   SIT_LIB_BIN := libSITypes-libSITypes-macos-latest.zip
@@ -79,10 +79,6 @@ $(REQUIRED_DIRS):
 # Define object files
 STATIC_SRC := $(wildcard $(SRC_DIR)/*.c)
 OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(STATIC_SRC))
-
-# Pattern rule for compiling object files
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 # Download and extract OCTypes
 octypes: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes/OCLibrary.h
@@ -143,17 +139,24 @@ $(LIB_DIR)/libRMNLib.a: $(OBJ)
 TEST_SRC := $(wildcard $(TEST_SRC_DIR)/*.c)
 TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(TEST_SRC))
 
+# 1) FIRST: compile anything coming from tests/*.c into build/obj/%.o
+#    This rule must appear before the “src” rule so that make does not 
+#    accidentally match the “src” pattern first.
 $(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-# Test binary
-$(BIN_DIR)/runTests: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ)
+# 2) THEN: compile anything coming from src/*.c into build/obj/%.o
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+# Test binary (Linux/macOS will now re‐fetch OCTypes/SITypes before linking)
+$(BIN_DIR)/runTests: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
 		-lRMNLib -lSITypes -lOCTypes -o $@
 
 # AddressSanitizer test binary
-$(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ)
+$(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
 		-lRMNLib -lSITypes -lOCTypes -o $@
@@ -167,3 +170,24 @@ test-asan: $(BIN_DIR)/runTests.asan
 clean:
 	$(RM) -r $(BUILD_DIR) libRMNLib.a
 	$(RM) -rf $(THIRD_PARTY_DIR)/OCTypes $(THIRD_PARTY_DIR)/SITypes
+
+#────────────────────────────────────────────────────────────────────────────
+# 10) Xcode support
+#────────────────────────────────────────────────────────────────────────────
+.PHONY: xcode xcode-open xcode-run
+xcode: clean dirs octypes sitypes
+	@echo "Generating Xcode project in build-xcode/..."
+	@mkdir -p build-xcode
+	@cmake -G "Xcode" -S . -B build-xcode
+	@echo "✅ Xcode project created: build-xcode/RMNLib.xcodeproj"
+
+xcode-open: xcode
+	@echo "Opening Xcode project..."
+	open build-xcode/RMNLib.xcodeproj
+
+xcode-run: xcode
+	@echo "Building in Xcode..."
+	xcodebuild -project build-xcode/RMNLib.xcodeproj \
+		-configuration Debug \
+		-destination 'platform=macOS' build | xcpretty || true
+

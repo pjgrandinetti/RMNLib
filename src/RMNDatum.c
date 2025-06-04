@@ -46,9 +46,16 @@ static void __RMNDatumFinalize(const void * theType)
 {
     if(NULL == theType) return;
     RMNDatumRef theDatum = (RMNDatumRef) theType;
-    if(theDatum->unit) OCRelease(theDatum->unit);
-    free((void *)theDatum);
-    theDatum = NULL; // Set to NULL to avoid dangling pointer
+    if (theDatum->unit) {
+        OCRelease(theDatum->unit);
+        // Cast away const to allow nulling the field
+        ((struct __RMNDatum *)theDatum)->unit = NULL;
+    }
+    if (theDatum->coordinates) {
+        OCRelease(theDatum->coordinates);
+        // Cast away const to allow nulling the field
+        ((struct __RMNDatum *)theDatum)->coordinates = NULL;
+    }
 }
 
 static OCStringRef __RMNDatumCopyFormattingDescription(OCTypeRef theType)
@@ -62,21 +69,18 @@ OCTypeID RMNDatumGetTypeID(void)
     return kRMNDatumID;
 }
 
-static struct __RMNDatum *RMNDatumAllocate()
+static struct __RMNDatum *RMNDatumAllocate(void)
 {
-    struct __RMNDatum *theDatum = malloc(sizeof(struct __RMNDatum));
-    if(NULL == theDatum) return NULL;
-    theDatum->_base.typeID = SIScalarGetTypeID();
-    theDatum->_base.static_instance = false; 
-    theDatum->_base.finalize = __RMNDatumFinalize;
-    theDatum->_base.equal = __RMNDatumEqual;
-    theDatum->_base.copyFormattingDesc = __RMNDatumCopyFormattingDescription;
-    theDatum->_base.retainCount = 0;
-    OCRetain(theDatum);
-
-    theDatum->unit = NULL;
-    theDatum->type = kSINumberFloat32Type;
-    return theDatum;
+    struct __RMNDatum *obj = OCTypeAlloc(struct __RMNDatum,
+                                         RMNDatumGetTypeID(),
+                                         __RMNDatumFinalize,
+                                         __RMNDatumEqual,
+                                         __RMNDatumCopyFormattingDescription);
+    obj->unit = NULL;
+    obj->type = kSINumberFloat32Type;
+    memset(&obj->value, 0, sizeof(obj->value));
+    
+    return obj;
 }
 
 
