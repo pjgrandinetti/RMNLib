@@ -3,7 +3,7 @@
 ![CI Status](https://github.com/pjgrandinetti/RMNLib/actions/workflows/ci.yml/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/RMNLib/badge/?version=latest)](https://RMNLib.readthedocs.io/en/latest/?badge=latest)
 
-A library for managing scalar quantities with coordinates in C.
+A library for multi-dimensional signal processing.
 
 ## Requirements
 

@@ -67,7 +67,7 @@ OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
 SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
 SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
-.PHONY: all dirs clean prepare octypes sitypes test test-asan
+.PHONY: all dirs clean prepare octypes sitypes test test-asan docs
 
 all: dirs octypes sitypes prepare $(LIB_DIR)/libRMNLib.a
 
@@ -208,3 +208,15 @@ xcode-run: xcode
 	xcodebuild -project build-xcode/RMNLib.xcodeproj \
 		-configuration Debug \
 		-destination 'platform=macOS' build | xcpretty || true
+
+#────────────────────────────────────────────────────────────────────────────
+# Documentation
+#────────────────────────────────────────────────────────────────────────────
+.PHONY: docs
+
+docs:
+	@echo "Generating Doxygen XML..."
+	@cd docs && doxygen Doxyfile
+	@echo "Building Sphinx HTML..."
+	@cd docs && sphinx-build -b html . _build/html
+	@echo "Documentation available at docs/_build/html"
