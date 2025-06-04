@@ -96,11 +96,11 @@ $(OCT_LIBDIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
 	@echo "Extracting OCTypes library"
 	@$(RM) -r $(OCT_LIBDIR)
 	@$(MKDIR_P) $(OCT_LIBDIR)
-	ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
-		@powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(OCT_LIBDIR)'"
-	else
-		@unzip -q $< -d $(OCT_LIBDIR)
-	endif
+	@if echo "$(UNAME_S)" | grep -qi mingw; then \
+	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(OCT_LIBDIR)'"; \
+	else \
+	    unzip -q "$<" -d "$(OCT_LIBDIR)"; \
+	fi
 
 $(OCT_INCLUDE)/OCTypes/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
 	@echo "Extracting OCTypes headers"
@@ -125,11 +125,11 @@ $(SIT_LIBDIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
 	@echo "Extracting SITypes library"
 	@$(RM) -r $(SIT_LIBDIR)
 	@$(MKDIR_P) $(SIT_LIBDIR)
-	ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
-		@powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(SIT_LIBDIR)'"
-	else
-		@unzip -q $< -d $(SIT_LIBDIR)
-	endif
+	@if echo "$(UNAME_S)" | grep -qi mingw; then \
+	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(SIT_LIBDIR)'"; \
+	else \
+	    unzip -q "$<" -d "$(SIT_LIBDIR)"; \
+	fi
 
 $(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@echo "Extracting SITypes headers"
