@@ -106,7 +106,11 @@ $(OCT_INCLUDE)/OCTypes/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
 	@echo "Extracting OCTypes headers"
 	@$(RM) -r $(OCT_INCLUDE)
 	@$(MKDIR_P) $(OCT_INCLUDE)/OCTypes
-	@unzip -q $< -d $(OCT_INCLUDE)
+	@if echo "$(UNAME_S)" | grep -qi mingw; then \
+	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(OCT_INCLUDE)'"; \
+	else \
+	    unzip -q "$<" -d "$(OCT_INCLUDE)"; \
+	fi
 	@mv $(OCT_INCLUDE)/*.h $(OCT_INCLUDE)/OCTypes/ 2>/dev/null || true
 
 # Download and extract SITypes
@@ -135,7 +139,11 @@ $(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@echo "Extracting SITypes headers"
 	@$(RM) -r $(SIT_INCLUDE)
 	@$(MKDIR_P) $(SIT_INCLUDE)/SITypes
-	@unzip -q $< -d $(SIT_INCLUDE)
+	@if echo "$(UNAME_S)" | grep -qi mingw; then \
+	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(SIT_INCLUDE)'"; \
+	else \
+	    unzip -q "$<" -d "$(SIT_INCLUDE)"; \
+	fi
 	@mv $(SIT_INCLUDE)/*.h $(SIT_INCLUDE)/SITypes/ 2>/dev/null || true
 
 prepare:
@@ -200,4 +208,3 @@ xcode-run: xcode
 	xcodebuild -project build-xcode/RMNLib.xcodeproj \
 		-configuration Debug \
 		-destination 'platform=macOS' build | xcpretty || true
-
