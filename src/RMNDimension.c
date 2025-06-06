@@ -15,33 +15,7 @@
 #include "RMNLibrary.h"
 
 // ============================================================================
-// MARK: - (1) Shared Utility Functions & Macros
-// ============================================================================
-
-// Initialize the three “base” fields.
-// Used by every allocator after OCTypeAlloc(…) has constructed the object.
-static void __RMNInitBaseFields(RMNDimensionRef dim) {
-    dim->label      = OCStringCreateWithCString("");
-    dim->description = OCStringCreateWithCString("");
-    dim->metaData    = OCDictionaryCreateMutable(0);
-}
-
-// A little macro to reduce boilerplate.  It allocates an object of type
-// “struct __<TypeName>”, registers it with its TypeID, installs the Finalizer & CopyFormatting,
-// then calls __RMNInitBaseFields() to set the label/description/metaData to default values.
-// Finally returns the newly allocated object.
-#define RMN_ALLOC_RETURN(TypeName) ({ \
-    TypeName##Ref obj = (TypeName##Ref)OCTypeAlloc(sizeof(struct __##TypeName), \
-        TypeName##GetTypeID(), \
-        __##TypeName##Finalize, \
-        NULL, \
-        __##TypeName##CopyFormattingDesc); \
-    __RMNInitBaseFields((struct __RMNDimension*)obj); \
-    obj; \
-})
-
-// ============================================================================
-// MARK: - (2) RMNDimension (Abstract Base)
+// MARK: - (1) RMNDimension (Abstract Base)
 // ============================================================================
 
 static OCTypeID kRMNDimensionID = _kOCNotATypeID;
@@ -54,6 +28,14 @@ struct __RMNDimension {
     OCDictionaryRef metaData;
 };
 
+// Initialize the three “base” fields.
+// Used by every allocator after OCTypeAlloc(…) has constructed the object.
+static void __RMNInitBaseFields(RMNDimensionRef dim) {
+    dim->label      = OCStringCreateWithCString("");
+    dim->description = OCStringCreateWithCString("");
+    dim->metaData    = OCDictionaryCreateMutable(0);
+}
+
 OCTypeID RMNDimensionGetTypeID(void) {
     if (kRMNDimensionID == _kOCNotATypeID)
         kRMNDimensionID = OCRegisterType("RMNDimension");
@@ -62,6 +44,7 @@ OCTypeID RMNDimensionGetTypeID(void) {
 
 // Finalizer: release label/description/metaData.
 static void __RMNDimensionFinalize(const void *obj) {
+    RMNDimensionRef dim = (RMNDimensionRef)obj;
     if (!dim) return;
     OCRelease(dim->label); dim->label = NULL;
     OCRelease(dim->description); dim->description = NULL;
@@ -141,9 +124,15 @@ static OCStringRef __RMNLabeledDimensionCopyFormattingDesc(OCTypeRef cf) {
     return OCStringCreateWithCString("<RMNLabeledDimension>");
 }
 
-// Allocator: use RMN_ALLOC_RETURN macro, then initialize “labels” to an empty mutable array.
 static RMNLabeledDimensionRef RMNLabeledDimensionAllocate(void) {
-    RMNLabeledDimensionRef obj = RMN_ALLOC_RETURN(RMNLabeledDimension);
+    RMNLabeledDimensionRef obj = OCTypeAlloc(
+        struct __RMNLabeledDimension,
+        RMNLabeledDimensionGetTypeID(),
+        __RMNLabeledDimensionFinalize,
+        NULL,
+        __RMNLabeledDimensionCopyFormattingDesc
+    );
+    __RMNInitBaseFields((RMNDimensionRef)obj);
     obj->labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     return obj;
 }
@@ -243,9 +232,15 @@ static void __RMNInitQuantitativeFields(RMNQuantitativeDimensionRef dim) {
     dim->reciprocal      = NULL;
 }
 
-// Allocator for RMNQuantitativeDimension: use RMN_ALLOC_RETURN, then init the quantitative fields
 static RMNQuantitativeDimensionRef RMNQuantitativeDimensionAllocate(void) {
-    RMNQuantitativeDimensionRef obj = RMN_ALLOC_RETURN(RMNQuantitativeDimension);
+    RMNQuantitativeDimensionRef obj = OCTypeAlloc(
+        struct __RMNQuantitativeDimension,
+        RMNQuantitativeDimensionGetTypeID(),
+        __RMNQuantitativeDimensionFinalize,
+        NULL,
+        __RMNQuantitativeDimensionCopyFormattingDesc
+    );
+    __RMNInitBaseFields((RMNDimensionRef)obj);
     __RMNInitQuantitativeFields(obj);
     return obj;
 }
@@ -313,7 +308,7 @@ RMNQuantitativeDimensionRef RMNQuantitativeDimensionGetReciprocal(RMNQuantitativ
 void RMNQuantitativeDimensionSetReciprocal(RMNQuantitativeDimensionRef dim, RMNQuantitativeDimensionRef r) {
     if (!dim) return;
     OCRelease(dim->reciprocal);
-    dim->reciprocal = r ? OCRetain(r) : NULL;
+    dim->reciprocal = r ? (RMNQuantitativeDimensionRef)OCRetain(r) : NULL;
 }
 
 // ============================================================================
@@ -364,7 +359,14 @@ static OCStringRef __RMNMonotonicDimensionCopyFormattingDesc(OCTypeRef cf) {
 }
 
 static RMNMonotonicDimensionRef RMNMonotonicDimensionAllocate(void) {
-    RMNMonotonicDimensionRef obj = RMN_ALLOC_RETURN(RMNMonotonicDimension);
+    RMNMonotonicDimensionRef obj = OCTypeAlloc(
+        struct __RMNMonotonicDimension,
+        RMNMonotonicDimensionGetTypeID(),
+        __RMNMonotonicDimensionFinalize,
+        NULL,
+        __RMNMonotonicDimensionCopyFormattingDesc
+    );
+    __RMNInitBaseFields((RMNDimensionRef)obj);
     __RMNInitQuantitativeFields((RMNQuantitativeDimensionRef)obj);
     obj->coordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     return obj;
@@ -447,12 +449,19 @@ static OCStringRef __RMNLinearDimensionCopyFormattingDesc(OCTypeRef cf) {
 }
 
 static RMNLinearDimensionRef RMNLinearDimensionAllocate(void) {
-    RMNLinearDimensionRef obj = RMN_ALLOC_RETURN(RMNLinearDimension);
+    RMNLinearDimensionRef obj = OCTypeAlloc(
+        struct __RMNLinearDimension,
+        RMNLinearDimensionGetTypeID(),
+        __RMNLinearDimensionFinalize,
+        NULL,
+        __RMNLinearDimensionCopyFormattingDesc
+    );
+    __RMNInitBaseFields((RMNDimensionRef)obj);
     __RMNInitQuantitativeFields((RMNQuantitativeDimensionRef)obj);
-    obj->count     = 0;
-    obj->increment = NULL;
+    obj->count            = 0;
+    obj->increment        = NULL;
     obj->inverseIncrement = NULL;
-    obj->fft       = false;
+    obj->fft              = false;
     return obj;
 }
 
@@ -473,8 +482,6 @@ RMNLinearDimensionRef RMNLinearDimensionCreate(OCIndex count,
     dim->referenceOffset = referenceOffset ? OCRetain(referenceOffset) : NULL;
     dim->period         = period ? OCRetain(period) : NULL;
     dim->quantityName   = quantityName ? OCRetain(quantityName) : NULL;
-    SIScalarRef inv     = SIScalarCreateInverse(increment);
-    dim->inverseIncrement = inv ? inv : NULL;
     return dim;
 }
 

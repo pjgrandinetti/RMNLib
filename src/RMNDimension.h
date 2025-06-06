@@ -1,3 +1,9 @@
+#pragma once
+#ifndef RMNDIMENSIONS_H
+#define RMNDIMENSIONS_H
+
+#include "RMNLibrary.h"
+
 /**
  * @file RMNDimensions.h
  * @brief Public interface for RMNDimension hierarchy (labeled, quantitative, monotonic, linear).
@@ -7,16 +13,6 @@
  * Doxygen‐compatible for integration with Read the Docs via Sphinx and Breathe.
  */
 
-#ifndef RMNDIMENSIONS_H
-#define RMNDIMENSIONS_H
-
-#include "OCLibrary.h"      /**< For OCTypeID, OCRelease, OCRetain, OCTypeRef, etc. */
-#include "OCString.h"       /**< For OCStringRef */
-#include "OCDictionary.h"   /**< For OCDictionaryRef */
-#include "OCArray.h"        /**< For OCArrayRef, OCMutableArrayRef */
-#include "SIScalar.h"       /**< For SIScalarRef */
-#include <stdbool.h>        /**< For bool */
-#include <stddef.h>         /**< For NULL */
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,20 +38,22 @@ typedef enum dimensionScaling {
     kDimensionScalingNMR    /**< NMR‐specific scaling applied. */
 } dimensionScaling;
 
-/** Opaque base type for any RMNDimension. */
-typedef struct __RMNDimension *                   RMNDimensionRef;
+/**
+ * Opaque reference to an RMNDimension object (must include struct definition before use).
+ */
+typedef struct __RMNDimension * RMNDimensionRef;
 
 /** Opaque type for a labeled dimension (categorical strings). */
-typedef struct __RMNLabeledDimension *            RMNLabeledDimensionRef;
+typedef struct __RMNLabeledDimension * RMNLabeledDimensionRef;
 
 /** Opaque type for a quantitative dimension (numeric offsets, periods, scaling). */
-typedef struct __RMNQuantitativeDimension *       RMNQuantitativeDimensionRef;
+typedef struct __RMNQuantitativeDimension * RMNQuantitativeDimensionRef;
 
 /** Opaque type for a monotonic dimension (ordered coordinates). */
-typedef struct __RMNMonotonicDimension *          RMNMonotonicDimensionRef;
+typedef struct __RMNMonotonicDimension * RMNMonotonicDimensionRef;
 
 /** Opaque type for a linear dimension (uniformly spaced). */
-typedef struct __RMNLinearDimension *             RMNLinearDimensionRef;
+typedef struct __RMNLinearDimension * RMNLinearDimensionRef;
 
 // -----------------------------------------------------------------------------
 // MARK: - RMNDimension (Abstract Base Type)
