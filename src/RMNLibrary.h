@@ -14,5 +14,7 @@
 #include <SITypes/SILibrary.h>
 
 #include "RMNDatum.h"
+#include "RMNDimension.h"
+
 #include "RMNDataset.h"
 #endif /* RMNLIBRARY_H */

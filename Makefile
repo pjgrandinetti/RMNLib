@@ -35,7 +35,7 @@ SIT_LIBDIR  := $(SITYPES_DIR)/lib
 REQUIRED_DIRS := $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(LIB_DIR) $(THIRD_PARTY_DIR)
 
 # Flags
-CPPFLAGS := -I. -I$(SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
+CPPFLAGS := -I. -I$(SRC_DIR) -I$(OCT_INCLUDE)/OCTypes -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)/SITypes -I$(SIT_INCLUDE)
 CFLAGS   := -O3 -Wall -Wextra \
              -Wno-sign-compare -Wno-unused-parameter \
              -Wno-missing-field-initializers -Wno-unused-function \

@@ -3,7 +3,7 @@
 
 static OCTypeID kRMNDatumID = _kOCNotATypeID;
 
-// SIScalar Opaque Type
+// RMNDatum Opaque Type
 struct __RMNDatum {
     OCBase _base;
 
