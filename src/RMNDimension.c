@@ -121,7 +121,7 @@ OCDictionaryRef OCDimensionGetMetaData(RMNDimensionRef dim) {
 bool OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict) {
     if (!dim) return false;
 
-    OCDictionaryRef dictCopy = dict ? OCDictionaryCreateCopy(dict) : NULL;
+    OCDictionaryRef dictCopy = dict ? OCTypeDeepCopy(dict) : NULL;
     if (dict && !dictCopy) {
         fprintf(stderr, "OCDimensionSetMetaData: failed to copy metadata dictionary\n");
         return false;
@@ -131,6 +131,7 @@ bool OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict) {
     dim->metaData = dictCopy;
     return true;
 }
+
 #pragma endregion RMNDimension
 #pragma region RMNLabeledDimension
 // ============================================================================
@@ -145,7 +146,7 @@ struct __RMNLabeledDimension {
     OCDictionaryRef metaData;
 
  //  RMNLabeledDimension
-    OCMutableArrayRef labels;
+    OCMutableArrayRef coordinateLabels;
 };
 OCTypeID RMNLabeledDimensionGetTypeID(void) {
     if (kRMNLabeledDimensionID == _kOCNotATypeID)
@@ -155,8 +156,8 @@ OCTypeID RMNLabeledDimensionGetTypeID(void) {
 static void __RMNLabeledDimensionFinalize(const void *obj) {
     RMNLabeledDimensionRef dim = (RMNLabeledDimensionRef)obj;
     __RMNDimensionFinalize((RMNDimensionRef)dim);
-    OCRelease(dim->labels);
-    dim->labels = NULL;
+    OCRelease(dim->coordinateLabels);
+    dim->coordinateLabels = NULL;
 }
 static OCStringRef __RMNLabeledDimensionCopyFormattingDesc(OCTypeRef cf) {
     (void)cf;
@@ -164,7 +165,7 @@ static OCStringRef __RMNLabeledDimensionCopyFormattingDesc(OCTypeRef cf) {
 }
 static void *__RMNLabeledDimensionDeepCopy(const void *obj) {
     if (!obj) return NULL;
-    return RMNLabeledDimensionCreateWithLabels(RMNLabeledDimensionGetLabels((RMNLabeledDimensionRef)obj));
+    return RMNLabeledDimensionCreateWithCoordinateLabels(RMNLabeledDimensionGetLabels((RMNLabeledDimensionRef)obj));
 }
 static RMNLabeledDimensionRef RMNLabeledDimensionAllocate(void) {
     RMNLabeledDimensionRef obj = OCTypeAlloc(
@@ -177,7 +178,7 @@ static RMNLabeledDimensionRef RMNLabeledDimensionAllocate(void) {
         __RMNLabeledDimensionDeepCopy
     );
     __RMNInitBaseFields((RMNDimensionRef)obj);
-    obj->labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    obj->coordinateLabels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     return obj;
 }
 RMNLabeledDimensionRef
@@ -185,10 +186,10 @@ RMNLabeledDimensionCreate(
     OCStringRef       label,
     OCStringRef       description,
     OCDictionaryRef   metaData,
-    OCArrayRef        inputLabels
+    OCArrayRef        coordinateLabels
 ) {
-    if (!inputLabels || OCArrayGetCount(inputLabels) < 2) {
-        fprintf(stderr, "RMNLabeledDimensionCreate: need ≥2 labels\n");
+    if (!coordinateLabels || OCArrayGetCount(coordinateLabels) < 2) {
+        fprintf(stderr, "RMNLabeledDimensionCreate: need ≥2 coordinate labels\n");
         return NULL;
     }
 
@@ -197,25 +198,28 @@ RMNLabeledDimensionCreate(
 
     // Base fields
     if (label) {
-        OCRelease(dim->label);
-        dim->label = OCStringCreateCopy(label);
-        if (!dim->label) { OCRelease(dim); return NULL; }
-    }
+        if(!OCDimensionSetLabel((RMNDimensionRef)dim, label)) {
+            OCRelease(dim);
+            return NULL;
+        }
+    } 
     if (description) {
-        OCRelease(dim->description);
-        dim->description = OCStringCreateCopy(description);
-        if (!dim->description) { OCRelease(dim); return NULL; }
+        if(!OCDimensionSetDescription((RMNDimensionRef)dim, description)) {
+            OCRelease(dim);
+            return NULL;
+        }
     }
     if (metaData) {
-        OCRelease(dim->metaData);
-        dim->metaData = OCDictionaryCreateCopy(metaData);
-        if (!dim->metaData) { OCRelease(dim); return NULL; }
+        if (!OCDimensionSetMetaData((RMNDimensionRef)dim, metaData)) {
+            OCRelease(dim);
+            return NULL;
+        }
     }
 
     // Labels array
-    OCRelease(dim->labels);
-    dim->labels = OCArrayCreateMutableCopy(inputLabels);
-    if (!dim->labels) {
+    if(dim->coordinateLabels) OCRelease(dim->coordinateLabels);
+    dim->coordinateLabels = OCArrayCreateMutableCopy(coordinateLabels);
+    if (!dim->coordinateLabels) {
         OCRelease(dim);
         return NULL;
     }
@@ -223,9 +227,9 @@ RMNLabeledDimensionCreate(
     return dim;
 }
 RMNLabeledDimensionRef
-RMNLabeledDimensionCreateWithLabels(OCArrayRef inputLabels)
+RMNLabeledDimensionCreateWithCoordinateLabels(OCArrayRef coordinateLabels)
 {
-    if (!inputLabels || OCArrayGetCount(inputLabels) < 2) {
+    if (!coordinateLabels || OCArrayGetCount(coordinateLabels) < 2) {
         fprintf(stderr, "RMNLabeledDimensionCreateWithLabels: need ≥2 labels\n");
         return NULL;
     }
@@ -234,35 +238,29 @@ RMNLabeledDimensionCreateWithLabels(OCArrayRef inputLabels)
         STR(""), 
         STR(""),
         NULL,   // default metadata → creates an empty dictionary
-        inputLabels     
+        coordinateLabels     
     );
 }
-OCArrayRef RMNLabeledDimensionGetLabels(RMNLabeledDimensionRef dim) {
-    return dim ? dim->labels : NULL;
+OCArrayRef RMNLabeledDimensionGetCoordinateLabels(RMNLabeledDimensionRef dim) {
+    return dim ? dim->coordinateLabels : NULL;
 }
-bool RMNLabeledDimensionSetLabels(RMNLabeledDimensionRef dim, OCArrayRef labels) {
-    if (!dim || !labels) return false;
-    if (dim->labels == labels) return true;
-    OCRelease(dim->labels);
-    dim->labels = OCArrayCreateMutableCopy(labels);
+bool RMNLabeledDimensionSetCoordinateLabels(RMNLabeledDimensionRef dim, OCArrayRef coordinateLabels) {
+    if (!dim || !coordinateLabels) return false;
+    if (dim->coordinateLabels == coordinateLabels) return true;
+    OCRelease(dim->coordinateLabels);
+    dim->coordinateLabels = OCArrayCreateMutableCopy(coordinateLabels);
     return true;
 }
-OCStringRef RMNLabeledDimensionGetLabelAtIndex(RMNLabeledDimensionRef dim, OCIndex index) {
-    if (!dim || !dim->labels || index < 0 || index >= OCArrayGetCount(dim->labels))
+OCStringRef RMNLabeledDimensionGetCoordinateLabelAtIndex(RMNLabeledDimensionRef dim, OCIndex index) {
+    if (!dim || !dim->coordinateLabels || index < 0 || index >= OCArrayGetCount(dim->coordinateLabels))
         return NULL;
-    return OCArrayGetValueAtIndex(dim->labels, index);
+    return OCArrayGetValueAtIndex(dim->coordinateLabels, index);
 }
-bool RMNLabeledDimensionSetLabelAtIndex(RMNLabeledDimensionRef dim, OCIndex index, OCStringRef label) {
-    if (!dim || !dim->labels || !label) return false;
-    if (index < 0 || index >= OCArrayGetCount(dim->labels)) return false;
-    OCArraySetValueAtIndex(dim->labels, index, label);
+bool RMNLabeledDimensionSetCoordinateLabelAtIndex(RMNLabeledDimensionRef dim, OCIndex index, OCStringRef label) {
+    if (!dim || !dim->coordinateLabels || !label) return false;
+    if (index < 0 || index >= OCArrayGetCount(dim->coordinateLabels)) return false;
+    OCArraySetValueAtIndex(dim->coordinateLabels, index, label);
     return true;
-}
-OCIndex RMNLabeledDimensionGetCount(RMNLabeledDimensionRef theDimension)
-{
-    IF_NO_OBJECT_EXISTS_RETURN(theDimension,0);
-    IF_NO_OBJECT_EXISTS_RETURN(theDimension->labels,0);
-    return OCArrayGetCount(theDimension->labels);
 }
 #pragma endregion RMNLabeledDimension
 #pragma region RMNQuantitativeDimension
@@ -421,7 +419,7 @@ RMNQuantitativeDimensionRef RMNQuantitativeDimensionCreate(
 
     // Set metaData
     if (metaData) {
-        dim->metaData = OCDictionaryCreateCopy(metaData);
+        dim->metaData = (OCDictionaryRef) OCTypeDeepCopy(metaData);
         if (!dim->metaData) {
             fprintf(stderr, "RMNQuantitativeDimensionCreate: failed to copy metaData\n");
             OCRelease(dim);
@@ -958,19 +956,32 @@ RMNLinearDimensionRef RMNLinearDimensionCreate(OCIndex count,
     dim->quantityName   = quantityName ? OCRetain(quantityName) : NULL;
     return dim;
 }
-OCIndex RMNLinearDimensionGetCount(RMNLinearDimensionRef dim) {
-    return dim ? dim->count : 0;
-}
 SIScalarRef RMNLinearDimensionGetIncrement(RMNLinearDimensionRef dim) {
     return dim ? dim->increment : NULL;
-}
-SIScalarRef RMNLinearDimensionGetOrigin(RMNLinearDimensionRef dim) {
-    return dim ? dim->originOffset : NULL;
-}
-SIScalarRef RMNLinearDimensionGetReferenceOffset(RMNLinearDimensionRef dim) {
-    return dim ? dim->referenceOffset : NULL;
 }
 bool RMNIsLinearDimension(OCTypeRef obj) {
     return OCGetTypeID(obj) == RMNLinearDimensionGetTypeID();
 }
 #pragma endregion RMNLinearDimension
+
+
+
+OCIndex RMNDimensionGetCount(RMNDimensionRef theDimension)
+{
+    if (!theDimension) return 0;
+
+    OCTypeID typeID = OCGetTypeID(theDimension);
+    if (typeID == RMNLabeledDimensionGetTypeID()) {
+        RMNLabeledDimensionRef labeledDim = (RMNLabeledDimensionRef)theDimension;
+        return OCArrayGetCount(labeledDim->coordinateLabels);
+    }
+    else if (typeID == RMNLinearDimensionGetTypeID()) {
+        RMNLinearDimensionRef linearDim = (RMNLinearDimensionRef)theDimension;
+        return OCArrayGetCount(linearDim->count);
+    }
+    else if( typeID == RMNMonotonicDimensionGetTypeID()) {
+        RMNMonotonicDimensionRef monoDim = (RMNMonotonicDimensionRef)theDimension;
+        return OCArrayGetCount(monoDim->coordinates);
+    }
+    return 0;
+}

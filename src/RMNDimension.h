@@ -161,7 +161,7 @@ RMNLabeledDimensionCreate( OCStringRef     label,
  *         or NULL on failure (invalid input).
  */
 RMNLabeledDimensionRef
-    RMNLabeledDimensionCreateWithLabels(OCArrayRef inputLabels);
+    RMNLabeledDimensionCreateWithCoordinateLabels(OCArrayRef inputLabels);
 
 /**
  * @brief Get the array of labels for a labeled dimension.
@@ -169,7 +169,7 @@ RMNLabeledDimensionRef
  * @param dim  An RMNLabeledDimensionRef.
  * @return     The OCArrayRef of labels (immutable), or NULL if dim is NULL.
  */
-OCArrayRef  RMNLabeledDimensionGetLabels(RMNLabeledDimensionRef dim);
+OCArrayRef  RMNLabeledDimensionGetCoordinateLabels(RMNLabeledDimensionRef dim);
 
 /**
  * @brief Replace the labels array of a labeled dimension.
@@ -178,7 +178,7 @@ OCArrayRef  RMNLabeledDimensionGetLabels(RMNLabeledDimensionRef dim);
  * @param labels  A new OCArrayRef of OCStringRefs (must have ≥2 entries).
  * @return true on success, false if dim or labels is NULL.
  */
-bool        RMNLabeledDimensionSetLabels(RMNLabeledDimensionRef dim,
+bool        RMNLabeledDimensionSetCoordinateLabels(RMNLabeledDimensionRef dim,
                                          OCArrayRef labels);
 
 /**
@@ -188,7 +188,7 @@ bool        RMNLabeledDimensionSetLabels(RMNLabeledDimensionRef dim,
  * @param index  Index of the label (0 ≤ index < count).
  * @return       The OCStringRef at that index, or NULL on invalid dim/index.
  */
-OCStringRef RMNLabeledDimensionGetLabelAtIndex(RMNLabeledDimensionRef dim,
+OCStringRef RMNLabeledDimensionGetCoordinateLabelAtIndex(RMNLabeledDimensionRef dim,
                                                OCIndex index);
 
 /**
@@ -199,7 +199,7 @@ OCStringRef RMNLabeledDimensionGetLabelAtIndex(RMNLabeledDimensionRef dim,
  * @param label  New OCStringRef label (retain‐copied).  Must be non‐NULL.
  * @return true on success, false on invalid arguments.
  */
-bool        RMNLabeledDimensionSetLabelAtIndex(RMNLabeledDimensionRef dim,
+bool        RMNLabeledDimensionSetCoordinateLabelAtIndex(RMNLabeledDimensionRef dim,
                                                OCIndex index,
                                                OCStringRef label);
 
