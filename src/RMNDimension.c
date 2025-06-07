@@ -14,6 +14,48 @@
 
 #include "RMNLibrary.h"
 
+
+RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRef src);
+
+// forward‐declare so the compiler knows about it before use
+RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRef src);
+
+RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original) {
+    if (!original) return NULL;
+
+    OCTypeID typeID = OCGetTypeID(original);
+
+    if (typeID == RMNLinearDimensionGetTypeID()) {
+        // use OCRetain from OCTypes
+        return (RMNDimensionRef)OCRetain((OCTypeRef)original);
+    }
+    if (typeID == RMNMonotonicDimensionGetTypeID()) {
+        return (RMNDimensionRef)RMNMonotonicDimensionCreateCopy((RMNMonotonicDimensionRef)original);
+    }
+    if (typeID == RMNLabeledDimensionGetTypeID()) {
+        OCArrayRef labels = RMNLabeledDimensionGetLabels((RMNLabeledDimensionRef)original);
+        if (!labels) return NULL;
+        return (RMNDimensionRef)RMNLabeledDimensionCreateWithLabels(labels);
+    }
+    if (typeID == RMNQuantitativeDimensionGetTypeID()) {
+        RMNQuantitativeDimensionRef src = (RMNQuantitativeDimensionRef)original;
+        return (RMNDimensionRef)RMNQuantitativeDimensionCreate(
+            OCDimensionGetLabel((RMNDimensionRef)src),
+            OCDimensionGetDescription((RMNDimensionRef)src),
+            OCDimensionGetMetaData((RMNDimensionRef)src),
+            RMNQuantitativeDimensionGetQuantityName(src),
+            RMNQuantitativeDimensionGetReferenceOffset(src),
+            RMNQuantitativeDimensionGetOriginOffset(src),
+            RMNQuantitativeDimensionGetPeriod(src),
+            RMNQuantitativeDimensionIsPeriodic(src),
+            RMNQuantitativeDimensionGetScaling(src)
+        );
+    }
+
+    fprintf(stderr, "RMNDimensionCreateDeepCopy: Unsupported typeID %u\n", typeID);
+    return NULL;
+}
+
 // ============================================================================
 // MARK: - (1) RMNDimension (Abstract Base)
 // ============================================================================
@@ -110,46 +152,6 @@ bool OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict) {
     dim->metaData = dictCopy;
     return true;
 }
-
-RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original) {
-    if (!original) return NULL;
-
-    OCTypeID typeID = OCGetTypeID(original);
-
-    if (typeID == RMNLinearDimensionGetTypeID()) {
-        return (RMNDimensionRef)OCTypeRetain((OCTypeRef)original);  // TODO: Add custom deep copy if needed
-    }
-
-    if (typeID == RMNMonotonicDimensionGetTypeID()) {
-        return (RMNDimensionRef)RMNMonotonicDimensionCreateCopy((RMNMonotonicDimensionRef)original);
-    }
-
-    if (typeID == RMNLabeledDimensionGetTypeID()) {
-        OCArrayRef labels = RMNLabeledDimensionGetLabels((RMNLabeledDimensionRef)original);
-        if (!labels) return NULL;
-        return (RMNDimensionRef)RMNLabeledDimensionCreateWithLabels(labels);
-    }
-
-    if (typeID == RMNQuantitativeDimensionGetTypeID()) {
-        RMNQuantitativeDimensionRef src = (RMNQuantitativeDimensionRef)original;
-
-        return (RMNDimensionRef)RMNQuantitativeDimensionCreate(
-            OCDimensionGetLabel((RMNDimensionRef)src),
-            OCDimensionGetDescription((RMNDimensionRef)src),
-            OCDimensionGetMetaData((RMNDimensionRef)src),
-            RMNQuantitativeDimensionGetQuantityName(src),
-            RMNQuantitativeDimensionGetReferenceOffset(src),
-            RMNQuantitativeDimensionGetOriginOffset(src),
-            RMNQuantitativeDimensionGetPeriod(src),
-            RMNQuantitativeDimensionIsPeriodic(src),
-            RMNQuantitativeDimensionGetScaling(src)
-        );
-    }
-
-    fprintf(stderr, "RMNDimensionCreateDeepCopy: Unsupported typeID %u\n", typeID);
-    return NULL;
-}
-
 // ============================================================================
 // MARK: - (3) RMNLabeledDimension
 // ============================================================================
@@ -186,13 +188,19 @@ static OCStringRef __RMNLabeledDimensionCopyFormattingDesc(OCTypeRef cf) {
     return OCStringCreateWithCString("<RMNLabeledDimension>");
 }
 
+static void *__RMNLabeledDimensionDeepCopy(const void *obj) {
+    if (!obj) return NULL;
+    return RMNLabeledDimensionCreateWithLabels(RMNLabeledDimensionGetLabels((RMNLabeledDimensionRef)obj));
+}
 static RMNLabeledDimensionRef RMNLabeledDimensionAllocate(void) {
     RMNLabeledDimensionRef obj = OCTypeAlloc(
         struct __RMNLabeledDimension,
         RMNLabeledDimensionGetTypeID(),
         __RMNLabeledDimensionFinalize,
         NULL,
-        __RMNLabeledDimensionCopyFormattingDesc
+        __RMNLabeledDimensionCopyFormattingDesc,
+        __RMNLabeledDimensionDeepCopy,
+        __RMNLabeledDimensionDeepCopy
     );
     __RMNInitBaseFields((RMNDimensionRef)obj);
     obj->labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
@@ -288,6 +296,22 @@ static OCStringRef __RMNQuantitativeDimensionCopyFormattingDesc(OCTypeRef cf) {
     (void)cf;
     return OCStringCreateWithCString("<RMNQuantitativeDimension>");
 }
+static void *__RMNQuantitativeDimensionDeepCopy(const void *obj) {
+    if (!obj) return NULL;
+    RMNQuantitativeDimensionRef src = (RMNQuantitativeDimensionRef)obj;
+    return RMNQuantitativeDimensionCreate(
+        OCDimensionGetLabel((RMNDimensionRef)src),
+        OCDimensionGetDescription((RMNDimensionRef)src),
+        OCDimensionGetMetaData((RMNDimensionRef)src),
+        RMNQuantitativeDimensionGetQuantityName(src),
+        RMNQuantitativeDimensionGetReferenceOffset(src),
+        RMNQuantitativeDimensionGetOriginOffset(src),
+        RMNQuantitativeDimensionGetPeriod(src),
+        RMNQuantitativeDimensionIsPeriodic(src),
+        RMNQuantitativeDimensionGetScaling(src)
+    );
+}
+
 
 // Helper to initialize numeric dimension fields (assumes base fields already set)
 static void __RMNInitQuantitativeFields(RMNQuantitativeDimensionRef dim) {
@@ -305,7 +329,9 @@ static RMNQuantitativeDimensionRef RMNQuantitativeDimensionAllocate(void) {
         RMNQuantitativeDimensionGetTypeID(),
         __RMNQuantitativeDimensionFinalize,
         NULL,
-        __RMNQuantitativeDimensionCopyFormattingDesc
+        __RMNQuantitativeDimensionCopyFormattingDesc,
+        __RMNQuantitativeDimensionDeepCopy,
+        __RMNQuantitativeDimensionDeepCopy
     );
     __RMNInitBaseFields((RMNDimensionRef)obj);
     __RMNInitQuantitativeFields(obj);
@@ -579,13 +605,20 @@ static OCStringRef __RMNMonotonicDimensionCopyFormattingDesc(OCTypeRef cf) {
     return OCStringCreateWithCString("<RMNMonotonicDimension>");
 }
 
+static void *__RMNMonotonicDimensionDeepCopy(const void *obj) {
+    if (!obj) return NULL;
+    return RMNMonotonicDimensionCreateCopy((RMNMonotonicDimensionRef)obj);
+}
+
 static RMNMonotonicDimensionRef RMNMonotonicDimensionAllocate(void) {
     RMNMonotonicDimensionRef obj = OCTypeAlloc(
         struct __RMNMonotonicDimension,
         RMNMonotonicDimensionGetTypeID(),
         __RMNMonotonicDimensionFinalize,
         NULL,
-        __RMNMonotonicDimensionCopyFormattingDesc
+        __RMNMonotonicDimensionCopyFormattingDesc,
+        __RMNMonotonicDimensionDeepCopy,
+        __RMNMonotonicDimensionDeepCopy
     );
     __RMNInitBaseFields((RMNDimensionRef)obj);
     __RMNInitQuantitativeFields((RMNQuantitativeDimensionRef)obj);
@@ -929,14 +962,29 @@ static OCStringRef __RMNLinearDimensionCopyFormattingDesc(OCTypeRef cf) {
     return OCStringCreateWithCString("<RMNLinearDimension>");
 }
 
-static RMNLinearDimensionRef RMNLinearDimensionAllocate(void) {
-    RMNLinearDimensionRef obj = OCTypeAlloc(
-        struct __RMNLinearDimension,
-        RMNLinearDimensionGetTypeID(),
-        __RMNLinearDimensionFinalize,
-        NULL,
-        __RMNLinearDimensionCopyFormattingDesc
+static void *__RMNLinearDimensionDeepCopy(const void *obj) {
+    if (!obj) return NULL;
+    RMNLinearDimensionRef src = (RMNLinearDimensionRef)obj;
+
+    return RMNLinearDimensionCreate(
+        RMNLinearDimensionGetCount(src),
+        RMNLinearDimensionGetIncrement(src),
+        RMNLinearDimensionGetOrigin(src),
+        RMNLinearDimensionGetReferenceOffset(src),
+        RMNQuantitativeDimensionGetPeriod((RMNQuantitativeDimensionRef)src),
+        RMNQuantitativeDimensionGetQuantityName((RMNQuantitativeDimensionRef)src)
     );
+}
+
+static RMNLinearDimensionRef RMNLinearDimensionAllocate(void) {
+    RMNLinearDimensionRef obj = OCTypeAlloc(struct __RMNLinearDimension,
+            RMNLinearDimensionGetTypeID(),
+            __RMNLinearDimensionFinalize,
+            NULL,
+            __RMNLinearDimensionCopyFormattingDesc,
+            __RMNLinearDimensionDeepCopy,
+            __RMNLinearDimensionDeepCopy);
+
     __RMNInitBaseFields((RMNDimensionRef)obj);
     __RMNInitQuantitativeFields((RMNQuantitativeDimensionRef)obj);
     obj->count            = 0;

@@ -63,6 +63,38 @@ static OCStringRef __RMNDatumCopyFormattingDescription(OCTypeRef theType)
     return SIScalarCopyFormattingDescription((SIScalarRef) theType);
 }
 
+static void *__RMNDatumDeepCopy(const void *theType) {
+    if (!theType) return NULL;
+    RMNDatumRef orig = (RMNDatumRef)theType;
+
+    SIScalarRef response = RMNDatumCreateResponse(orig);  // creates a new SIScalar (copies value/unit)
+    if (!response) return NULL;
+
+    OCArrayRef coordCopy = NULL;
+    if (orig->coordinates) {
+        coordCopy = OCArrayCreateCopy(orig->coordinates);
+        if (!coordCopy) {
+            OCRelease(response);
+            return NULL;
+        }
+    }
+
+    RMNDatumRef copy = RMNDatumCreate(response,
+                                      coordCopy,
+                                      orig->dependentVariableIndex,
+                                      orig->componentIndex,
+                                      orig->memOffset);
+
+    OCRelease(response);
+    if (coordCopy) OCRelease(coordCopy);
+
+    return copy;
+}
+
+static void *__RMNDatumDeepCopyMutable(const void *theType) {
+    // Currently no mutable variant exists; fallback to immutable copy
+    return __RMNDatumDeepCopy(theType);
+}
 OCTypeID RMNDatumGetTypeID(void)
 {
     if(kRMNDatumID == _kOCNotATypeID) kRMNDatumID = OCRegisterType("RMNDatum");
@@ -72,10 +104,13 @@ OCTypeID RMNDatumGetTypeID(void)
 static struct __RMNDatum *RMNDatumAllocate(void)
 {
     struct __RMNDatum *obj = OCTypeAlloc(struct __RMNDatum,
-                                         RMNDatumGetTypeID(),
-                                         __RMNDatumFinalize,
-                                         __RMNDatumEqual,
-                                         __RMNDatumCopyFormattingDescription);
+                                        RMNDatumGetTypeID(),
+                                        __RMNDatumFinalize,
+                                        __RMNDatumEqual,
+                                        __RMNDatumCopyFormattingDescription,
+                                        __RMNDatumDeepCopy,
+                                        __RMNDatumDeepCopyMutable);
+
     obj->unit = NULL;
     obj->type = kSINumberFloat32Type;
     memset(&obj->value, 0, sizeof(obj->value));
