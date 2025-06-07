@@ -111,6 +111,45 @@ bool OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict) {
     return true;
 }
 
+RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original) {
+    if (!original) return NULL;
+
+    OCTypeID typeID = OCGetTypeID(original);
+
+    if (typeID == RMNLinearDimensionGetTypeID()) {
+        return (RMNDimensionRef)OCTypeRetain((OCTypeRef)original);  // TODO: Add custom deep copy if needed
+    }
+
+    if (typeID == RMNMonotonicDimensionGetTypeID()) {
+        return (RMNDimensionRef)RMNMonotonicDimensionCreateCopy((RMNMonotonicDimensionRef)original);
+    }
+
+    if (typeID == RMNLabeledDimensionGetTypeID()) {
+        OCArrayRef labels = RMNLabeledDimensionGetLabels((RMNLabeledDimensionRef)original);
+        if (!labels) return NULL;
+        return (RMNDimensionRef)RMNLabeledDimensionCreateWithLabels(labels);
+    }
+
+    if (typeID == RMNQuantitativeDimensionGetTypeID()) {
+        RMNQuantitativeDimensionRef src = (RMNQuantitativeDimensionRef)original;
+
+        return (RMNDimensionRef)RMNQuantitativeDimensionCreate(
+            OCDimensionGetLabel((RMNDimensionRef)src),
+            OCDimensionGetDescription((RMNDimensionRef)src),
+            OCDimensionGetMetaData((RMNDimensionRef)src),
+            RMNQuantitativeDimensionGetQuantityName(src),
+            RMNQuantitativeDimensionGetReferenceOffset(src),
+            RMNQuantitativeDimensionGetOriginOffset(src),
+            RMNQuantitativeDimensionGetPeriod(src),
+            RMNQuantitativeDimensionIsPeriodic(src),
+            RMNQuantitativeDimensionGetScaling(src)
+        );
+    }
+
+    fprintf(stderr, "RMNDimensionCreateDeepCopy: Unsupported typeID %u\n", typeID);
+    return NULL;
+}
+
 // ============================================================================
 // MARK: - (3) RMNLabeledDimension
 // ============================================================================

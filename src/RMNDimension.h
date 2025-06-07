@@ -114,6 +114,11 @@ OCDictionaryRef  OCDimensionGetMetaData(RMNDimensionRef dim);
  */
 bool             OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict);
 
+
+/// Deep copy any RMNDimension-derived object.
+/// Returns a new object of the same type, or NULL on failure.
+RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original);
+
 // -----------------------------------------------------------------------------
 // MARK: - RMNLabeledDimension
 // -----------------------------------------------------------------------------
