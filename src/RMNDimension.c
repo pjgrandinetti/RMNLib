@@ -45,15 +45,15 @@ static OCStringRef __RMNDimensionCopyFormattingDesc(OCTypeRef cf) {
     (void)cf;
     return OCStringCreateWithCString("<RMNDimension>");
 }
-OCStringRef OCDimensionGetLabel(RMNDimensionRef dim) {
+OCStringRef RMNDimensionGetLabel(RMNDimensionRef dim) {
     return dim ? dim->label : NULL;
 }
-bool OCDimensionSetLabel(RMNDimensionRef dim, OCStringRef label) {
+bool RMNDimensionSetLabel(RMNDimensionRef dim, OCStringRef label) {
     if (!dim) return false;
 
     OCStringRef labelCopy = label ? OCStringCreateCopy(label) : NULL;
     if (label && !labelCopy) {
-        fprintf(stderr, "OCDimensionSetLabel: failed to copy label string\n");
+        fprintf(stderr, "RMNDimensionSetLabel: failed to copy label string\n");
         return false;
     }
 
@@ -61,15 +61,15 @@ bool OCDimensionSetLabel(RMNDimensionRef dim, OCStringRef label) {
     dim->label = labelCopy;
     return true;
 }
-OCStringRef OCDimensionGetDescription(RMNDimensionRef dim) {
+OCStringRef RMNDimensionGetDescription(RMNDimensionRef dim) {
     return dim ? dim->description : NULL;
 }
-bool OCDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc) {
+bool RMNDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc) {
     if (!dim) return false;
 
     OCStringRef descCopy = desc ? OCStringCreateCopy(desc) : NULL;
     if (desc && !descCopy) {
-        fprintf(stderr, "OCDimensionSetDescription: failed to copy description string\n");
+        fprintf(stderr, "RMNDimensionSetDescription: failed to copy description string\n");
         return false;
     }
 
@@ -77,15 +77,15 @@ bool OCDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc) {
     dim->description = descCopy;
     return true;
 }
-OCDictionaryRef OCDimensionGetMetaData(RMNDimensionRef dim) {
+OCDictionaryRef RMNDimensionGetMetaData(RMNDimensionRef dim) {
     return dim ? dim->metaData : NULL;
 }
-bool OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict) {
+bool RMNDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict) {
     if (!dim) return false;
 
     OCDictionaryRef dictCopy = dict ? OCTypeDeepCopy(dict) : NULL;
     if (dict && !dictCopy) {
-        fprintf(stderr, "OCDimensionSetMetaData: failed to copy metadata dictionary\n");
+        fprintf(stderr, "RMNDimensionSetMetaData: failed to copy metadata dictionary\n");
         return false;
     }
 
@@ -160,19 +160,19 @@ RMNLabeledDimensionCreate(
 
     // Base fields
     if (label) {
-        if(!OCDimensionSetLabel((RMNDimensionRef)dim, label)) {
+        if(!RMNDimensionSetLabel((RMNDimensionRef)dim, label)) {
             OCRelease(dim);
             return NULL;
         }
     } 
     if (description) {
-        if(!OCDimensionSetDescription((RMNDimensionRef)dim, description)) {
+        if(!RMNDimensionSetDescription((RMNDimensionRef)dim, description)) {
             OCRelease(dim);
             return NULL;
         }
     }
     if (metaData) {
-        if (!OCDimensionSetMetaData((RMNDimensionRef)dim, metaData)) {
+        if (!RMNDimensionSetMetaData((RMNDimensionRef)dim, metaData)) {
             OCRelease(dim);
             return NULL;
         }
@@ -267,15 +267,15 @@ static void *__RMNQuantitativeDimensionDeepCopy(const void *obj) {
     if (!obj) return NULL;
     RMNQuantitativeDimensionRef src = (RMNQuantitativeDimensionRef)obj;
     return RMNQuantitativeDimensionCreate(
-        OCDimensionGetLabel((RMNDimensionRef)src),
-        OCDimensionGetDescription((RMNDimensionRef)src),
-        OCDimensionGetMetaData((RMNDimensionRef)src),
-        RMNQuantitativeDimensionGetQuantityName(src),
-        RMNQuantitativeDimensionGetReferenceOffset(src),
-        RMNQuantitativeDimensionGetOriginOffset(src),
-        RMNQuantitativeDimensionGetPeriod(src),
-        RMNQuantitativeDimensionIsPeriodic(src),
-        RMNQuantitativeDimensionGetScaling(src)
+        RMNDimensionGetLabel((RMNDimensionRef)src),
+        RMNDimensionGetDescription((RMNDimensionRef)src),
+        RMNDimensionGetMetaData((RMNDimensionRef)src),
+        RMNDimensionGetQuantityName(src),
+        RMNDimensionGetReferenceOffset(src),
+        RMNDimensionGetOriginOffset(src),
+        RMNDimensionGetPeriod(src),
+        RMNDimensionIsPeriodic(src),
+        RMNDimensionGetScaling(src)
     );
 }
 static void __RMNInitQuantitativeFields(RMNQuantitativeDimensionRef dim) {
@@ -706,14 +706,14 @@ RMNMonotonicDimensionCreate(
     }
 
     // 6) Set base fields
-    if (label)       OCDimensionSetLabel   ((RMNDimensionRef)dim, label);
-    if (description) OCDimensionSetDescription((RMNDimensionRef)dim, description);
-    if (metaData)    OCDimensionSetMetaData((RMNDimensionRef)dim, metaData);
+    if (label)       RMNDimensionSetLabel   ((RMNDimensionRef)dim, label);
+    if (description) RMNDimensionSetDescription((RMNDimensionRef)dim, description);
+    if (metaData)    RMNDimensionSetMetaData((RMNDimensionRef)dim, metaData);
 
     // 7) Set quantityName
     {
         OCStringRef nameCopy = OCStringCreateCopy(quantityName);
-        RMNQuantitativeDimensionSetQuantityName((RMNQuantitativeDimensionRef)dim, nameCopy);
+        RMNDimensionSetQuantityName((RMNQuantitativeDimensionRef)dim, nameCopy);
         OCRelease(nameCopy);
     }
 
@@ -733,20 +733,20 @@ RMNMonotonicDimensionCreate(
     SIScalarRef zero = SIScalarCreateWithDouble(0.0, unit);
     if (!originOffset)     originOffset     = zero;
     if (!referenceOffset)  referenceOffset  = zero;
-    RMNQuantitativeDimensionSetOriginOffset     ((RMNQuantitativeDimensionRef)dim, originOffset);
-    RMNQuantitativeDimensionSetReferenceOffset  ((RMNQuantitativeDimensionRef)dim, referenceOffset);
+    RMNDimensionSetOriginOffset     ((RMNQuantitativeDimensionRef)dim, originOffset);
+    RMNDimensionSetReferenceOffset  ((RMNQuantitativeDimensionRef)dim, referenceOffset);
     if (zero != originOffset)    OCRelease(zero);
     if (zero != referenceOffset) OCRelease(zero);
 
     // 10) Compute & set period = last – first
     SIScalarRef last   = OCArrayGetValueAtIndex(coordinates, count - 1);
     SIScalarRef period = SIScalarCreateBySubtracting(last, first, NULL);
-    RMNQuantitativeDimensionSetPeriod((RMNQuantitativeDimensionRef)dim, period);
+    RMNDimensionSetPeriod((RMNQuantitativeDimensionRef)dim, period);
     OCRelease(period);
 
     // 11) Flags
-    RMNQuantitativeDimensionSetPeriodic((RMNQuantitativeDimensionRef)dim, periodic);
-    RMNQuantitativeDimensionSetScaling ((RMNQuantitativeDimensionRef)dim, scaling);
+    RMNDimensionSetPeriodic((RMNQuantitativeDimensionRef)dim, periodic);
+    RMNDimensionSetScaling ((RMNQuantitativeDimensionRef)dim, scaling);
 
     return dim;
 }
@@ -807,8 +807,8 @@ RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRe
     RMNQuantitativeDimensionRef dst = (RMNQuantitativeDimensionRef)copy;
     RMNQuantitativeDimensionRef srcBase = (RMNQuantitativeDimensionRef)src;
 
-    SIScalarRef origin = SIScalarCreateCopy(RMNQuantitativeDimensionGetOriginOffset(srcBase));
-    SIScalarRef reference = SIScalarCreateCopy(RMNQuantitativeDimensionGetReferenceOffset(srcBase));
+    SIScalarRef origin = SIScalarCreateCopy(RMNDimensionGetOriginOffset(srcBase));
+    SIScalarRef reference = SIScalarCreateCopy(RMNDimensionGetReferenceOffset(srcBase));
     if (!origin || !reference) {
         fprintf(stderr, "RMNMonotonicDimensionCreateCopy: failed to copy origin or reference offset\n");
         OCRelease(origin);
@@ -817,8 +817,8 @@ RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRe
         return NULL;
     }
 
-    if (!RMNQuantitativeDimensionSetOriginOffset(dst, origin) ||
-        !RMNQuantitativeDimensionSetReferenceOffset(dst, reference)) {
+    if (!RMNDimensionSetOriginOffset(dst, origin) ||
+        !RMNDimensionSetReferenceOffset(dst, reference)) {
         fprintf(stderr, "RMNMonotonicDimensionCreateCopy: failed to set origin or reference offset\n");
         OCRelease(origin);
         OCRelease(reference);
@@ -828,10 +828,10 @@ RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRe
     OCRelease(origin);
     OCRelease(reference);
 
-    SIScalarRef srcPeriod = RMNQuantitativeDimensionGetPeriod(srcBase);
+    SIScalarRef srcPeriod = RMNDimensionGetPeriod(srcBase);
     if (srcPeriod) {
         SIScalarRef period = SIScalarCreateCopy(srcPeriod);
-        if (!period || !RMNQuantitativeDimensionSetPeriod(dst, period)) {
+        if (!period || !RMNDimensionSetPeriod(dst, period)) {
             fprintf(stderr, "RMNMonotonicDimensionCreateCopy: failed to copy or set period\n");
             OCRelease(period);
             OCRelease(copy);
@@ -840,17 +840,17 @@ RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRe
         OCRelease(period);
     }
 
-    if (!RMNQuantitativeDimensionSetPeriodic(dst, RMNQuantitativeDimensionIsPeriodic(srcBase)) ||
-        !RMNQuantitativeDimensionSetScaling(dst, RMNQuantitativeDimensionGetScaling(srcBase))) {
+    if (!RMNDimensionSetPeriodic(dst, RMNDimensionIsPeriodic(srcBase)) ||
+        !RMNDimensionSetScaling(dst, RMNDimensionGetScaling(srcBase))) {
         fprintf(stderr, "RMNMonotonicDimensionCreateCopy: failed to set periodic flag or scaling\n");
         OCRelease(copy);
         return NULL;
     }
 
-    OCStringRef label = OCStringCreateCopy(OCDimensionGetLabel((RMNDimensionRef)src));
-    OCStringRef desc  = OCStringCreateCopy(OCDimensionGetDescription((RMNDimensionRef)src));
-    if (!OCDimensionSetLabel((RMNDimensionRef)copy, label) ||
-        !OCDimensionSetDescription((RMNDimensionRef)copy, desc)) {
+    OCStringRef label = OCStringCreateCopy(RMNDimensionGetLabel((RMNDimensionRef)src));
+    OCStringRef desc  = OCStringCreateCopy(RMNDimensionGetDescription((RMNDimensionRef)src));
+    if (!RMNDimensionSetLabel((RMNDimensionRef)copy, label) ||
+        !RMNDimensionSetDescription((RMNDimensionRef)copy, desc)) {
         fprintf(stderr, "RMNMonotonicDimensionCreateCopy: failed to set label or description\n");
         OCRelease(label);
         OCRelease(desc);
@@ -860,10 +860,10 @@ RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRe
     OCRelease(label);
     OCRelease(desc);
 
-    OCDictionaryRef meta = OCDimensionGetMetaData((RMNDimensionRef)src);
+    OCDictionaryRef meta = RMNDimensionGetMetaData((RMNDimensionRef)src);
     if (meta) {
         OCDictionaryRef metaCopy = OCDictionaryCreateCopy(meta);
-        if (!metaCopy || !OCDimensionSetMetaData((RMNDimensionRef)copy, metaCopy)) {
+        if (!metaCopy || !RMNDimensionSetMetaData((RMNDimensionRef)copy, metaCopy)) {
             fprintf(stderr, "RMNMonotonicDimensionCreateCopy: failed to copy metadata\n");
             OCRelease(metaCopy);
             OCRelease(copy);
@@ -872,10 +872,10 @@ RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRe
         OCRelease(metaCopy);
     }
 
-    OCStringRef quantityName = RMNQuantitativeDimensionGetQuantityName(srcBase);
+    OCStringRef quantityName = RMNDimensionGetQuantityName(srcBase);
     if (quantityName) {
         OCStringRef nameCopy = OCStringCreateCopy(quantityName);
-        if (!nameCopy || !RMNQuantitativeDimensionSetQuantityName(dst, nameCopy)) {
+        if (!nameCopy || !RMNDimensionSetQuantityName(dst, nameCopy)) {
             fprintf(stderr, "RMNMonotonicDimensionCreateCopy: failed to copy quantity name\n");
             OCRelease(nameCopy);
             OCRelease(copy);
@@ -952,8 +952,8 @@ static void *__RMNLinearDimensionDeepCopy(const void *obj) {
         RMNLinearDimensionGetIncrement(src),
         RMNLinearDimensionGetOrigin(src),
         RMNLinearDimensionGetReferenceOffset(src),
-        RMNQuantitativeDimensionGetPeriod((RMNQuantitativeDimensionRef)src),
-        RMNQuantitativeDimensionGetQuantityName((RMNQuantitativeDimensionRef)src)
+        RMNDimensionGetPeriod((RMNQuantitativeDimensionRef)src),
+        RMNDimensionGetQuantityName((RMNQuantitativeDimensionRef)src)
     );
 }
 static RMNLinearDimensionRef RMNLinearDimensionAllocate(void) {
@@ -998,8 +998,6 @@ bool RMNIsLinearDimension(OCTypeRef obj) {
     return OCGetTypeID(obj) == RMNLinearDimensionGetTypeID();
 }
 #pragma endregion RMNLinearDimension
-
-
 #pragma region RMNDimension Helpers
 RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original) {
     if (!original) return NULL;
@@ -1021,15 +1019,15 @@ RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original) {
     if (typeID == RMNQuantitativeDimensionGetTypeID()) {
         RMNQuantitativeDimensionRef src = (RMNQuantitativeDimensionRef)original;
         return (RMNDimensionRef)RMNQuantitativeDimensionCreate(
-            OCDimensionGetLabel((RMNDimensionRef)src),
-            OCDimensionGetDescription((RMNDimensionRef)src),
-            OCDimensionGetMetaData((RMNDimensionRef)src),
-            RMNQuantitativeDimensionGetQuantityName(src),
-            RMNQuantitativeDimensionGetReferenceOffset(src),
-            RMNQuantitativeDimensionGetOriginOffset(src),
-            RMNQuantitativeDimensionGetPeriod(src),
-            RMNQuantitativeDimensionIsPeriodic(src),
-            RMNQuantitativeDimensionGetScaling(src)
+            RMNDimensionGetLabel((RMNDimensionRef)src),
+            RMNDimensionGetDescription((RMNDimensionRef)src),
+            RMNDimensionGetMetaData((RMNDimensionRef)src),
+            RMNDimensionGetQuantityName(src),
+            RMNDimensionGetReferenceOffset(src),
+            RMNDimensionGetOriginOffset(src),
+            RMNDimensionGetPeriod(src),
+            RMNDimensionIsPeriodic(src),
+            RMNDimensionGetScaling(src)
         );
     }
 
