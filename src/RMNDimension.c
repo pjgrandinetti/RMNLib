@@ -17,9 +17,6 @@
 
 RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRef src);
 
-// forward‐declare so the compiler knows about it before use
-RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRef src);
-
 RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original) {
     if (!original) return NULL;
 
@@ -55,7 +52,7 @@ RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original) {
     fprintf(stderr, "RMNDimensionCreateDeepCopy: Unsupported typeID %u\n", typeID);
     return NULL;
 }
-
+#pragma region RMNDimension
 // ============================================================================
 // MARK: - (1) RMNDimension (Abstract Base)
 // ============================================================================
@@ -152,6 +149,9 @@ bool OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict) {
     dim->metaData = dictCopy;
     return true;
 }
+
+#pragma endregion RMNDimension
+#pragma region RMNLabeledDimension
 // ============================================================================
 // MARK: - (3) RMNLabeledDimension
 // ============================================================================
@@ -252,7 +252,8 @@ OCIndex RMNLabeledDimensionGetCount(RMNLabeledDimensionRef theDimension)
     return OCArrayGetCount(theDimension->labels);
 }
 
-
+#pragma endregion RMNLabeledDimension
+#pragma region RMNQuantitativeDimension
 // ============================================================================
 // MARK: - (4) RMNQuantitativeDimension
 // ============================================================================
@@ -557,8 +558,8 @@ bool RMNQuantitativeDimensionMultiplyByScalar(RMNQuantitativeDimensionRef theDim
     
     return true;
 }
-
-
+#pragma endregion RMNQuantitativeDimension
+#pragma region RMNMonotonicDimension
 // ============================================================================
 // MARK: - (5) RMNMonotonicDimension
 // ============================================================================
@@ -592,7 +593,7 @@ OCTypeID RMNMonotonicDimensionGetTypeID(void) {
     return kRMNMonotonicDimensionID;
 }
 
-// Finalizer: first release quantitative fields, then release “coordinates”
+// Finalizer: first release quantitative fields, then release the “coordinates”
 static void __RMNMonotonicDimensionFinalize(const void *obj) {
     RMNMonotonicDimensionRef dim = (RMNMonotonicDimensionRef)obj;
     __RMNQuantitativeDimensionFinalize((struct __RMNDimension*)dim);
@@ -909,7 +910,8 @@ bool RMNMonotonicDimensionSetCoordinates(RMNMonotonicDimensionRef dim, OCArrayRe
     dim->coordinates = OCArrayCreateMutableCopy(coordinates);
     return true;
 }
-
+#pragma endregion RMNMonotonicDimension
+#pragma region RMNLinearDimension
 // ============================================================================
 // MARK: - (6) RMNLinearDimension
 // ============================================================================
@@ -1034,3 +1036,4 @@ SIScalarRef RMNLinearDimensionGetReferenceOffset(RMNLinearDimensionRef dim) {
 bool RMNIsLinearDimension(OCTypeRef obj) {
     return OCGetTypeID(obj) == RMNLinearDimensionGetTypeID();
 }
+#pragma endregion RMNLinearDimension
