@@ -58,7 +58,6 @@ RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original) {
 // ============================================================================
 
 static OCTypeID kRMNDimensionID = _kOCNotATypeID;
-
 struct __RMNDimension {
  //  RMNDimension
     OCBase _base;
@@ -66,22 +65,16 @@ struct __RMNDimension {
     OCStringRef description;
     OCDictionaryRef metaData;
 };
-
-// Initialize the three “base” fields.
-// Used by every allocator after OCTypeAlloc(…) has constructed the object.
 static void __RMNInitBaseFields(RMNDimensionRef dim) {
     dim->label      = STR("");
     dim->description = STR("");
     dim->metaData    = OCDictionaryCreateMutable(0);
 }
-
 OCTypeID RMNDimensionGetTypeID(void) {
     if (kRMNDimensionID == _kOCNotATypeID)
         kRMNDimensionID = OCRegisterType("RMNDimension");
     return kRMNDimensionID;
 }
-
-// Finalizer: release label/description/metaData.
 static void __RMNDimensionFinalize(const void *obj) {
     RMNDimensionRef dim = (RMNDimensionRef)obj;
     if (!dim) return;
@@ -89,17 +82,13 @@ static void __RMNDimensionFinalize(const void *obj) {
     OCRelease(dim->description); dim->description = NULL;
     OCRelease(dim->metaData); dim->metaData = NULL;
 }
-
 static OCStringRef __RMNDimensionCopyFormattingDesc(OCTypeRef cf) {
     (void)cf;
     return OCStringCreateWithCString("<RMNDimension>");
 }
-
-// Accessors (shared by all RMNDimensionRef instances)
 OCStringRef OCDimensionGetLabel(RMNDimensionRef dim) {
     return dim ? dim->label : NULL;
 }
-
 bool OCDimensionSetLabel(RMNDimensionRef dim, OCStringRef label) {
     if (!dim) return false;
 
@@ -113,11 +102,9 @@ bool OCDimensionSetLabel(RMNDimensionRef dim, OCStringRef label) {
     dim->label = labelCopy;
     return true;
 }
-
 OCStringRef OCDimensionGetDescription(RMNDimensionRef dim) {
     return dim ? dim->description : NULL;
 }
-
 bool OCDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc) {
     if (!dim) return false;
 
@@ -131,11 +118,9 @@ bool OCDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc) {
     dim->description = descCopy;
     return true;
 }
-
 OCDictionaryRef OCDimensionGetMetaData(RMNDimensionRef dim) {
     return dim ? dim->metaData : NULL;
 }
-
 bool OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict) {
     if (!dim) return false;
 
@@ -149,15 +134,12 @@ bool OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict) {
     dim->metaData = dictCopy;
     return true;
 }
-
 #pragma endregion RMNDimension
 #pragma region RMNLabeledDimension
 // ============================================================================
 // MARK: - (3) RMNLabeledDimension
 // ============================================================================
-
 static OCTypeID kRMNLabeledDimensionID = _kOCNotATypeID;
-
 struct __RMNLabeledDimension {
  //  RMNDimension
     OCBase _base;
@@ -168,26 +150,21 @@ struct __RMNLabeledDimension {
  //  RMNLabeledDimension
     OCMutableArrayRef labels;
 };
-
 OCTypeID RMNLabeledDimensionGetTypeID(void) {
     if (kRMNLabeledDimensionID == _kOCNotATypeID)
         kRMNLabeledDimensionID = OCRegisterType("RMNLabeledDimension");
     return kRMNLabeledDimensionID;
 }
-
-// Finalizer: first release base fields, then release the “labels” array.
 static void __RMNLabeledDimensionFinalize(const void *obj) {
     RMNLabeledDimensionRef dim = (RMNLabeledDimensionRef)obj;
     __RMNDimensionFinalize((RMNDimensionRef)dim);
     OCRelease(dim->labels);
     dim->labels = NULL;
 }
-
 static OCStringRef __RMNLabeledDimensionCopyFormattingDesc(OCTypeRef cf) {
     (void)cf;
     return OCStringCreateWithCString("<RMNLabeledDimension>");
 }
-
 static void *__RMNLabeledDimensionDeepCopy(const void *obj) {
     if (!obj) return NULL;
     return RMNLabeledDimensionCreateWithLabels(RMNLabeledDimensionGetLabels((RMNLabeledDimensionRef)obj));
@@ -206,8 +183,6 @@ static RMNLabeledDimensionRef RMNLabeledDimensionAllocate(void) {
     obj->labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     return obj;
 }
-
-// Factory: must supply at least 2 labels or fail
 RMNLabeledDimensionRef RMNLabeledDimensionCreateWithLabels(OCArrayRef inputLabels) {
     if (!inputLabels || OCArrayGetCount(inputLabels) < 2)
         return NULL;
@@ -217,13 +192,9 @@ RMNLabeledDimensionRef RMNLabeledDimensionCreateWithLabels(OCArrayRef inputLabel
     dim->labels = OCArrayCreateMutableCopy(inputLabels);
     return dim;
 }
-
-// Accessors:
-
 OCArrayRef RMNLabeledDimensionGetLabels(RMNLabeledDimensionRef dim) {
     return dim ? dim->labels : NULL;
 }
-
 bool RMNLabeledDimensionSetLabels(RMNLabeledDimensionRef dim, OCArrayRef labels) {
     if (!dim || !labels) return false;
     if (dim->labels == labels) return true;
@@ -231,27 +202,23 @@ bool RMNLabeledDimensionSetLabels(RMNLabeledDimensionRef dim, OCArrayRef labels)
     dim->labels = OCArrayCreateMutableCopy(labels);
     return true;
 }
-
 OCStringRef RMNLabeledDimensionGetLabelAtIndex(RMNLabeledDimensionRef dim, OCIndex index) {
     if (!dim || !dim->labels || index < 0 || index >= OCArrayGetCount(dim->labels))
         return NULL;
     return OCArrayGetValueAtIndex(dim->labels, index);
 }
-
 bool RMNLabeledDimensionSetLabelAtIndex(RMNLabeledDimensionRef dim, OCIndex index, OCStringRef label) {
     if (!dim || !dim->labels || !label) return false;
     if (index < 0 || index >= OCArrayGetCount(dim->labels)) return false;
     OCArraySetValueAtIndex(dim->labels, index, label);
     return true;
 }
-
 OCIndex RMNLabeledDimensionGetCount(RMNLabeledDimensionRef theDimension)
 {
     IF_NO_OBJECT_EXISTS_RETURN(theDimension,0);
     IF_NO_OBJECT_EXISTS_RETURN(theDimension->labels,0);
     return OCArrayGetCount(theDimension->labels);
 }
-
 #pragma endregion RMNLabeledDimension
 #pragma region RMNQuantitativeDimension
 // ============================================================================
