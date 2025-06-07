@@ -12,44 +12,6 @@
 // (6)  RMNLinearDimension
 // ============================================================================
 #include "RMNLibrary.h"
-#pragma region RMNDimension Helpers
-static RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRef src);
-RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original) {
-    if (!original) return NULL;
-
-    OCTypeID typeID = OCGetTypeID(original);
-
-    if (typeID == RMNLinearDimensionGetTypeID()) {
-        // use OCRetain from OCTypes
-        return (RMNDimensionRef)OCRetain((OCTypeRef)original);
-    }
-    if (typeID == RMNMonotonicDimensionGetTypeID()) {
-        return (RMNDimensionRef)RMNMonotonicDimensionCreateCopy((RMNMonotonicDimensionRef)original);
-    }
-    if (typeID == RMNLabeledDimensionGetTypeID()) {
-        OCArrayRef labels = RMNLabeledDimensionGetCoordinateLabels((RMNLabeledDimensionRef)original);
-        if (!labels) return NULL;
-        return (RMNDimensionRef) RMNLabeledDimensionCreateWithCoordinateLabels(labels);
-    }
-    if (typeID == RMNQuantitativeDimensionGetTypeID()) {
-        RMNQuantitativeDimensionRef src = (RMNQuantitativeDimensionRef)original;
-        return (RMNDimensionRef)RMNQuantitativeDimensionCreate(
-            OCDimensionGetLabel((RMNDimensionRef)src),
-            OCDimensionGetDescription((RMNDimensionRef)src),
-            OCDimensionGetMetaData((RMNDimensionRef)src),
-            RMNQuantitativeDimensionGetQuantityName(src),
-            RMNQuantitativeDimensionGetReferenceOffset(src),
-            RMNQuantitativeDimensionGetOriginOffset(src),
-            RMNQuantitativeDimensionGetPeriod(src),
-            RMNQuantitativeDimensionIsPeriodic(src),
-            RMNQuantitativeDimensionGetScaling(src)
-        );
-    }
-
-    fprintf(stderr, "RMNDimensionCreateDeepCopy: Unsupported typeID %u\n", typeID);
-    return NULL;
-}
-#pragma endregion RMNDimension Helpers
 #pragma region RMNDimension
 // ============================================================================
 // MARK: - (1) RMNDimension (Abstract Base)
@@ -470,55 +432,127 @@ RMNQuantitativeDimensionRef RMNQuantitativeDimensionCreate(
 
     return dim;
 }
-OCStringRef RMNQuantitativeDimensionGetQuantityName(RMNQuantitativeDimensionRef dim) {
+OCStringRef RMNDimensionGetQuantityName(RMNQuantitativeDimensionRef dim) {
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID()) {
+        return NULL;
+    }
     return dim ? dim->quantityName : NULL;
 }
-bool RMNQuantitativeDimensionSetQuantityName(RMNQuantitativeDimensionRef dim, OCStringRef name) {
+bool RMNDimensionSetQuantityName(RMNQuantitativeDimensionRef dim, OCStringRef name) {
     if (!dim) return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID()) {
+        return false;
+    }
     OCRelease(dim->quantityName);
     dim->quantityName = name ? OCRetain(name) : NULL;
     return true;
 }
-SIScalarRef RMNQuantitativeDimensionGetReferenceOffset(RMNQuantitativeDimensionRef dim) {
+SIScalarRef RMNDimensionGetReferenceOffset(RMNQuantitativeDimensionRef dim) {
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID()) {
+        return NULL;
+    }
     return dim ? dim->referenceOffset : NULL;
 }
-bool RMNQuantitativeDimensionSetReferenceOffset(RMNQuantitativeDimensionRef dim, SIScalarRef val) {
+bool RMNDimensionSetReferenceOffset(RMNQuantitativeDimensionRef dim, SIScalarRef val) {
     if (!dim) return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID()) {
+        return false;
+    }
     OCRelease(dim->referenceOffset);
     dim->referenceOffset = val ? OCRetain(val) : NULL;
     return true;
 }
-SIScalarRef RMNQuantitativeDimensionGetOriginOffset(RMNQuantitativeDimensionRef dim) {
+SIScalarRef RMNDimensionGetOriginOffset(RMNQuantitativeDimensionRef dim) {
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID()) {
+        return NULL;
+    }
     return dim ? dim->originOffset : NULL;
 }
-bool RMNQuantitativeDimensionSetOriginOffset(RMNQuantitativeDimensionRef dim, SIScalarRef val) {
+bool RMNDimensionSetOriginOffset(RMNQuantitativeDimensionRef dim, SIScalarRef val) {
     if (!dim) return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID()) {
+        return false;
+    }
     OCRelease(dim->originOffset);
     dim->originOffset = val ? OCRetain(val) : NULL;
     return true;
 }
-SIScalarRef RMNQuantitativeDimensionGetPeriod(RMNQuantitativeDimensionRef dim) {
+SIScalarRef RMNDimensionGetPeriod(RMNQuantitativeDimensionRef dim) {
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID()) {
+        return NULL;
+    }
     return dim ? dim->period : NULL;
 }
-bool RMNQuantitativeDimensionSetPeriod(RMNQuantitativeDimensionRef dim, SIScalarRef val) {
+bool RMNDimensionSetPeriod(RMNQuantitativeDimensionRef dim, SIScalarRef val) {
     if (!dim) return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID()) {
+        return false;
+    }
     OCRelease(dim->period);
     dim->period = val ? OCRetain(val) : NULL;
     return true;
 }
-bool RMNQuantitativeDimensionIsPeriodic(RMNQuantitativeDimensionRef dim) {
-    return dim ? dim->periodic : false;
+bool RMNDimensionIsPeriodic(RMNQuantitativeDimensionRef dim) {
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID == RMNLinearDimensionGetTypeID() ||
+        typeID == RMNMonotonicDimensionGetTypeID() ||
+        typeID == RMNQuantitativeDimensionGetTypeID()) {
+        return dim ? dim->periodic : false;
+    }
+    return false;
 }
-bool RMNQuantitativeDimensionSetPeriodic(RMNQuantitativeDimensionRef dim, bool flag) {
+bool RMNDimensionSetPeriodic(RMNQuantitativeDimensionRef dim, bool flag) {
     if (!dim) return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID()) {
+        return false;
+    }
     dim->periodic = flag;
     return true;
 }
-dimensionScaling RMNQuantitativeDimensionGetScaling(RMNQuantitativeDimensionRef dim) {
+dimensionScaling RMNDimensionGetScaling(RMNQuantitativeDimensionRef dim) {
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID()) {
+        return kDimensionScalingNone;
+    }
     return dim ? dim->scaling : kDimensionScalingNone;
 }
-bool RMNQuantitativeDimensionSetScaling(RMNQuantitativeDimensionRef dim, dimensionScaling scaling) {
+bool RMNDimensionSetScaling(RMNQuantitativeDimensionRef dim, dimensionScaling scaling) {
     if (!dim) return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID()) {
+        return false;
+    }
     dim->scaling = scaling;
     return true;
 }
@@ -582,6 +616,7 @@ static OCStringRef __RMNMonotonicDimensionCopyFormattingDesc(OCTypeRef cf) {
     (void)cf;
     return OCStringCreateWithCString("<RMNMonotonicDimension>");
 }
+RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRef src);
 static void *__RMNMonotonicDimensionDeepCopy(const void *obj) {
     if (!obj) return NULL;
     return RMNMonotonicDimensionCreateCopy((RMNMonotonicDimensionRef)obj);
@@ -965,7 +1000,42 @@ bool RMNIsLinearDimension(OCTypeRef obj) {
 #pragma endregion RMNLinearDimension
 
 
+#pragma region RMNDimension Helpers
+RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original) {
+    if (!original) return NULL;
 
+    OCTypeID typeID = OCGetTypeID(original);
+
+    if (typeID == RMNLinearDimensionGetTypeID()) {
+        // use OCRetain from OCTypes
+        return (RMNDimensionRef)OCRetain((OCTypeRef)original);
+    }
+    if (typeID == RMNMonotonicDimensionGetTypeID()) {
+        return (RMNDimensionRef)RMNMonotonicDimensionCreateCopy((RMNMonotonicDimensionRef)original);
+    }
+    if (typeID == RMNLabeledDimensionGetTypeID()) {
+        OCArrayRef labels = RMNLabeledDimensionGetCoordinateLabels((RMNLabeledDimensionRef)original);
+        if (!labels) return NULL;
+        return (RMNDimensionRef) RMNLabeledDimensionCreateWithCoordinateLabels(labels);
+    }
+    if (typeID == RMNQuantitativeDimensionGetTypeID()) {
+        RMNQuantitativeDimensionRef src = (RMNQuantitativeDimensionRef)original;
+        return (RMNDimensionRef)RMNQuantitativeDimensionCreate(
+            OCDimensionGetLabel((RMNDimensionRef)src),
+            OCDimensionGetDescription((RMNDimensionRef)src),
+            OCDimensionGetMetaData((RMNDimensionRef)src),
+            RMNQuantitativeDimensionGetQuantityName(src),
+            RMNQuantitativeDimensionGetReferenceOffset(src),
+            RMNQuantitativeDimensionGetOriginOffset(src),
+            RMNQuantitativeDimensionGetPeriod(src),
+            RMNQuantitativeDimensionIsPeriodic(src),
+            RMNQuantitativeDimensionGetScaling(src)
+        );
+    }
+
+    fprintf(stderr, "RMNDimensionCreateDeepCopy: Unsupported typeID %u\n", typeID);
+    return NULL;
+}
 OCIndex RMNDimensionGetCount(RMNDimensionRef theDimension)
 {
     if (!theDimension) return 0;
@@ -985,3 +1055,4 @@ OCIndex RMNDimensionGetCount(RMNDimensionRef theDimension)
     }
     return 0;
 }
+#pragma endregion RMNDimension Helpers
