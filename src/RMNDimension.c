@@ -180,14 +180,62 @@ static RMNLabeledDimensionRef RMNLabeledDimensionAllocate(void) {
     obj->labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     return obj;
 }
-RMNLabeledDimensionRef RMNLabeledDimensionCreateWithLabels(OCArrayRef inputLabels) {
-    if (!inputLabels || OCArrayGetCount(inputLabels) < 2)
+RMNLabeledDimensionRef
+RMNLabeledDimensionCreate(
+    OCStringRef       label,
+    OCStringRef       description,
+    OCDictionaryRef   metaData,
+    OCArrayRef        inputLabels
+) {
+    if (!inputLabels || OCArrayGetCount(inputLabels) < 2) {
+        fprintf(stderr, "RMNLabeledDimensionCreate: need ≥2 labels\n");
         return NULL;
+    }
+
     RMNLabeledDimensionRef dim = RMNLabeledDimensionAllocate();
     if (!dim) return NULL;
+
+    // Base fields
+    if (label) {
+        OCRelease(dim->label);
+        dim->label = OCStringCreateCopy(label);
+        if (!dim->label) { OCRelease(dim); return NULL; }
+    }
+    if (description) {
+        OCRelease(dim->description);
+        dim->description = OCStringCreateCopy(description);
+        if (!dim->description) { OCRelease(dim); return NULL; }
+    }
+    if (metaData) {
+        OCRelease(dim->metaData);
+        dim->metaData = OCDictionaryCreateCopy(metaData);
+        if (!dim->metaData) { OCRelease(dim); return NULL; }
+    }
+
+    // Labels array
     OCRelease(dim->labels);
     dim->labels = OCArrayCreateMutableCopy(inputLabels);
+    if (!dim->labels) {
+        OCRelease(dim);
+        return NULL;
+    }
+
     return dim;
+}
+RMNLabeledDimensionRef
+RMNLabeledDimensionCreateWithLabels(OCArrayRef inputLabels)
+{
+    if (!inputLabels || OCArrayGetCount(inputLabels) < 2) {
+        fprintf(stderr, "RMNLabeledDimensionCreateWithLabels: need ≥2 labels\n");
+        return NULL;
+    }
+    // Delegate to the general constructor, using empty strings and NULL metadata
+    return RMNLabeledDimensionCreate(
+        STR(""), 
+        STR(""),
+        NULL,   // default metadata → creates an empty dictionary
+        inputLabels     
+    );
 }
 OCArrayRef RMNLabeledDimensionGetLabels(RMNLabeledDimensionRef dim) {
     return dim ? dim->labels : NULL;
@@ -555,151 +603,135 @@ static RMNMonotonicDimensionRef RMNMonotonicDimensionAllocate(void) {
     obj->coordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     return obj;
 }
-RMNMonotonicDimensionRef RMNMonotonicDimensionCreateWithCoordinates(OCArrayRef coordinates) {
-    if (!coordinates || OCArrayGetCount(coordinates) < 2)
-        return NULL;
-    RMNMonotonicDimensionRef dim = RMNMonotonicDimensionAllocate();
-    if (!dim) return NULL;
-    OCRelease(dim->coordinates);
-    dim->coordinates = OCArrayCreateMutableCopy(coordinates);
-    return dim;
-}
-RMNMonotonicDimensionRef SIMonotonicDimensionCreateDefault(OCArrayRef coordinates, OCStringRef quantityName) {
-    // Validate input
+/// Fully-customizable constructor for RMNMonotonicDimension
+RMNMonotonicDimensionRef
+RMNMonotonicDimensionCreate(
+    OCStringRef     label,
+    OCStringRef     description,
+    OCDictionaryRef metaData,
+    OCArrayRef      coordinates,
+    OCStringRef     quantityName,
+    SIScalarRef     originOffset,
+    SIScalarRef     referenceOffset,
+    bool            periodic,
+    dimensionScaling scaling
+) {
+    // 1) Validate coordinates array
     if (!coordinates) {
-        fprintf(stderr, "SIMonotonicDimensionCreateDefault: coordinates array is NULL\n");
+        fprintf(stderr, "RMNMonotonicDimensionCreate: coordinates array is NULL\n");
+        return NULL;
+    }
+    OCIndex count = OCArrayGetCount(coordinates);
+    if (count < 2) {
+        fprintf(stderr, "RMNMonotonicDimensionCreate: need ≥2 coordinates\n");
         return NULL;
     }
 
-    OCIndex coordinatesCount = OCArrayGetCount(coordinates);
-    if (coordinatesCount < 2) {
-        fprintf(stderr, "SIMonotonicDimensionCreateDefault: fewer than 2 coordinates\n");
+    // 2) Check first coord is real, grab its unit & dimensionality
+    SIScalarRef first = OCArrayGetValueAtIndex(coordinates, 0);
+    if (SIQuantityIsComplexType((SIQuantityRef)first)) {
+        fprintf(stderr, "RMNMonotonicDimensionCreate: first coordinate is complex\n");
         return NULL;
     }
+    SIDimensionalityRef dim0 = SIQuantityGetUnitDimensionality((SIQuantityRef)first);
+    SIUnitRef             unit = SIQuantityGetUnit((SIQuantityRef)first);
 
-    SIScalarRef firstCoordinate = OCArrayGetValueAtIndex(coordinates, 0);
-    if (SIQuantityIsComplexType((SIQuantityRef)firstCoordinate)) {
-        fprintf(stderr, "SIMonotonicDimensionCreateDefault: first coordinate is complex\n");
-        return NULL;
-    }
-
-    SIDimensionalityRef theDimensionality = SIQuantityGetUnitDimensionality((SIQuantityRef)firstCoordinate);
-    SIUnitRef theUnit = SIQuantityGetUnit((SIQuantityRef)firstCoordinate);
-
-    for (OCIndex index = 1; index < coordinatesCount; ++index) {
-        SIScalarRef coordinate = OCArrayGetValueAtIndex(coordinates, index);
-        if (!SIQuantityHasSameReducedDimensionality((SIQuantityRef)firstCoordinate, (SIQuantityRef)coordinate)) {
-            fprintf(stderr, "SIMonotonicDimensionCreateDefault: coordinate %u has mismatched dimensionality\n", (unsigned)index);
+    // 3) Ensure all coords share the same reduced dimensionality & are real
+    for (OCIndex i = 1; i < count; ++i) {
+        SIScalarRef c = OCArrayGetValueAtIndex(coordinates, i);
+        if (SIQuantityIsComplexType((SIQuantityRef)c)) {
+            fprintf(stderr, "RMNMonotonicDimensionCreate: coordinate %u is complex\n", (unsigned)i);
             return NULL;
         }
-        if (SIQuantityIsComplexType((SIQuantityRef)coordinate)) {
-            fprintf(stderr, "SIMonotonicDimensionCreateDefault: coordinate %u is complex\n", (unsigned)index);
+        if (!SIQuantityHasSameReducedDimensionality((SIQuantityRef)first, (SIQuantityRef)c)) {
+            fprintf(stderr, "RMNMonotonicDimensionCreate: coordinate %u mismatched dimensionality\n", (unsigned)i);
             return NULL;
         }
     }
 
-    // Handle quantity name
+    // 4) Validate or infer quantityName
     if (quantityName) {
-        OCStringRef error = NULL;
-        SIDimensionalityRef nameDim = SIDimensionalityForQuantity(quantityName, &error);
-        if (!nameDim || !SIDimensionalityHasSameReducedDimensionality(nameDim, theDimensionality)) {
-            fprintf(stderr, "SIMonotonicDimensionCreateDefault: quantity name has mismatched dimensionality\n");
+        OCStringRef err = NULL;
+        SIDimensionalityRef qdim = SIDimensionalityForQuantity(quantityName, &err);
+        if (!qdim || !SIDimensionalityHasSameReducedDimensionality(qdim, dim0)) {
+            fprintf(stderr, "RMNMonotonicDimensionCreate: quantityName dimensionality mismatch\n");
             return NULL;
         }
     } else {
-        quantityName = SIUnitGuessQuantityName(theUnit);
+        quantityName = SIUnitGuessQuantityName(unit);
         if (!quantityName) {
-            fprintf(stderr, "SIMonotonicDimensionCreateDefault: could not guess quantity name\n");
+            fprintf(stderr, "RMNMonotonicDimensionCreate: cannot infer quantityName from unit\n");
             return NULL;
         }
     }
 
-    // Allocate the object
+    // 5) Allocate
     RMNMonotonicDimensionRef dim = RMNMonotonicDimensionAllocate();
     if (!dim) {
-        fprintf(stderr, "SIMonotonicDimensionCreateDefault: allocation failed\n");
+        fprintf(stderr, "RMNMonotonicDimensionCreate: allocation failed\n");
         return NULL;
     }
 
-    // Set quantity name
-    OCStringRef qnameCopy = OCStringCreateCopy(quantityName);
-    if (!qnameCopy || !RMNQuantitativeDimensionSetQuantityName((RMNQuantitativeDimensionRef)dim, qnameCopy)) {
-        fprintf(stderr, "SIMonotonicDimensionCreateDefault: failed to set quantity name\n");
-        OCRelease(qnameCopy);
-        OCRelease(dim);
-        return NULL;
-    }
-    OCRelease(qnameCopy);
+    // 6) Set base fields
+    if (label)       OCDimensionSetLabel   ((RMNDimensionRef)dim, label);
+    if (description) OCDimensionSetDescription((RMNDimensionRef)dim, description);
+    if (metaData)    OCDimensionSetMetaData((RMNDimensionRef)dim, metaData);
 
-    // Replace coordinates array with a copied/reduced one
-    OCRelease(dim->coordinates);  // safe to release before replace
-    dim->coordinates = OCArrayCreateMutable(coordinatesCount, &kOCTypeArrayCallBacks);
-    if (!dim->coordinates) {
-        fprintf(stderr, "SIMonotonicDimensionCreateDefault: failed to create coordinate array\n");
-        OCRelease(dim);
-        return NULL;
+    // 7) Set quantityName
+    {
+        OCStringRef nameCopy = OCStringCreateCopy(quantityName);
+        RMNQuantitativeDimensionSetQuantityName((RMNQuantitativeDimensionRef)dim, nameCopy);
+        OCRelease(nameCopy);
     }
 
-    for (OCIndex i = 0; i < coordinatesCount; ++i) {
-        SIScalarRef coord = OCArrayGetValueAtIndex(coordinates, i);
-        SIScalarRef coordCopy = SIDimensionalityEqual(theDimensionality, SIQuantityGetUnitDimensionality((SIQuantityRef)coord))
-                              ? SIScalarCreateCopy(coord)
-                              : SIScalarCreateByReducingUnit(coord);
-
-        if (!coordCopy) {
-            fprintf(stderr, "SIMonotonicDimensionCreateDefault: failed to copy or reduce coordinate at index %u\n", (unsigned)i);
-            OCRelease(dim);
-            return NULL;
-        }
-
-        OCArrayAppendValue(dim->coordinates, coordCopy);
-        OCRelease(coordCopy);
+    // 8) Copy & possibly reduce coordinates
+    OCRelease(dim->coordinates);
+    dim->coordinates = OCArrayCreateMutable(count, &kOCTypeArrayCallBacks);
+    for (OCIndex i = 0; i < count; ++i) {
+        SIScalarRef c = OCArrayGetValueAtIndex(coordinates, i);
+        SIScalarRef copy = SIDimensionalityEqual(dim0, SIQuantityGetUnitDimensionality((SIQuantityRef)c))
+                          ? SIScalarCreateCopy(c)
+                          : SIScalarCreateByReducingUnit(c);
+        OCArrayAppendValue(dim->coordinates, copy);
+        OCRelease(copy);
     }
 
-    // Create origin and reference offsets
-    SIScalarRef origin = SIScalarCreateWithDouble(0.0, theUnit);
-    SIScalarRef reference = SIScalarCreateWithDouble(0.0, theUnit);
-    if (!origin || !reference ||
-        !RMNQuantitativeDimensionSetOriginOffset((RMNQuantitativeDimensionRef)dim, origin) ||
-        !RMNQuantitativeDimensionSetReferenceOffset((RMNQuantitativeDimensionRef)dim, reference)) {
-        fprintf(stderr, "SIMonotonicDimensionCreateDefault: failed to set origin/reference offset\n");
-        OCRelease(origin);
-        OCRelease(reference);
-        OCRelease(dim);
-        return NULL;
-    }
-    OCRelease(origin);
-    OCRelease(reference);
+    // 9) Origin & reference offsets (use provided or default to 0)
+    SIScalarRef zero = SIScalarCreateWithDouble(0.0, unit);
+    if (!originOffset)     originOffset     = zero;
+    if (!referenceOffset)  referenceOffset  = zero;
+    RMNQuantitativeDimensionSetOriginOffset     ((RMNQuantitativeDimensionRef)dim, originOffset);
+    RMNQuantitativeDimensionSetReferenceOffset  ((RMNQuantitativeDimensionRef)dim, referenceOffset);
+    if (zero != originOffset)    OCRelease(zero);
+    if (zero != referenceOffset) OCRelease(zero);
 
-    // Calculate and set period
-    SIScalarRef lastCoordinate = OCArrayGetValueAtIndex(coordinates, coordinatesCount - 1);
-    SIScalarRef period = SIScalarCreateBySubtracting(lastCoordinate, firstCoordinate, NULL);
-    if (!period || !RMNQuantitativeDimensionSetPeriod((RMNQuantitativeDimensionRef)dim, period)) {
-        fprintf(stderr, "SIMonotonicDimensionCreateDefault: failed to compute or set period\n");
-        OCRelease(period);
-        OCRelease(dim);
-        return NULL;
-    }
+    // 10) Compute & set period = last – first
+    SIScalarRef last   = OCArrayGetValueAtIndex(coordinates, count - 1);
+    SIScalarRef period = SIScalarCreateBySubtracting(last, first, NULL);
+    RMNQuantitativeDimensionSetPeriod((RMNQuantitativeDimensionRef)dim, period);
     OCRelease(period);
 
-    // Set periodic flag
-    RMNQuantitativeDimensionSetPeriodic((RMNQuantitativeDimensionRef)dim, false);
-
-    // Set label and description
-    OCDimensionSetLabel((RMNDimensionRef)dim, STR(""));
-    OCDimensionSetDescription((RMNDimensionRef)dim, STR(""));
-
-    // Set metadata with null-check
-    OCDictionaryRef meta = OCDictionaryCreateMutable(0);
-    if (!meta || !OCDimensionSetMetaData((RMNDimensionRef)dim, meta)) {
-        fprintf(stderr, "SIMonotonicDimensionCreateDefault: failed to create or set metaData\n");
-        OCRelease(meta);
-        OCRelease(dim);
-        return NULL;
-    }
-    OCRelease(meta);
+    // 11) Flags
+    RMNQuantitativeDimensionSetPeriodic((RMNQuantitativeDimensionRef)dim, periodic);
+    RMNQuantitativeDimensionSetScaling ((RMNQuantitativeDimensionRef)dim, scaling);
 
     return dim;
+}
+RMNMonotonicDimensionRef
+RMNMonotonicDimensionCreateWithCoordinatesAndQuantity(OCArrayRef coordinates,
+                                  OCStringRef quantityName)
+{
+    return RMNMonotonicDimensionCreate(
+        /* label: */        NULL,
+        /* description: */  NULL,
+        /* metaData: */     NULL,
+        /* coordinates: */  coordinates,
+        /* quantityName: */ quantityName,
+        /* originOffset: */ NULL,
+        /* referenceOffset: */ NULL,
+        /* periodic: */     false,
+        /* scaling: */      kDimensionScalingNone
+    );
 }
 RMNMonotonicDimensionRef RMNMonotonicDimensionCreateCopy(RMNMonotonicDimensionRef src) {
     if (!src) {

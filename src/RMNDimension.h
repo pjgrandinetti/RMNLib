@@ -138,6 +138,22 @@ RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original);
 OCTypeID RMNLabeledDimensionGetTypeID(void);
 
 /**
+ * @brief Fully-customizable constructor for a labeled dimension.
+ * @ingroup RMNLabeledDimension
+ *
+ * @param label       Optional “label” string (NULL ⇒ empty).
+ * @param description Optional “description” string (NULL ⇒ empty).
+ * @param metaData    Optional metadata dictionary (NULL ⇒ empty).
+ * @param inputLabels OCArrayRef of OCStringRef (must have ≥2 entries).
+ * @return A new RMNLabeledDimensionRef, or NULL on invalid input.
+ */
+RMNLabeledDimensionRef
+RMNLabeledDimensionCreate( OCStringRef     label,
+                           OCStringRef     description,
+                           OCDictionaryRef metaData,
+                           OCArrayRef      inputLabels );
+
+/**
  * @brief Create a labeled (categorical) dimension from an array of labels.
  * @ingroup RMNLabeledDimension
  * @param inputLabels  An OCArrayRef of OCStringRefs (must have ≥2 entries).
@@ -385,6 +401,32 @@ bool         RMNQuantitativeDimensionSetReciprocal(RMNQuantitativeDimensionRef d
 OCTypeID RMNMonotonicDimensionGetTypeID(void);
 
 /**
+ * @brief Fully-customizable constructor for a monotonic dimension.
+ * @ingroup RMNMonotonicDimension
+ *
+ * @param label           Optional “label” string.
+ * @param description     Optional “description” string.
+ * @param metaData        Optional metadata dictionary.
+ * @param coordinates     OCArrayRef of SIScalarRef (must have ≥2 elements).
+ * @param quantityName    Optional quantity name (NULL ⇒ inferred).
+ * @param originOffset    Optional origin offset SIScalarRef (NULL ⇒ zero).
+ * @param referenceOffset Optional reference offset SIScalarRef (NULL ⇒ zero).
+ * @param periodic        true if periodic.
+ * @param scaling         dimensionScaling mode.
+ * @return A new RMNMonotonicDimensionRef, or NULL on failure.
+ */
+RMNMonotonicDimensionRef
+RMNMonotonicDimensionCreate( OCStringRef     label,
+                             OCStringRef     description,
+                             OCDictionaryRef metaData,
+                             OCArrayRef      coordinates,
+                             OCStringRef     quantityName,
+                             SIScalarRef     originOffset,
+                             SIScalarRef     referenceOffset,
+                             bool            periodic,
+                             dimensionScaling scaling );
+
+/**
  * @brief Create a monotonic dimension from an array of coordinates.
  * @ingroup RMNMonotonicDimension
  * @param coordinates  An OCArrayRef of SIScalarRefs (≥2 elements, sorted or unsorted).
@@ -392,6 +434,14 @@ OCTypeID RMNMonotonicDimensionGetTypeID(void);
  */
 RMNMonotonicDimensionRef
     RMNMonotonicDimensionCreateWithCoordinates(OCArrayRef coordinates);
+
+/**
+ * @brief Convenience constructor: just coordinates + quantity name.
+ * @ingroup RMNMonotonicDimension
+ */
+RMNMonotonicDimensionRef
+RMNMonotonicDimensionCreateWithCoordinatesAndQuantity( OCArrayRef   coordinates,
+                                                      OCStringRef  quantityName );
 
 /**
  * @brief Get the coordinates array of a monotonic dimension.
