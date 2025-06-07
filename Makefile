@@ -67,7 +67,7 @@ OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
 SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
 SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
-.PHONY: all dirs clean prepare octypes sitypes test test-asan docs
+.PHONY: all dirs clean prepare octypes sitypes test test-asan docs synclib
 
 all: dirs octypes sitypes prepare $(LIB_DIR)/libRMNLib.a
 
@@ -220,3 +220,14 @@ docs:
 	@echo "Building Sphinx HTML..."
 	@cd docs && sphinx-build -b html . _build/html
 	@echo "Documentation available at docs/_build/html"
+
+.PHONY: synclib
+synclib:
+	@echo "Syncing OCTypes and SITypes into third_party..."
+	@$(RM) -rf $(THIRD_PARTY_DIR)/OCTypes $(THIRD_PARTY_DIR)/SITypes
+	@$(MKDIR_P) $(THIRD_PARTY_DIR)/OCTypes/lib $(THIRD_PARTY_DIR)/OCTypes/include/OCTypes
+	@cp ../OCTypes/install/lib/libOCTypes.a $(THIRD_PARTY_DIR)/OCTypes/lib/
+	@cp ../OCTypes/install/include/OCTypes/*.h $(THIRD_PARTY_DIR)/OCTypes/include/OCTypes/
+	@$(MKDIR_P) $(THIRD_PARTY_DIR)/SITypes/lib $(THIRD_PARTY_DIR)/SITypes/include/SITypes
+	@cp ../SITypes/install/lib/libSITypes.a $(THIRD_PARTY_DIR)/SITypes/lib/
+	@cp ../SITypes/install/include/SITypes/*.h $(THIRD_PARTY_DIR)/SITypes/include/SITypes/

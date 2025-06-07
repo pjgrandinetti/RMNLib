@@ -80,7 +80,7 @@ OCStringRef      OCDimensionGetLabel(RMNDimensionRef dim);
  * @param dim    An RMNDimensionRef (or subtype) instance.
  * @param label  The new OCStringRef label (retain‐copied).  May be NULL.
  */
-void             OCDimensionSetLabel(RMNDimensionRef dim, OCStringRef label);
+bool             OCDimensionSetLabel(RMNDimensionRef dim, OCStringRef label);
 
 /**
  * @brief Get the “description” string of a base dimension.
@@ -96,7 +96,7 @@ OCStringRef      OCDimensionGetDescription(RMNDimensionRef dim);
  * @param dim   An RMNDimensionRef (or subtype) instance.
  * @param desc  The new OCStringRef description (retain‐copied).  May be NULL.
  */
-void             OCDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc);
+bool             OCDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc);
 
 /**
  * @brief Get the “metaData” dictionary associated with a dimension.
@@ -112,7 +112,7 @@ OCDictionaryRef  OCDimensionGetMetaData(RMNDimensionRef dim);
  * @param dim   An RMNDimensionRef (or subtype) instance.
  * @param dict  The new OCDictionaryRef (retain‐copied).  May be NULL.
  */
-void             OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict);
+bool             OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict);
 
 // -----------------------------------------------------------------------------
 // MARK: - RMNLabeledDimension
@@ -203,14 +203,40 @@ bool        RMNLabeledDimensionSetLabelAtIndex(RMNLabeledDimensionRef dim,
 OCTypeID RMNQuantitativeDimensionGetTypeID(void);
 
 /**
- * @brief Create a new, empty quantitative dimension.
+ * @brief Creates a fully initialized quantitative dimension with specified metadata and scalar values.
+ *
+ * This factory function validates that the referenceOffset, originOffset, and period all share the same
+ * reduced dimensionality, and that the quantityName (if provided) is compatible with that dimensionality.
+ * If quantityName is NULL or incompatible, it will be inferred from the reference offset’s unit.
+ *
+ * All provided OCStringRef and SIScalarRef values are retained (not copied), except metaData,
+ * which is deep-copied if provided.
+ *
+ * @param label Optional label string (may be NULL for empty).
+ * @param description Optional description string (may be NULL for empty).
+ * @param metaData Optional metadata dictionary (copied if provided).
+ * @param quantityName Optional quantity name string (validated against dimensionality or inferred).
+ * @param referenceOffset Required real-valued scalar with unit and dimensionality.
+ * @param originOffset Required real-valued scalar with same dimensionality.
+ * @param period Required real-valued scalar with same dimensionality.
+ * @param periodic True if the dimension is periodic.
+ * @param scaling The scaling type (e.g., linear, logarithmic).
+ *
+ * @return A new RMNQuantitativeDimensionRef on success, or NULL on failure due to invalid input or allocation.
+ *
  * @ingroup RMNQuantitativeDimension
- * @details The new object’s label/description/metaData are initialized
- *          to empty defaults, numeric fields (quantityName, offsets, period)
- *          are set to NULL, periodic=false, scaling= kDimensionScalingNone.
- * @return RMNQuantitativeDimensionRef on success, or NULL on allocation failure.
  */
-RMNQuantitativeDimensionRef RMNQuantitativeDimensionCreate(void);
+RMNQuantitativeDimensionRef RMNQuantitativeDimensionCreate(
+    OCStringRef label,
+    OCStringRef description,
+    OCDictionaryRef metaData,
+    OCStringRef quantityName,
+    SIScalarRef referenceOffset,
+    SIScalarRef originOffset,
+    SIScalarRef period,
+    bool periodic,
+    dimensionScaling scaling);
+
 
 /**
  * @brief Get the quantity name of a quantitative dimension.
@@ -226,7 +252,7 @@ OCStringRef RMNQuantitativeDimensionGetQuantityName(RMNQuantitativeDimensionRef 
  * @param dim   An RMNQuantitativeDimensionRef.
  * @param name  The new OCStringRef quantityName (retain‐copied).  May be NULL.
  */
-void         RMNQuantitativeDimensionSetQuantityName(RMNQuantitativeDimensionRef dim,
+bool         RMNQuantitativeDimensionSetQuantityName(RMNQuantitativeDimensionRef dim,
                                                      OCStringRef name);
 
 /**
@@ -243,7 +269,7 @@ SIScalarRef RMNQuantitativeDimensionGetReferenceOffset(RMNQuantitativeDimensionR
  * @param dim  An RMNQuantitativeDimensionRef.
  * @param val  The new SIScalarRef (retain‐copied).  May be NULL.
  */
-void         RMNQuantitativeDimensionSetReferenceOffset(RMNQuantitativeDimensionRef dim,
+bool         RMNQuantitativeDimensionSetReferenceOffset(RMNQuantitativeDimensionRef dim,
                                                         SIScalarRef val);
 
 /**
@@ -260,7 +286,7 @@ SIScalarRef RMNQuantitativeDimensionGetOriginOffset(RMNQuantitativeDimensionRef 
  * @param dim  An RMNQuantitativeDimensionRef.
  * @param val  The new SIScalarRef (retain‐copied).  May be NULL.
  */
-void         RMNQuantitativeDimensionSetOriginOffset(RMNQuantitativeDimensionRef dim,
+bool         RMNQuantitativeDimensionSetOriginOffset(RMNQuantitativeDimensionRef dim,
                                                      SIScalarRef val);
 
 /**
@@ -277,7 +303,7 @@ SIScalarRef RMNQuantitativeDimensionGetPeriod(RMNQuantitativeDimensionRef dim);
  * @param dim  An RMNQuantitativeDimensionRef.
  * @param val  The new SIScalarRef (retain‐copied).  May be NULL.
  */
-void         RMNQuantitativeDimensionSetPeriod(RMNQuantitativeDimensionRef dim,
+bool         RMNQuantitativeDimensionSetPeriod(RMNQuantitativeDimensionRef dim,
                                                SIScalarRef val);
 
 /**
@@ -294,7 +320,7 @@ bool         RMNQuantitativeDimensionIsPeriodic(RMNQuantitativeDimensionRef dim)
  * @param dim   An RMNQuantitativeDimensionRef.
  * @param flag  true to mark periodic, false to clear.
  */
-void         RMNQuantitativeDimensionSetPeriodic(RMNQuantitativeDimensionRef dim,
+bool         RMNQuantitativeDimensionSetPeriodic(RMNQuantitativeDimensionRef dim,
                                                  bool flag);
 
 /**
@@ -312,7 +338,7 @@ dimensionScaling
  * @param dim      An RMNQuantitativeDimensionRef.
  * @param scaling  The new dimensionScaling value.
  */
-void         RMNQuantitativeDimensionSetScaling(RMNQuantitativeDimensionRef dim,
+bool         RMNQuantitativeDimensionSetScaling(RMNQuantitativeDimensionRef dim,
                                                 dimensionScaling scaling);
 
 /**
@@ -330,7 +356,7 @@ RMNQuantitativeDimensionRef
  * @param dim  An RMNQuantitativeDimensionRef.
  * @param r    The RMNQuantitativeDimensionRef to use as reciprocal.  May be NULL.
  */
-void         RMNQuantitativeDimensionSetReciprocal(RMNQuantitativeDimensionRef dim,
+bool         RMNQuantitativeDimensionSetReciprocal(RMNQuantitativeDimensionRef dim,
                                                    RMNQuantitativeDimensionRef r);
 
 /** @} */ // end of RMNQuantitativeDimension group
