@@ -27,9 +27,9 @@ RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original) {
         return (RMNDimensionRef)RMNMonotonicDimensionCreateCopy((RMNMonotonicDimensionRef)original);
     }
     if (typeID == RMNLabeledDimensionGetTypeID()) {
-        OCArrayRef labels = RMNLabeledDimensionGetLabels((RMNLabeledDimensionRef)original);
+        OCArrayRef labels = RMNLabeledDimensionGetCoordinateLabels((RMNLabeledDimensionRef)original);
         if (!labels) return NULL;
-        return (RMNDimensionRef)RMNLabeledDimensionCreateWithLabels(labels);
+        return (RMNDimensionRef) RMNLabeledDimensionCreateWithCoordinateLabels(labels);
     }
     if (typeID == RMNQuantitativeDimensionGetTypeID()) {
         RMNQuantitativeDimensionRef src = (RMNQuantitativeDimensionRef)original;
@@ -165,7 +165,7 @@ static OCStringRef __RMNLabeledDimensionCopyFormattingDesc(OCTypeRef cf) {
 }
 static void *__RMNLabeledDimensionDeepCopy(const void *obj) {
     if (!obj) return NULL;
-    return RMNLabeledDimensionCreateWithCoordinateLabels(RMNLabeledDimensionGetLabels((RMNLabeledDimensionRef)obj));
+    return RMNLabeledDimensionCreateWithCoordinateLabels(RMNLabeledDimensionGetCoordinateLabels((RMNLabeledDimensionRef)obj));
 }
 static RMNLabeledDimensionRef RMNLabeledDimensionAllocate(void) {
     RMNLabeledDimensionRef obj = OCTypeAlloc(
@@ -230,7 +230,7 @@ RMNLabeledDimensionRef
 RMNLabeledDimensionCreateWithCoordinateLabels(OCArrayRef coordinateLabels)
 {
     if (!coordinateLabels || OCArrayGetCount(coordinateLabels) < 2) {
-        fprintf(stderr, "RMNLabeledDimensionCreateWithLabels: need ≥2 labels\n");
+        fprintf(stderr, "RMNLabeledDimensionCreateWithCoordinateLabels: need ≥2 labels\n");
         return NULL;
     }
     // Delegate to the general constructor, using empty strings and NULL metadata
@@ -976,8 +976,8 @@ OCIndex RMNDimensionGetCount(RMNDimensionRef theDimension)
         return OCArrayGetCount(labeledDim->coordinateLabels);
     }
     else if (typeID == RMNLinearDimensionGetTypeID()) {
-        RMNLinearDimensionRef linearDim = (RMNLinearDimensionRef)theDimension;
-        return OCArrayGetCount(linearDim->count);
+        RMNLinearDimensionRef linearDim = (RMNLinearDimensionRef) theDimension;
+        return linearDim->count;
     }
     else if( typeID == RMNMonotonicDimensionGetTypeID()) {
         RMNMonotonicDimensionRef monoDim = (RMNMonotonicDimensionRef)theDimension;
