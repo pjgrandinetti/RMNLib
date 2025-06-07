@@ -31,8 +31,8 @@ struct __RMNDimension {
 // Initialize the three “base” fields.
 // Used by every allocator after OCTypeAlloc(…) has constructed the object.
 static void __RMNInitBaseFields(RMNDimensionRef dim) {
-    dim->label      = OCStringCreateWithCString("");
-    dim->description = OCStringCreateWithCString("");
+    dim->label      = STR("");
+    dim->description = STR("");
     dim->metaData    = OCDictionaryCreateMutable(0);
 }
 
@@ -63,8 +63,15 @@ OCStringRef OCDimensionGetLabel(RMNDimensionRef dim) {
 
 bool OCDimensionSetLabel(RMNDimensionRef dim, OCStringRef label) {
     if (!dim) return false;
+
+    OCStringRef labelCopy = label ? OCStringCreateCopy(label) : NULL;
+    if (label && !labelCopy) {
+        fprintf(stderr, "OCDimensionSetLabel: failed to copy label string\n");
+        return false;
+    }
+
     OCRelease(dim->label);
-    dim->label = label ? OCRetain(label) : NULL;
+    dim->label = labelCopy;
     return true;
 }
 
@@ -74,8 +81,15 @@ OCStringRef OCDimensionGetDescription(RMNDimensionRef dim) {
 
 bool OCDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc) {
     if (!dim) return false;
+
+    OCStringRef descCopy = desc ? OCStringCreateCopy(desc) : NULL;
+    if (desc && !descCopy) {
+        fprintf(stderr, "OCDimensionSetDescription: failed to copy description string\n");
+        return false;
+    }
+
     OCRelease(dim->description);
-    dim->description = desc ? OCRetain(desc) : NULL;
+    dim->description = descCopy;
     return true;
 }
 
@@ -85,9 +99,15 @@ OCDictionaryRef OCDimensionGetMetaData(RMNDimensionRef dim) {
 
 bool OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict) {
     if (!dim) return false;
-    if (dim->metaData == dict) return true;  // No change needed
+
+    OCDictionaryRef dictCopy = dict ? OCDictionaryCreateCopy(dict) : NULL;
+    if (dict && !dictCopy) {
+        fprintf(stderr, "OCDimensionSetMetaData: failed to copy metadata dictionary\n");
+        return false;
+    }
+
     OCRelease(dim->metaData);
-    dim->metaData = dict ? OCRetain(dict) : NULL;
+    dim->metaData = dictCopy;
     return true;
 }
 
