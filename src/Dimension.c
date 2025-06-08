@@ -72,6 +72,16 @@ static OCStringRef __DimensionCopyFormattingDesc(OCTypeRef cf) {
         lbl,
         desc);
 }
+DimensionRef DimensionDeepCopy(DimensionRef original) {
+    if (!original) return NULL;
+    // Serialize to a dictionary
+    OCDictionaryRef dict = DimensionCopyAsDictionary(original);
+    if (!dict) return NULL;
+    // Rehydrate a new instance from that dictionary
+    DimensionRef copy = DimensionCreateFromDictionary(dict);
+    OCRelease(dict);
+    return copy;
+}
 static void *__DimensionDeepCopy(const void *obj) {
     return DimensionDeepCopy((DimensionRef)obj);
 }
@@ -87,20 +97,6 @@ static DimensionRef DimensionAllocate(void) {
     if (!dim) return NULL;
     __InitBaseDimensionFields(dim);
     return dim;
-}
-DimensionRef DimensionDeepCopy(DimensionRef original) {
-    if (!original) return NULL;
-    // Allocate a new Dimension instance
-    DimensionRef copy = DimensionAllocate();
-    if (!copy) return NULL;
-    // Copy each field using the setters (which perform safe copying)
-    if (!DimensionSetLabel(copy, original->label) ||
-        !DimensionSetDescription(copy, original->description) ||
-        !DimensionSetMetadata(copy, original->metadata)) {
-        OCRelease(copy);
-        return NULL;
-    }
-    return copy;
 }
 OCStringRef DimensionGetLabel(DimensionRef dim) {
     return dim ? dim->label : NULL;
@@ -271,22 +267,16 @@ static OCStringRef __LabeledDimensionCopyFormattingDesc(OCTypeRef cf) {
         "<LabeledDimension label=\"%@\" description=\"%@\" coordinateLabelCount=%ld>",
         lbl, desc, (long)count);
 }
+LabeledDimensionRef LabeledDimensionDeepCopy(LabeledDimensionRef original) {
+    if (!original) return NULL;
+    OCDictionaryRef dict = LabeledDimensionCopyAsDictionary(original);
+    if (!dict) return NULL;
+    LabeledDimensionRef copy = LabeledDimensionCreateFromDictionary(dict);
+    OCRelease(dict);
+    return copy;
+}
 static void *__LabeledDimensionDeepCopy(const void *obj) {
-    if (!obj) return NULL;
-    const LabeledDimensionRef original = (const LabeledDimensionRef)obj;
-    // 1) Grab the original’s array and ensure it’s valid
-    OCArrayRef origLabels = LabeledDimensionGetCoordinateLabels(original);
-    if (!origLabels || OCArrayGetCount(origLabels) < 2) {
-        // can’t copy an invalid or too‐small label set
-        return NULL;
-    }
-    // 2) Delegate to the public create API, which will deep‐copy label, description,
-    //    metadata and coordinateLabels (and enforce ≥2 labels).
-    return LabeledDimensionCreate(
-        DimensionGetLabel((DimensionRef)original),
-        DimensionGetDescription((DimensionRef)original),
-        DimensionGetMetadata((DimensionRef)original),
-        origLabels);
+    return LabeledDimensionDeepCopy((LabeledDimensionRef)obj);
 }
 static LabeledDimensionRef LabeledDimensionAllocate(void) {
     LabeledDimensionRef obj = OCTypeAlloc(
@@ -529,20 +519,18 @@ static OCStringRef __SIDimensionCopyFormattingDesc(OCTypeRef cf) {
     OCRelease(periodStr);
     return fmt;
 }
+SIDimensionRef SIDimensionDeepCopy(SIDimensionRef original) {
+    if (!original) return NULL;
+    // Serialize to a dictionary
+    OCDictionaryRef dict = SIDimensionCopyAsDictionary(original);
+    if (!dict) return NULL;
+    // Rehydrate a new instance from that dictionary
+    SIDimensionRef copy = SIDimensionCreateFromDictionary(dict);
+    OCRelease(dict);
+    return copy;
+}
 static void *__SIDimensionDeepCopy(const void *obj) {
-    if (!obj) return NULL;
-    const SIDimensionRef src = (const SIDimensionRef)obj;
-    // Delegate to the public constructor so it deep-copies everything
-    return SIDimensionCreate(
-        /* label:             */ DimensionGetLabel((DimensionRef)src),
-        /* description:       */ DimensionGetDescription((DimensionRef)src),
-        /* metadata:          */ DimensionGetMetadata((DimensionRef)src),
-        /* quantity:      */ SIDimensionGetQuantity(src),
-        /* offset: */ SIDimensionGetOffset(src),
-        /* origin:      */ SIDimensionGetOrigin(src),
-        /* period:            */ SIDimensionGetPeriod(src),
-        /* periodic:          */ SIDimensionIsPeriodic(src),
-        /* scaling:           */ SIDimensionGetScaling(src));
+    return SIDimensionDeepCopy((SIDimensionRef)obj);
 }
 static void __InitSIDimensionFields(SIDimensionRef dim) {
     // Default quantity: dimensionless
@@ -1102,32 +1090,44 @@ static OCStringRef __SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf) {
     OCRelease(base);
     return fmt;
 }
-static void *__SIMonotonicDimensionDeepCopy(const void *obj) {
-    const SIMonotonicDimensionRef src = (const SIMonotonicDimensionRef)obj;
-    if (!src) return NULL;
-    // 1) Deep-copy the reciprocal (if any)
-    SIDimensionRef reciprocalCopy = NULL;
-    if (src->reciprocal) {
-        reciprocalCopy = (SIDimensionRef)OCTypeDeepCopy((OCTypeRef)src->reciprocal);
-        if (!reciprocalCopy) return NULL;
-    }
-    // 2) Delegate to the public constructor, which will deep-copy
-    //    all base fields and the coordinates array for us
-    SIMonotonicDimensionRef copy = SIMonotonicDimensionCreate(
-        /* label:       */ DimensionGetLabel((DimensionRef)&src->_super._super),
-        /* description: */ DimensionGetDescription((DimensionRef)&src->_super._super),
-        /* metadata:    */ DimensionGetMetadata((DimensionRef)&src->_super._super),
-        /* quantity:    */ SIDimensionGetQuantity((SIDimensionRef)&src->_super),
-        /* offset:      */ SIDimensionGetOffset((SIDimensionRef)&src->_super),
-        /* origin:      */ SIDimensionGetOrigin((SIDimensionRef)&src->_super),
-        /* period:      */ SIDimensionGetPeriod((SIDimensionRef)&src->_super),
-        /* periodic:    */ SIDimensionIsPeriodic((SIDimensionRef)&src->_super),
-        /* scaling:     */ SIDimensionGetScaling((SIDimensionRef)&src->_super),
-        /* coordinates: */ src->coordinates,
-        /* reciprocal:  */ reciprocalCopy);
-    // 3) Release our temporary copy (the constructor has retained it)
-    if (reciprocalCopy) OCRelease(reciprocalCopy);
+SIMonotonicDimensionRef
+SIMonotonicDimensionDeepCopy(SIMonotonicDimensionRef original) {
+    if (!original) return NULL;
+    // 1) Serialize to a dictionary
+    OCDictionaryRef dict = SIMonotonicDimensionCopyAsDictionary(original);
+    if (!dict) return NULL;
+    // 2) Rehydrate a new instance
+    SIMonotonicDimensionRef copy =
+        SIMonotonicDimensionCreateFromDictionary(dict);
+    // 3) Clean up
+    OCRelease(dict);
     return copy;
+}
+static void *__SIMonotonicDimensionDeepCopy(const void *obj) {
+    return SIMonotonicDimensionDeepCopy((SIMonotonicDimensionRef)obj);
+}
+static SIMonotonicDimensionRef SIMonotonicDimensionAllocate(void) {
+    SIMonotonicDimensionRef obj = OCTypeAlloc(
+        struct __SIMonotonicDimension,
+        SIMonotonicDimensionGetTypeID(),
+        __SIMonotonicDimensionFinalize,
+        __SIMonotonicDimensionEqual,
+        __SIMonotonicDimensionCopyFormattingDesc,
+        __SIMonotonicDimensionDeepCopy,
+        __SIMonotonicDimensionDeepCopy);
+    if (!obj) return NULL;
+    // Initialize the Dimension base fields
+    __InitBaseDimensionFields((DimensionRef)&obj->_super._super);
+    // Initialize the SI‐dimension fields
+    __InitSIDimensionFields((SIDimensionRef)&obj->_super);
+    // Set up our subclass fields
+    obj->coordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    if (!obj->coordinates) {
+        OCRelease(obj);
+        return NULL;
+    }
+    obj->reciprocal = NULL;
+    return obj;
 }
 SIMonotonicDimensionRef
 SIMonotonicDimensionCreate(
@@ -1142,28 +1142,30 @@ SIMonotonicDimensionCreate(
     dimensionScaling scaling,
     OCArrayRef coordinates,
     SIDimensionRef reciprocal) {
-    // 1) must have ≥2 coordinates
+    // 1) Monotonic‐specific: need at least two sample points
     if (!coordinates || OCArrayGetCount(coordinates) < 2) {
         fprintf(stderr, "SIMonotonicDimensionCreate: need ≥2 coordinates\n");
         return NULL;
     }
-    // 2) allocate and zero-init all fields
-    SIMonotonicDimensionRef dim = SIMonotonicDimensionAllocate();
-    if (!dim) return NULL;
-    // 3) initialize the SI-dimension part via setters
-    if (!SIDimensionSetLabel((SIDimensionRef)dim, label) ||
-        !SIDimensionSetDescription((SIDimensionRef)dim, description) ||
-        !SIDimensionSetMetadata((SIDimensionRef)dim, metadata) ||
-        !SIDimensionSetQuantity((SIDimensionRef)dim, quantity) ||
-        !SIDimensionSetOffset((SIDimensionRef)dim, offset) ||
-        !SIDimensionSetOrigin((SIDimensionRef)dim, origin) ||
-        (periodic && !SIDimensionSetPeriod((SIDimensionRef)dim, period)) ||
-        !SIDimensionSetPeriodic((SIDimensionRef)dim, periodic) ||
-        !SIDimensionSetScaling((SIDimensionRef)dim, scaling)) {
-        OCRelease(dim);
+    // 2) Delegate all SI‐dimension validation + allocation to SIDimensionCreate
+    SIDimensionRef base =
+        SIDimensionCreate(label,
+                          description,
+                          metadata,
+                          quantity,
+                          offset,
+                          origin,
+                          period,
+                          periodic,
+                          scaling);
+    if (!base) {
+        // SIDimensionCreate already printed an error
         return NULL;
     }
-    // 4) fill in subclass fields
+    // 3) “Upcast” to our subtype and swap the typeID
+    SIMonotonicDimensionRef dim = (SIMonotonicDimensionRef)base;
+    OCTypeSetTypeID((OCTypeRef)dim, SIMonotonicDimensionGetTypeID());
+    // 4) Now fill in our monotonic‐specific fields
     dim->coordinates = OCArrayCreateMutableCopy(coordinates);
     if (!dim->coordinates) {
         OCRelease(dim);
@@ -1250,12 +1252,12 @@ SIMonotonicDimensionCopyAsDictionary(SIMonotonicDimensionRef dim) {
 // ============================================================================
 static OCTypeID kSILinearDimensionID = _kOCNotATypeID;
 typedef struct __SILinearDimension {
-    struct __SIDimension _super;   // inherit Dimension + SI fields
-    SIDimensionRef reciprocal;     // optional reciprocal dimension
-    OCIndex count;                 // number of points (>=2)
-    SIScalarRef increment;         // spacing between points
-    SIScalarRef inverseIncrement;  // precomputed 1/increment
-    bool fft;                      // FFT flag
+    struct __SIDimension _super;  // inherit Dimension + SI fields
+    SIDimensionRef reciprocal;    // optional reciprocal dimension
+    OCIndex count;                // number of points (>=2)
+    SIScalarRef increment;        // spacing between points
+    SIScalarRef reciprocalIncrement;
+    bool fft;  // FFT flag
 } *SILinearDimensionRef;
 OCTypeID SILinearDimensionGetTypeID(void) {
     if (kSILinearDimensionID == _kOCNotATypeID)
@@ -1273,7 +1275,7 @@ static bool __SILinearDimensionEqual(const void *a, const void *b) {
     if (A->count != B->count || A->fft != B->fft)
         return false;
     if (!OCEqual(A->increment, B->increment) ||
-        !OCEqual(A->inverseIncrement, B->inverseIncrement) ||
+        !OCEqual(A->reciprocalIncrement, B->reciprocalIncrement) ||
         !OCEqual(A->reciprocal, B->reciprocal))
         return false;
     return true;
@@ -1285,7 +1287,7 @@ static void __SILinearDimensionFinalize(const void *obj) {
     __SIDimensionFinalize((const void *)&dim->_super);
     // clean up subclass fields
     OCRelease(dim->increment);
-    OCRelease(dim->inverseIncrement);
+    OCRelease(dim->reciprocalIncrement);
     OCRelease(dim->reciprocal);
 }
 static OCStringRef __SILinearDimensionCopyFormattingDesc(OCTypeRef cf) {
@@ -1295,10 +1297,10 @@ static OCStringRef __SILinearDimensionCopyFormattingDesc(OCTypeRef cf) {
     OCStringRef base = __SIDimensionCopyFormattingDesc((OCTypeRef)&d->_super);
     // subclass values
     OCStringRef incStr = SIScalarCreateStringValue(d->increment);
-    OCStringRef invStr = SIScalarCreateStringValue(d->inverseIncrement);
+    OCStringRef invStr = SIScalarCreateStringValue(d->reciprocalIncrement);
     const char *fftStr = d->fft ? "true" : "false";
     OCStringRef fmt = OCStringCreateWithFormat(
-        "%@ count=%lu increment=%@ inverseIncrement=%@ fft=%s>",
+        "%@ count=%lu increment=%@ reciprocalIncrement=%@ fft=%s>",
         base,
         (unsigned long)d->count,
         incStr,
@@ -1309,30 +1311,16 @@ static OCStringRef __SILinearDimensionCopyFormattingDesc(OCTypeRef cf) {
     OCRelease(invStr);
     return fmt;
 }
-static void *__SILinearDimensionDeepCopy(const void *obj) {
-    const SILinearDimensionRef src = (const SILinearDimensionRef)obj;
-    if (!src) return NULL;
-    // deep-copy reciprocal if present
-    SIDimensionRef recCopy = src->reciprocal
-                                 ? (SIDimensionRef)OCTypeDeepCopy((OCTypeRef)src->reciprocal)
-                                 : NULL;
-    // delegate to public constructor
-    SILinearDimensionRef copy = SILinearDimensionCreate(
-        DimensionGetLabel((DimensionRef)&src->_super._super),
-        DimensionGetDescription((DimensionRef)&src->_super._super),
-        DimensionGetMetadata((DimensionRef)&src->_super._super),
-        SIDimensionGetQuantity((SIDimensionRef)&src->_super),
-        SIDimensionGetOffset((SIDimensionRef)&src->_super),
-        SIDimensionGetOrigin((SIDimensionRef)&src->_super),
-        SIDimensionGetPeriod((SIDimensionRef)&src->_super),
-        SIDimensionIsPeriodic((SIDimensionRef)&src->_super),
-        SIDimensionGetScaling((SIDimensionRef)&src->_super),
-        src->count,
-        src->increment,
-        src->fft,
-        recCopy);
-    if (recCopy) OCRelease(recCopy);
+SILinearDimensionRef SILinearDimensionDeepCopy(SILinearDimensionRef original) {
+    if (!original) return NULL;
+    OCDictionaryRef dict = SILinearDimensionCopyAsDictionary(original);
+    if (!dict) return NULL;
+    SILinearDimensionRef copy = SILinearDimensionCreateFromDictionary(dict);
+    OCRelease(dict);
     return copy;
+}
+static void *__SILinearDimensionDeepCopy(const void *obj) {
+    return SILinearDimensionDeepCopy((SILinearDimensionRef)obj);
 }
 static SILinearDimensionRef SILinearDimensionAllocate(void) {
     SILinearDimensionRef obj = OCTypeAlloc(
@@ -1347,53 +1335,61 @@ static SILinearDimensionRef SILinearDimensionAllocate(void) {
     __InitSIDimensionFields((SIDimensionRef)&obj->_super);
     obj->count = 0;
     obj->increment = NULL;
-    obj->inverseIncrement = NULL;
+    obj->reciprocalIncrement = NULL;
     obj->fft = false;
     obj->reciprocal = NULL;
     return obj;
 }
 SILinearDimensionRef
-SILinearDimensionCreate(OCStringRef label,
-                        OCStringRef description,
-                        OCDictionaryRef metaData,
-                        OCStringRef quantityName,
-                        SIScalarRef coordinatesOffset,
-                        SIScalarRef originOffset,
-                        SIScalarRef period,
-                        bool periodic,
-                        dimensionScaling scaling,
-                        OCIndex count,
-                        SIScalarRef increment,
-                        bool fft,
-                        SIDimensionRef reciprocal) {
+SILinearDimensionCreate(
+    OCStringRef label,
+    OCStringRef description,
+    OCDictionaryRef metadata,
+    OCStringRef quantity,
+    SIScalarRef offset,
+    SIScalarRef origin,
+    SIScalarRef period,
+    bool periodic,
+    dimensionScaling scaling,
+    OCIndex count,
+    SIScalarRef increment,
+    bool fft,
+    SIDimensionRef reciprocal) {
+    // 1) Linear‐specific validation
     if (count < 2 || !increment) {
-        fprintf(stderr, "SILinearDimensionCreate: need ≥2 points and a valid increment\n");
+        fprintf(stderr,
+                "SILinearDimensionCreate: need ≥2 points and a valid increment\n");
         return NULL;
     }
-    SILinearDimensionRef dim = SILinearDimensionAllocate();
-    if (!dim) return NULL;
-    // initialize SI superclass fields
-    if (!SIDimensionSetLabel((SIDimensionRef)&dim->_super, label) ||
-        !SIDimensionSetDescription((SIDimensionRef)&dim->_super, description) ||
-        !SIDimensionSetMetadata((SIDimensionRef)&dim->_super, metaData) ||
-        !SIDimensionSetQuantity((SIDimensionRef)&dim->_super, quantityName) ||
-        !SIDimensionSetOffset((SIDimensionRef)&dim->_super, coordinatesOffset) ||
-        !SIDimensionSetOrigin((SIDimensionRef)&dim->_super, originOffset) ||
-        (periodic && !SIDimensionSetPeriod((SIDimensionRef)&dim->_super, period)) ||
-        !SIDimensionSetPeriodic((SIDimensionRef)&dim->_super, periodic) ||
-        !SIDimensionSetScaling((SIDimensionRef)&dim->_super, scaling)) {
-        OCRelease(dim);
+    // 2) Delegate all SI‐dimension work to SIDimensionCreate
+    SIDimensionRef base =
+        SIDimensionCreate(label,
+                          description,
+                          metadata,
+                          quantity,
+                          offset,
+                          origin,
+                          period,
+                          periodic,
+                          scaling);
+    if (!base) {
+        // SIDimensionCreate already logged the error
         return NULL;
     }
-    // subclass fields
+    // 3) “Re-cast” and fix the runtime type
+    SILinearDimensionRef dim = (SILinearDimensionRef)base;
+    OCTypeSetTypeID((OCTypeRef)dim, SILinearDimensionGetTypeID());
+    // 4) Populate linear-specific fields
     dim->count = count;
     dim->increment = SIScalarCreateCopy(increment);
     if (!dim->increment) {
         OCRelease(dim);
         return NULL;
     }
-    dim->inverseIncrement = SIScalarCreateByConvertingToUnit(increment,
-                                                             SIScalarGetUnit(increment), NULL);
+    dim->inverseIncrement = SIScalarCreateByConvertingToUnit(
+        increment,
+        SIScalarGetUnit(increment),
+        NULL);
     if (!dim->inverseIncrement) {
         OCRelease(dim);
         return NULL;
@@ -1412,7 +1408,7 @@ SIScalarRef SILinearDimensionGetIncrement(SILinearDimensionRef dim) {
     return dim ? dim->increment : NULL;
 }
 SIScalarRef SILinearDimensionGetInverseIncrement(SILinearDimensionRef dim) {
-    return dim ? dim->inverseIncrement : NULL;
+    return dim ? dim->reciprocalIncrement : NULL;
 }
 bool SILinearDimensionIsFFTEnabled(SILinearDimensionRef dim) {
     return dim && dim->fft;
@@ -1438,10 +1434,10 @@ SILinearDimensionCreateFromDictionary(OCDictionaryRef dict) {
         OCRetain(inc);
         dim->increment = inc;
     }
-    SIScalarRef inv = (SIScalarRef)OCDictionaryGetValue(dict, STR("inverseIncrement"));
+    SIScalarRef inv = (SIScalarRef)OCDictionaryGetValue(dict, STR("reciprocalIncrement"));
     if (inv) {
         OCRetain(inv);
-        dim->inverseIncrement = inv;
+        dim->reciprocalIncrement = inv;
     }
     OCBooleanRef fftObj = (OCBooleanRef)OCDictionaryGetValue(dict, STR("fft"));
     dim->fft = fftObj ? OCBooleanGetValue(fftObj) : false;
@@ -1469,11 +1465,11 @@ SILinearDimensionCopyAsDictionary(SILinearDimensionRef dim) {
             OCRelease(incCopy);
         }
     }
-    // inverseIncrement
-    if (dim->inverseIncrement) {
-        SIScalarRef invCopy = SIScalarCreateCopy(dim->inverseIncrement);
+    // reciprocalIncrement
+    if (dim->reciprocalIncrement) {
+        SIScalarRef invCopy = SIScalarCreateCopy(dim->reciprocalIncrement);
         if (invCopy) {
-            OCDictionarySetValue(dict, STR("inverseIncrement"), invCopy);
+            OCDictionarySetValue(dict, STR("reciprocalIncrement"), invCopy);
             OCRelease(invCopy);
         }
     }

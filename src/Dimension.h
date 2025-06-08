@@ -178,12 +178,12 @@ SIDimensionCreate(OCStringRef label,
  * @see https://rmnlibrary.readthedocs.io/en/latest/api/Dimensions.html#SIDimensionGetQuantity
  */
 OCStringRef
-SIDimensionGetQuantityName(SIDimensionRef dim);
+SIDimensionGetQuantity(SIDimensionRef dim);
 /**
  * @brief Set the quantity name (validates dimensionality).
  * @see https://rmnlibrary.readthedocs.io/en/latest/api/Dimensions.html#SIDimensionSetQuantity
  */
-bool SIDimensionSetQuantityName(SIDimensionRef dim,
+bool SIDimensionSetQuantity(SIDimensionRef dim,
                                 OCStringRef name);
 /**
  * @brief Get the coordinates-offset scalar.
