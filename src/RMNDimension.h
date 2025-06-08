@@ -226,7 +226,7 @@ extern "C"
     /**
      * @brief Creates a fully initialized quantitative dimension with specified metadata and scalar values.
      *
-     * This factory function validates that the referenceOffset, originOffset, and period all share the same
+     * This factory function validates that the coordinatesOffset, originOffset, and period all share the same
      * reduced dimensionality, and that the quantityName (if provided) is compatible with that dimensionality.
      * If quantityName is NULL or incompatible, it will be inferred from the reference offset’s unit.
      *
@@ -237,7 +237,7 @@ extern "C"
      * @param description Optional description string (may be NULL for empty).
      * @param metaData Optional metadata dictionary (copied if provided).
      * @param quantityName Optional quantity name string (validated against dimensionality or inferred).
-     * @param referenceOffset Required real-valued scalar with unit and dimensionality.
+     * @param coordinatesOffset Required real-valued scalar with unit and dimensionality.
      * @param originOffset Required real-valued scalar with same dimensionality.
      * @param period Required real-valued scalar with same dimensionality.
      * @param periodic True if the dimension is periodic.
@@ -252,7 +252,7 @@ extern "C"
         OCStringRef description,
         OCDictionaryRef metaData,
         OCStringRef quantityName,
-        SIScalarRef referenceOffset,
+        SIScalarRef coordinatesOffset,
         SIScalarRef originOffset,
         SIScalarRef period,
         bool periodic,
@@ -264,7 +264,7 @@ extern "C"
      * @param dim  An RMNQuantitativeDimensionRef.
      * @return     The OCStringRef quantityName, or NULL if not set or dim is NULL.
      */
-    OCStringRef RMNDimensionGetQuantityName(RMNQuantitativeDimensionRef dim);
+    OCStringRef RMNDimensionGetQuantityName(RMNDimensionRef dim);
 
     /**
      * @brief Set the quantity name of a quantitative dimension.
@@ -272,16 +272,16 @@ extern "C"
      * @param dim   An RMNQuantitativeDimensionRef.
      * @param name  The new OCStringRef quantityName (retain‐copied).  May be NULL.
      */
-    bool RMNDimensionSetQuantityName(RMNQuantitativeDimensionRef dim,
+    bool RMNDimensionSetQuantityName(RMNDimensionRef dim,
                                      OCStringRef name);
 
     /**
      * @brief Get the reference offset SIScalar of a quantitative dimension.
      * @ingroup RMNQuantitativeDimension
      * @param dim  An RMNQuantitativeDimensionRef.
-     * @return     The SIScalarRef referenceOffset, or NULL if not set or dim is NULL.
+     * @return     The SIScalarRef coordinatesOffset, or NULL if not set or dim is NULL.
      */
-    SIScalarRef RMNDimensionGetReferenceOffset(RMNQuantitativeDimensionRef dim);
+    SIScalarRef RMNDimensionGetReferenceOffset(RMNDimensionRef dim);
 
     /**
      * @brief Set the reference offset SIScalar of a quantitative dimension.
@@ -289,7 +289,7 @@ extern "C"
      * @param dim  An RMNQuantitativeDimensionRef.
      * @param val  The new SIScalarRef (retain‐copied).  May be NULL.
      */
-    bool RMNDimensionSetReferenceOffset(RMNQuantitativeDimensionRef dim,
+    bool RMNDimensionSetReferenceOffset(RMNDimensionRef dim,
                                         SIScalarRef val);
 
     /**
@@ -298,7 +298,7 @@ extern "C"
      * @param dim  An RMNQuantitativeDimensionRef.
      * @return     The SIScalarRef originOffset, or NULL if not set or dim is NULL.
      */
-    SIScalarRef RMNDimensionGetOriginOffset(RMNQuantitativeDimensionRef dim);
+    SIScalarRef RMNDimensionGetOriginOffset(RMNDimensionRef dim);
 
     /**
      * @brief Set the origin offset SIScalar of a quantitative dimension.
@@ -306,7 +306,7 @@ extern "C"
      * @param dim  An RMNQuantitativeDimensionRef.
      * @param val  The new SIScalarRef (retain‐copied).  May be NULL.
      */
-    bool RMNDimensionSetOriginOffset(RMNQuantitativeDimensionRef dim,
+    bool RMNDimensionSetOriginOffset(RMNDimensionRef dim,
                                      SIScalarRef val);
 
     /**
@@ -315,7 +315,7 @@ extern "C"
      * @param dim  An RMNQuantitativeDimensionRef.
      * @return     The SIScalarRef period, or NULL if not set or dim is NULL.
      */
-    SIScalarRef RMNDimensionGetPeriod(RMNQuantitativeDimensionRef dim);
+    SIScalarRef RMNDimensionGetPeriod(RMNDimensionRef dim);
 
     /**
      * @brief Set the period SIScalar of a quantitative dimension.
@@ -323,7 +323,7 @@ extern "C"
      * @param dim  An RMNQuantitativeDimensionRef.
      * @param val  The new SIScalarRef (retain‐copied).  May be NULL.
      */
-    bool RMNDimensionSetPeriod(RMNQuantitativeDimensionRef dim,
+    bool RMNDimensionSetPeriod(RMNDimensionRef dim,
                                SIScalarRef val);
 
     /**
@@ -332,7 +332,7 @@ extern "C"
      * @param dim  An RMNQuantitativeDimensionRef.
      * @return true if periodic, false otherwise or if dim is NULL.
      */
-    bool RMNDimensionIsPeriodic(RMNQuantitativeDimensionRef dim);
+    bool RMNDimensionIsPeriodic(RMNDimensionRef dim);
 
     /**
      * @brief Set the periodic flag on a quantitative dimension.
@@ -340,7 +340,7 @@ extern "C"
      * @param dim   An RMNQuantitativeDimensionRef.
      * @param flag  true to mark periodic, false to clear.
      */
-    bool RMNDimensionSetPeriodic(RMNQuantitativeDimensionRef dim,
+    bool RMNDimensionSetPeriodic(RMNDimensionRef dim,
                                  bool flag);
 
     /**
@@ -350,7 +350,7 @@ extern "C"
      * @return The dimensionScaling value, or kDimensionScalingNone if dim is NULL.
      */
     dimensionScaling
-    RMNDimensionGetScaling(RMNQuantitativeDimensionRef dim);
+    RMNDimensionGetScaling(RMNDimensionRef dim);
 
     /**
      * @brief Set the scaling mode of a quantitative dimension.
@@ -358,17 +358,17 @@ extern "C"
      * @param dim      An RMNQuantitativeDimensionRef.
      * @param scaling  The new dimensionScaling value.
      */
-    bool RMNDimensionSetScaling(RMNQuantitativeDimensionRef dim,
+    bool RMNDimensionSetScaling(RMNDimensionRef dim,
                                 dimensionScaling scaling);
 
     /**
      * @brief Get the reciprocal (inverse) quantitative dimension, if any.
      * @ingroup RMNQuantitativeDimension
-     * @param dim  An RMNQuantitativeDimensionRef.
+     * @param dim  An RMNMonotonicDimensionRef or RMNLinearDimensionRef.
      * @return     The RMNQuantitativeDimensionRef reciprocal, or NULL if none or dim is NULL.
      */
     RMNQuantitativeDimensionRef
-    RMNDimensionGetReciprocal(RMNQuantitativeDimensionRef dim);
+    RMNDimensionGetReciprocal(RMNDimensionRef dim);
 
     /**
      * @brief Set the reciprocal (inverse) quantitative dimension.
@@ -376,7 +376,7 @@ extern "C"
      * @param dim  An RMNQuantitativeDimensionRef.
      * @param r    The RMNQuantitativeDimensionRef to use as reciprocal.  May be NULL.
      */
-    bool RMNDimensionSetReciprocal(RMNQuantitativeDimensionRef dim,
+    bool RMNDimensionSetReciprocal(RMNDimensionRef dim,
                                    RMNQuantitativeDimensionRef r);
 
     /** @} */ // end of RMNQuantitativeDimension group
@@ -409,7 +409,7 @@ extern "C"
      * @param coordinates     OCArrayRef of SIScalarRef (must have ≥2 elements).
      * @param quantityName    Optional quantity name (NULL ⇒ inferred).
      * @param originOffset    Optional origin offset SIScalarRef (NULL ⇒ zero).
-     * @param referenceOffset Optional reference offset SIScalarRef (NULL ⇒ zero).
+     * @param coordinatesOffset Optional reference offset SIScalarRef (NULL ⇒ zero).
      * @param periodic        true if periodic.
      * @param scaling         dimensionScaling mode.
      * @return A new RMNMonotonicDimensionRef, or NULL on failure.
@@ -421,7 +421,7 @@ extern "C"
                                 OCArrayRef coordinates,
                                 OCStringRef quantityName,
                                 SIScalarRef originOffset,
-                                SIScalarRef referenceOffset,
+                                SIScalarRef coordinatesOffset,
                                 bool periodic,
                                 dimensionScaling scaling);
 
@@ -486,7 +486,7 @@ extern "C"
      * @param count            Number of points (must be >1).
      * @param increment        SIScalarRef step size (retain‐copied; must be non‐NULL).
      * @param origin           SIScalarRef origin offset (retain‐copied; may be NULL).
-     * @param referenceOffset  SIScalarRef reference offset (retain‐copied; may be NULL).
+     * @param coordinatesOffset  SIScalarRef coordinates offset (retain‐copied; may be NULL).
      * @param period           SIScalarRef period for wraparound (retain‐copied; may be NULL).
      * @param quantityName     OCStringRef quantity name (retain‐copied; may be NULL).
      * @return RMNLinearDimensionRef on success, or NULL on invalid inputs/allocation failure.
@@ -495,17 +495,10 @@ extern "C"
     RMNLinearDimensionCreate(OCIndex count,
                              SIScalarRef increment,
                              SIScalarRef origin,
-                             SIScalarRef referenceOffset,
+                             SIScalarRef coordinatesOffset,
                              SIScalarRef period,
                              OCStringRef quantityName);
 
-    /**
-     * @brief Get the count (number of uniformly spaced points) of a linear dimension.
-     * @ingroup RMNLinearDimension
-     * @param dim  An RMNLinearDimensionRef.
-     * @return     The OCIndex count, or 0 if dim is NULL.
-     */
-    OCIndex RMNLinearDimensionGetCount(RMNLinearDimensionRef dim);
 
     /**
      * @brief Get the step increment SIScalar of a linear dimension.
@@ -515,31 +508,11 @@ extern "C"
      */
     SIScalarRef RMNLinearDimensionGetIncrement(RMNLinearDimensionRef dim);
 
-    /**
-     * @brief Get the origin offset SIScalar of a linear dimension.
-     * @ingroup RMNLinearDimension
-     * @param dim  An RMNLinearDimensionRef.
-     * @return     The SIScalarRef origin offset, or NULL if dim is NULL.
-     */
-    SIScalarRef RMNLinearDimensionGetOrigin(RMNLinearDimensionRef dim);
-
-    /**
-     * @brief Get the reference offset SIScalar of a linear dimension.
-     * @ingroup RMNLinearDimension
-     * @param dim  An RMNLinearDimensionRef.
-     * @return     The SIScalarRef reference offset, or NULL if dim is NULL.
-     */
-    SIScalarRef RMNLinearDimensionGetReferenceOffset(RMNLinearDimensionRef dim);
-
-    /**
-     * @brief Test whether an OCTypeRef is an RMNLinearDimension.
-     * @ingroup RMNLinearDimension
-     * @param obj  An OCTypeRef (possibly any type).
-     * @return true if obj’s type ID equals RMNLinearDimensionGetTypeID(), false otherwise.
-     */
-    bool RMNIsLinearDimension(OCTypeRef obj);
 
     /** @} */ // end of RMNLinearDimension group
+
+OCIndex RMNDimensionGetCount(RMNDimensionRef theDimension);
+
 
     /** @} */ // end of RMNDimension overarching group
 
