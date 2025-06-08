@@ -67,57 +67,6 @@ extern "C"
      */
     OCTypeID RMNDimensionGetTypeID(void);
 
-    /**
-     * @brief Get the “label” string of a base dimension.
-     * @ingroup RMNDimension
-     * @param dim  An RMNDimensionRef (or subtype) instance.
-     * @return     The OCStringRef label, or NULL if dim is NULL.
-     */
-    OCStringRef OCDimensionGetLabel(RMNDimensionRef dim);
-
-    /**
-     * @brief Set the “label” string of a base dimension.
-     * @ingroup RMNDimension
-     * @param dim    An RMNDimensionRef (or subtype) instance.
-     * @param label  The new OCStringRef label (retain‐copied).  May be NULL.
-     */
-    bool OCDimensionSetLabel(RMNDimensionRef dim, OCStringRef label);
-
-    /**
-     * @brief Get the “description” string of a base dimension.
-     * @ingroup RMNDimension
-     * @param dim  An RMNDimensionRef (or subtype) instance.
-     * @return     The OCStringRef description, or NULL if dim is NULL.
-     */
-    OCStringRef OCDimensionGetDescription(RMNDimensionRef dim);
-
-    /**
-     * @brief Set the “description” string of a base dimension.
-     * @ingroup RMNDimension
-     * @param dim   An RMNDimensionRef (or subtype) instance.
-     * @param desc  The new OCStringRef description (retain‐copied).  May be NULL.
-     */
-    bool OCDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc);
-
-    /**
-     * @brief Get the “metaData” dictionary associated with a dimension.
-     * @ingroup RMNDimension
-     * @param dim  An RMNDimensionRef (or subtype) instance.
-     * @return     The OCDictionaryRef metaData, or NULL if dim is NULL or no dictionary.
-     */
-    OCDictionaryRef OCDimensionGetMetaData(RMNDimensionRef dim);
-
-    /**
-     * @brief Set the “metaData” dictionary of a dimension.
-     * @ingroup RMNDimension
-     * @param dim   An RMNDimensionRef (or subtype) instance.
-     * @param dict  The new OCDictionaryRef (retain‐copied).  May be NULL.
-     */
-    bool OCDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict);
-
-    /// Deep copy any RMNDimension-derived object.
-    /// Returns a new object of the same type, or NULL on failure.
-    RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original);
 
     // -----------------------------------------------------------------------------
     // MARK: - RMNLabeledDimension
@@ -510,6 +459,57 @@ extern "C"
 
 
     /** @} */ // end of RMNLinearDimension group
+    /**
+     * @brief Get the “label” string of a base dimension.
+     * @ingroup RMNDimension
+     * @param dim  An RMNDimensionRef (or subtype) instance.
+     * @return     The OCStringRef label, or NULL if dim is NULL.
+     */
+    OCStringRef RMNDimensionGetLabel(RMNDimensionRef dim);
+
+    /**
+     * @brief Set the “label” string of a base dimension.
+     * @ingroup RMNDimension
+     * @param dim    An RMNDimensionRef (or subtype) instance.
+     * @param label  The new OCStringRef label (retain‐copied).  May be NULL.
+     */
+    bool RMNDimensionSetLabel(RMNDimensionRef dim, OCStringRef label);
+
+    /**
+     * @brief Get the “description” string of a base dimension.
+     * @ingroup RMNDimension
+     * @param dim  An RMNDimensionRef (or subtype) instance.
+     * @return     The OCStringRef description, or NULL if dim is NULL.
+     */
+    OCStringRef RMNDimensionGetDescription(RMNDimensionRef dim);
+
+    /**
+     * @brief Set the “description” string of a base dimension.
+     * @ingroup RMNDimension
+     * @param dim   An RMNDimensionRef (or subtype) instance.
+     * @param desc  The new OCStringRef description (retain‐copied).  May be NULL.
+     */
+    bool RMNDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc);
+
+    /**
+     * @brief Get the “metaData” dictionary associated with a dimension.
+     * @ingroup RMNDimension
+     * @param dim  An RMNDimensionRef (or subtype) instance.
+     * @return     The OCDictionaryRef metaData, or NULL if dim is NULL or no dictionary.
+     */
+    OCDictionaryRef RMNDimensionGetMetaData(RMNDimensionRef dim);
+
+    /**
+     * @brief Set the “metaData” dictionary of a dimension.
+     * @ingroup RMNDimension
+     * @param dim   An RMNDimensionRef (or subtype) instance.
+     * @param dict  The new OCDictionaryRef (retain‐copied).  May be NULL.
+     */
+    bool RMNDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict);
+
+    /// Deep copy any RMNDimension-derived object.
+    /// Returns a new object of the same type, or NULL on failure.
+    RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original);
 
 OCIndex RMNDimensionGetCount(RMNDimensionRef theDimension);
 

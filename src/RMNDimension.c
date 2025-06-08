@@ -54,7 +54,6 @@ static OCStringRef __RMNDimensionCopyFormattingDesc(OCTypeRef cf)
     (void)cf;
     return OCStringCreateWithCString("<RMNDimension>");
 }
-
 #pragma endregion RMNDimension
 #pragma region RMNLabeledDimension
 // ============================================================================
@@ -111,11 +110,7 @@ static RMNLabeledDimensionRef RMNLabeledDimensionAllocate(void)
     return obj;
 }
 RMNLabeledDimensionRef
-RMNLabeledDimensionCreate(
-    OCStringRef label,
-    OCStringRef description,
-    OCDictionaryRef metaData,
-    OCArrayRef coordinateLabels)
+RMNLabeledDimensionCreate(OCStringRef label,OCStringRef description,OCDictionaryRef metaData,OCArrayRef coordinateLabels)
 {
     if (!coordinateLabels || OCArrayGetCount(coordinateLabels) < 2)
     {
@@ -295,16 +290,7 @@ static RMNQuantitativeDimensionRef RMNQuantitativeDimensionAllocate(void)
     __RMNInitQuantitativeFields(obj);
     return obj;
 }
-RMNQuantitativeDimensionRef RMNQuantitativeDimensionCreate(
-    OCStringRef label,
-    OCStringRef description,
-    OCDictionaryRef metaData,
-    OCStringRef quantityName,
-    SIScalarRef coordinatesOffset,
-    SIScalarRef originOffset,
-    SIScalarRef period,
-    bool periodic,
-    dimensionScaling scaling)
+RMNQuantitativeDimensionRef RMNQuantitativeDimensionCreate(OCStringRef label,OCStringRef description,OCDictionaryRef metaData,OCStringRef quantityName,SIScalarRef coordinatesOffset,SIScalarRef originOffset,SIScalarRef period,bool periodic,dimensionScaling scaling)
 {
     if (!coordinatesOffset || !originOffset || !period)
     {
@@ -516,18 +502,8 @@ static RMNMonotonicDimensionRef RMNMonotonicDimensionAllocate(void)
     obj->coordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     return obj;
 }
-/// Fully-customizable constructor for RMNMonotonicDimension
 RMNMonotonicDimensionRef
-RMNMonotonicDimensionCreate(
-    OCStringRef label,
-    OCStringRef description,
-    OCDictionaryRef metaData,
-    OCArrayRef coordinates,
-    OCStringRef quantityName,
-    SIScalarRef originOffset,
-    SIScalarRef coordinatesOffset,
-    bool periodic,
-    dimensionScaling scaling)
+RMNMonotonicDimensionCreate(OCStringRef label,OCStringRef description,OCDictionaryRef metaData,OCArrayRef coordinates,OCStringRef quantityName,SIScalarRef originOffset,SIScalarRef coordinatesOffset,bool periodic,dimensionScaling scaling)
 {
     // 1) Validate coordinates array
     if (!coordinates)
@@ -651,8 +627,7 @@ RMNMonotonicDimensionCreate(
     return dim;
 }
 RMNMonotonicDimensionRef
-RMNMonotonicDimensionCreateWithCoordinatesAndQuantity(OCArrayRef coordinates,
-                                                      OCStringRef quantityName)
+RMNMonotonicDimensionCreateWithCoordinatesAndQuantity(OCArrayRef coordinates,OCStringRef quantityName)
 {
     return RMNMonotonicDimensionCreate(
         /* label: */ NULL,
@@ -901,12 +876,7 @@ static RMNLinearDimensionRef RMNLinearDimensionAllocate(void)
     obj->fft = false;
     return obj;
 }
-RMNLinearDimensionRef RMNLinearDimensionCreate(OCIndex count,
-                                               SIScalarRef increment,
-                                               SIScalarRef origin,
-                                               SIScalarRef coordinatesOffset,
-                                               SIScalarRef period,
-                                               OCStringRef quantityName)
+RMNLinearDimensionRef RMNLinearDimensionCreate(OCIndex count,SIScalarRef increment,SIScalarRef origin,SIScalarRef coordinatesOffset,SIScalarRef period,OCStringRef quantityName)
 {
     if (!increment || count <= 1)
         return NULL;
@@ -924,9 +894,7 @@ RMNLinearDimensionRef RMNLinearDimensionCreate(OCIndex count,
 SIScalarRef RMNLinearDimensionGetIncrement(RMNLinearDimensionRef dim)
 {
     return dim ? dim->increment : NULL;
-}
-bool RMNIsLinearDimension(OCTypeRef obj)
-{
+}{
     return OCGetTypeID(obj) == RMNLinearDimensionGetTypeID();
 }
 #pragma endregion RMNLinearDimension
@@ -1130,7 +1098,7 @@ SIScalarRef RMNDimensionGetPeriod(RMNDimensionRef dim)
     RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
     return theDimension ? theDimension->period : NULL;
 }
-bool RMNDimensionSetPeriod(RMNDimensionRef dim, SIScalarRef val)
+bool RMNDimensionSetPeriod(RMNDimensionRef dim, SIScalarRef period)
 {
     if (!dim)
         return false;
@@ -1143,7 +1111,14 @@ bool RMNDimensionSetPeriod(RMNDimensionRef dim, SIScalarRef val)
     }
     RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
     OCRelease(theDimension->period);
-    theDimension->period = val ? OCRetain(val) : NULL;
+
+    IF_NO_OBJECT_EXISTS_RETURN(period,);
+    if(theDimension->period == period || SIQuantityIsComplexType(period)) return;
+    SIScalarRef temp = PSScalarCreateByConvertingToUnit(period, SIDimensionGetRelativeUnit(theDimension), NULL);
+    if(temp == NULL) return;
+    OCRelease(theDimension->period);
+    theDimension->period = OCRetain(temp);
+    SIScalarSetElementType((SIMutableScalarRef) theDimension->period, kSINumberFloat64Type);
     return true;
 }
 bool RMNDimensionIsPeriodic(RMNDimensionRef dim)
@@ -1296,6 +1271,205 @@ RMNDimensionSetReciprocal(RMNDimensionRef          dim,
     }
 
     return false;
+}
+
+
+SIUnitRef RMNDimensionGetUnit(RMNDimensionRef theDimension)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(theDimension,NULL);
+    OCTypeID typeID = OCGetTypeID(theDimension);
+    if (typeID != RMNMonotonicDimensionGetTypeID())
+        return NULL;
+    RMNMonotonicDimensionRef theDim = (RMNMonotonicDimensionRef)theDimension;
+    if (OCArrayGetCount(theDim->coordinates) == 0)
+        return NULL;
+    return SUQuantityGetUnit(OCArrayGetValueAtIndex(theDim->coordinates, 0));
+}
+
+SIUnitRef RMNDimensionGetInverseUnit(RMNDimensionRef theDimension)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(theDimension,NULL);
+    OCTypeID typeID = OCGetTypeID(theDimension);
+    if (typeID != RMNMonotonicDimensionGetTypeID()) 
+        return NULL;
+    RMNMonotonicDimensionRef theDim = (RMNMonotonicDimensionRef)theDimension;
+    if (OCArrayGetCount(theDim->coordinates) == 0)
+        return NULL;
+    return SIUnitByRaisingToPower(SIQuantityGetUnit(OCArrayGetValueAtIndex(theDim->coordinates, 0)), -1, NULL, NULL);
+}
+
+void PSDimensionMakeNiceUnits(RMNDimensionRef dim)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(dim);
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return;
+    }
+    RMNLinearDimensionRef theDimension = (RMNLinearDimensionRef) dim;
+    if(theDimension->inverseIncrement) {
+        SIUnitRef unit = SIQuantityGetUnit(theDimension->inverseIncrement);
+        PSScalarBestConversionForUnit((SIMutableScalarRef)theDimension->inverseIncrement, unit);
+        PSScalarBestConversionForUnit((SIMutableScalarRef)theDimension->reciprocal->coordinatesOffset, unit);
+        PSScalarBestConversionForUnit((SIMutableScalarRef)theDimension->reciprocal->originOffset, unit);
+        PSScalarBestConversionForUnit((SIMutableScalarRef)theDimension->reciprocal->period, unit);
+    }
+if(theDimension->increment) {
+        SIUnitRef unit = PSQuantityGetUnit(theDimension->increment);
+        PSScalarBestConversionForUnit((SIMutableScalarRef)theDimension->increment, unit);
+        PSScalarBestConversionForUnit((SIMutableScalarRef)theDimension->coordinatesOffset, unit);
+        PSScalarBestConversionForUnit((SIMutableScalarRef)theDimension->originOffset, unit);
+        PSScalarBestConversionForUnit((SIMutableScalarRef)theDimension->period, unit);
+    }
+}
+
+bool PSLinearDimensionGetFFT(RMNDimensionRef dim)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(dim,false);
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID())
+        return false;
+    RMNLinearDimensionRef theDimension = (RMNLinearDimensionRef)dim;
+    return theDimension->fft;
+}
+
+void PSLinearDimensionSetFFT(RMNDimensionRef dim, bool fft)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(dim,);
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID())
+        return;
+    RMNLinearDimensionRef theDimension = (RMNLinearDimensionRef)dim;
+    theDimension->fft = fft;
+}
+
+void PSLinearDimensionToggleFFT(RMNDimensionRef dim)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(dim,);
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID())
+        return;
+    RMNLinearDimensionRef theDimension = (RMNLinearDimensionRef)dim;
+    theDimension->fft = !theDimension->fft;
+}
+
+SIScalarRef CreateInverseIncrementFromIncrement(SIScalarRef increment, OCIndex numberOfSamples)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(increment,NULL);
+    if(numberOfSamples<1) return NULL;
+    
+    SIScalarRef temp = SIScalarCreateByRaisingToPower(increment, -1, NULL);
+    if(NULL==temp) return NULL;
+    long double scaling = (long double) 1./((long double) numberOfSamples);
+    SIScalarRef inverseIncrement = SIScalarCreateByMultiplyingByDimensionlessRealConstant(temp, (double) scaling);
+    OCRelease(temp);
+    return inverseIncrement;
+}
+
+
+bool RMNLinearDimensionSetCount(RMNDimensionRef dim, OCIndex count)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(dim,false);
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID())
+        return false;
+    RMNLinearDimensionRef theDimension = (RMNLinearDimensionRef)dim;
+    
+    if(theDimension->increment) {
+        theDimension->count = count;
+        theDimension->inverseIncrement = CreateInverseIncrementFromIncrement(theDimension->increment, theDimension->count);
+        if(theDimension->reciprocal->quantityName) SIScalarBestConversionForQuantityName((SIMutableScalarRef) theDimension->inverseIncrement, theDimension->reciprocal->quantityName);
+        return true;
+    }
+    return false;
+}
+
+bool RMNDimensionHasNegativeIncrement(RMNDimensionRef dim)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(dim,false);
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID())
+        return false;
+    RMNLinearDimensionRef theDimension = (RMNLinearDimensionRef)dim;
+    if(theDimension->increment) {
+        if(PSScalarDoubleValue(theDimension->increment)<0) return true;
+    }
+    return false;
+}
+
+SIScalarRef RMNDimensionGetIncrement(RMNDimensionRef dim)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(dim,NULL);
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID())
+        return NULL;
+    RMNLinearDimensionRef theDimension = (RMNLinearDimensionRef)dim;
+    return  theDimension->increment;
+}
+
+void RMNDimensionSetIncrement(RMNDimensionRef dim, SIScalarRef increment)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(dim,);
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID())
+        return;
+    RMNLinearDimensionRef theDimension = (RMNLinearDimensionRef)dim;
+    IF_NO_OBJECT_EXISTS_RETURN(theDimension->increment,);
+    IF_NO_OBJECT_EXISTS_RETURN(increment,);
+    if(theDimension->increment == increment || PSQuantityIsComplexType(increment)) return;
+    SIDimensionalityRef theDimensionality = PSDimensionalityForQuantityName(theDimension->quantityName);
+    if(!PSDimensionalityHasSameReducedDimensionality(theDimensionality, PSQuantityGetUnitDimensionality(increment))) return;
+    OCRelease(theDimension->increment);
+    theDimension->increment = OCRetain(increment);
+    PSScalarSetElementType((SIMutableScalarRef) theDimension->increment, kSINumberFloat64Type);
+
+    SIScalarRef newInverseIncrement = CreateInverseIncrementFromIncrement(theDimension->increment, theDimension->npts);
+    if(SIScalarCompare(newInverseIncrement, theDimension->inverseIncrement)!=kOCCompareEqualTo) {
+        OCRelease(theDimension->inverseIncrement);
+        theDimension->inverseIncrement = newInverseIncrement;
+        if(theDimension->reciprocal->quantityName) PSScalarBestConversionForQuantityName((SIMutableScalarRef) theDimension->inverseIncrement, theDimension->reciprocal->quantityName);
+    }
+    else OCRelease(newInverseIncrement);
+    return;
+}
+
+SIScalarRef RMNDimensionGetInverseIncrement(RMNDimensionRef dim)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(dim,NULL);
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID())
+        return NULL;
+    RMNLinearDimensionRef theDimension = (RMNLinearDimensionRef)dim;
+    IF_NO_OBJECT_EXISTS_RETURN(theDimension->inverseIncrement,NULL);
+    return  theDimension->inverseIncrement;
+}
+
+void RMNDimensionSetInverseIncrement(RMNDimensionRef dim, SIScalarRef inverseIncrement)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(dim,);
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID())
+        return;
+    RMNLinearDimensionRef theDimension = (RMNLinearDimensionRef)dim;   
+    IF_NO_OBJECT_EXISTS_RETURN(theDimension->inverseIncrement,);
+    IF_NO_OBJECT_EXISTS_RETURN(inverseIncrement,);
+    if(theDimension->inverseIncrement == inverseIncrement) return;
+    
+    if(SIQuantityGetElementType((SIQuantityRef) inverseIncrement)!= kSINumberFloat64Type) return;
+
+    OCRelease(theDimension->inverseIncrement);
+    theDimension->inverseIncrement = OCRetain(inverseIncrement);
+    
+    SIScalarRef newIncrement = CreateInverseIncrementFromIncrement(theDimension->inverseIncrement, theDimension->npts);
+    if(PSScalarCompare(newIncrement, theDimension->increment)!=kOCCompareEqualTo) {
+        OCRelease(theDimension->increment);
+        theDimension->increment = newIncrement;
+        if(theDimension->quantityName) PSScalarBestConversionForQuantityName((SIMutableScalarRef) theDimension->increment, theDimension->quantityName);
+    }
+    else OCRelease(newIncrement);
+    return;
 }
 
 
