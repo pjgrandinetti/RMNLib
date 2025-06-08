@@ -54,66 +54,6 @@ static OCStringRef __RMNDimensionCopyFormattingDesc(OCTypeRef cf)
     (void)cf;
     return OCStringCreateWithCString("<RMNDimension>");
 }
-OCStringRef RMNDimensionGetLabel(RMNDimensionRef dim)
-{
-    return dim ? dim->label : NULL;
-}
-bool RMNDimensionSetLabel(RMNDimensionRef dim, OCStringRef label)
-{
-    if (!dim)
-        return false;
-
-    OCStringRef labelCopy = label ? OCStringCreateCopy(label) : NULL;
-    if (label && !labelCopy)
-    {
-        fprintf(stderr, "RMNDimensionSetLabel: failed to copy label string\n");
-        return false;
-    }
-
-    OCRelease(dim->label);
-    dim->label = labelCopy;
-    return true;
-}
-OCStringRef RMNDimensionGetDescription(RMNDimensionRef dim)
-{
-    return dim ? dim->description : NULL;
-}
-bool RMNDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc)
-{
-    if (!dim)
-        return false;
-
-    OCStringRef descCopy = desc ? OCStringCreateCopy(desc) : NULL;
-    if (desc && !descCopy)
-    {
-        fprintf(stderr, "RMNDimensionSetDescription: failed to copy description string\n");
-        return false;
-    }
-
-    OCRelease(dim->description);
-    dim->description = descCopy;
-    return true;
-}
-OCDictionaryRef RMNDimensionGetMetaData(RMNDimensionRef dim)
-{
-    return dim ? dim->metaData : NULL;
-}
-bool RMNDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict)
-{
-    if (!dim)
-        return false;
-
-    OCDictionaryRef dictCopy = dict ? OCTypeDeepCopy(dict) : NULL;
-    if (dict && !dictCopy)
-    {
-        fprintf(stderr, "RMNDimensionSetMetaData: failed to copy metadata dictionary\n");
-        return false;
-    }
-
-    OCRelease(dim->metaData);
-    dim->metaData = dictCopy;
-    return true;
-}
 
 #pragma endregion RMNDimension
 #pragma region RMNLabeledDimension
@@ -508,203 +448,6 @@ RMNQuantitativeDimensionRef RMNQuantitativeDimensionCreate(
     dim->scaling = scaling;
 
     return dim;
-}
-OCStringRef RMNDimensionGetQuantityName(RMNDimensionRef dim)
-{
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return NULL;
-    }
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    return theDimension ? theDimension->quantityName : NULL;
-}
-bool RMNDimensionSetQuantityName(RMNDimensionRef dim, OCStringRef name)
-{
-    if (!dim)
-        return false;
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return false;
-    }
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    OCRelease(theDimension->quantityName);
-    theDimension->quantityName = name ? OCRetain(name) : NULL;
-    return true;
-}
-SIScalarRef RMNDimensionGetCoordinatesOffset(RMNDimensionRef dim)
-{
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return NULL;
-    }
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    return theDimension ? theDimension->coordinatesOffset : NULL;
-}
-bool RMNDimensionSetCoordinatesOffset(RMNQuantitativeDimensionRef dim, SIScalarRef val)
-{
-    if (!dim)
-        return false;
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return false;
-    }
-    OCRelease(dim->coordinatesOffset);
-    dim->coordinatesOffset = val ? OCRetain(val) : NULL;
-    return true;
-}
-SIScalarRef RMNDimensionGetOriginOffset(RMNDimensionRef dim)
-{
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return NULL;
-    }
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    return theDimension ? theDimension->originOffset : NULL;
-}
-bool RMNDimensionSetOriginOffset(RMNDimensionRef dim, SIScalarRef val)
-{
-    if (!dim)
-        return false;
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return false;
-    }
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    OCRelease(theDimension->originOffset);
-    theDimension->originOffset = val ? OCRetain(val) : NULL;
-    return true;
-}
-SIScalarRef RMNDimensionGetPeriod(RMNDimensionRef dim)
-{
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return NULL;
-    }
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    return theDimension ? theDimension->period : NULL;
-}
-bool RMNDimensionSetPeriod(RMNDimensionRef dim, SIScalarRef val)
-{
-    if (!dim)
-        return false;
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return false;
-    }
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    OCRelease(theDimension->period);
-    theDimension->period = val ? OCRetain(val) : NULL;
-    return true;
-}
-bool RMNDimensionIsPeriodic(RMNDimensionRef dim)
-{
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return false;
-    }
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    return theDimension ? theDimension->periodic : false;
-}
-bool RMNDimensionSetPeriodic(RMNDimensionRef dim, bool flag)
-{
-    if (!dim)
-        return false;
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return false;
-    }
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    theDimension->periodic = flag;
-    return true;
-}
-dimensionScaling RMNDimensionGetScaling(RMNDimensionRef dim)
-{
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return kDimensionScalingNone;
-    }
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    return theDimension ? theDimension->scaling : kDimensionScalingNone;
-}
-bool RMNDimensionSetScaling(RMNDimensionRef dim, dimensionScaling scaling)
-{
-    if (!dim)
-        return false;
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return false;
-    }
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    theDimension->scaling = scaling;
-    return true;
-}
-
-bool RMNQuantitativeDimensionMultiplyByScalar(RMNDimensionRef dim,
-                                              SIScalarRef theScalar,
-                                              OCStringRef *error)
-{
-    if (!dim)
-        return false;
-    OCTypeID typeID = OCGetTypeID(dim);
-    if (typeID != RMNLinearDimensionGetTypeID() &&
-        typeID != RMNMonotonicDimensionGetTypeID() &&
-        typeID != RMNQuantitativeDimensionGetTypeID())
-    {
-        return false;
-    }
-    IF_NO_OBJECT_EXISTS_RETURN(theScalar, false);
-    if (SIScalarDoubleValue(theScalar) == 0.0)
-        return false;
-    if (SIQuantityHasDimensionality((SIQuantityRef)theScalar, SIDimensionalityDimensionless()) && SIScalarIsReal(theScalar) && SIScalarDoubleValue(theScalar) == 1)
-        return true;
-    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
-    SIScalarMultiplyWithoutReducingUnit((SIMutableScalarRef)theDimension->originOffset, theScalar, error);
-    SIScalarMultiplyWithoutReducingUnit((SIMutableScalarRef)theDimension->coordinatesOffset, theScalar, error);
-    if (theDimension->period)
-        SIScalarMultiplyWithoutReducingUnit((SIMutableScalarRef)theDimension->period, theScalar, error);
-
-    if (theDimension->quantityName)
-        OCRelease(theDimension->quantityName);
-    OCStringRef quantityName = SIUnitGuessQuantityName(SIQuantityGetUnit((SIQuantityRef)theDimension->originOffset));
-    theDimension->quantityName = OCStringCreateCopy(quantityName);
-
-    return true;
 }
 #pragma endregion RMNQuantitativeDimension
 #pragma region RMNMonotonicDimension
@@ -1188,6 +931,68 @@ bool RMNIsLinearDimension(OCTypeRef obj)
 }
 #pragma endregion RMNLinearDimension
 #pragma region RMNDimension Helpers
+OCStringRef RMNDimensionGetLabel(RMNDimensionRef dim)
+{
+    return dim ? dim->label : NULL;
+}
+bool RMNDimensionSetLabel(RMNDimensionRef dim, OCStringRef label)
+{
+    if (!dim)
+        return false;
+
+    OCStringRef labelCopy = label ? OCStringCreateCopy(label) : NULL;
+    if (label && !labelCopy)
+    {
+        fprintf(stderr, "RMNDimensionSetLabel: failed to copy label string\n");
+        return false;
+    }
+
+    OCRelease(dim->label);
+    dim->label = labelCopy;
+    return true;
+}
+OCStringRef RMNDimensionGetDescription(RMNDimensionRef dim)
+{
+    return dim ? dim->description : NULL;
+}
+bool RMNDimensionSetDescription(RMNDimensionRef dim, OCStringRef desc)
+{
+    if (!dim)
+        return false;
+
+    OCStringRef descCopy = desc ? OCStringCreateCopy(desc) : NULL;
+    if (desc && !descCopy)
+    {
+        fprintf(stderr, "RMNDimensionSetDescription: failed to copy description string\n");
+        return false;
+    }
+
+    OCRelease(dim->description);
+    dim->description = descCopy;
+    return true;
+}
+OCDictionaryRef RMNDimensionGetMetaData(RMNDimensionRef dim)
+{
+    return dim ? dim->metaData : NULL;
+}
+bool RMNDimensionSetMetaData(RMNDimensionRef dim, OCDictionaryRef dict)
+{
+    if (!dim)
+        return false;
+
+    OCDictionaryRef dictCopy = dict ? OCTypeDeepCopy(dict) : NULL;
+    if (dict && !dictCopy)
+    {
+        fprintf(stderr, "RMNDimensionSetMetaData: failed to copy metadata dictionary\n");
+        return false;
+    }
+
+    OCRelease(dim->metaData);
+    dim->metaData = dictCopy;
+    return true;
+}
+
+
 RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original)
 {
     if (!original)
@@ -1229,6 +1034,206 @@ RMNDimensionRef RMNDimensionCreateDeepCopy(RMNDimensionRef original)
     fprintf(stderr, "RMNDimensionCreateDeepCopy: Unsupported typeID %u\n", typeID);
     return NULL;
 }
+
+OCStringRef RMNDimensionGetQuantityName(RMNDimensionRef dim)
+{
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return NULL;
+    }
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    return theDimension ? theDimension->quantityName : NULL;
+}
+bool RMNDimensionSetQuantityName(RMNDimensionRef dim, OCStringRef name)
+{
+    if (!dim)
+        return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return false;
+    }
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    OCRelease(theDimension->quantityName);
+    theDimension->quantityName = name ? OCRetain(name) : NULL;
+    return true;
+}
+SIScalarRef RMNDimensionGetCoordinatesOffset(RMNDimensionRef dim)
+{
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return NULL;
+    }
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    return theDimension ? theDimension->coordinatesOffset : NULL;
+}
+bool RMNDimensionSetCoordinatesOffset(RMNQuantitativeDimensionRef dim, SIScalarRef val)
+{
+    if (!dim)
+        return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return false;
+    }
+    OCRelease(dim->coordinatesOffset);
+    dim->coordinatesOffset = val ? OCRetain(val) : NULL;
+    return true;
+}
+SIScalarRef RMNDimensionGetOriginOffset(RMNDimensionRef dim)
+{
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return NULL;
+    }
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    return theDimension ? theDimension->originOffset : NULL;
+}
+bool RMNDimensionSetOriginOffset(RMNDimensionRef dim, SIScalarRef val)
+{
+    if (!dim)
+        return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return false;
+    }
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    OCRelease(theDimension->originOffset);
+    theDimension->originOffset = val ? OCRetain(val) : NULL;
+    return true;
+}
+SIScalarRef RMNDimensionGetPeriod(RMNDimensionRef dim)
+{
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return NULL;
+    }
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    return theDimension ? theDimension->period : NULL;
+}
+bool RMNDimensionSetPeriod(RMNDimensionRef dim, SIScalarRef val)
+{
+    if (!dim)
+        return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return false;
+    }
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    OCRelease(theDimension->period);
+    theDimension->period = val ? OCRetain(val) : NULL;
+    return true;
+}
+bool RMNDimensionIsPeriodic(RMNDimensionRef dim)
+{
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return false;
+    }
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    return theDimension ? theDimension->periodic : false;
+}
+bool RMNDimensionSetPeriodic(RMNDimensionRef dim, bool flag)
+{
+    if (!dim)
+        return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return false;
+    }
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    theDimension->periodic = flag;
+    return true;
+}
+dimensionScaling RMNDimensionGetScaling(RMNDimensionRef dim)
+{
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return kDimensionScalingNone;
+    }
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    return theDimension ? theDimension->scaling : kDimensionScalingNone;
+}
+bool RMNDimensionSetScaling(RMNDimensionRef dim, dimensionScaling scaling)
+{
+    if (!dim)
+        return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return false;
+    }
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    theDimension->scaling = scaling;
+    return true;
+}
+
+bool RMNQuantitativeDimensionMultiplyByScalar(RMNDimensionRef dim,
+                                              SIScalarRef theScalar,
+                                              OCStringRef *error)
+{
+    if (!dim)
+        return false;
+    OCTypeID typeID = OCGetTypeID(dim);
+    if (typeID != RMNLinearDimensionGetTypeID() &&
+        typeID != RMNMonotonicDimensionGetTypeID() &&
+        typeID != RMNQuantitativeDimensionGetTypeID())
+    {
+        return false;
+    }
+    IF_NO_OBJECT_EXISTS_RETURN(theScalar, false);
+    if (SIScalarDoubleValue(theScalar) == 0.0)
+        return false;
+    if (SIQuantityHasDimensionality((SIQuantityRef)theScalar, SIDimensionalityDimensionless()) && SIScalarIsReal(theScalar) && SIScalarDoubleValue(theScalar) == 1)
+        return true;
+    RMNQuantitativeDimensionRef theDimension = (RMNQuantitativeDimensionRef)dim;
+    SIScalarMultiplyWithoutReducingUnit((SIMutableScalarRef)theDimension->originOffset, theScalar, error);
+    SIScalarMultiplyWithoutReducingUnit((SIMutableScalarRef)theDimension->coordinatesOffset, theScalar, error);
+    if (theDimension->period)
+        SIScalarMultiplyWithoutReducingUnit((SIMutableScalarRef)theDimension->period, theScalar, error);
+
+    if (theDimension->quantityName)
+        OCRelease(theDimension->quantityName);
+    OCStringRef quantityName = SIUnitGuessQuantityName(SIQuantityGetUnit((SIQuantityRef)theDimension->originOffset));
+    theDimension->quantityName = OCStringCreateCopy(quantityName);
+
+    return true;
+}
+
+
 OCIndex RMNDimensionGetCount(RMNDimensionRef theDimension)
 {
     if (!theDimension)
