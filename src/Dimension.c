@@ -1056,8 +1056,6 @@ typedef struct __SIMonotonicDimension {
     SIDimensionRef reciprocal;
     OCMutableArrayRef coordinates;  // array of SIScalarRef (≥2 entries)
 } *SIMonotonicDimensionRef;
-// --------------------------------------------------------------------
-// equality
 static bool __SIMonotonicDimensionEqual(const void *a, const void *b) {
     const SIMonotonicDimensionRef A = (const SIMonotonicDimensionRef)a;
     const SIMonotonicDimensionRef B = (const SIMonotonicDimensionRef)b;
@@ -1073,8 +1071,6 @@ static bool __SIMonotonicDimensionEqual(const void *a, const void *b) {
         return false;
     return true;
 }
-// --------------------------------------------------------------------
-// finalize
 static void __SIMonotonicDimensionFinalize(const void *obj) {
     if (!obj) return;
     SIMonotonicDimensionRef dim = (SIMonotonicDimensionRef)obj;
@@ -1084,8 +1080,6 @@ static void __SIMonotonicDimensionFinalize(const void *obj) {
     OCRelease(dim->reciprocal);
     OCRelease(dim->coordinates);
 }
-// --------------------------------------------------------------------
-// formatting description
 static OCStringRef __SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf) {
     SIMonotonicDimensionRef d = (SIMonotonicDimensionRef)cf;
     if (!d) {
@@ -1108,8 +1102,6 @@ static OCStringRef __SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf) {
     OCRelease(base);
     return fmt;
 }
-// --------------------------------------------------------------------
-// deep copy
 static void *__SIMonotonicDimensionDeepCopy(const void *obj) {
     const SIMonotonicDimensionRef src = (const SIMonotonicDimensionRef)obj;
     if (!src) return NULL;
@@ -1137,9 +1129,6 @@ static void *__SIMonotonicDimensionDeepCopy(const void *obj) {
     if (reciprocalCopy) OCRelease(reciprocalCopy);
     return copy;
 }
-// --------------------------------------------------------------------
-// allocator (zero‐initialize base+sidimension+our fields)
-// --------------------------------------------------------------------
 SIMonotonicDimensionRef
 SIMonotonicDimensionCreate(
     OCStringRef label,
@@ -1207,7 +1196,6 @@ bool SIMonotonicDimensionSetReciprocal(SIMonotonicDimensionRef dim, SIDimensionR
     if (r) OCRetain(r);
     return true;
 }
-// --------------------------------------------------------------------
 // dictionary serialization
 SIMonotonicDimensionRef
 SIMonotonicDimensionCreateFromDictionary(OCDictionaryRef dict) {
@@ -1267,7 +1255,7 @@ typedef struct __SILinearDimension {
     OCIndex count;                 // number of points (>=2)
     SIScalarRef increment;         // spacing between points
     SIScalarRef inverseIncrement;  // precomputed 1/increment
-    bool fft;                      // FFT-friendly flag
+    bool fft;                      // FFT flag
 } *SILinearDimensionRef;
 OCTypeID SILinearDimensionGetTypeID(void) {
     if (kSILinearDimensionID == _kOCNotATypeID)

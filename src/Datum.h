@@ -40,9 +40,9 @@ OCTypeID DatumGetTypeID(void);
  */
 DatumRef DatumCreate(SIScalarRef theScalar,
                            OCArrayRef coordinates,
-                           int dependentVariableIndex,
-                           int componentIndex,
-                           int memOffset);
+                           OCIndex dependentVariableIndex,
+                           OCIndex componentIndex,
+                           OCIndex memOffset);
 
 /**
  * @brief Create a copy of an Datum.
@@ -67,7 +67,7 @@ bool DatumHasSameReducedDimensionalities(DatumRef input1, DatumRef input2);
  * @return The component index, or -1 if NULL.
  * @ingroup Datum
  */
-int DatumGetComponentIndex(DatumRef theDatum);
+OCIndex DatumGetComponentIndex(DatumRef theDatum);
 
 /**
  * @brief Set the component index.
@@ -75,7 +75,7 @@ int DatumGetComponentIndex(DatumRef theDatum);
  * @param componentIndex New component index.
  * @ingroup Datum
  */
-void DatumSetComponentIndex(DatumRef theDatum, int componentIndex);
+void DatumSetComponentIndex(DatumRef theDatum, OCIndex componentIndex);
 
 /**
  * @brief Get the dependent variable index.
@@ -83,7 +83,7 @@ void DatumSetComponentIndex(DatumRef theDatum, int componentIndex);
  * @return Index of the dependent variable, or -1 if NULL.
  * @ingroup Datum
  */
-int DatumGetDependentVariableIndex(DatumRef theDatum);
+OCIndex DatumGetDependentVariableIndex(DatumRef theDatum);
 
 /**
  * @brief Set the dependent variable index.
@@ -91,7 +91,7 @@ int DatumGetDependentVariableIndex(DatumRef theDatum);
  * @param dependentVariableIndex New index.
  * @ingroup Datum
  */
-void DatumSetDependentVariableIndex(DatumRef theDatum, int dependentVariableIndex);
+void DatumSetDependentVariableIndex(DatumRef theDatum, OCIndex dependentVariableIndex);
 
 /**
  * @brief Get the memory offset.
@@ -99,7 +99,7 @@ void DatumSetDependentVariableIndex(DatumRef theDatum, int dependentVariableInde
  * @return The offset value, or -1 if NULL.
  * @ingroup Datum
  */
-int DatumGetMemOffset(DatumRef theDatum);
+OCIndex DatumGetMemOffset(DatumRef theDatum);
 
 /**
  * @brief Set the memory offset.
@@ -107,7 +107,7 @@ int DatumGetMemOffset(DatumRef theDatum);
  * @param memOffset New offset value.
  * @ingroup Datum
  */
-void DatumSetMemOffset(DatumRef theDatum, int memOffset);
+void DatumSetMemOffset(DatumRef theDatum, OCIndex memOffset);
 
 /**
  * @brief Get a coordinate at a given index.
@@ -116,7 +116,7 @@ void DatumSetMemOffset(DatumRef theDatum, int memOffset);
  * @return The scalar coordinate, or NULL on failure.
  * @ingroup Datum
  */
-SIScalarRef DatumGetCoordinateAtIndex(DatumRef theDatum, int index);
+SIScalarRef DatumGetCoordinateAtIndex(DatumRef theDatum, OCIndex index);
 
 /**
  * @brief Create a scalar response based on the datum’s configuration.
@@ -132,7 +132,7 @@ SIScalarRef DatumCreateResponse(DatumRef theDatum);
  * @return Count of coordinates, or 0 on error.
  * @ingroup Datum
  */
-int DatumCoordinatesCount(DatumRef theDatum);
+OCIndex DatumCoordinatesCount(DatumRef theDatum);
 
 /**
  * @brief Create a dictionary representation of the datum.
