@@ -5,152 +5,152 @@
 #include "RMNLibrary.h"
 
 /**
- * @file RMNDatum.h
- * @brief Public API for RMNDatum, a data structure for managing scalar quantities with coordinates.
+ * @file Datum.h
+ * @brief Public API for Datum, a data structure for managing scalar quantities with coordinates.
  */
 
 /**
- * @defgroup RMNDatum RMNDatum
+ * @defgroup Datum Datum
  * @brief Object model for data points with scalar value and coordinates.
  * @{
  */
 
 /**
- * @typedef RMNDatumRef
- * @brief A reference to an RMNDatum object.
+ * @typedef DatumRef
+ * @brief A reference to an Datum object.
  */
-typedef struct __RMNDatum *RMNDatumRef;
+typedef struct __Datum *DatumRef;
 
 /**
- * @brief Get the OCTypeID for RMNDatum objects.
- * @return The type ID for RMNDatum.
- * @ingroup RMNDatum
+ * @brief Get the OCTypeID for Datum objects.
+ * @return The type ID for Datum.
+ * @ingroup Datum
  */
-OCTypeID RMNDatumGetTypeID(void);
+OCTypeID DatumGetTypeID(void);
 
 /**
- * @brief Create a new RMNDatum object.
+ * @brief Create a new Datum object.
  * @param theScalar The scalar value.
  * @param coordinates An OCArray of coordinate scalars.
  * @param dependentVariableIndex Index of the dependent variable.
  * @param componentIndex Index of the component.
  * @param memOffset Memory offset for internal indexing.
- * @return A new RMNDatumRef, or NULL on failure.
- * @ingroup RMNDatum
+ * @return A new DatumRef, or NULL on failure.
+ * @ingroup Datum
  */
-RMNDatumRef RMNDatumCreate(SIScalarRef theScalar,
+DatumRef DatumCreate(SIScalarRef theScalar,
                            OCArrayRef coordinates,
                            int dependentVariableIndex,
                            int componentIndex,
                            int memOffset);
 
 /**
- * @brief Create a copy of an RMNDatum.
- * @param theDatum The RMNDatum to copy.
+ * @brief Create a copy of an Datum.
+ * @param theDatum The Datum to copy.
  * @return A deep copy of the datum, or NULL on failure.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-RMNDatumRef RMNDatumCopy(RMNDatumRef theDatum);
+DatumRef DatumCopy(DatumRef theDatum);
 
 /**
  * @brief Compare whether two datums share the same reduced dimensionalities.
  * @param input1 First datum.
  * @param input2 Second datum.
  * @return true if reduced dimensionalities match, false otherwise.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-bool RMNDatumHasSameReducedDimensionalities(RMNDatumRef input1, RMNDatumRef input2);
+bool DatumHasSameReducedDimensionalities(DatumRef input1, DatumRef input2);
 
 /**
  * @brief Get the component index of a datum.
  * @param theDatum The datum to query.
  * @return The component index, or -1 if NULL.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-int RMNDatumGetComponentIndex(RMNDatumRef theDatum);
+int DatumGetComponentIndex(DatumRef theDatum);
 
 /**
  * @brief Set the component index.
  * @param theDatum The datum to modify.
  * @param componentIndex New component index.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-void RMNDatumSetComponentIndex(RMNDatumRef theDatum, int componentIndex);
+void DatumSetComponentIndex(DatumRef theDatum, int componentIndex);
 
 /**
  * @brief Get the dependent variable index.
  * @param theDatum The datum to query.
  * @return Index of the dependent variable, or -1 if NULL.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-int RMNDatumGetDependentVariableIndex(RMNDatumRef theDatum);
+int DatumGetDependentVariableIndex(DatumRef theDatum);
 
 /**
  * @brief Set the dependent variable index.
  * @param theDatum The datum to modify.
  * @param dependentVariableIndex New index.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-void RMNDatumSetDependentVariableIndex(RMNDatumRef theDatum, int dependentVariableIndex);
+void DatumSetDependentVariableIndex(DatumRef theDatum, int dependentVariableIndex);
 
 /**
  * @brief Get the memory offset.
  * @param theDatum The datum to query.
  * @return The offset value, or -1 if NULL.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-int RMNDatumGetMemOffset(RMNDatumRef theDatum);
+int DatumGetMemOffset(DatumRef theDatum);
 
 /**
  * @brief Set the memory offset.
  * @param theDatum The datum to modify.
  * @param memOffset New offset value.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-void RMNDatumSetMemOffset(RMNDatumRef theDatum, int memOffset);
+void DatumSetMemOffset(DatumRef theDatum, int memOffset);
 
 /**
  * @brief Get a coordinate at a given index.
  * @param theDatum The datum to query.
  * @param index Zero-based index.
  * @return The scalar coordinate, or NULL on failure.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-SIScalarRef RMNDatumGetCoordinateAtIndex(RMNDatumRef theDatum, int index);
+SIScalarRef DatumGetCoordinateAtIndex(DatumRef theDatum, int index);
 
 /**
  * @brief Create a scalar response based on the datum’s configuration.
  * @param theDatum The datum to process.
  * @return A new SIScalarRef, or NULL on failure.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-SIScalarRef RMNDatumCreateResponse(RMNDatumRef theDatum);
+SIScalarRef DatumCreateResponse(DatumRef theDatum);
 
 /**
  * @brief Get the number of coordinates.
  * @param theDatum The datum to query.
  * @return Count of coordinates, or 0 on error.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-int RMNDatumCoordinatesCount(RMNDatumRef theDatum);
+int DatumCoordinatesCount(DatumRef theDatum);
 
 /**
  * @brief Create a dictionary representation of the datum.
- * @param theDatum The RMNDatum to serialize.
+ * @param theDatum The Datum to serialize.
  * @return An OCDictionaryRef containing key-value pairs.
- * @ingroup RMNDatum
+ * @ingroup Datum
  */
-OCDictionaryRef RMNDatumCreateDictionary(RMNDatumRef theDatum);
+OCDictionaryRef DatumCreateDictionary(DatumRef theDatum);
 
 /**
- * @brief Create a new RMNDatum from a dictionary.
+ * @brief Create a new Datum from a dictionary.
  * @param dictionary The dictionary to parse.
  * @param error Optional: Receives a descriptive error string.
- * @return A new RMNDatumRef or NULL on error.
- * @ingroup RMNDatum
+ * @return A new DatumRef or NULL on error.
+ * @ingroup Datum
  */
-RMNDatumRef RMNDatumCreateWithDictionary(OCDictionaryRef dictionary, OCStringRef *error);
+DatumRef DatumCreateWithDictionary(OCDictionaryRef dictionary, OCStringRef *error);
 
-/** @} */  // end of RMNDatum group
+/** @} */  // end of Datum group
 
 #endif /* RMNDATUM_H */

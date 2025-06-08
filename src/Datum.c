@@ -1,10 +1,10 @@
 
 #include "RMNLibrary.h"
 
-static OCTypeID kRMNDatumID = _kOCNotATypeID;
+static OCTypeID kDatumID = _kOCNotATypeID;
 
-// RMNDatum Opaque Type
-struct __RMNDatum {
+// Datum Opaque Type
+struct __Datum {
     OCBase _base;
 
     // __SIQuantity Type attributes
@@ -22,10 +22,10 @@ struct __RMNDatum {
 };
 
 
-static bool __RMNDatumEqual(const void * theType1, const void * theType2)
+static bool __DatumEqual(const void * theType1, const void * theType2)
 {
-    RMNDatumRef input1 = (RMNDatumRef) theType1;
-    RMNDatumRef input2 = (RMNDatumRef) theType2;
+    DatumRef input1 = (DatumRef) theType1;
+    DatumRef input2 = (DatumRef) theType2;
     if(input1->_base.typeID != input2->_base.typeID) return false;
 
     if(NULL == input1 || NULL == input2) return false;
@@ -42,32 +42,32 @@ static bool __RMNDatumEqual(const void * theType1, const void * theType2)
 	return true;
 }
 
-static void __RMNDatumFinalize(const void * theType)
+static void __DatumFinalize(const void * theType)
 {
     if(NULL == theType) return;
-    RMNDatumRef theDatum = (RMNDatumRef) theType;
+    DatumRef theDatum = (DatumRef) theType;
     if (theDatum->unit) {
         OCRelease(theDatum->unit);
         // Cast away const to allow nulling the field
-        ((struct __RMNDatum *)theDatum)->unit = NULL;
+        ((struct __Datum *)theDatum)->unit = NULL;
     }
     if (theDatum->coordinates) {
         OCRelease(theDatum->coordinates);
         // Cast away const to allow nulling the field
-        ((struct __RMNDatum *)theDatum)->coordinates = NULL;
+        ((struct __Datum *)theDatum)->coordinates = NULL;
     }
 }
 
-static OCStringRef __RMNDatumCopyFormattingDescription(OCTypeRef theType)
+static OCStringRef __DatumCopyFormattingDescription(OCTypeRef theType)
 {
     return SIScalarCopyFormattingDescription((SIScalarRef) theType);
 }
 
-static void *__RMNDatumDeepCopy(const void *theType) {
+static void *__DatumDeepCopy(const void *theType) {
     if (!theType) return NULL;
-    RMNDatumRef orig = (RMNDatumRef)theType;
+    DatumRef orig = (DatumRef)theType;
 
-    SIScalarRef response = RMNDatumCreateResponse(orig);  // creates a new SIScalar (copies value/unit)
+    SIScalarRef response = DatumCreateResponse(orig);  // creates a new SIScalar (copies value/unit)
     if (!response) return NULL;
 
     OCArrayRef coordCopy = NULL;
@@ -79,7 +79,7 @@ static void *__RMNDatumDeepCopy(const void *theType) {
         }
     }
 
-    RMNDatumRef copy = RMNDatumCreate(response,
+    DatumRef copy = DatumCreate(response,
                                       coordCopy,
                                       orig->dependentVariableIndex,
                                       orig->componentIndex,
@@ -91,25 +91,25 @@ static void *__RMNDatumDeepCopy(const void *theType) {
     return copy;
 }
 
-static void *__RMNDatumDeepCopyMutable(const void *theType) {
+static void *__DatumDeepCopyMutable(const void *theType) {
     // Currently no mutable variant exists; fallback to immutable copy
-    return __RMNDatumDeepCopy(theType);
+    return __DatumDeepCopy(theType);
 }
-OCTypeID RMNDatumGetTypeID(void)
+OCTypeID DatumGetTypeID(void)
 {
-    if(kRMNDatumID == _kOCNotATypeID) kRMNDatumID = OCRegisterType("RMNDatum");
-    return kRMNDatumID;
+    if(kDatumID == _kOCNotATypeID) kDatumID = OCRegisterType("Datum");
+    return kDatumID;
 }
 
-static struct __RMNDatum *RMNDatumAllocate(void)
+static struct __Datum *DatumAllocate(void)
 {
-    struct __RMNDatum *obj = OCTypeAlloc(struct __RMNDatum,
-                                        RMNDatumGetTypeID(),
-                                        __RMNDatumFinalize,
-                                        __RMNDatumEqual,
-                                        __RMNDatumCopyFormattingDescription,
-                                        __RMNDatumDeepCopy,
-                                        __RMNDatumDeepCopyMutable);
+    struct __Datum *obj = OCTypeAlloc(struct __Datum,
+                                        DatumGetTypeID(),
+                                        __DatumFinalize,
+                                        __DatumEqual,
+                                        __DatumCopyFormattingDescription,
+                                        __DatumDeepCopy,
+                                        __DatumDeepCopyMutable);
 
     obj->unit = NULL;
     obj->type = kSINumberFloat32Type;
@@ -119,7 +119,7 @@ static struct __RMNDatum *RMNDatumAllocate(void)
 }
 
 
-RMNDatumRef RMNDatumCreate(SIScalarRef theScalar,
+DatumRef DatumCreate(SIScalarRef theScalar,
                          OCArrayRef coordinates,
                          int dependentVariableIndex,
                          int componentIndex,
@@ -128,7 +128,7 @@ RMNDatumRef RMNDatumCreate(SIScalarRef theScalar,
     if(NULL==theScalar) return NULL;
     
     // Initialize object
-    struct __RMNDatum *newDatum = RMNDatumAllocate();
+    struct __Datum *newDatum = DatumAllocate();
 
     // *** Setup attributes ***
     newDatum->type = SIQuantityGetElementType((SIQuantityRef) theScalar);
@@ -141,18 +141,18 @@ RMNDatumRef RMNDatumCreate(SIScalarRef theScalar,
     newDatum->componentIndex = componentIndex;
     newDatum->memOffset = memOffset;
 
-    return (RMNDatumRef) newDatum;
+    return (DatumRef) newDatum;
 }
 
 
 
-RMNDatumRef RMNDatumCopy(RMNDatumRef theDatum)
+DatumRef DatumCopy(DatumRef theDatum)
 {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
     
-    SIScalarRef response = RMNDatumCreateResponse(theDatum);
+    SIScalarRef response = DatumCreateResponse(theDatum);
 
-    RMNDatumRef copy = RMNDatumCreate(response,
+    DatumRef copy = DatumCreate(response,
                                     theDatum->coordinates,
                                     theDatum->dependentVariableIndex,
                                     theDatum->componentIndex,
@@ -161,7 +161,7 @@ RMNDatumRef RMNDatumCopy(RMNDatumRef theDatum)
     return copy;
 }
 
-bool RMNDatumHasSameReducedDimensionalities(RMNDatumRef input1, RMNDatumRef input2)
+bool DatumHasSameReducedDimensionalities(DatumRef input1, DatumRef input2)
 {
     IF_NO_OBJECT_EXISTS_RETURN(input1, false);
     IF_NO_OBJECT_EXISTS_RETURN(input2, false);
@@ -180,41 +180,41 @@ bool RMNDatumHasSameReducedDimensionalities(RMNDatumRef input1, RMNDatumRef inpu
 	return true;
 }
 
-int RMNDatumGetComponentIndex(RMNDatumRef theDatum)
+int DatumGetComponentIndex(DatumRef theDatum)
 {
     if(NULL==theDatum) return kOCNotFound;
     return theDatum->componentIndex;
 }
 
-void RMNDatumSetComponentIndex(RMNDatumRef theDatum, int componentIndex)
+void DatumSetComponentIndex(DatumRef theDatum, int componentIndex)
 {
     if(theDatum) theDatum->componentIndex = componentIndex;
 }
 
-int RMNDatumGetDependentVariableIndex(RMNDatumRef theDatum)
+int DatumGetDependentVariableIndex(DatumRef theDatum)
 {
     if(NULL==theDatum) return kOCNotFound;
     return theDatum->dependentVariableIndex;
 }
 
-void RMNDatumSetDependentVariableIndex(RMNDatumRef theDatum, int dependentVariableIndex)
+void DatumSetDependentVariableIndex(DatumRef theDatum, int dependentVariableIndex)
 {
     if(theDatum) theDatum->dependentVariableIndex = dependentVariableIndex;
 }
 
-int RMNDatumGetMemOffset(RMNDatumRef theDatum)
+int DatumGetMemOffset(DatumRef theDatum)
 {
     if(NULL==theDatum) return kOCNotFound;
     return theDatum->memOffset;
 }
 
-void RMNDatumSetMemOffset(RMNDatumRef theDatum, int memOffset)
+void DatumSetMemOffset(DatumRef theDatum, int memOffset)
 {
     if(theDatum) theDatum->memOffset = memOffset;
 }
 
 
-SIScalarRef RMNDatumGetCoordinateAtIndex(RMNDatumRef theDatum, int index)
+SIScalarRef DatumGetCoordinateAtIndex(DatumRef theDatum, int index)
 {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
     if(index==-1) return (SIScalarRef) theDatum;
@@ -222,13 +222,13 @@ SIScalarRef RMNDatumGetCoordinateAtIndex(RMNDatumRef theDatum, int index)
     return OCArrayGetValueAtIndex(theDatum->coordinates, index);
 }
 
-SIScalarRef RMNDatumCreateResponse(RMNDatumRef theDatum)
+SIScalarRef DatumCreateResponse(DatumRef theDatum)
 {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
     return SIScalarCreateCopy((SIScalarRef) theDatum);
 }
 
-int RMNDatumCoordinatesCount(RMNDatumRef theDatum)
+int DatumCoordinatesCount(DatumRef theDatum)
 {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, 0);
     if(theDatum->coordinates) return OCArrayGetCount(theDatum->coordinates);
@@ -237,7 +237,7 @@ int RMNDatumCoordinatesCount(RMNDatumRef theDatum)
 
 
 
-OCDictionaryRef RMNDatumCreateDictionary(RMNDatumRef theDatum)
+OCDictionaryRef DatumCreateDictionary(DatumRef theDatum)
 {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
     
@@ -277,7 +277,7 @@ OCDictionaryRef RMNDatumCreateDictionary(RMNDatumRef theDatum)
 
 
 
-RMNDatumRef RMNDatumCreateWithDictionary(OCDictionaryRef dictionary, OCStringRef *error)
+DatumRef DatumCreateWithDictionary(OCDictionaryRef dictionary, OCStringRef *error)
 {
     if(error) if(*error) return NULL;
     IF_NO_OBJECT_EXISTS_RETURN(dictionary, NULL);
@@ -315,7 +315,7 @@ RMNDatumRef RMNDatumCreateWithDictionary(OCDictionaryRef dictionary, OCStringRef
         response = SIScalarCreateWithOCString(OCDictionaryGetValue(dictionary, STR("response")),error);
     }
     
-	RMNDatumRef datum = RMNDatumCreate(response, coordinates, dependentVariableIndex, componentIndex, memOffset);
+	DatumRef datum = DatumCreate(response, coordinates, dependentVariableIndex, componentIndex, memOffset);
     if(response) OCRelease(response);
     if(coordinates) OCRelease(coordinates);
     return datum;

@@ -1,0 +1,8 @@
+BasedOnStyle: Google
+IndentWidth: 4
+ColumnLimit: 0
+AllowShortIfStatementsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Always
+AllowShortFunctionsOnASingleLine: Inline
+BreakBeforeBraces: Attach
+MaxEmptyLinesToKeep: 0
