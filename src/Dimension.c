@@ -1256,3 +1256,247 @@ SIMonotonicDimensionCopyAsDictionary(SIMonotonicDimensionRef dim) {
     return dict;
 }
 #pragma endregion SIMonotonicDimension
+#pragma region SILinearDimension
+// ============================================================================
+// MARK: - (6) SILinearDimension
+// ============================================================================
+static OCTypeID kSILinearDimensionID = _kOCNotATypeID;
+typedef struct __SILinearDimension {
+    struct __SIDimension _super;   // inherit Dimension + SI fields
+    SIDimensionRef reciprocal;     // optional reciprocal dimension
+    OCIndex count;                 // number of points (>=2)
+    SIScalarRef increment;         // spacing between points
+    SIScalarRef inverseIncrement;  // precomputed 1/increment
+    bool fft;                      // FFT-friendly flag
+} *SILinearDimensionRef;
+OCTypeID SILinearDimensionGetTypeID(void) {
+    if (kSILinearDimensionID == _kOCNotATypeID)
+        kSILinearDimensionID = OCRegisterType("SILinearDimension");
+    return kSILinearDimensionID;
+}
+static bool __SILinearDimensionEqual(const void *a, const void *b) {
+    const SILinearDimensionRef A = (const SILinearDimensionRef)a;
+    const SILinearDimensionRef B = (const SILinearDimensionRef)b;
+    if (!A || !B) return false;
+    // compare base SI fields
+    if (!__SIDimensionEqual((const void *)&A->_super, (const void *)&B->_super))
+        return false;
+    // compare subclass fields
+    if (A->count != B->count || A->fft != B->fft)
+        return false;
+    if (!OCEqual(A->increment, B->increment) ||
+        !OCEqual(A->inverseIncrement, B->inverseIncrement) ||
+        !OCEqual(A->reciprocal, B->reciprocal))
+        return false;
+    return true;
+}
+static void __SILinearDimensionFinalize(const void *obj) {
+    if (!obj) return;
+    SILinearDimensionRef dim = (SILinearDimensionRef)obj;
+    // finalize SI superclass
+    __SIDimensionFinalize((const void *)&dim->_super);
+    // clean up subclass fields
+    OCRelease(dim->increment);
+    OCRelease(dim->inverseIncrement);
+    OCRelease(dim->reciprocal);
+}
+static OCStringRef __SILinearDimensionCopyFormattingDesc(OCTypeRef cf) {
+    SILinearDimensionRef d = (SILinearDimensionRef)cf;
+    if (!d) return OCStringCreateWithCString("<SILinearDimension: NULL>");
+    // base SI description
+    OCStringRef base = __SIDimensionCopyFormattingDesc((OCTypeRef)&d->_super);
+    // subclass values
+    OCStringRef incStr = SIScalarCreateStringValue(d->increment);
+    OCStringRef invStr = SIScalarCreateStringValue(d->inverseIncrement);
+    const char *fftStr = d->fft ? "true" : "false";
+    OCStringRef fmt = OCStringCreateWithFormat(
+        "%@ count=%lu increment=%@ inverseIncrement=%@ fft=%s>",
+        base,
+        (unsigned long)d->count,
+        incStr,
+        invStr,
+        fftStr);
+    OCRelease(base);
+    OCRelease(incStr);
+    OCRelease(invStr);
+    return fmt;
+}
+static void *__SILinearDimensionDeepCopy(const void *obj) {
+    const SILinearDimensionRef src = (const SILinearDimensionRef)obj;
+    if (!src) return NULL;
+    // deep-copy reciprocal if present
+    SIDimensionRef recCopy = src->reciprocal
+                                 ? (SIDimensionRef)OCTypeDeepCopy((OCTypeRef)src->reciprocal)
+                                 : NULL;
+    // delegate to public constructor
+    SILinearDimensionRef copy = SILinearDimensionCreate(
+        DimensionGetLabel((DimensionRef)&src->_super._super),
+        DimensionGetDescription((DimensionRef)&src->_super._super),
+        DimensionGetMetadata((DimensionRef)&src->_super._super),
+        SIDimensionGetQuantity((SIDimensionRef)&src->_super),
+        SIDimensionGetOffset((SIDimensionRef)&src->_super),
+        SIDimensionGetOrigin((SIDimensionRef)&src->_super),
+        SIDimensionGetPeriod((SIDimensionRef)&src->_super),
+        SIDimensionIsPeriodic((SIDimensionRef)&src->_super),
+        SIDimensionGetScaling((SIDimensionRef)&src->_super),
+        src->count,
+        src->increment,
+        src->fft,
+        recCopy);
+    if (recCopy) OCRelease(recCopy);
+    return copy;
+}
+static SILinearDimensionRef SILinearDimensionAllocate(void) {
+    SILinearDimensionRef obj = OCTypeAlloc(
+        struct __SILinearDimension,
+        SILinearDimensionGetTypeID(),
+        __SILinearDimensionFinalize,
+        __SILinearDimensionEqual,
+        __SILinearDimensionCopyFormattingDesc,
+        __SILinearDimensionDeepCopy,
+        __SILinearDimensionDeepCopy);
+    __InitBaseDimensionFields((DimensionRef)&obj->_super._super);
+    __InitSIDimensionFields((SIDimensionRef)&obj->_super);
+    obj->count = 0;
+    obj->increment = NULL;
+    obj->inverseIncrement = NULL;
+    obj->fft = false;
+    obj->reciprocal = NULL;
+    return obj;
+}
+SILinearDimensionRef
+SILinearDimensionCreate(OCStringRef label,
+                        OCStringRef description,
+                        OCDictionaryRef metaData,
+                        OCStringRef quantityName,
+                        SIScalarRef coordinatesOffset,
+                        SIScalarRef originOffset,
+                        SIScalarRef period,
+                        bool periodic,
+                        dimensionScaling scaling,
+                        OCIndex count,
+                        SIScalarRef increment,
+                        bool fft,
+                        SIDimensionRef reciprocal) {
+    if (count < 2 || !increment) {
+        fprintf(stderr, "SILinearDimensionCreate: need ≥2 points and a valid increment\n");
+        return NULL;
+    }
+    SILinearDimensionRef dim = SILinearDimensionAllocate();
+    if (!dim) return NULL;
+    // initialize SI superclass fields
+    if (!SIDimensionSetLabel((SIDimensionRef)&dim->_super, label) ||
+        !SIDimensionSetDescription((SIDimensionRef)&dim->_super, description) ||
+        !SIDimensionSetMetadata((SIDimensionRef)&dim->_super, metaData) ||
+        !SIDimensionSetQuantity((SIDimensionRef)&dim->_super, quantityName) ||
+        !SIDimensionSetOffset((SIDimensionRef)&dim->_super, coordinatesOffset) ||
+        !SIDimensionSetOrigin((SIDimensionRef)&dim->_super, originOffset) ||
+        (periodic && !SIDimensionSetPeriod((SIDimensionRef)&dim->_super, period)) ||
+        !SIDimensionSetPeriodic((SIDimensionRef)&dim->_super, periodic) ||
+        !SIDimensionSetScaling((SIDimensionRef)&dim->_super, scaling)) {
+        OCRelease(dim);
+        return NULL;
+    }
+    // subclass fields
+    dim->count = count;
+    dim->increment = SIScalarCreateCopy(increment);
+    if (!dim->increment) {
+        OCRelease(dim);
+        return NULL;
+    }
+    dim->inverseIncrement = SIScalarCreateByConvertingToUnit(increment,
+                                                             SIScalarGetUnit(increment), NULL);
+    if (!dim->inverseIncrement) {
+        OCRelease(dim);
+        return NULL;
+    }
+    dim->fft = fft;
+    if (reciprocal) {
+        OCRetain(reciprocal);
+        dim->reciprocal = reciprocal;
+    }
+    return dim;
+}
+OCIndex SILinearDimensionGetCount(SILinearDimensionRef dim) {
+    return dim ? dim->count : 0;
+}
+SIScalarRef SILinearDimensionGetIncrement(SILinearDimensionRef dim) {
+    return dim ? dim->increment : NULL;
+}
+SIScalarRef SILinearDimensionGetInverseIncrement(SILinearDimensionRef dim) {
+    return dim ? dim->inverseIncrement : NULL;
+}
+bool SILinearDimensionIsFFTEnabled(SILinearDimensionRef dim) {
+    return dim && dim->fft;
+}
+bool SILinearDimensionSetFFTEnabled(SILinearDimensionRef dim, bool fft) {
+    if (!dim) return false;
+    dim->fft = fft;
+    return true;
+}
+SILinearDimensionRef
+SILinearDimensionCreateFromDictionary(OCDictionaryRef dict) {
+    if (!dict) return NULL;
+    // 1) base + SI
+    SIDimensionRef base = SIDimensionCreateFromDictionary(dict);
+    if (!base) return NULL;
+    SILinearDimensionRef dim = (SILinearDimensionRef)base;
+    OCTypeSetTypeID((OCTypeRef)dim, SILinearDimensionGetTypeID());
+    // 2) subclass fields
+    OCNumberRef countNum = (OCNumberRef)OCDictionaryGetValue(dict, STR("count"));
+    dim->count = countNum ? OCNumberGetUInteger(countNum) : 0;
+    SIScalarRef inc = (SIScalarRef)OCDictionaryGetValue(dict, STR("increment"));
+    if (inc) {
+        OCRetain(inc);
+        dim->increment = inc;
+    }
+    SIScalarRef inv = (SIScalarRef)OCDictionaryGetValue(dict, STR("inverseIncrement"));
+    if (inv) {
+        OCRetain(inv);
+        dim->inverseIncrement = inv;
+    }
+    OCBooleanRef fftObj = (OCBooleanRef)OCDictionaryGetValue(dict, STR("fft"));
+    dim->fft = fftObj ? OCBooleanGetValue(fftObj) : false;
+    SIDimensionRef rec = (SIDimensionRef)OCDictionaryGetValue(dict, STR("reciprocal"));
+    if (rec) {
+        OCRetain(rec);
+        dim->reciprocal = rec;
+    }
+    return dim;
+}
+OCDictionaryRef
+SILinearDimensionCopyAsDictionary(SILinearDimensionRef dim) {
+    if (!dim) return NULL;
+    OCDictionaryRef dict = SIDimensionCopyAsDictionary((SIDimensionRef)dim);
+    if (!dict) return NULL;
+    // count
+    OCNumberRef c = OCNumberCreateUInteger(dim->count);
+    OCDictionarySetValue(dict, STR("count"), c);
+    OCRelease(c);
+    // increment
+    if (dim->increment) {
+        SIScalarRef incCopy = SIScalarCreateCopy(dim->increment);
+        if (incCopy) {
+            OCDictionarySetValue(dict, STR("increment"), incCopy);
+            OCRelease(incCopy);
+        }
+    }
+    // inverseIncrement
+    if (dim->inverseIncrement) {
+        SIScalarRef invCopy = SIScalarCreateCopy(dim->inverseIncrement);
+        if (invCopy) {
+            OCDictionarySetValue(dict, STR("inverseIncrement"), invCopy);
+            OCRelease(invCopy);
+        }
+    }
+    // fft flag
+    OCBooleanRef b = OCBooleanCreate(dim->fft);
+    OCDictionarySetValue(dict, STR("fft"), b);
+    OCRelease(b);
+    // reciprocal
+    if (dim->reciprocal) {
+        OCDictionarySetValue(dict, STR("reciprocal"), dim->reciprocal);
+    }
+    return dict;
+}
+#pragma endregion SILinearDimension
