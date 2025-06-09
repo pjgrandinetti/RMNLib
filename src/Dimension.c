@@ -558,6 +558,89 @@ static SIDimensionRef SIDimensionAllocate(void) {
     __InitSIDimensionFields(obj);
     return obj;
 }
+/// Returns true if `dim` passes *all* of the same checks that SIDimensionCreate performs.
+/// On failure, returns false and (optionally) writes a human-readable error into *outErr.
+bool SIDimensionValidate(SIDimensionRef dim, OCStringRef *outErr) {
+    if (!dim) {
+        if (outErr) *outErr = STR("dimension is NULL");
+        return false;
+    }
+    // 1) quantity must be non-NULL and known
+    OCStringRef qty = SIDimensionGetQuantity(dim);
+    if (!qty || OCStringGetLength(qty) == 0) {
+        if (outErr) *outErr = STR("quantity name is empty");
+        return false;
+    }
+    OCStringRef err = NULL;
+    SIDimensionalityRef qDim = SIDimensionalityForQuantity(qty, &err);
+    if (!qDim) {
+        if (outErr)
+            *outErr = err;
+        else if (err)
+            OCRelease(err);
+        return false;
+    }
+    // 2) offset must be non-NULL, real, same dimensionality
+    SIScalarRef off = SIDimensionGetOffset(dim);
+    if (!off) {
+        if (outErr) *outErr = STR("offset scalar is NULL");
+        return false;
+    }
+    if (SIQuantityIsComplexType((SIQuantityRef)off)) {
+        if (outErr) *outErr = STR("offset is complex-valued");
+        return false;
+    }
+    SIDimensionalityRef offDim = SIQuantityGetUnitDimensionality((SIQuantityRef)off);
+    if (!SIDimensionalityHasSameReducedDimensionality(qDim, offDim)) {
+        if (outErr) *outErr = STR("quantity and offset dimensionality mismatch");
+        return false;
+    }
+    // 3) origin must match offset dimensionality (or be defaulted to zero)
+    SIScalarRef org = SIDimensionGetOrigin(dim);
+    if (org) {
+        if (SIQuantityIsComplexType((SIQuantityRef)org)) {
+            if (outErr) *outErr = STR("origin is complex-valued");
+            return false;
+        }
+        SIDimensionalityRef orgDim = SIQuantityGetUnitDimensionality((SIQuantityRef)org);
+        if (!SIDimensionalityHasSameReducedDimensionality(offDim, orgDim)) {
+            if (outErr) *outErr = STR("origin and offset dimensionality mismatch");
+            return false;
+        }
+    }
+    // 4) if periodic, period must be non-NULL, real, same dimensionality
+    if (SIDimensionIsPeriodic(dim)) {
+        SIScalarRef per = SIDimensionGetPeriod(dim);
+        if (!per) {
+            if (outErr) *outErr = STR("periodic but period is NULL");
+            return false;
+        }
+        if (SIQuantityIsComplexType((SIQuantityRef)per)) {
+            if (outErr) *outErr = STR("period is complex-valued");
+            return false;
+        }
+        SIDimensionalityRef perDim = SIQuantityGetUnitDimensionality((SIQuantityRef)per);
+        if (!SIDimensionalityHasSameReducedDimensionality(offDim, perDim)) {
+            if (outErr) *outErr = STR("period and offset dimensionality mismatch");
+            return false;
+        }
+    }
+    // 5) scaling is always valid (just an enum)
+    return true;
+}
+static bool _InitSIDimensionFieldsFromArgs(
+    SIDimensionRef dim,
+    OCStringRef label,
+    OCStringRef description,
+    OCDictionaryRef metadata,
+    OCStringRef quantity,
+    SIScalarRef offset,
+    SIScalarRef origin,
+    SIScalarRef period,
+    bool periodic,
+    dimensionScaling scaling) {
+    return SIDimensionSetLabel(dim, label) && SIDimensionSetDescription(dim, description) && SIDimensionSetMetadata(dim, metadata) && SIDimensionSetQuantity(dim, quantity) && SIDimensionSetOffset(dim, offset) && SIDimensionSetOrigin(dim, origin) && (!periodic || SIDimensionSetPeriod(dim, period)) && SIDimensionSetPeriodic(dim, periodic) && SIDimensionSetScaling(dim, scaling);
+}
 SIDimensionRef
 SIDimensionCreate(
     OCStringRef label,
@@ -1129,52 +1212,119 @@ static SIMonotonicDimensionRef SIMonotonicDimensionAllocate(void) {
     obj->reciprocal = NULL;
     return obj;
 }
+static bool _SIDimensionIsReciprocalOf(SIDimensionRef src, SIDimensionRef rec) {
+    if (!src || !rec) return false;
+    // 1) Grab the reduced dimensionality of the source’s offset unit
+    SIScalarRef srcOffset = SIDimensionGetOffset(src);
+    SIDimensionalityRef srcDim =
+        SIQuantityGetUnitDimensionality((SIQuantityRef)srcOffset);
+    // 2) Invert it via "power -1"
+    OCStringRef err = NULL;
+    SIDimensionalityRef invDim = SIDimensionalityByRaisingToAPower(srcDim, -1.0, &err);
+    if (!invDim) {
+        if (err) {
+            fprintf(stderr,
+                    "_SIDimensionIsReciprocalOf: failed to invert dimensionality: %s\n",
+                    OCStringGetCStringPtr(err));
+            OCRelease(err);
+        }
+        return false;
+    }
+    // 3) Grab the dimensionality of rec’s offset unit
+    SIScalarRef recOffset = SIDimensionGetOffset(rec);
+    SIDimensionalityRef recDim =
+        SIQuantityGetUnitDimensionality((SIQuantityRef)recOffset);
+    // 4) Compare
+    bool match = SIDimensionalityHasSameReducedDimensionality(invDim, recDim);
+    OCRelease(invDim);
+    return match;
+}
 SIMonotonicDimensionRef
 SIMonotonicDimensionCreate(
-    OCStringRef label,
-    OCStringRef description,
-    OCDictionaryRef metadata,
-    OCStringRef quantity,
-    SIScalarRef offset,
-    SIScalarRef origin,
-    SIScalarRef period,
-    bool periodic,
+    OCStringRef      label,
+    OCStringRef      description,
+    OCDictionaryRef  metadata,
+    OCStringRef      quantity,
+    SIScalarRef      offset,
+    SIScalarRef      origin,
+    SIScalarRef      period,
+    bool             periodic,
     dimensionScaling scaling,
-    OCArrayRef coordinates,
-    SIDimensionRef reciprocal) {
-    // 1) Monotonic‐specific: need at least two sample points
+    OCArrayRef       coordinates,
+    SIDimensionRef   reciprocal)
+{
+    // 1) Monotonic‐specific: need ≥2 points
     if (!coordinates || OCArrayGetCount(coordinates) < 2) {
-        fprintf(stderr, "SIMonotonicDimensionCreate: need ≥2 coordinates\n");
+        fprintf(stderr,
+                "SIMonotonicDimensionCreate: need ≥2 coordinates\n");
         return NULL;
     }
-    // 2) Delegate all SI‐dimension validation + allocation to SIDimensionCreate
-    SIDimensionRef base =
-        SIDimensionCreate(label,
-                          description,
-                          metadata,
-                          quantity,
-                          offset,
-                          origin,
-                          period,
-                          periodic,
-                          scaling);
-    if (!base) {
-        // SIDimensionCreate already printed an error
+
+    // 2) Allocate subclass and zero‐init
+    SIMonotonicDimensionRef dim = SIMonotonicDimensionAllocate();
+    if (!dim) return NULL;
+
+    // 3) Provide a default zero‐origin if none was passed in
+    SIScalarRef originArg   = origin;
+    SIScalarRef tmpZero     = NULL;
+    bool        originIsTmp = false;
+    if (!origin) {
+        SIUnitRef u = SIQuantityGetUnit((SIQuantityRef)offset);
+        tmpZero     = SIScalarCreateWithDouble(0.0, u);
+        if (!tmpZero) {
+            fprintf(stderr,
+                    "SIMonotonicDimensionCreate: failed to create zero-origin\n");
+            OCRelease(dim);
+            return NULL;
+        }
+        originArg   = tmpZero;
+        originIsTmp = true;
+    }
+
+    // 4) Initialize embedded SI fields via our helper
+    if (!_InitSIDimensionFieldsFromArgs(
+            (SIDimensionRef)dim,
+            label, description, metadata,
+            quantity, offset, originArg,
+            period, periodic, scaling))
+    {
+        OCRelease(dim);
+        if (originIsTmp) OCRelease(tmpZero);
         return NULL;
     }
-    // 3) “Upcast” to our subtype and swap the typeID
-    SIMonotonicDimensionRef dim = (SIMonotonicDimensionRef)base;
-    OCTypeSetTypeID((OCTypeRef)dim, SIMonotonicDimensionGetTypeID());
-    // 4) Now fill in our monotonic‐specific fields
+    if (originIsTmp) {
+        OCRelease(tmpZero);
+    }
+
+    // 5) Monotonic‐specific: clone the coordinates array
+    OCRelease(dim->coordinates);  // drop the empty array from allocate
     dim->coordinates = OCArrayCreateMutableCopy(coordinates);
     if (!dim->coordinates) {
         OCRelease(dim);
         return NULL;
     }
+
+    // 6) Reciprocal‐dimensionality check (optional)
     if (reciprocal) {
+        OCStringRef verr = NULL;
+        if (!SIDimensionValidate(reciprocal, &verr)) {
+            fprintf(stderr,
+                    "SIMonotonicDimensionCreate: invalid reciprocal dimension: %s\n",
+                    OCStringGetCStringPtr(verr));
+            OCRelease(verr);
+            OCRelease(dim);
+            return NULL;
+        }
+        if (!_SIDimensionIsReciprocalOf((SIDimensionRef)dim, reciprocal)) {
+            fprintf(stderr,
+                    "SIMonotonicDimensionCreate: reciprocal dimensionality mismatch\n");
+            OCRelease(dim);
+            return NULL;
+        }
         OCRetain(reciprocal);
         dim->reciprocal = reciprocal;
     }
+
     return dim;
 }
 // getters & setters
@@ -1342,63 +1492,98 @@ static SILinearDimensionRef SILinearDimensionAllocate(void) {
 }
 SILinearDimensionRef
 SILinearDimensionCreate(
-    OCStringRef label,
-    OCStringRef description,
-    OCDictionaryRef metadata,
-    OCStringRef quantity,
-    SIScalarRef offset,
-    SIScalarRef origin,
-    SIScalarRef period,
-    bool periodic,
-    dimensionScaling scaling,
-    OCIndex count,
-    SIScalarRef increment,
-    bool fft,
-    SIDimensionRef reciprocal) {
-    // 1) Linear‐specific validation
+    OCStringRef       label,
+    OCStringRef       description,
+    OCDictionaryRef   metadata,
+    OCStringRef       quantity,
+    SIScalarRef       offset,
+    SIScalarRef       origin,
+    SIScalarRef       period,
+    bool              periodic,
+    dimensionScaling  scaling,
+    OCIndex           count,
+    SIScalarRef       increment,
+    bool              fft,
+    SIDimensionRef    reciprocal)
+{
+    // 1) Linear‐specific: need ≥2 points + a valid increment
     if (count < 2 || !increment) {
         fprintf(stderr,
                 "SILinearDimensionCreate: need ≥2 points and a valid increment\n");
         return NULL;
     }
-    // 2) Delegate all SI‐dimension work to SIDimensionCreate
-    SIDimensionRef base =
-        SIDimensionCreate(label,
-                          description,
-                          metadata,
-                          quantity,
-                          offset,
-                          origin,
-                          period,
-                          periodic,
-                          scaling);
-    if (!base) {
-        // SIDimensionCreate already logged the error
+
+    // 2) Allocate + zero‐init
+    SILinearDimensionRef dim = SILinearDimensionAllocate();
+    if (!dim) return NULL;
+
+    // 3) supply a default origin if none provided
+    SIScalarRef originArg   = origin;
+    SIScalarRef tmpZero     = NULL;
+    bool        originIsTmp = false;
+    if (!origin) {
+        // default to zero in offset’s unit
+        SIUnitRef u = SIQuantityGetUnit((SIQuantityRef)offset);
+        tmpZero     = SIScalarCreateWithDouble(0.0, u);
+        if (!tmpZero) {
+            fprintf(stderr,
+                    "SILinearDimensionCreate: failed to create zero-origin\n");
+            OCRelease(dim);
+            return NULL;
+        }
+        originArg   = tmpZero;
+        originIsTmp = true;
+    }
+
+    // 4) Initialize all the shared SI fields in one go
+    if (!_InitSIDimensionFieldsFromArgs(
+            (SIDimensionRef)dim,
+            label, description, metadata,
+            quantity, offset, originArg,
+            period, periodic, scaling))
+    {
+        OCRelease(dim);
+        if (originIsTmp) OCRelease(tmpZero);
         return NULL;
     }
-    // 3) “Re-cast” and fix the runtime type
-    SILinearDimensionRef dim = (SILinearDimensionRef)base;
-    OCTypeSetTypeID((OCTypeRef)dim, SILinearDimensionGetTypeID());
-    // 4) Populate linear-specific fields
+
+    if (originIsTmp) {
+        OCRelease(tmpZero);
+    }
+
+    // 5) Linear‐specific: set count + increment
     dim->count = count;
     dim->increment = SIScalarCreateCopy(increment);
     if (!dim->increment) {
         OCRelease(dim);
         return NULL;
     }
-    dim->inverseIncrement = SIScalarCreateByConvertingToUnit(
+    dim->reciprocalIncrement = SIScalarCreateByConvertingToUnit(
         increment,
         SIScalarGetUnit(increment),
         NULL);
-    if (!dim->inverseIncrement) {
+    if (!dim->reciprocalIncrement) {
         OCRelease(dim);
         return NULL;
     }
+
+    // 6) FFT flag + optional reciprocal
     dim->fft = fft;
     if (reciprocal) {
+        OCStringRef verr = NULL;
+        if (!SIDimensionValidate(reciprocal, &verr) ||
+            !_SIDimensionIsReciprocalOf((SIDimensionRef)dim, reciprocal))
+        {
+            fprintf(stderr,
+                    "SILinearDimensionCreate: invalid or mismatched reciprocal\n");
+            OCRelease(verr);
+            OCRelease(dim);
+            return NULL;
+        }
         OCRetain(reciprocal);
         dim->reciprocal = reciprocal;
     }
+
     return dim;
 }
 OCIndex SILinearDimensionGetCount(SILinearDimensionRef dim) {
