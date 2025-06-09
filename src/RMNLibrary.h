@@ -13,7 +13,7 @@
 #include <OCTypes/OCLibrary.h>
 #include <SITypes/SILibrary.h>
 
-#include "RMNDatum.h"
-#include "RMNDimension.h"
-#include "RMNDataset.h"
+#include "Datum.h"
+#include "Dimension.h"
+#include "Dataset.h"
 #endif /* RMNLIBRARY_H */

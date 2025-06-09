@@ -14,8 +14,8 @@ struct __RMNDataset {
 
     // RMN extra attributes below
     OCStringRef             title;
-    RMNDatumRef             focus;
-    RMNDatumRef             previousFocus;
+    DatumRef             focus;
+    DatumRef             previousFocus;
     OCMutableArrayRef       dimensionPrecedence; // ordered array of indexes, representing dimension precedence.
     OCDictionaryRef         metaData;
     OCMutableDictionaryRef  operations;
