@@ -1,19 +1,31 @@
 /**
- * @file SILibrary.h
- * @brief Core definitions, macros, and types for the SITypes library.
- *
- * This header centralizes the core types and helper macros used throughout
- * the SITypes framework, and then includes all the public SITypes APIs.
- */
+
+@file RMNLibrary.h
+
+@brief Core definitions and includes for the RMN measurement library.
+
+
+
+This header centralizes project-wide includes and dependencies for the
+
+RMN library, wrapping both OCTypes and SITypes core headers as well
+
+as local modules (Datum, Dimension, Dataset).
+*/
 
 #ifndef RMNLIBRARY_H
 #define RMNLIBRARY_H
 
-#include <stdlib.h>
+// Include the core OCTypes definitions and utilities
 #include <OCTypes/OCLibrary.h>
+
+// Include the core SITypes definitions and utilities
 #include <SITypes/SILibrary.h>
 
+// Local module headers
 #include "Datum.h"
 #include "Dimension.h"
 #include "Dataset.h"
+
 #endif /* RMNLIBRARY_H */
+

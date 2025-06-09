@@ -646,7 +646,8 @@ static bool _InitSIDimensionFieldsFromArgs(
     SIScalarRef period,
     bool periodic,
     dimensionScaling scaling) {
-    return DimensionSetLabel(dim, label) && DimensionSetDescription(dim, description) && DimensionSetMetadata(dim, metadata) && SIDimensionSetQuantity(dim, quantity) && SIDimensionSetOffset(dim, offset) && SIDimensionSetOrigin(dim, origin) && (!periodic || SIDimensionSetPeriod(dim, period)) && SIDimensionSetPeriodic(dim, periodic) && SIDimensionSetScaling(dim, scaling);
+    DimensionRef baseDim = (DimensionRef) dim;
+    return DimensionSetLabel(baseDim, label) && DimensionSetDescription(baseDim, description) && DimensionSetMetadata(baseDim, metadata) && SIDimensionSetQuantity(dim, quantity) && SIDimensionSetOffset(dim, offset) && SIDimensionSetOrigin(dim, origin) && (!periodic || SIDimensionSetPeriod(dim, period)) && SIDimensionSetPeriodic(dim, periodic) && SIDimensionSetScaling(dim, scaling);
 }
 SIDimensionRef
 SIDimensionCreate(
@@ -1003,7 +1004,7 @@ bool SIDimensionSetPeriod(SIDimensionRef dim, SIScalarRef val) {
         return true;
     }
     // 5) Convert & deep‐copy into our “relative” unit
-    SIUnitRef relUnit = SIDimensionGetRelativeUnit((DimensionRef)dim);
+    SIUnitRef relUnit = SIQuantityGetUnit((SIQuantityRef) dim->offset);
     SIScalarRef copy = SIScalarCreateByConvertingToUnit(val, relUnit, NULL);
     if (!copy) {
         fprintf(stderr, "SIDimensionSetPeriod: conversion to relative unit failed\n");
@@ -1056,16 +1057,16 @@ SIDimensionCreateFromDictionary(OCDictionaryRef dict) {
     OCDictionaryRef meta = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata"));
     // 2) SIDimension‐specific
     OCStringRef quantity = (OCStringRef)OCDictionaryGetValue(dict, STR("quantity"));
-    SIScalarRef offset = (SIScalarRef)OCDictionaryGetValue(dict, STR("offset"));
-    SIScalarRef origin = (SIScalarRef)OCDictionaryGetValue(dict, STR("origin"));
-    SIScalarRef period = (SIScalarRef)OCDictionaryGetValue(dict, STR("period"));
-    // boolean “periodic” flag
+    SIScalarRef offset  = (SIScalarRef)OCDictionaryGetValue(dict, STR("offset"));
+    SIScalarRef origin  = (SIScalarRef)OCDictionaryGetValue(dict, STR("origin"));
+    SIScalarRef period  = (SIScalarRef)OCDictionaryGetValue(dict, STR("period"));
     OCBooleanRef periodicObj = (OCBooleanRef)OCDictionaryGetValue(dict, STR("periodic"));
     bool periodic = periodicObj ? OCBooleanGetValue(periodicObj) : false;
-    // numeric “scaling” enum
     OCNumberRef scalingNum = (OCNumberRef)OCDictionaryGetValue(dict, STR("scaling"));
+    int scalingNumValue = 0;
+    (void)OCNumberGetValue(scalingNum, kOCNumberIntType, &scalingNumValue);
     dimensionScaling scaling = scalingNum
-                                   ? (dimensionScaling)OCNumberGetInt(scalingNum)
+                                   ? (dimensionScaling)scalingNumValue
                                    : kDimensionScalingNone;
     // 3) Delegate to our validated constructor
     return SIDimensionCreate(
@@ -1083,16 +1084,16 @@ OCDictionaryRef
 SIDimensionCopyAsDictionary(SIDimensionRef dim) {
     if (!dim) return NULL;
     // 1) Start with base‐class serialization
-    OCDictionaryRef dict = DimensionCopyAsDictionary((DimensionRef)dim);
+    OCMutableDictionaryRef dict = (OCMutableDictionaryRef) DimensionCopyAsDictionary((DimensionRef)dim);
     if (!dict) return NULL;
     // 2) quantity
     OCStringRef qty = SIDimensionGetQuantity(dim);
-    if (qty) OCDictionarySetValue((OCMutableDictionaryRef) dict, STR("quantity"), qty);
+    if (qty) OCDictionarySetValue(dict, STR("quantity"), qty);
     // 3) offset
     if (dim->offset) {
         SIScalarRef copy = SIScalarCreateCopy(dim->offset);
         if (copy) {
-            OCDictionarySetValue((OCMutableDictionaryRef) dict, STR("offset"), copy);
+            OCDictionarySetValue(dict, STR("offset"), copy);
             OCRelease(copy);
         }
     }
@@ -1100,7 +1101,7 @@ SIDimensionCopyAsDictionary(SIDimensionRef dim) {
     if (dim->origin) {
         SIScalarRef copy = SIScalarCreateCopy(dim->origin);
         if (copy) {
-            OCDictionarySetValue((OCMutableDictionaryRef) dict, STR("origin"), copy);
+            OCDictionarySetValue(dict, STR("origin"), copy);
             OCRelease(copy);
         }
     }
@@ -1108,19 +1109,19 @@ SIDimensionCopyAsDictionary(SIDimensionRef dim) {
     if (dim->period) {
         SIScalarRef copy = SIScalarCreateCopy(dim->period);
         if (copy) {
-            OCDictionarySetValue(OCMutableDictionaryRef) (dict, STR("period"), copy);
+            OCDictionarySetValue(dict, STR("period"), copy);
             OCRelease(copy);
         }
     }
     // 6) periodic flag
     OCBooleanRef b = OCBooleanGetWithBool(SIDimensionIsPeriodic(dim));
-    OCDictionarySetValue((OCMutableDictionaryRef) dict, STR("periodic"), b);
+    OCDictionarySetValue(dict, STR("periodic"), b);
     OCRelease(b);
     // 7) scaling enum
-    OCNumberRef num = OCNumberCreateInt((int)SIDimensionGetScaling(dim));
-    OCDictionarySetValue((OCMutableDictionaryRef) dict, STR("scaling"), num);
+    OCNumberRef num = OCNumberCreateWithInt((int)SIDimensionGetScaling(dim));
+    OCDictionarySetValue(dict, STR("scaling"), num);
     OCRelease(num);
-    return dict;
+    return (OCDictionaryRef) dict;
 }
 #pragma endregion SIDimension
 #pragma region SIMonotonicDimension
@@ -1158,26 +1159,35 @@ static void __SIMonotonicDimensionFinalize(const void *obj) {
     OCRelease(dim->reciprocal);
     OCRelease(dim->coordinates);
 }
-static OCStringRef __SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf) {
+static OCStringRef
+__SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf)
+{
     SIMonotonicDimensionRef d = (SIMonotonicDimensionRef)cf;
     if (!d) {
-        return OCStringCreateWithCString("<SIMonotonicDimension: NULL>");
+        return STR("<SIMonotonicDimension: NULL>");
     }
-    // 1) Ask the SI base‐class for its formatting (it already ends in '>')
+
+    // 1) Grab the base SIDimension description
     OCStringRef base = __SIDimensionCopyFormattingDesc(cf);
-    // 2) "yes"/"no" for whether we've got a reciprocal dimension
+
+    // 2) Build a small “yes”/“no” string for reciprocal
+    
     OCStringRef recStr = d->reciprocal ? STR("yes") : STR("no");
-    // 3) How many coordinates do we actually have?
+
+    // 3) Count the coordinates
     OCIndex count = d->coordinates ? OCArrayGetCount(d->coordinates) : 0;
-    // 4) Glue it all together—note the literal format string is wrapped in STR(...)
+
+    // 4) Stitch them together, making sure to close with '>'
     OCStringRef fmt = OCStringCreateWithFormat(
         STR("%@ coordinatesCount=%lu reciprocal=%@>"),
         base,
         (unsigned long)count,
         recStr);
-    // 5) Clean up our temporaries
+
+    // 5) Clean up temporaries
     OCRelease(base);
     OCRelease(recStr);
+
     return fmt;
 }
 SIMonotonicDimensionRef
@@ -1494,8 +1504,7 @@ static OCStringRef __SILinearDimensionCopyFormattingDesc(OCTypeRef cf) {
     // 2) Subclass values
     OCStringRef incStr = SIScalarCreateStringValue(d->increment);
     OCStringRef invStr = SIScalarCreateStringValue(d->reciprocalIncrement);
-    OCStringRef fftStr = STR(d->fft ? "true" : "false");
-    // 3) Stitch together
+    OCStringRef fftStr = d->fft ? STR("true") : STR("false");    // 3) Stitch together
     OCStringRef fmt = OCStringCreateWithFormat(
         STR("%@ count=%lu increment=%@ reciprocalIncrement=%@ fft=%@>"),
         base,
@@ -1649,7 +1658,7 @@ SILinearDimensionCreate(
                               SIQuantityGetUnit((SIQuantityRef)offset),
                               NULL);
         if (!SIScalarMultiplyByDimensionlessRealConstant(recInc, (double)count) ||
-            !SIScalarRaiseToAPowerWithoutReducingUnit(recInc, -1.0))
+        !SIScalarRaiseToAPowerWithoutReducingUnit(recInc, -1.0, NULL))
         {
             OCRelease(recInc);
             OCRelease(dim);
@@ -1688,7 +1697,13 @@ SILinearDimensionCreateFromDictionary(OCDictionaryRef dict) {
     OCTypeSetTypeID((OCTypeRef)dim, SILinearDimensionGetTypeID());
     // 2) subclass fields
     OCNumberRef countNum = (OCNumberRef)OCDictionaryGetValue(dict, STR("count"));
-    dim->count = countNum ? OCNumberGetUInteger(countNum) : 0;
+    {
+        int tmp = 0;
+        if (countNum) {
+            OCNumberGetValue(countNum, kOCNumberIntType, &tmp);
+        }
+        dim->count = (OCIndex)tmp;
+    }
     SIScalarRef inc = (SIScalarRef)OCDictionaryGetValue(dict, STR("increment"));
     if (inc) {
         OCRetain(inc);
@@ -1714,14 +1729,14 @@ SILinearDimensionCopyAsDictionary(SILinearDimensionRef dim) {
     OCDictionaryRef dict = SIDimensionCopyAsDictionary((SIDimensionRef)dim);
     if (!dict) return NULL;
     // count
-    OCNumberRef c = OCNumberCreateUInteger(dim->count);
-    OCDictionarySetValue((OCMutableDictionaryRef) dict, STR("count"), c);
+    OCNumberRef c = OCNumberCreateWithInt((int)dim->count);
+    OCDictionarySetValue((OCMutableDictionaryRef)dict, STR("count"), c);
     OCRelease(c);
     // increment
     if (dim->increment) {
         SIScalarRef incCopy = SIScalarCreateCopy(dim->increment);
         if (incCopy) {
-            OCDictionarySetValue((OCMutableDictionaryRef) dict, STR("increment"), incCopy);
+            OCDictionarySetValue((OCMutableDictionaryRef)dict, STR("increment"), incCopy);
             OCRelease(incCopy);
         }
     }
@@ -1729,20 +1744,21 @@ SILinearDimensionCopyAsDictionary(SILinearDimensionRef dim) {
     if (dim->reciprocalIncrement) {
         SIScalarRef invCopy = SIScalarCreateCopy(dim->reciprocalIncrement);
         if (invCopy) {
-            OCDictionarySetValue((OCMutableDictionaryRef) dict, STR("reciprocalIncrement"), invCopy);
+            OCDictionarySetValue((OCMutableDictionaryRef)dict, STR("reciprocalIncrement"), invCopy);
             OCRelease(invCopy);
         }
     }
     // fft flag
     OCBooleanRef b = OCBooleanGetWithBool(dim->fft);
-    OCDictionarySetValue((OCMutableDictionaryRef) dict, STR("fft"), b);
+    OCDictionarySetValue((OCMutableDictionaryRef)dict, STR("fft"), b);
     OCRelease(b);
     // reciprocal
     if (dim->reciprocal) {
-        OCDictionarySetValue((OCMutableDictionaryRef) dict, STR("reciprocal"), dim->reciprocal);
+        OCDictionarySetValue((OCMutableDictionaryRef)dict, STR("reciprocal"), dim->reciprocal);
     }
     return dict;
 }
+
 
 #pragma mark — LinearDimension accessors
 
@@ -1763,9 +1779,9 @@ SIScalarRef SILinearDimensionGetIncrement(SILinearDimensionRef dim) {
 
 bool SILinearDimensionSetIncrement(SILinearDimensionRef dim, SIScalarRef inc) {
     if (!dim || !inc) return false;
-    // validate real + same dimensionality as offset/origin…
-    SIUnitRef offsetUnit = SIQuantityGetUnit((SIQuantityRef)dim->offset);
-    // convert into offset-unit so we’re consistent
+    // ensure real & same dimensionality as offset/origin
+    SIUnitRef offsetUnit =
+        SIQuantityGetUnit((SIQuantityRef)SIDimensionGetOffset((SIDimensionRef)dim));
     SIScalarRef copy = SIScalarCreateByConvertingToUnit(inc, offsetUnit, NULL);
     if (!copy) return false;
 
@@ -1776,7 +1792,7 @@ bool SILinearDimensionSetIncrement(SILinearDimensionRef dim, SIScalarRef inc) {
     OCRelease(dim->reciprocalIncrement);
     SIMutableScalarRef rec = SIScalarCreateMutableCopy(copy);
     SIScalarMultiplyByDimensionlessRealConstant(rec, (double)dim->count);
-    SIScalarRaiseToAPowerWithoutReducingUnit(rec, -1.0);
+    SIScalarRaiseToAPowerWithoutReducingUnit(rec, -1.0, NULL);
     SIScalarSetElementType(rec, kSINumberFloat64Type);
     dim->reciprocalIncrement = rec;
 
