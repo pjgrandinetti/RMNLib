@@ -86,7 +86,7 @@ TP_DEPS :=
 endif
 
 # Default goal: build everything (but fetch only if needed)
-all: dirs $(TP_DEPS) prepare $(LIB_DIR)/libRMNLib.a
+all: dirs octypes sitypes prepare $(LIB_DIR)/libRMNLib.a
 
 dirs: $(REQUIRED_DIRS)
 
@@ -112,31 +112,20 @@ $(OCT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 $(TP_LIB_DIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
 	@echo "Extracting OCTypes library"
 	@$(MKDIR_P) $(TP_LIB_DIR)
-	@if echo "$(UNAME_S)" | grep -qi mingw; then \
-	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(TP_LIB_DIR)'"; \
-	    cp $(TP_LIB_DIR)/*.a $(TP_LIB_DIR)/; \
+	@if [ -f "$(TP_LIB_DIR)/libOCTypes.a" ]; then \
+	    echo "libOCTypes.a already exists, skipping"; \
 	else \
-	    unzip -j -q "$<" -d "$(TP_LIB_DIR)"; \
+	    unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
 	fi
 
+# Prepare include dir and extract OCTypes headers
 $(OCT_INCLUDE)/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
 	@echo "Extracting OCTypes headers"
-#	@$(RM) -r $(OCT_INCLUDE)
-#	@$(MKDIR_P) $(OCT_INCLUDE)/OCTypes
-#	@if echo "$(UNAME_S)" | grep -qi mingw; then \
-#	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(OCT_INCLUDE)'"; \
-#	else \
-#	    unzip -q "$<" -d "$(OCT_INCLUDE)"; \
-#	fi
-#	@mv $(OCT_INCLUDE)/*.h $(OCT_INCLUDE)/OCTypes/ 2>/dev/null || true
-# Prepare include dir and extract all headers flat
-	@$(RM) -rf $(OCT_INCLUDE)
 	@$(MKDIR_P) $(OCT_INCLUDE)
-	@if echo "$(UNAME_S)" | grep -qi mingw; then \
-	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(OCT_INCLUDE)'"; \
-	    cp $(OCT_INCLUDE)/*.h $(OCT_INCLUDE)/; \
+	@if [ -f "$(OCT_INCLUDE)/OCLibrary.h" ]; then \
+	    echo "OCLibrary.h exists, skipping"; \
 	else \
-	    unzip -j -q "$<" -d "$(OCT_INCLUDE)"; \
+	    unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"; \
 	fi
 
 # Download and extract SITypes
@@ -153,32 +142,21 @@ $(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 # Extract SITypes library
 $(TP_LIB_DIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
 	@echo "Extracting SITypes library"
-	@$(RM) -f $(TP_LIB_DIR)/libSITypes.a
 	@$(MKDIR_P) $(TP_LIB_DIR)
-	@if echo "$(UNAME_S)" | grep -qi mingw; then \
-	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(TP_LIB_DIR)'"; \
-	    cp $(TP_LIB_DIR)/*.a $(TP_LIB_DIR)/; \
+	@if [ -f "$(TP_LIB_DIR)/libSITypes.a" ]; then \
+	    echo "libSITypes.a already exists, skipping"; \
 	else \
-	    unzip -j -q "$<" -d "$(TP_LIB_DIR)"; \
+	    unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
 	fi
 
+# Prepare include dir and extract SITypes headers
 $(SIT_INCLUDE)/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@echo "Extracting SITypes headers"
-#	@$(RM) -rf $(SIT_INCLUDE)
-#	@$(MKDIR_P) $(SIT_INCLUDE)
-#	@if echo "$(UNAME_S)" | grep -qi mingw; then \
-#	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(SIT_INCLUDE)'"; \
-#	else \
-#	    unzip -q "$<" -d "$(SIT_INCLUDE)"; \
-#    fi
-# Prepare include dir and extract all headers flat
-	@$(RM) -rf $(SIT_INCLUDE)
 	@$(MKDIR_P) $(SIT_INCLUDE)
-	@if echo "$(UNAME_S)" | grep -qi mingw; then \
-	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(SIT_INCLUDE)'"; \
-	    cp $(SIT_INCLUDE)/*.h $(SIT_INCLUDE)/; \
+	@if [ -f "$(SIT_INCLUDE)/SILibrary.h" ]; then \
+	    echo "SILibrary.h exists, skipping"; \
 	else \
-	    unzip -j -q "$<" -d "$(SIT_INCLUDE)"; \
+	    unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"; \
 	fi
 
 prepare:
@@ -195,11 +173,11 @@ TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(TEST_SRC))
 # 1) FIRST: compile anything coming from tests/*.c into build/obj/%.o
 #    This rule must appear before the “src” rule so that make does not 
 #    accidentally match the “src” pattern first.
-$(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs
+$(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs octypes sitypes
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 # 2) THEN: compile anything coming from src/*.c into build/obj/%.o
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs octypes sitypes
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 # Test binary (Linux/macOS will now re‐fetch OCTypes/SITypes before linking)
