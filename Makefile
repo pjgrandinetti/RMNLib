@@ -67,9 +67,23 @@ OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
 SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
 SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
-.PHONY: all dirs clean prepare octypes sitypes test test-asan docs synclib
+# Source repository URLs
+OCT_REPO_URL := https://github.com/pjgrandinetti/OCTypes.git
+SIT_REPO_URL := https://github.com/pjgrandinetti/SITypes.git
 
-all: dirs octypes sitypes prepare $(LIB_DIR)/libRMNLib.a
+.PHONY: all dirs clean prepare octypes sitypes octypes-src sitypes-src test test-asan docs synclib fetchlibs
+.PHONY: fetch-octypes fetch-sitypes build-octypes build-sitypes
+
+# Only fetch third-party libs when third_party directory is empty
+EMPTY_TP := $(shell [ -d $(THIRD_PARTY_DIR) ] && [ -z "$(wildcard $(THIRD_PARTY_DIR)/*)" ] && echo 1)
+ifeq ($(EMPTY_TP),1)
+TP_DEPS := octypes sitypes
+else
+TP_DEPS :=
+endif
+
+# Default goal: build everything (but fetch only if needed)
+all: dirs $(TP_DEPS) prepare $(LIB_DIR)/libRMNLib.a
 
 dirs: $(REQUIRED_DIRS)
 
@@ -187,7 +201,7 @@ test-asan: $(BIN_DIR)/runTests.asan
 
 clean:
 	$(RM) -r $(BUILD_DIR) libRMNLib.a
-	$(RM) -rf $(THIRD_PARTY_DIR)/OCTypes $(THIRD_PARTY_DIR)/SITypes
+	$(RM) -rf $(THIRD_PARTY_DIR)
 
 #────────────────────────────────────────────────────────────────────────────
 # 10) Xcode support
@@ -222,12 +236,20 @@ docs:
 	@echo "Documentation available at docs/_build/html"
 
 .PHONY: synclib
-synclib:
-	@echo "Syncing OCTypes and SITypes into third_party..."
-	@$(RM) -rf $(THIRD_PARTY_DIR)/OCTypes $(THIRD_PARTY_DIR)/SITypes
-	@$(MKDIR_P) $(THIRD_PARTY_DIR)/OCTypes/lib $(THIRD_PARTY_DIR)/OCTypes/include/OCTypes
-	@cp ../OCTypes/install/lib/libOCTypes.a $(THIRD_PARTY_DIR)/OCTypes/lib/
-	@cp ../OCTypes/install/include/OCTypes/*.h $(THIRD_PARTY_DIR)/OCTypes/include/OCTypes/
-	@$(MKDIR_P) $(THIRD_PARTY_DIR)/SITypes/lib $(THIRD_PARTY_DIR)/SITypes/include/SITypes
-	@cp ../SITypes/install/lib/libSITypes.a $(THIRD_PARTY_DIR)/SITypes/lib/
-	@cp ../SITypes/install/include/SITypes/*.h $(THIRD_PARTY_DIR)/SITypes/include/SITypes/
+-synclib: build-octypes build-sitypes
++synclib: build-octypes build-sitypes
+ synclib:
+	@echo "Syncing OCTypes into $(OCTYPES_DIR)..."
+	@$(RM) -rf $(OCTYPES_DIR)
+	@$(MKDIR_P) $(OCTYPES_DIR)/lib $(OCT_INCLUDE)/OCTypes
+	@cp ../OCTypes/install/lib/libOCTypes.a $(OCTYPES_DIR)/lib/
+	@cp ../OCTypes/install/include/OCTypes/*.h $(OCT_INCLUDE)/OCTypes/
+	@echo "Syncing SITypes into $(SITYPES_DIR)..."
+	@$(RM) -rf $(SITYPES_DIR)
+	@$(MKDIR_P) $(SITYPES_DIR)/lib $(SIT_INCLUDE)/SITypes
+	@cp ../SITypes/install/lib/libSITypes.a $(SITYPES_DIR)/lib/
+	@cp ../SITypes/install/include/SITypes/*.h $(SIT_INCLUDE)/SITypes/
+
+# Single command to fetch both libraries
+fetchlibs: fetch-octypes fetch-sitypes
+	@echo "Both OCTypes and SITypes sources are up to date."

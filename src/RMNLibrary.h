@@ -17,10 +17,10 @@ as local modules (Datum, Dimension, Dataset).
 #define RMNLIBRARY_H
 
 // Include the core OCTypes definitions and utilities
-#include <OCTypes/OCLibrary.h>
+#include <OCLibrary.h>
 
 // Include the core SITypes definitions and utilities
-#include <SITypes/SILibrary.h>
+#include <SILibrary.h>
 
 // Local module headers
 #include "Datum.h"
