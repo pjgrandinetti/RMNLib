@@ -22,14 +22,16 @@ GEN_DIR         := $(BUILD_DIR)/gen
 BIN_DIR         := $(BUILD_DIR)/bin
 LIB_DIR         := $(BUILD_DIR)/lib
 THIRD_PARTY_DIR := third_party
+TP_LIB_DIR      := $(THIRD_PARTY_DIR)/lib
 OCTYPES_DIR     := $(THIRD_PARTY_DIR)/OCTypes
 SITYPES_DIR     := $(THIRD_PARTY_DIR)/SITypes
+INCLUDE_DIR     := $(THIRD_PARTY_DIR)/include
 
 # Include and library paths
-OCT_INCLUDE := $(OCTYPES_DIR)/include
-OCT_LIBDIR  := $(OCTYPES_DIR)/lib
-SIT_INCLUDE := $(SITYPES_DIR)/include
-SIT_LIBDIR  := $(SITYPES_DIR)/lib
+OCT_INCLUDE := $(INCLUDE_DIR)/OCTypes
+SIT_INCLUDE := $(INCLUDE_DIR)/SITypes
+OCT_LIBDIR  := $(TP_LIB_DIR)
+SIT_LIBDIR  := $(TP_LIB_DIR)
 
 # All required directories
 REQUIRED_DIRS := $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(LIB_DIR) $(THIRD_PARTY_DIR)
@@ -71,8 +73,9 @@ SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 OCT_REPO_URL := https://github.com/pjgrandinetti/OCTypes.git
 SIT_REPO_URL := https://github.com/pjgrandinetti/SITypes.git
 
-.PHONY: all dirs clean prepare octypes sitypes octypes-src sitypes-src test test-asan docs synclib fetchlibs
-.PHONY: fetch-octypes fetch-sitypes build-octypes build-sitypes
+.PHONY: all dirs clean prepare octypes sitypes octotypes-src sitypes-src test test-asan docs synclib fetchlibs
+fetchlibs: octypes sitypes
+	@echo "Both OCTypes and SITypes libraries are up to date."
 
 # Only fetch third-party libs when third_party directory is empty
 EMPTY_TP := $(shell [ -d $(THIRD_PARTY_DIR) ] && [ -z "$(wildcard $(THIRD_PARTY_DIR)/*)" ] && echo 1)
@@ -95,7 +98,7 @@ STATIC_SRC := $(wildcard $(SRC_DIR)/*.c)
 OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(STATIC_SRC))
 
 # Download and extract OCTypes
-octypes: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes/OCLibrary.h
+octypes: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCLibrary.h
 
 $(OCT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
@@ -106,29 +109,38 @@ $(OCT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/libOCTypes-headers.zip -o $@
 
 # Extract OCTypes library
-$(OCT_LIBDIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
+$(TP_LIB_DIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
 	@echo "Extracting OCTypes library"
-	@$(RM) -r $(OCT_LIBDIR)
-	@$(MKDIR_P) $(OCT_LIBDIR)
+	@$(MKDIR_P) $(TP_LIB_DIR)
 	@if echo "$(UNAME_S)" | grep -qi mingw; then \
-	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(OCT_LIBDIR)'"; \
+	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(TP_LIB_DIR)'"; \
+	    cp $(TP_LIB_DIR)/*.a $(TP_LIB_DIR)/; \
 	else \
-	    unzip -q "$<" -d "$(OCT_LIBDIR)"; \
+	    unzip -j -q "$<" -d "$(TP_LIB_DIR)"; \
 	fi
 
-$(OCT_INCLUDE)/OCTypes/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
+$(OCT_INCLUDE)/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
 	@echo "Extracting OCTypes headers"
-	@$(RM) -r $(OCT_INCLUDE)
-	@$(MKDIR_P) $(OCT_INCLUDE)/OCTypes
+#	@$(RM) -r $(OCT_INCLUDE)
+#	@$(MKDIR_P) $(OCT_INCLUDE)/OCTypes
+#	@if echo "$(UNAME_S)" | grep -qi mingw; then \
+#	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(OCT_INCLUDE)'"; \
+#	else \
+#	    unzip -q "$<" -d "$(OCT_INCLUDE)"; \
+#	fi
+#	@mv $(OCT_INCLUDE)/*.h $(OCT_INCLUDE)/OCTypes/ 2>/dev/null || true
+# Prepare include dir and extract all headers flat
+	@$(RM) -rf $(OCT_INCLUDE)
+	@$(MKDIR_P) $(OCT_INCLUDE)
 	@if echo "$(UNAME_S)" | grep -qi mingw; then \
 	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(OCT_INCLUDE)'"; \
+	    cp $(OCT_INCLUDE)/*.h $(OCT_INCLUDE)/; \
 	else \
-	    unzip -q "$<" -d "$(OCT_INCLUDE)"; \
+	    unzip -j -q "$<" -d "$(OCT_INCLUDE)"; \
 	fi
-	@mv $(OCT_INCLUDE)/*.h $(OCT_INCLUDE)/OCTypes/ 2>/dev/null || true
 
 # Download and extract SITypes
-sitypes: $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SITypes/SILibrary.h
+sitypes: $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SILibrary.h
 
 $(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
@@ -139,26 +151,35 @@ $(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
 
 # Extract SITypes library
-$(SIT_LIBDIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
+$(TP_LIB_DIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
 	@echo "Extracting SITypes library"
-	@$(RM) -r $(SIT_LIBDIR)
-	@$(MKDIR_P) $(SIT_LIBDIR)
+	@$(RM) -f $(TP_LIB_DIR)/libSITypes.a
+	@$(MKDIR_P) $(TP_LIB_DIR)
 	@if echo "$(UNAME_S)" | grep -qi mingw; then \
-	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(SIT_LIBDIR)'"; \
+	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(TP_LIB_DIR)'"; \
+	    cp $(TP_LIB_DIR)/*.a $(TP_LIB_DIR)/; \
 	else \
-	    unzip -q "$<" -d "$(SIT_LIBDIR)"; \
+	    unzip -j -q "$<" -d "$(TP_LIB_DIR)"; \
 	fi
 
-$(SIT_INCLUDE)/SITypes/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
+$(SIT_INCLUDE)/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@echo "Extracting SITypes headers"
-	@$(RM) -r $(SIT_INCLUDE)
-	@$(MKDIR_P) $(SIT_INCLUDE)/SITypes
+#	@$(RM) -rf $(SIT_INCLUDE)
+#	@$(MKDIR_P) $(SIT_INCLUDE)
+#	@if echo "$(UNAME_S)" | grep -qi mingw; then \
+#	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(SIT_INCLUDE)'"; \
+#	else \
+#	    unzip -q "$<" -d "$(SIT_INCLUDE)"; \
+#    fi
+# Prepare include dir and extract all headers flat
+	@$(RM) -rf $(SIT_INCLUDE)
+	@$(MKDIR_P) $(SIT_INCLUDE)
 	@if echo "$(UNAME_S)" | grep -qi mingw; then \
 	    powershell -Command "Expand-Archive -Force -LiteralPath '$<' -DestinationPath '$(SIT_INCLUDE)'"; \
+	    cp $(SIT_INCLUDE)/*.h $(SIT_INCLUDE)/; \
 	else \
-	    unzip -q "$<" -d "$(SIT_INCLUDE)"; \
+	    unzip -j -q "$<" -d "$(SIT_INCLUDE)"; \
 	fi
-	@mv $(SIT_INCLUDE)/*.h $(SIT_INCLUDE)/SITypes/ 2>/dev/null || true
 
 prepare:
 	@echo "Preparing generated files"
@@ -236,20 +257,12 @@ docs:
 	@echo "Documentation available at docs/_build/html"
 
 .PHONY: synclib
--synclib: build-octypes build-sitypes
-+synclib: build-octypes build-sitypes
- synclib:
-	@echo "Syncing OCTypes into $(OCTYPES_DIR)..."
-	@$(RM) -rf $(OCTYPES_DIR)
-	@$(MKDIR_P) $(OCTYPES_DIR)/lib $(OCT_INCLUDE)/OCTypes
-	@cp ../OCTypes/install/lib/libOCTypes.a $(OCTYPES_DIR)/lib/
-	@cp ../OCTypes/install/include/OCTypes/*.h $(OCT_INCLUDE)/OCTypes/
-	@echo "Syncing SITypes into $(SITYPES_DIR)..."
-	@$(RM) -rf $(SITYPES_DIR)
-	@$(MKDIR_P) $(SITYPES_DIR)/lib $(SIT_INCLUDE)/SITypes
-	@cp ../SITypes/install/lib/libSITypes.a $(SITYPES_DIR)/lib/
-	@cp ../SITypes/install/include/SITypes/*.h $(SIT_INCLUDE)/SITypes/
-
-# Single command to fetch both libraries
-fetchlibs: fetch-octypes fetch-sitypes
-	@echo "Both OCTypes and SITypes sources are up to date."
+synclib:
+	@echo "Copying OCTypes and SITypes into third_party/lib and include..."
+	@$(MKDIR_P) $(THIRD_PARTY_DIR)
+	@$(RM) -r $(THIRD_PARTY_DIR)/lib $(THIRD_PARTY_DIR)/include
+	@$(MKDIR_P) $(THIRD_PARTY_DIR)/lib $(THIRD_PARTY_DIR)/include/OCTypes $(THIRD_PARTY_DIR)/include/SITypes
+	@cp ../OCTypes/install/lib/libOCTypes.a $(THIRD_PARTY_DIR)/lib/
+	@cp ../OCTypes/install/include/OCTypes/*.h $(THIRD_PARTY_DIR)/include/OCTypes/
+	@cp ../SITypes/install/lib/libSITypes.a $(THIRD_PARTY_DIR)/lib/
+	@cp ../SITypes/install/include/SITypes/*.h $(THIRD_PARTY_DIR)/include/SITypes/
