@@ -74,6 +74,7 @@ OCT_REPO_URL := https://github.com/pjgrandinetti/OCTypes.git
 SIT_REPO_URL := https://github.com/pjgrandinetti/SITypes.git
 
 .PHONY: all dirs clean prepare octypes sitypes octotypes-src sitypes-src test test-asan docs synclib fetchlibs
+
 fetchlibs: octypes sitypes
 	@echo "Both OCTypes and SITypes libraries are up to date."
 
@@ -108,32 +109,41 @@ $(OCT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching OCTypes headers"
 	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/libOCTypes-headers.zip -o $@
 
-# Extract OCTypes library
-$(TP_LIB_DIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
-	@echo "Extracting OCTypes library"
-	@$(MKDIR_P) $(TP_LIB_DIR)
-	@if [ -f "$(TP_LIB_DIR)/libOCTypes.a" ]; then \
-	    echo "libOCTypes.a already exists, skipping"; \
+# Detect Windows vs Unix shell once
+IS_MINGW := $(findstring MINGW,$(UNAME_S))
+
+# Ensure the third-party lib dir exists
+$(TP_LIB_DIR):
+	$(MKDIR_P) "$(TP_LIB_DIR)"
+
+# ────────────────────────────────────────────────────────────────────────────
+# OCTypes extraction (linux/macOS vs Windows)
+# ────────────────────────────────────────────────────────────────────────────
+$(TP_LIB_DIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE) | $(TP_LIB_DIR)
+ifeq ($(IS_MINGW),)
+	@echo "Extracting OCTypes library (linux/macOS)"
+	@if [ -f "$@" ]; then \
+	  echo "  → libOCTypes.a already exists, skipping"; \
 	else \
-		ifneq ($(findstring MINGW,$(UNAME_S)),) \
-			powershell -NoProfile -Command "if (!(Test-Path '$(TP_LIB_DIR)/libOCTypes.a')) { New-Item -ItemType Directory -Path '$(TP_LIB_DIR)' | Out-Null; Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force } else { Write-Host 'libOCTypes.a exists, skipping' }" \
-		else \
-			unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
-		fi \
+	  unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
 	fi
+else
+	@echo "Extracting OCTypes library (Windows)"
+	@powershell -NoProfile -Command \
+	  "if (!(Test-Path '$(TP_LIB_DIR)/libOCTypes.a')) { \
+	     New-Item -ItemType Directory -Path '$(TP_LIB_DIR)' | Out-Null; \
+	     Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force \
+	   } else { Write-Host '  → libOCTypes.a exists, skipping' }"
+endif
 
 # Prepare include dir and extract OCTypes headers
 $(OCT_INCLUDE)/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
 	@echo "Extracting OCTypes headers"
 	@$(MKDIR_P) $(OCT_INCLUDE)
 	@if [ -f "$(OCT_INCLUDE)/OCLibrary.h" ]; then \
-	    echo "OCLibrary.h exists, skipping"; \
+	    echo "  → OCLibrary.h exists, skipping"; \
 	else \
-		ifneq ($(findstring MINGW,$(UNAME_S)),) \
-			powershell -NoProfile -Command "if (!(Test-Path '$(OCT_INCLUDE)/OCLibrary.h')) { New-Item -ItemType Directory -Path '$(OCT_INCLUDE)' | Out-Null; Expand-Archive -Path '$<' -DestinationPath '$(OCT_INCLUDE)' -Force } else { Write-Host 'OCLibrary.h exists, skipping' }" \
-		else \
-			unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"; \
-		fi \
+	    unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"; \
 	fi
 
 # Download and extract SITypes
@@ -147,32 +157,34 @@ $(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes headers"
 	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
 
-# Extract SITypes library
-$(TP_LIB_DIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
-	@echo "Extracting SITypes library"
-	@$(MKDIR_P) $(TP_LIB_DIR)
-	@if [ -f "$(TP_LIB_DIR)/libSITypes.a" ]; then \
-	    echo "libSITypes.a already exists, skipping"; \
+# ────────────────────────────────────────────────────────────────────────────
+# SITypes extraction (linux/macOS vs Windows)
+# ────────────────────────────────────────────────────────────────────────────
+$(TP_LIB_DIR)/libSITypes.a: $(SIT_LIB_ARCHIVE) | $(TP_LIB_DIR)
+ifeq ($(IS_MINGW),)
+	@echo "Extracting SITypes library (linux/macOS)"
+	@if [ -f "$@" ]; then \
+	  echo "  → libSITypes.a already exists, skipping"; \
 	else \
-		ifneq ($(findstring MINGW,$(UNAME_S)),) \
-			powershell -NoProfile -Command "if (!(Test-Path '$(TP_LIB_DIR)/libSITypes.a')) { New-Item -ItemType Directory -Path '$(TP_LIB_DIR)' | Out-Null; Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force } else { Write-Host 'libSITypes.a exists, skipping' }" \
-		else \
-			unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
-		fi \
+	  unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
 	fi
+else
+	@echo "Extracting SITypes library (Windows)"
+	@powershell -NoProfile -Command \
+	  "if (!(Test-Path '$(TP_LIB_DIR)/libSITypes.a')) { \
+	     New-Item -ItemType Directory -Path '$(TP_LIB_DIR)' | Out-Null; \
+	     Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force \
+	   } else { Write-Host '  → libSITypes.a exists, skipping' }"
+endif
 
 # Prepare include dir and extract SITypes headers
 $(SIT_INCLUDE)/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@echo "Extracting SITypes headers"
 	@$(MKDIR_P) $(SIT_INCLUDE)
 	@if [ -f "$(SIT_INCLUDE)/SILibrary.h" ]; then \
-	    echo "SILibrary.h exists, skipping"; \
+	    echo "  → SILibrary.h exists, skipping"; \
 	else \
-		ifneq ($(findstring MINGW,$(UNAME_S)),) \
-			powershell -NoProfile -Command "if (!(Test-Path '$(SIT_INCLUDE)/SILibrary.h')) { New-Item -ItemType Directory -Path '$(SIT_INCLUDE)' | Out-Null; Expand-Archive -Path '$<' -DestinationPath '$(SIT_INCLUDE)' -Force } else { Write-Host 'SILibrary.h exists, skipping' }" \
-		else \
-			unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"; \
-		fi \
+	    unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"; \
 	fi
 
 prepare:
@@ -186,17 +198,15 @@ $(LIB_DIR)/libRMNLib.a: $(OBJ)
 TEST_SRC := $(wildcard $(TEST_SRC_DIR)/*.c)
 TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(TEST_SRC))
 
-# 1) FIRST: compile anything coming from tests/*.c into build/obj/%.o
-#    This rule must appear before the “src” rule so that make does not 
-#    accidentally match the “src” pattern first.
+# 1) FIRST: compile tests/*.c
 $(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs octypes sitypes
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-# 2) THEN: compile anything coming from src/*.c into build/obj/%.o
+# 2) THEN: compile src/*.c
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs octypes sitypes
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-# Test binary (Linux/macOS will now re‐fetch OCTypes/SITypes before linking)
+# Test binary
 $(BIN_DIR)/runTests: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
@@ -219,7 +229,7 @@ clean:
 	$(RM) -rf $(THIRD_PARTY_DIR)
 
 #────────────────────────────────────────────────────────────────────────────
-# 10) Xcode support
+# Xcode support
 #────────────────────────────────────────────────────────────────────────────
 .PHONY: xcode xcode-open xcode-run
 xcode: clean dirs octypes sitypes
@@ -242,7 +252,6 @@ xcode-run: xcode
 # Documentation
 #────────────────────────────────────────────────────────────────────────────
 .PHONY: docs
-
 docs:
 	@echo "Generating Doxygen XML..."
 	@cd docs && doxygen Doxyfile
@@ -257,6 +266,6 @@ synclib:
 	@$(RM) -r $(THIRD_PARTY_DIR)/lib $(THIRD_PARTY_DIR)/include
 	@$(MKDIR_P) $(THIRD_PARTY_DIR)/lib $(THIRD_PARTY_DIR)/include/OCTypes $(THIRD_PARTY_DIR)/include/SITypes
 	@cp ../OCTypes/install/lib/libOCTypes.a $(THIRD_PARTY_DIR)/lib/
-	@cp ../OCTypes/install/include/OCTypes/*.h $(THIRD_PARTY_DIR)/include/OCTypes/
-	@cp ../SITypes/install/lib/libSITypes.a $(THIRD_PARTY_DIR)/lib/
+	@cp ../OCTypes/install/include/OCTypes/*.h   $(THIRD_PARTY_DIR)/include/OCTypes/
+	@cp ../SITypes/install/lib/libSITypes.a   $(THIRD_PARTY_DIR)/lib/
 	@cp ../SITypes/install/include/SITypes/*.h $(THIRD_PARTY_DIR)/include/SITypes/
