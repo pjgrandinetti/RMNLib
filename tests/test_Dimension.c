@@ -4,81 +4,103 @@
 #include "test_utils.h"
 
 bool test_Dimension_base(void) {
-    // Exercise the base-class defaults via a concrete LabeledDimension
-    OCMutableArrayRef labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    bool ok = false;
+    OCMutableArrayRef labels = NULL;
+    LabeledDimensionRef ld = NULL;
+    DimensionRef d = NULL;
+    DimensionRef d2 = NULL;
+
+    labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     TEST_ASSERT(labels != NULL);
     OCArrayAppendValue(labels, STR("X"));
     OCArrayAppendValue(labels, STR("Y"));
 
-    // Create a LabeledDimension (concrete)
-    LabeledDimensionRef ld = LabeledDimensionCreateWithCoordinateLabels(labels);
+    ld = LabeledDimensionCreateWithCoordinateLabels(labels);
     TEST_ASSERT(ld != NULL);
 
-    // Cast to the abstract base for testing default behavior
-    DimensionRef d = (DimensionRef)ld;
+    TEST_ASSERT(DimensionGetLabel((DimensionRef)ld) != NULL);
+    TEST_ASSERT(OCStringGetLength(DimensionGetLabel((DimensionRef)ld)) == 0);
+    TEST_ASSERT(DimensionGetDescription((DimensionRef)ld) != NULL);
+    TEST_ASSERT(OCStringGetLength(DimensionGetDescription((DimensionRef)ld)) == 0);
+    TEST_ASSERT(DimensionGetMetadata((DimensionRef)ld) != NULL);
+    TEST_ASSERT(OCDictionaryGetCount(DimensionGetMetadata((DimensionRef)ld)) == 0);
 
-    // Base defaults
-    TEST_ASSERT(DimensionGetLabel(d) != NULL);
-    TEST_ASSERT(OCStringGetLength(DimensionGetLabel(d)) == 0);
-    TEST_ASSERT(DimensionGetDescription(d) != NULL);
-    TEST_ASSERT(OCStringGetLength(DimensionGetDescription(d)) == 0);
-    TEST_ASSERT(DimensionGetMetadata(d) != NULL);
-    TEST_ASSERT(OCDictionaryGetCount(DimensionGetMetadata(d)) == 0);
+    TEST_ASSERT(DimensionSetLabel((DimensionRef)ld, STR("foo")));
+    TEST_ASSERT(OCStringEqual(DimensionGetLabel((DimensionRef)ld), STR("foo")));
+    TEST_ASSERT(DimensionSetDescription((DimensionRef)ld, STR("bar")));
+    TEST_ASSERT(OCStringEqual(DimensionGetDescription((DimensionRef)ld), STR("bar")));
 
-    // Mutate via the base API
-    TEST_ASSERT(DimensionSetLabel(d, STR("foo")));
-    TEST_ASSERT(OCStringEqual(DimensionGetLabel(d), STR("foo")));
-    TEST_ASSERT(DimensionSetDescription(d, STR("bar")));
-    TEST_ASSERT(OCStringEqual(DimensionGetDescription(d), STR("bar")));
-
-    // Deep-copy and compare
-    DimensionRef d2 = DimensionDeepCopy(ld);
+    d2 = OCTypeDeepCopy(ld);
     TEST_ASSERT(d2 != NULL);
     TEST_ASSERT(OCTypeEqual(ld, d2));
 
-    // Cleanup
-    OCRelease(d2);
-    OCRelease(ld);
-    OCRelease(labels);
-    return true;
+    ok = true;   // everything passed
+cleanup:
+    // always run—releasing whichever were allocated
+    if (d2)     OCRelease(d2);
+    if (ld)     OCRelease(ld);
+    if (labels) OCRelease(labels);
+    if(ok) {
+        printf("Dimension base tests passed.\n");
+    } else {
+        printf("Dimension base tests failed.\n");
+    }
+    return ok;
 }
 
+
 bool test_LabeledDimension_basic(void) {
-    // Prepare
-    OCMutableArrayRef labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    bool ok = false;
+    OCMutableArrayRef   labels = NULL;
+    LabeledDimensionRef ld     = NULL;
+    OCDictionaryRef     dict   = NULL;
+    LabeledDimensionRef ld2    = NULL;
+    OCStringRef         f1     = NULL;
+    OCStringRef         f2     = NULL;
+
+    labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     TEST_ASSERT(labels != NULL);
     OCArrayAppendValue(labels, STR("A"));
     OCArrayAppendValue(labels, STR("B"));
     OCArrayAppendValue(labels, STR("C"));
 
-    // Concrete creation
-    LabeledDimensionRef ld = LabeledDimensionCreate(
+    ld = LabeledDimensionCreate(
         STR("L"), STR("desc"), NULL, labels);
     TEST_ASSERT(ld != NULL);
 
-    // Validate subclass‐specific behavior
+    // Validate subclass-specific behavior
     OCArrayRef got = LabeledDimensionGetCoordinateLabels(ld);
     TEST_ASSERT(got != NULL);
     TEST_ASSERT(OCArrayGetCount(got) == 3);
     TEST_ASSERT(OCStringEqual(OCArrayGetValueAtIndex(got, 1), STR("B")));
 
     // Round-trip via dictionary
-    OCDictionaryRef dict = LabeledDimensionCopyAsDictionary(ld);
+    dict = LabeledDimensionCopyAsDictionary(ld);
     TEST_ASSERT(dict != NULL);
-    LabeledDimensionRef ld2 = LabeledDimensionCreateFromDictionary(dict);
+    ld2 = LabeledDimensionCreateFromDictionary(dict);
     TEST_ASSERT(ld2 != NULL);
 
     // Compare formatting
-    OCStringRef f1 = OCTypeCopyFormattingDesc((OCTypeRef)ld);
-    OCStringRef f2 = OCTypeCopyFormattingDesc((OCTypeRef)ld2);
+    f1 = OCTypeCopyFormattingDesc((OCTypeRef)ld);
+    TEST_ASSERT(f1 != NULL);
+    f2 = OCTypeCopyFormattingDesc((OCTypeRef)ld2);
+    TEST_ASSERT(f2 != NULL);
     TEST_ASSERT(OCStringEqual(f1, f2));
 
-    // Cleanup
-    OCRelease(f1);
-    OCRelease(f2);
-    OCRelease(dict);
-    OCRelease(ld2);
-    OCRelease(ld);
-    OCRelease(labels);
-    return true;
+    ok = true;
+
+cleanup:
+    // Always release everything that was allocated or retained.
+    if (f1)     OCRelease(f1);
+    if (f2)     OCRelease(f2);
+    if (dict)   OCRelease(dict);
+    if (ld2)    OCRelease(ld2);
+    if (ld)     OCRelease(ld);
+    if (labels) OCRelease(labels);
+    if(ok) {
+        printf("LabeledDimension basic tests passed.\n");
+    } else {
+        printf("LabeledDimension basic tests failed.\n");
+    }
+    return ok;
 }

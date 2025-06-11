@@ -20,18 +20,18 @@ bool test_Datum_NULL_cases(void) {
     dup2(fileno(nullf), fileno(stderr));
 
     // NULL-case tests
-    TEST_ASSERT(DatumGetTypeID() != 0);
-    TEST_ASSERT(DatumGetComponentIndex(NULL) == -1);
-    TEST_ASSERT(DatumGetDependentVariableIndex(NULL) == -1);
-    TEST_ASSERT(DatumGetMemOffset(NULL) == -1);
-    TEST_ASSERT(DatumCoordinatesCount(NULL) == 0);
-    TEST_ASSERT(DatumGetCoordinateAtIndex(NULL, 0) == NULL);
-    TEST_ASSERT(DatumCreate(NULL, NULL, 0, 0, 0) == NULL);
-    TEST_ASSERT(DatumCopy(NULL) == NULL);
-    TEST_ASSERT(!DatumHasSameReducedDimensionalities(NULL, NULL));
-    TEST_ASSERT(DatumCreateResponse(NULL) == NULL);
-    TEST_ASSERT(DatumCreateDictionary(NULL) == NULL);
-    TEST_ASSERT(DatumCreateWithDictionary(NULL, NULL) == NULL);
+    if (DatumGetTypeID() == 0)                     { ok = false; goto cleanup; }
+    if (DatumGetComponentIndex(NULL) != -1)        { ok = false; goto cleanup; }
+    if (DatumGetDependentVariableIndex(NULL) != -1){ ok = false; goto cleanup; }
+    if (DatumGetMemOffset(NULL) != -1)             { ok = false; goto cleanup; }
+    if (DatumCoordinatesCount(NULL) != 0)          { ok = false; goto cleanup; }
+    if (DatumGetCoordinateAtIndex(NULL, 0) != NULL){ ok = false; goto cleanup; }
+    if (DatumCreate(NULL, NULL, 0, 0, 0) != NULL)   { ok = false; goto cleanup; }
+    if (DatumCopy(NULL) != NULL)                   { ok = false; goto cleanup; }
+    if (DatumHasSameReducedDimensionalities(NULL, NULL)) { ok = false; goto cleanup; }
+    if (DatumCreateResponse(NULL) != NULL)         { ok = false; goto cleanup; }
+    if (DatumCreateDictionary(NULL) != NULL)       { ok = false; goto cleanup; }
+    if (DatumCreateWithDictionary(NULL, NULL) != NULL) { ok = false; goto cleanup; }
 
 cleanup:
     fflush(stderr);
@@ -40,62 +40,73 @@ cleanup:
     fclose(nullf);
 
     if (ok) printf("Datum NULL-case tests passed.\n");
+    else printf("Datum NULL-case tests failed.\n");
     return ok;
 }
 
 bool test_Datum_functional(void) {
     bool ok = true;
 
+    SIScalarRef value     = NULL;
+    OCMutableArrayRef coords   = NULL;
+    SIScalarRef c0        = NULL;
+    SIScalarRef c1        = NULL;
+    DatumRef datum        = NULL;
+    DatumRef copy         = NULL;
+    OCDictionaryRef dict  = NULL;
+    OCStringRef error     = NULL;
+    DatumRef fromDict     = NULL;
+
     // Create value scalar
-    SIScalarRef value = SIScalarCreateWithDouble(42.0, SIUnitDimensionlessAndUnderived());
-    TEST_ASSERT(value != NULL);
+    value = SIScalarCreateWithDouble(42.0, SIUnitDimensionlessAndUnderived());
+    if (!value) { ok = false; goto cleanup; }
 
     // Create coordinates array
-    OCMutableArrayRef coords = OCArrayCreateMutable(2, &kOCTypeArrayCallBacks);
-    TEST_ASSERT(coords != NULL);
+    coords = OCArrayCreateMutable(2, &kOCTypeArrayCallBacks);
+    if (!coords) { ok = false; goto cleanup; }
 
-    SIScalarRef c0 = SIScalarCreateWithDouble(1.1, SIUnitDimensionlessAndUnderived());
-    SIScalarRef c1 = SIScalarCreateWithDouble(2.2, SIUnitDimensionlessAndUnderived());
-    TEST_ASSERT(c0 != NULL && c1 != NULL);
+    c0 = SIScalarCreateWithDouble(1.1, SIUnitDimensionlessAndUnderived());
+    c1 = SIScalarCreateWithDouble(2.2, SIUnitDimensionlessAndUnderived());
+    if (!c0 || !c1) { ok = false; goto cleanup; }
     OCArrayAppendValue(coords, c0);
     OCArrayAppendValue(coords, c1);
 
     // Create datum
-    DatumRef datum = DatumCreate(value, coords, 1, 2, 3);
-    TEST_ASSERT(datum != NULL);
-    TEST_ASSERT(DatumGetDependentVariableIndex(datum) == 1);
-    TEST_ASSERT(DatumGetComponentIndex(datum) == 2);
-    TEST_ASSERT(DatumGetMemOffset(datum) == 3);
-    TEST_ASSERT(DatumCoordinatesCount(datum) == 2);
+    datum = DatumCreate(value, coords, 1, 2, 3);
+    if (!datum) { ok = false; goto cleanup; }
+    if (DatumGetDependentVariableIndex(datum) != 1) { ok = false; goto cleanup; }
+    if (DatumGetComponentIndex(datum) != 2)             { ok = false; goto cleanup; }
+    if (DatumGetMemOffset(datum) != 3)                  { ok = false; goto cleanup; }
+    if (DatumCoordinatesCount(datum) != 2)              { ok = false; goto cleanup; }
 
     SIScalarRef fetched = DatumGetCoordinateAtIndex(datum, 1);
-    TEST_ASSERT(fetched != NULL);
-    TEST_ASSERT(SIScalarGetValue(fetched).doubleValue == 2.2);
+    if (!fetched)       { ok = false; goto cleanup; }
+    if (SIScalarGetValue(fetched).doubleValue != 2.2) { ok = false; goto cleanup; }
 
     // Copy and compare
-    DatumRef copy = DatumCopy(datum);
-    TEST_ASSERT(copy != NULL);
-    TEST_ASSERT(DatumHasSameReducedDimensionalities(datum, copy));
+    copy = DatumCopy(datum);
+    if (!copy)                      { ok = false; goto cleanup; }
+    if (!DatumHasSameReducedDimensionalities(datum, copy)) { ok = false; goto cleanup; }
 
     // Dictionary round-trip
-    OCDictionaryRef dict = DatumCreateDictionary(datum);
-    TEST_ASSERT(dict != NULL);
-    OCStringRef error = NULL;
-    DatumRef fromDict = DatumCreateWithDictionary(dict, &error);
-    TEST_ASSERT(fromDict != NULL);
-    TEST_ASSERT(error == NULL);
+    dict = DatumCreateDictionary(datum);
+    if (!dict)                      { ok = false; goto cleanup; }
+    fromDict = DatumCreateWithDictionary(dict, &error);
+    if (!fromDict)                  { ok = false; goto cleanup; }
+    if (error)                      { ok = false; goto cleanup; }
 
 cleanup:
     if (datum)    OCRelease(datum);
     if (copy)     OCRelease(copy);
     if (fromDict) OCRelease(fromDict);
+    if (dict)     OCRelease(dict);
     if (coords)   OCRelease(coords);
     if (value)    OCRelease(value);
     if (c0)       OCRelease(c0);
     if (c1)       OCRelease(c1);
-    if (dict)     OCRelease(dict);
     if (error)    OCRelease(error);
 
     if (ok) printf("Datum functional tests passed.\n");
+    else printf("Datum functional tests failed.\n");
     return ok;
 }

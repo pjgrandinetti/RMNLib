@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-void test_Datum_NULL_cases(void);
-void test_Datum_functional(void);
+bool test_Datum_NULL_cases(void);
+bool test_Datum_functional(void);
 
 #ifdef __cplusplus
 }
