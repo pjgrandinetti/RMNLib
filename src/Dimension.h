@@ -167,8 +167,6 @@ SIScalarRef             SILinearDimensionGetIncrement(SILinearDimensionRef dim);
 bool                    SILinearDimensionSetIncrement(SILinearDimensionRef dim,
                                                       SIScalarRef inc);
 SIScalarRef             SILinearDimensionGetReciprocalIncrement(SILinearDimensionRef dim);
-bool                    SILinearDimensionSetReciprocalIncrement(SILinearDimensionRef dim,
-                                                                 SIScalarRef recInc);
 bool                    SILinearDimensionIsFFT(SILinearDimensionRef dim);
 bool                    SILinearDimensionSetFFT(SILinearDimensionRef dim,
                                                 bool fft);
