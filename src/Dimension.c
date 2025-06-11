@@ -329,7 +329,7 @@ LabeledDimensionCreate(OCStringRef label, OCStringRef description, OCDictionaryR
             return NULL;
         }
     }
-    // Labels array
+
     if (dim->coordinateLabels) OCRelease(dim->coordinateLabels);
     dim->coordinateLabels = OCArrayCreateMutableCopy(coordinateLabels);
     if (!dim->coordinateLabels) {
@@ -341,15 +341,21 @@ LabeledDimensionCreate(OCStringRef label, OCStringRef description, OCDictionaryR
 LabeledDimensionRef
 LabeledDimensionCreateWithCoordinateLabels(OCArrayRef coordinateLabels) {
     if (!coordinateLabels || OCArrayGetCount(coordinateLabels) < 2) {
-        fprintf(stderr, "LabeledDimensionCreateWithCoordinateLabels: need ≥2 labels\n");
+        fprintf(stderr,
+                "LabeledDimensionCreateWithCoordinateLabels: need ≥2 labels\n");
         return NULL;
     }
-    // Delegate to the general constructor, using empty strings and NULL metadata
-    return LabeledDimensionCreate(
-        STR(""),
-        STR(""),
-        NULL,  // default metadata → creates an empty dictionary
-        coordinateLabels);
+    // (1) Allocate a fresh instance, with empty label/description and an empty metadata dict
+    LabeledDimensionRef dim = LabeledDimensionAllocate();
+    if (!dim) return NULL;
+
+    // (2) Use the public setter to populate the coordinateLabels field
+    if (!LabeledDimensionSetCoordinateLabels(dim, coordinateLabels)) {
+        OCRelease(dim);
+        return NULL;
+    }
+
+    return dim;
 }
 OCArrayRef LabeledDimensionGetCoordinateLabels(LabeledDimensionRef dim) {
     return dim ? dim->coordinateLabels : NULL;

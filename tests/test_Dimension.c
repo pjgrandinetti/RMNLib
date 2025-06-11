@@ -3,6 +3,24 @@
 #include "RMNLibrary.h"
 #include "test_utils.h"
 
+bool test_Dimension(void)
+{
+    bool ok = true;
+    OCMutableArrayRef labels = NULL;
+    LabeledDimensionRef ld = NULL;
+    DimensionRef d = NULL;
+    DimensionRef d2 = NULL;
+
+    labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    OCArrayAppendValue(labels, STR("X"));
+    OCArrayAppendValue(labels, STR("Y"));
+    ld = LabeledDimensionCreateWithCoordinateLabels(labels);
+    OCRelease(labels); 
+    OCRelease(ld); 
+
+    return ok;
+}
+
 bool test_Dimension_base(void) {
     bool ok = false;
     OCMutableArrayRef labels = NULL;
@@ -37,8 +55,8 @@ bool test_Dimension_base(void) {
     ok = true;   // everything passed
 cleanup:
     // always run—releasing whichever were allocated
-    if (d2)     OCRelease(d2);
-    if (ld)     OCRelease(ld);
+    if (d2) OCRelease(d2);
+    if (ld) OCRelease(ld);
     if (labels) OCRelease(labels);
     if(ok) {
         printf("Dimension base tests passed.\n");

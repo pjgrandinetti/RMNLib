@@ -80,7 +80,7 @@ else
 TP_DEPS :=
 endif
 
-all: dirs octypes sitypes prepare $(LIB_DIR)/libRMNLib.a
+all: dirs $(TP_DEPS) prepare $(LIB_DIR)/libRMNLib.a
 
 dirs: $(REQUIRED_DIRS)
 
@@ -265,3 +265,5 @@ synclib:
 	@cp ../OCTypes/install/include/OCTypes/*.h     $(THIRD_PARTY_DIR)/include/OCTypes/
 	@cp ../SITypes/install/lib/libSITypes.a        $(THIRD_PARTY_DIR)/lib/
 	@cp ../SITypes/install/include/SITypes/*.h     $(THIRD_PARTY_DIR)/include/SITypes/
+	@# Create dummy archives to satisfy fetch prerequisites and prevent re-fetch
+	@touch $(OCT_LIB_ARCHIVE) $(OCT_HEADERS_ARCHIVE) $(SIT_LIB_ARCHIVE) $(SIT_HEADERS_ARCHIVE)
