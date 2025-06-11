@@ -115,7 +115,11 @@ $(TP_LIB_DIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE)
 	@if [ -f "$(TP_LIB_DIR)/libOCTypes.a" ]; then \
 	    echo "libOCTypes.a already exists, skipping"; \
 	else \
-	    unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
+		ifneq ($(findstring MINGW,$(UNAME_S)),) \
+			powershell -NoProfile -Command "if (!(Test-Path '$(TP_LIB_DIR)/libOCTypes.a')) { New-Item -ItemType Directory -Path '$(TP_LIB_DIR)' | Out-Null; Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force } else { Write-Host 'libOCTypes.a exists, skipping' }" \
+		else \
+			unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
+		fi \
 	fi
 
 # Prepare include dir and extract OCTypes headers
@@ -125,7 +129,11 @@ $(OCT_INCLUDE)/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
 	@if [ -f "$(OCT_INCLUDE)/OCLibrary.h" ]; then \
 	    echo "OCLibrary.h exists, skipping"; \
 	else \
-	    unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"; \
+		ifneq ($(findstring MINGW,$(UNAME_S)),) \
+			powershell -NoProfile -Command "if (!(Test-Path '$(OCT_INCLUDE)/OCLibrary.h')) { New-Item -ItemType Directory -Path '$(OCT_INCLUDE)' | Out-Null; Expand-Archive -Path '$<' -DestinationPath '$(OCT_INCLUDE)' -Force } else { Write-Host 'OCLibrary.h exists, skipping' }" \
+		else \
+			unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"; \
+		fi \
 	fi
 
 # Download and extract SITypes
@@ -146,7 +154,11 @@ $(TP_LIB_DIR)/libSITypes.a: $(SIT_LIB_ARCHIVE)
 	@if [ -f "$(TP_LIB_DIR)/libSITypes.a" ]; then \
 	    echo "libSITypes.a already exists, skipping"; \
 	else \
-	    unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
+		ifneq ($(findstring MINGW,$(UNAME_S)),) \
+			powershell -NoProfile -Command "if (!(Test-Path '$(TP_LIB_DIR)/libSITypes.a')) { New-Item -ItemType Directory -Path '$(TP_LIB_DIR)' | Out-Null; Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force } else { Write-Host 'libSITypes.a exists, skipping' }" \
+		else \
+			unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
+		fi \
 	fi
 
 # Prepare include dir and extract SITypes headers
@@ -156,7 +168,11 @@ $(SIT_INCLUDE)/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
 	@if [ -f "$(SIT_INCLUDE)/SILibrary.h" ]; then \
 	    echo "SILibrary.h exists, skipping"; \
 	else \
-	    unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"; \
+		ifneq ($(findstring MINGW,$(UNAME_S)),) \
+			powershell -NoProfile -Command "if (!(Test-Path '$(SIT_INCLUDE)/SILibrary.h')) { New-Item -ItemType Directory -Path '$(SIT_INCLUDE)' | Out-Null; Expand-Archive -Path '$<' -DestinationPath '$(SIT_INCLUDE)' -Force } else { Write-Host 'SILibrary.h exists, skipping' }" \
+		else \
+			unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"; \
+		fi \
 	fi
 
 prepare:
