@@ -1,10 +1,10 @@
 #include "RMNLibrary.h"
 
-static OCTypeID kRMNDatasetID = _kOCNotATypeID;
+static OCTypeID kRMNDatasetID = kOCNotATypeID;
 
 // SIScalar Opaque Type
-struct __RMNDataset {
-    OCBase _base;
+struct impl_Dataset {
+    OCBase base;
 
     // CSDM attributes
     OCMutableArrayRef       dimensions;         // array of PSDimensions, each representing a uniformly sampled dimension.

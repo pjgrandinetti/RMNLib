@@ -17,25 +17,25 @@
 // ============================================================================
 // MARK: - (1) Dimension (Abstract Base)
 // ============================================================================
-static OCTypeID kDimensionID = _kOCNotATypeID;
-struct __Dimension {
+static OCTypeID kDimensionID = kOCNotATypeID;
+struct impl_Dimension {
     //  Dimension
-    OCBase _base;
+    OCBase base;
     OCStringRef label;
     OCStringRef description;
     OCDictionaryRef metadata;
 };
-static void __InitBaseDimensionFields(DimensionRef dim) {
+static void impl_InitBaseDimensionFields(DimensionRef dim) {
     dim->label = STR("");
     dim->description = STR("");
     dim->metadata = OCDictionaryCreateMutable(0);
 }
 OCTypeID DimensionGetTypeID(void) {
-    if (kDimensionID == _kOCNotATypeID)
+    if (kDimensionID == kOCNotATypeID)
         kDimensionID = OCRegisterType("Dimension");
     return kDimensionID;
 }
-static bool __DimensionEqual(const void *a, const void *b) {
+static bool impl_DimensionEqual(const void *a, const void *b) {
     const DimensionRef dimA = (const DimensionRef)a;
     const DimensionRef dimB = (const DimensionRef)b;
     if (!dimA || !dimB) return false;
@@ -43,7 +43,7 @@ static bool __DimensionEqual(const void *a, const void *b) {
            OCTypeEqual(dimA->description, dimB->description) &&
            OCTypeEqual(dimA->metadata, dimB->metadata);
 }
-static void __DimensionFinalize(const void *obj) {
+static void impl_DimensionFinalize(const void *obj) {
     DimensionRef dim = (DimensionRef)obj;
     if (!dim) return;
     OCRelease(dim->label);
@@ -53,7 +53,7 @@ static void __DimensionFinalize(const void *obj) {
     dim->description = NULL;
     dim->metadata = NULL;
 }
-static OCStringRef __DimensionCopyFormattingDesc(OCTypeRef cf) {
+static OCStringRef impl_DimensionCopyFormattingDesc(OCTypeRef cf) {
     DimensionRef dim = (DimensionRef)cf;
     if (!dim) {
         return OCStringCreateWithCString("<Dimension: NULL>");
@@ -72,30 +72,31 @@ static OCStringRef __DimensionCopyFormattingDesc(OCTypeRef cf) {
         lbl, desc);
     return out;
 }
-DimensionRef DimensionDeepCopy(DimensionRef original) {
-    if (!original) return NULL;
+
+static DimensionRef impl_DimensionCreateFromDictionary(OCDictionaryRef dict);
+static OCDictionaryRef impl_DimensionCopyAsDictionary(DimensionRef dim);
+
+static void *impl_DimensionDeepCopy(const void *obj) {
+    if (!obj) return NULL;
     // Serialize to a dictionary
-    OCDictionaryRef dict = DimensionCopyAsDictionary(original);
+    OCDictionaryRef dict = impl_DimensionCopyAsDictionary((DimensionRef) obj);
     if (!dict) return NULL;
     // Rehydrate a new instance from that dictionary
-    DimensionRef copy = DimensionCreateFromDictionary(dict);
+    DimensionRef copy = impl_DimensionCreateFromDictionary(dict);
     OCRelease(dict);
     return copy;
 }
-static void *__DimensionDeepCopy(const void *obj) {
-    return DimensionDeepCopy((DimensionRef)obj);
-}
-static DimensionRef DimensionAllocate(void) {
+static DimensionRef impl_DimensionAllocate(void) {
     DimensionRef dim = OCTypeAlloc(
-        struct __Dimension,
+        struct impl_Dimension,
         DimensionGetTypeID(),
-        __DimensionFinalize,
-        __DimensionEqual,
-        __DimensionCopyFormattingDesc,
-        __DimensionDeepCopy,
-        __DimensionDeepCopy);
+        impl_DimensionFinalize,
+        impl_DimensionEqual,
+        impl_DimensionCopyFormattingDesc,
+        impl_DimensionDeepCopy,
+        impl_DimensionDeepCopy);
     if (!dim) return NULL;
-    __InitBaseDimensionFields(dim);
+    impl_InitBaseDimensionFields(dim);
     return dim;
 }
 OCStringRef DimensionGetLabel(DimensionRef dim) {
@@ -152,13 +153,13 @@ bool DimensionSetMetadata(DimensionRef dim, OCDictionaryRef dict) {
     dim->metadata = dictCopy;
     return true;
 }
-DimensionRef DimensionCreateFromDictionary(OCDictionaryRef dict) {
+static DimensionRef impl_DimensionCreateFromDictionary(OCDictionaryRef dict) {
     if (!dict) return NULL;
     // Pull values out of the dictionary and cast them to the expected types
     OCStringRef label = (OCStringRef)OCDictionaryGetValue(dict, STR("label"));
     OCStringRef description = (OCStringRef)OCDictionaryGetValue(dict, STR("description"));
     OCDictionaryRef metadata = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata"));
-    DimensionRef dim = DimensionAllocate();
+    DimensionRef dim = impl_DimensionAllocate();
     if (!dim) return NULL;
     // Apply them via the public setters
     if (label && !DimensionSetLabel(dim, label)) {
@@ -175,7 +176,7 @@ DimensionRef DimensionCreateFromDictionary(OCDictionaryRef dict) {
     }
     return dim;
 }
-OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim) {
+static OCDictionaryRef impl_DimensionCopyAsDictionary(DimensionRef dim) {
     if (!dim) return NULL;
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     if (!dict) return NULL;
@@ -219,37 +220,37 @@ OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim) {
 // ============================================================================
 // MARK: - (3) LabeledDimension
 // ============================================================================
-static OCTypeID kLabeledDimensionID = _kOCNotATypeID;
-typedef struct __LabeledDimension {
-    struct __Dimension _super;  // <-- inherit all base fields
+static OCTypeID kLabeledDimensionID = kOCNotATypeID;
+typedef struct impl_LabeledDimension {
+    struct impl_Dimension _super;  // <-- inherit all base fields
     OCMutableArrayRef coordinateLabels;
 } *LabeledDimensionRef;
 OCTypeID LabeledDimensionGetTypeID(void) {
-    if (kLabeledDimensionID == _kOCNotATypeID)
+    if (kLabeledDimensionID == kOCNotATypeID)
         kLabeledDimensionID = OCRegisterType("LabeledDimension");
     return kLabeledDimensionID;
 }
-static bool __LabeledDimensionEqual(const void *a, const void *b) {
+static bool impl_LabeledDimensionEqual(const void *a, const void *b) {
     const LabeledDimensionRef dimA = (const LabeledDimensionRef)a;
     const LabeledDimensionRef dimB = (const LabeledDimensionRef)b;
     if (!dimA || !dimB)
         return false;
     // Compare base Dimension fields via the embedded _super
-    if (!__DimensionEqual((const DimensionRef)&dimA->_super,
+    if (!impl_DimensionEqual((const DimensionRef)&dimA->_super,
                           (const DimensionRef)&dimB->_super))
         return false;
     // Compare LabeledDimension-specific field
     return OCTypeEqual(dimA->coordinateLabels, dimB->coordinateLabels);
 }
-static void __LabeledDimensionFinalize(const void *obj) {
+static void impl_LabeledDimensionFinalize(const void *obj) {
     const LabeledDimensionRef dim = (const LabeledDimensionRef)obj;
     // Finalize only the base part:
-    __DimensionFinalize((DimensionRef)&dim->_super);
+    impl_DimensionFinalize((DimensionRef)&dim->_super);
     // Then clean up subclass fields:
     OCRelease(dim->coordinateLabels);
     /* dim->coordinateLabels = NULL;  // not strictly needed after finalize */
 }
-static OCStringRef __LabeledDimensionCopyFormattingDesc(OCTypeRef cf) {
+static OCStringRef impl_LabeledDimensionCopyFormattingDesc(OCTypeRef cf) {
     const LabeledDimensionRef dim = (const LabeledDimensionRef)cf;
     if (!dim) {
         return STR("<LabeledDimension: NULL>");
@@ -274,28 +275,25 @@ static OCStringRef __LabeledDimensionCopyFormattingDesc(OCTypeRef cf) {
         (long)count);
     return fmt;
 }
-LabeledDimensionRef LabeledDimensionDeepCopy(LabeledDimensionRef original) {
-    if (!original) return NULL;
-    OCDictionaryRef dict = LabeledDimensionCopyAsDictionary(original);
+static void *impl_LabeledDimensionDeepCopy(const void *obj) {
+    if (!obj) return NULL;
+    OCDictionaryRef dict = LabeledDimensionCopyAsDictionary((LabeledDimensionRef) obj);
     if (!dict) return NULL;
     LabeledDimensionRef copy = LabeledDimensionCreateFromDictionary(dict);
     OCRelease(dict);
     return copy;
 }
-static void *__LabeledDimensionDeepCopy(const void *obj) {
-    return LabeledDimensionDeepCopy((LabeledDimensionRef)obj);
-}
 static LabeledDimensionRef LabeledDimensionAllocate(void) {
     LabeledDimensionRef obj = OCTypeAlloc(
-        struct __LabeledDimension,
+        struct impl_LabeledDimension,
         LabeledDimensionGetTypeID(),
-        __LabeledDimensionFinalize,
-        __LabeledDimensionEqual,
-        __LabeledDimensionCopyFormattingDesc,
-        __LabeledDimensionDeepCopy,
-        __LabeledDimensionDeepCopy);
+        impl_LabeledDimensionFinalize,
+        impl_LabeledDimensionEqual,
+        impl_LabeledDimensionCopyFormattingDesc,
+        impl_LabeledDimensionDeepCopy,
+        impl_LabeledDimensionDeepCopy);
     if (!obj) return NULL;
-    __InitBaseDimensionFields((DimensionRef)obj);
+    impl_InitBaseDimensionFields((DimensionRef)obj);
     obj->coordinateLabels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     if (!obj->coordinateLabels) {
         OCRelease(obj);
@@ -412,7 +410,7 @@ OCDictionaryRef
 LabeledDimensionCopyAsDictionary(LabeledDimensionRef dim) {
     if (!dim) return NULL;
     // Start with the base–Dimension serialization
-    OCDictionaryRef dict = DimensionCopyAsDictionary((DimensionRef)dim);
+    OCDictionaryRef dict = impl_DimensionCopyAsDictionary((DimensionRef)dim);
     if (!dict) return NULL;
     // Grab our labels, deep-copy them, stick them in under "labels"
     OCArrayRef labels = LabeledDimensionGetCoordinateLabels(dim);
@@ -430,9 +428,9 @@ LabeledDimensionCopyAsDictionary(LabeledDimensionRef dim) {
 // ============================================================================
 // MARK: - (4) SIDimension
 // ============================================================================
-static OCTypeID kSIDimensionID = _kOCNotATypeID;
-typedef struct __SIDimension {
-    struct __Dimension _super;  // inherit all base‐Dimension fields
+static OCTypeID kSIDimensionID = kOCNotATypeID;
+typedef struct impl_SIDimension {
+    struct impl_Dimension _super;  // inherit all base‐Dimension fields
     OCStringRef quantity;
     SIScalarRef offset;
     SIScalarRef origin;
@@ -441,16 +439,16 @@ typedef struct __SIDimension {
     dimensionScaling scaling;
 } *SIDimensionRef;
 OCTypeID SIDimensionGetTypeID(void) {
-    if (kSIDimensionID == _kOCNotATypeID)
+    if (kSIDimensionID == kOCNotATypeID)
         kSIDimensionID = OCRegisterType("SIDimension");
     return kSIDimensionID;
 }
-static bool __SIDimensionEqual(const void *a, const void *b) {
+static bool impl_SIDimensionEqual(const void *a, const void *b) {
     const SIDimensionRef dimA = (const SIDimensionRef)a;
     const SIDimensionRef dimB = (const SIDimensionRef)b;
     if (!dimA || !dimB) return false;
     // 1) Base‐class fields
-    if (!__DimensionEqual((const DimensionRef)&dimA->_super,
+    if (!impl_DimensionEqual((const DimensionRef)&dimA->_super,
                           (const DimensionRef)&dimB->_super))
         return false;
     // 2) quantity
@@ -476,10 +474,10 @@ static bool __SIDimensionEqual(const void *a, const void *b) {
         return false;
     return true;
 }
-static void __SIDimensionFinalize(const void *obj) {
+static void impl_SIDimensionFinalize(const void *obj) {
     if (!obj) return;
     SIDimensionRef dim = (SIDimensionRef)obj;
-    __DimensionFinalize((DimensionRef)&dim->_super);
+    impl_DimensionFinalize((DimensionRef)&dim->_super);
     OCRelease(dim->quantity);
     dim->quantity = NULL;
     OCRelease(dim->offset);
@@ -489,7 +487,7 @@ static void __SIDimensionFinalize(const void *obj) {
     OCRelease(dim->period);
     dim->period = NULL;
 }
-static OCStringRef __SIDimensionCopyFormattingDesc(OCTypeRef cf) {
+static OCStringRef impl_SIDimensionCopyFormattingDesc(OCTypeRef cf) {
     SIDimensionRef d = (SIDimensionRef)cf;
     if (!d) {
         return OCStringCreateWithCString("<SIDimension: NULL>");
@@ -526,20 +524,17 @@ static OCStringRef __SIDimensionCopyFormattingDesc(OCTypeRef cf) {
     OCRelease(periodStr);
     return fmt;
 }
-SIDimensionRef SIDimensionDeepCopy(SIDimensionRef original) {
-    if (!original) return NULL;
+static void *impl_SIDimensionDeepCopy(const void *obj) {
+    if (!obj) return NULL;
     // Serialize to a dictionary
-    OCDictionaryRef dict = SIDimensionCopyAsDictionary(original);
+    OCDictionaryRef dict = SIDimensionCopyAsDictionary((SIDimensionRef) obj);
     if (!dict) return NULL;
     // Rehydrate a new instance from that dictionary
     SIDimensionRef copy = SIDimensionCreateFromDictionary(dict);
     OCRelease(dict);
     return copy;
 }
-static void *__SIDimensionDeepCopy(const void *obj) {
-    return SIDimensionDeepCopy((SIDimensionRef)obj);
-}
-static void __InitSIDimensionFields(SIDimensionRef dim) {
+static void impl_InitSIDimensionFields(SIDimensionRef dim) {
     // Default quantity: dimensionless
     dim->quantity = STR("dimensionless");
     // Use the unit‐less SI unit for all default scalars
@@ -554,15 +549,15 @@ static void __InitSIDimensionFields(SIDimensionRef dim) {
 }
 static SIDimensionRef SIDimensionAllocate(void) {
     SIDimensionRef obj = OCTypeAlloc(
-        struct __SIDimension,
+        struct impl_SIDimension,
         SIDimensionGetTypeID(),
-        __SIDimensionFinalize,
-        __SIDimensionEqual,
-        __SIDimensionCopyFormattingDesc,
-        __SIDimensionDeepCopy,
-        __SIDimensionDeepCopy);
-    __InitBaseDimensionFields((DimensionRef)&obj->_super);
-    __InitSIDimensionFields(obj);
+        impl_SIDimensionFinalize,
+        impl_SIDimensionEqual,
+        impl_SIDimensionCopyFormattingDesc,
+        impl_SIDimensionDeepCopy,
+        impl_SIDimensionDeepCopy);
+    impl_InitBaseDimensionFields((DimensionRef)&obj->_super);
+    impl_InitSIDimensionFields(obj);
     return obj;
 }
 /// Returns true if `dim` passes *all* of the same checks that SIDimensionCreate performs.
@@ -635,7 +630,7 @@ bool SIDimensionValidate(SIDimensionRef dim, OCStringRef *outErr) {
     // 5) scaling is always valid (just an enum)
     return true;
 }
-static bool _InitSIDimensionFieldsFromArgs(
+static bool impl_InitSIDimensionFieldsFromArgs(
     SIDimensionRef dim,
     OCStringRef label,
     OCStringRef description,
@@ -1084,7 +1079,7 @@ OCDictionaryRef
 SIDimensionCopyAsDictionary(SIDimensionRef dim) {
     if (!dim) return NULL;
     // 1) Start with base‐class serialization
-    OCMutableDictionaryRef dict = (OCMutableDictionaryRef) DimensionCopyAsDictionary((DimensionRef)dim);
+    OCMutableDictionaryRef dict = (OCMutableDictionaryRef) impl_DimensionCopyAsDictionary((DimensionRef)dim);
     if (!dict) return NULL;
     // 2) quantity
     OCStringRef qty = SIDimensionGetQuantity(dim);
@@ -1128,24 +1123,24 @@ SIDimensionCopyAsDictionary(SIDimensionRef dim) {
 // ============================================================================
 // MARK: - (5) SIMonotonicDimension
 // ============================================================================
-static OCTypeID kSIMonotonicDimensionID = _kOCNotATypeID;
-typedef struct __SIMonotonicDimension {
-    struct __SIDimension _super;  // ← inherit all Dimension + SI fields
+static OCTypeID kSIMonotonicDimensionID = kOCNotATypeID;
+typedef struct impl_SIMonotonicDimension {
+    struct impl_SIDimension _super;  // ← inherit all Dimension + SI fields
     // SIMonotonicDimension‐specific:
     SIDimensionRef reciprocal;
     OCMutableArrayRef coordinates;  // array of SIScalarRef (≥2 entries)
 } *SIMonotonicDimensionRef;
 OCTypeID SIMonotonicDimensionGetTypeID(void) {
-    if (kSIMonotonicDimensionID == _kOCNotATypeID)
+    if (kSIMonotonicDimensionID == kOCNotATypeID)
         kSIMonotonicDimensionID = OCRegisterType("SIMonotonicDimension");
     return kSIMonotonicDimensionID;
 }
-static bool __SIMonotonicDimensionEqual(const void *a, const void *b) {
+static bool impl_SIMonotonicDimensionEqual(const void *a, const void *b) {
     const SIMonotonicDimensionRef A = (const SIMonotonicDimensionRef)a;
     const SIMonotonicDimensionRef B = (const SIMonotonicDimensionRef)b;
     if (!A || !B) return false;
     // 1) compare all SIDimension fields
-    if (!__SIDimensionEqual((const void *)&A->_super, (const void *)&B->_super))
+    if (!impl_SIDimensionEqual((const void *)&A->_super, (const void *)&B->_super))
         return false;
     // 2) reciprocal
     if (!OCTypeEqual(A->reciprocal, B->reciprocal))
@@ -1155,17 +1150,17 @@ static bool __SIMonotonicDimensionEqual(const void *a, const void *b) {
         return false;
     return true;
 }
-static void __SIMonotonicDimensionFinalize(const void *obj) {
+static void impl_SIMonotonicDimensionFinalize(const void *obj) {
     if (!obj) return;
     SIMonotonicDimensionRef dim = (SIMonotonicDimensionRef)obj;
     // finalize SIDimension‐super
-    __SIDimensionFinalize((const void *)&dim->_super);
+    impl_SIDimensionFinalize((const void *)&dim->_super);
     // then our own
     OCRelease(dim->reciprocal);
     OCRelease(dim->coordinates);
 }
 static OCStringRef
-__SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf)
+impl_SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf)
 {
     SIMonotonicDimensionRef d = (SIMonotonicDimensionRef)cf;
     if (!d) {
@@ -1173,7 +1168,7 @@ __SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf)
     }
 
     // 1) Grab the base SIDimension description
-    OCStringRef base = __SIDimensionCopyFormattingDesc(cf);
+    OCStringRef base = impl_SIDimensionCopyFormattingDesc(cf);
 
     // 2) Build a small “yes”/“no” string for reciprocal
     
@@ -1195,11 +1190,10 @@ __SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf)
 
     return fmt;
 }
-SIMonotonicDimensionRef
-SIMonotonicDimensionDeepCopy(SIMonotonicDimensionRef original) {
-    if (!original) return NULL;
+static void *impl_SIMonotonicDimensionDeepCopy(const void *obj) {
+    if (!obj) return NULL;
     // 1) Serialize to a dictionary
-    OCDictionaryRef dict = SIMonotonicDimensionCopyAsDictionary(original);
+    OCDictionaryRef dict = SIMonotonicDimensionCopyAsDictionary((SIMonotonicDimensionRef) obj);
     if (!dict) return NULL;
     // 2) Rehydrate a new instance
     SIMonotonicDimensionRef copy =
@@ -1208,23 +1202,20 @@ SIMonotonicDimensionDeepCopy(SIMonotonicDimensionRef original) {
     OCRelease(dict);
     return copy;
 }
-static void *__SIMonotonicDimensionDeepCopy(const void *obj) {
-    return SIMonotonicDimensionDeepCopy((SIMonotonicDimensionRef)obj);
-}
 static SIMonotonicDimensionRef SIMonotonicDimensionAllocate(void) {
     SIMonotonicDimensionRef obj = OCTypeAlloc(
-        struct __SIMonotonicDimension,
+        struct impl_SIMonotonicDimension,
         SIMonotonicDimensionGetTypeID(),
-        __SIMonotonicDimensionFinalize,
-        __SIMonotonicDimensionEqual,
-        __SIMonotonicDimensionCopyFormattingDesc,
-        __SIMonotonicDimensionDeepCopy,
-        __SIMonotonicDimensionDeepCopy);
+        impl_SIMonotonicDimensionFinalize,
+        impl_SIMonotonicDimensionEqual,
+        impl_SIMonotonicDimensionCopyFormattingDesc,
+        impl_SIMonotonicDimensionDeepCopy,
+        impl_SIMonotonicDimensionDeepCopy);
     if (!obj) return NULL;
     // Initialize the Dimension base fields
-    __InitBaseDimensionFields((DimensionRef)&obj->_super._super);
+    impl_InitBaseDimensionFields((DimensionRef)&obj->_super._super);
     // Initialize the SI‐dimension fields
-    __InitSIDimensionFields((SIDimensionRef)&obj->_super);
+    impl_InitSIDimensionFields((SIDimensionRef)&obj->_super);
     // Set up our subclass fields
     obj->coordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     if (!obj->coordinates) {
@@ -1341,7 +1332,7 @@ SIMonotonicDimensionCreate(
     }
 
     // 4) Initialize embedded SI fields via our helper
-    if (!_InitSIDimensionFieldsFromArgs(
+    if (!impl_InitSIDimensionFieldsFromArgs(
             (SIDimensionRef)dim,
             label, description, metadata,
             quantity, offset, originArg,
@@ -1490,9 +1481,9 @@ SIMonotonicDimensionCopyAsDictionary(SIMonotonicDimensionRef dim) {
 // ============================================================================
 // MARK: - (6) SILinearDimension
 // ============================================================================
-static OCTypeID kSILinearDimensionID = _kOCNotATypeID;
-typedef struct __SILinearDimension {
-    struct __SIDimension _super;  // inherit Dimension + SI fields
+static OCTypeID kSILinearDimensionID = kOCNotATypeID;
+typedef struct impl_SILinearDimension {
+    struct impl_SIDimension _super;  // inherit Dimension + SI fields
     SIDimensionRef reciprocal;    // optional reciprocal dimension
     OCIndex count;                // number of points (>=2)
     SIScalarRef increment;        // spacing between points
@@ -1500,16 +1491,16 @@ typedef struct __SILinearDimension {
     bool fft;  // FFT flag
 } *SILinearDimensionRef;
 OCTypeID SILinearDimensionGetTypeID(void) {
-    if (kSILinearDimensionID == _kOCNotATypeID)
+    if (kSILinearDimensionID == kOCNotATypeID)
         kSILinearDimensionID = OCRegisterType("SILinearDimension");
     return kSILinearDimensionID;
 }
-static bool __SILinearDimensionEqual(const void *a, const void *b) {
+static bool impl_SILinearDimensionEqual(const void *a, const void *b) {
     const SILinearDimensionRef A = (const SILinearDimensionRef)a;
     const SILinearDimensionRef B = (const SILinearDimensionRef)b;
     if (!A || !B) return false;
     // compare base SI fields
-    if (!__SIDimensionEqual((const void *)&A->_super, (const void *)&B->_super))
+    if (!impl_SIDimensionEqual((const void *)&A->_super, (const void *)&B->_super))
         return false;
     // compare subclass fields
     if (A->count != B->count || A->fft != B->fft)
@@ -1520,23 +1511,23 @@ static bool __SILinearDimensionEqual(const void *a, const void *b) {
         return false;
     return true;
 }
-static void __SILinearDimensionFinalize(const void *obj) {
+static void impl_SILinearDimensionFinalize(const void *obj) {
     if (!obj) return;
     SILinearDimensionRef dim = (SILinearDimensionRef)obj;
     // finalize SI superclass
-    __SIDimensionFinalize((const void *)&dim->_super);
+    impl_SIDimensionFinalize((const void *)&dim->_super);
     // clean up subclass fields
     OCRelease(dim->increment);
     OCRelease(dim->reciprocalIncrement);
     OCRelease(dim->reciprocal);
 }
-static OCStringRef __SILinearDimensionCopyFormattingDesc(OCTypeRef cf) {
+static OCStringRef impl_SILinearDimensionCopyFormattingDesc(OCTypeRef cf) {
     SILinearDimensionRef d = (SILinearDimensionRef)cf;
     if (!d) {
         return STR("<SILinearDimension: NULL>");
     }
     // 1) Base SI description
-    OCStringRef base = __SIDimensionCopyFormattingDesc(cf);
+    OCStringRef base = impl_SIDimensionCopyFormattingDesc(cf);
     // 2) Subclass values
     OCStringRef incStr = SIScalarCreateStringValue(d->increment);
     OCStringRef invStr = SIScalarCreateStringValue(d->reciprocalIncrement);
@@ -1555,28 +1546,25 @@ static OCStringRef __SILinearDimensionCopyFormattingDesc(OCTypeRef cf) {
     OCRelease(fftStr);
     return fmt;
 }
-SILinearDimensionRef SILinearDimensionDeepCopy(SILinearDimensionRef original) {
-    if (!original) return NULL;
-    OCDictionaryRef dict = SILinearDimensionCopyAsDictionary(original);
+static void *impl_SILinearDimensionDeepCopy(const void *obj) {
+    if (!obj) return NULL;
+    OCDictionaryRef dict = SILinearDimensionCopyAsDictionary((SILinearDimensionRef) obj);
     if (!dict) return NULL;
     SILinearDimensionRef copy = SILinearDimensionCreateFromDictionary(dict);
     OCRelease(dict);
     return copy;
 }
-static void *__SILinearDimensionDeepCopy(const void *obj) {
-    return SILinearDimensionDeepCopy((SILinearDimensionRef)obj);
-}
 static SILinearDimensionRef SILinearDimensionAllocate(void) {
     SILinearDimensionRef obj = OCTypeAlloc(
-        struct __SILinearDimension,
+        struct impl_SILinearDimension,
         SILinearDimensionGetTypeID(),
-        __SILinearDimensionFinalize,
-        __SILinearDimensionEqual,
-        __SILinearDimensionCopyFormattingDesc,
-        __SILinearDimensionDeepCopy,
-        __SILinearDimensionDeepCopy);
-    __InitBaseDimensionFields((DimensionRef)&obj->_super._super);
-    __InitSIDimensionFields((SIDimensionRef)&obj->_super);
+        impl_SILinearDimensionFinalize,
+        impl_SILinearDimensionEqual,
+        impl_SILinearDimensionCopyFormattingDesc,
+        impl_SILinearDimensionDeepCopy,
+        impl_SILinearDimensionDeepCopy);
+    impl_InitBaseDimensionFields((DimensionRef)&obj->_super._super);
+    impl_InitSIDimensionFields((SIDimensionRef)&obj->_super);
     obj->count = 0;
     obj->increment = NULL;
     obj->reciprocalIncrement = NULL;
@@ -1662,7 +1650,7 @@ SILinearDimensionCreate(
     }
 
     // 5) Initialize all the shared SI fields in one go
-    if (!_InitSIDimensionFieldsFromArgs(
+    if (!impl_InitSIDimensionFieldsFromArgs(
             (SIDimensionRef)dim,
             label, description, metadata,
             quantity, offset, originArg,
@@ -1900,3 +1888,4 @@ bool SILinearDimensionSetReciprocal(SILinearDimensionRef dim, SIDimensionRef rec
 }
 
 #pragma endregion SILinearDimension
+

@@ -19,7 +19,7 @@
  * @typedef DatumRef
  * @brief A reference to an Datum object.
  */
-typedef struct __Datum *DatumRef;
+typedef struct impl_Datum *DatumRef;
 
 /**
  * @brief Get the OCTypeID for Datum objects.

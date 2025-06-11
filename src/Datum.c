@@ -1,23 +1,23 @@
 
 #include "RMNLibrary.h"
-static OCTypeID kDatumID = _kOCNotATypeID;
+static OCTypeID kDatumID = kOCNotATypeID;
 // Datum Opaque Type
-struct __Datum {
-    OCBase _base;
-    // __SIQuantity Type attributes
+struct impl_Datum {
+    OCBase base;
+    // SIQuantity Type attributes
     SIUnitRef unit;
     SINumberType type;
-    // __SIScalar Type attributes
-    __SINumber value;
+    // SIScalar Type attributes
+    impl_SINumber value;
     OCIndex dependentVariableIndex;
     OCIndex componentIndex;
     OCIndex memOffset;
     OCArrayRef coordinates;
 };
-static bool __DatumEqual(const void *theType1, const void *theType2) {
+static bool impl_DatumEqual(const void *theType1, const void *theType2) {
     DatumRef input1 = (DatumRef)theType1;
     DatumRef input2 = (DatumRef)theType2;
-    if (input1->_base.typeID != input2->_base.typeID) return false;
+    if (input1->base.typeID != input2->base.typeID) return false;
     if (NULL == input1 || NULL == input2) return false;
     if (input1 == input2) return true;
     if (!SIScalarEqual((SIScalarRef)input1, (SIScalarRef)input2)) return false;
@@ -29,24 +29,24 @@ static bool __DatumEqual(const void *theType1, const void *theType2) {
     }
     return true;
 }
-static void __DatumFinalize(const void *theType) {
+static void impl_DatumFinalize(const void *theType) {
     if (NULL == theType) return;
     DatumRef theDatum = (DatumRef)theType;
     if (theDatum->unit) {
         OCRelease(theDatum->unit);
         // Cast away const to allow nulling the field
-        ((struct __Datum *)theDatum)->unit = NULL;
+        ((struct impl_Datum *)theDatum)->unit = NULL;
     }
     if (theDatum->coordinates) {
         OCRelease(theDatum->coordinates);
         // Cast away const to allow nulling the field
-        ((struct __Datum *)theDatum)->coordinates = NULL;
+        ((struct impl_Datum *)theDatum)->coordinates = NULL;
     }
 }
-static OCStringRef __DatumCopyFormattingDescription(OCTypeRef theType) {
+static OCStringRef impl_DatumCopyFormattingDescription(OCTypeRef theType) {
     return SIScalarCopyFormattingDescription((SIScalarRef)theType);
 }
-static void *__DatumDeepCopy(const void *theType) {
+static void *impl_DatumDeepCopy(const void *theType) {
     if (!theType) return NULL;
     DatumRef orig = (DatumRef)theType;
     SIScalarRef response = DatumCreateResponse(orig);  // creates a new SIScalar (copies value/unit)
@@ -68,22 +68,22 @@ static void *__DatumDeepCopy(const void *theType) {
     if (coordCopy) OCRelease(coordCopy);
     return copy;
 }
-static void *__DatumDeepCopyMutable(const void *theType) {
+static void *impl_DatumDeepCopyMutable(const void *theType) {
     // Currently no mutable variant exists; fallback to immutable copy
-    return __DatumDeepCopy(theType);
+    return impl_DatumDeepCopy(theType);
 }
 OCTypeID DatumGetTypeID(void) {
-    if (kDatumID == _kOCNotATypeID) kDatumID = OCRegisterType("Datum");
+    if (kDatumID == kOCNotATypeID) kDatumID = OCRegisterType("Datum");
     return kDatumID;
 }
-static struct __Datum *DatumAllocate(void) {
-    struct __Datum *obj = OCTypeAlloc(struct __Datum,
+static struct impl_Datum *DatumAllocate(void) {
+    struct impl_Datum *obj = OCTypeAlloc(struct impl_Datum,
                                       DatumGetTypeID(),
-                                      __DatumFinalize,
-                                      __DatumEqual,
-                                      __DatumCopyFormattingDescription,
-                                      __DatumDeepCopy,
-                                      __DatumDeepCopyMutable);
+                                      impl_DatumFinalize,
+                                      impl_DatumEqual,
+                                      impl_DatumCopyFormattingDescription,
+                                      impl_DatumDeepCopy,
+                                      impl_DatumDeepCopyMutable);
     obj->unit = NULL;
     obj->type = kSINumberFloat32Type;
     memset(&obj->value, 0, sizeof(obj->value));
@@ -96,7 +96,7 @@ DatumRef DatumCreate(SIScalarRef theScalar,
                      OCIndex memOffset) {
     if (NULL == theScalar) return NULL;
     // Initialize object
-    struct __Datum *newDatum = DatumAllocate();
+    struct impl_Datum *newDatum = DatumAllocate();
     // *** Setup attributes ***
     newDatum->type = SIQuantityGetElementType((SIQuantityRef)theScalar);
     newDatum->unit = SIQuantityGetUnit((SIQuantityRef)theScalar);
@@ -173,13 +173,13 @@ OCIndex DatumCoordinatesCount(DatumRef theDatum) {
 OCDictionaryRef DatumCreateDictionary(DatumRef theDatum) {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
     OCMutableDictionaryRef dictionary = OCDictionaryCreateMutable(0);
-    OCNumberRef number = OCNumberCreateWithInt(theDatum->dependentVariableIndex);
+    OCNumberRef number = OCNumberCreateWithOCIndex(theDatum->dependentVariableIndex);
     OCDictionarySetValue(dictionary, STR("dependent_variable_index"), number);
     OCRelease(number);
-    number = OCNumberCreateWithInt(theDatum->componentIndex);
+    number = OCNumberCreateWithOCIndex(theDatum->componentIndex);
     OCDictionarySetValue(dictionary, STR("component_index"), number);
     OCRelease(number);
-    number = OCNumberCreateWithInt(theDatum->memOffset);
+    number = OCNumberCreateWithOCIndex(theDatum->memOffset);
     OCDictionarySetValue(dictionary, STR("mem_offset"), number);
     OCRelease(number);
     OCStringRef stringValue = SIScalarCreateStringValue((SIScalarRef)theDatum);

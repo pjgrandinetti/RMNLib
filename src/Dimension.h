@@ -23,20 +23,20 @@ typedef enum dimensionScaling {
     kDimensionScalingNMR   /**< NMR-specific scaling applied. */
 } dimensionScaling;
 
-/** Opaque base type for all dimensions. */
-typedef struct __Dimension *DimensionRef;
+/** Opaque handle for the abstract base Dimension. */
+typedef struct impl_Dimension           *DimensionRef;
 
 /** Opaque type for a labeled (categorical) dimension. */
-typedef struct __LabeledDimension *LabeledDimensionRef;
+typedef struct impl_LabeledDimension *LabeledDimensionRef;
 
 /** Opaque type for a quantitative (SI) dimension. */
-typedef struct __SIDimension *SIDimensionRef;
+typedef struct impl_SIDimension *SIDimensionRef;
 
 /** Opaque type for a monotonic SI dimension (ordered scalar samples). */
-typedef struct __SIMonotonicDimension *SIMonotonicDimensionRef;
+typedef struct impl_SIMonotonicDimension *SIMonotonicDimensionRef;
 
 /** Opaque type for a regularly-spaced SI dimension (uniform grid / FFT). */
-typedef struct __SILinearDimension *SILinearDimensionRef;
+typedef struct impl_SILinearDimension *SILinearDimensionRef;
 
 
 // ----------------------------------------------------------------------------
@@ -44,14 +44,13 @@ typedef struct __SILinearDimension *SILinearDimensionRef;
 // ----------------------------------------------------------------------------
 
 OCTypeID        DimensionGetTypeID(void);
-DimensionRef    DimensionCreateFromDictionary(OCDictionaryRef dict);
-OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim);
 OCStringRef     DimensionGetLabel(DimensionRef dim);
 bool            DimensionSetLabel(DimensionRef dim, OCStringRef label);
 OCStringRef     DimensionGetDescription(DimensionRef dim);
 bool            DimensionSetDescription(DimensionRef dim, OCStringRef desc);
 OCDictionaryRef DimensionGetMetadata(DimensionRef dim);
 bool            DimensionSetMetadata(DimensionRef dim, OCDictionaryRef dict);
+DimensionRef    DimensionDeepCopy(DimensionRef original);
 
 
 // ----------------------------------------------------------------------------
@@ -129,7 +128,6 @@ SIMonotonicDimensionRef     SIMonotonicDimensionCreate(
     dimensionScaling scaling,
     OCArrayRef      coordinates,
     SIDimensionRef  reciprocal);
-SIMonotonicDimensionRef     SIMonotonicDimensionDeepCopy(SIMonotonicDimensionRef original);
 OCArrayRef                  SIMonotonicDimensionGetCoordinates(SIMonotonicDimensionRef dim);
 bool                        SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim,
                                                                OCArrayRef coords);
@@ -159,7 +157,6 @@ SILinearDimensionRef    SILinearDimensionCreate(
     SIScalarRef     increment,
     bool            fft,
     SIDimensionRef  reciprocal);
-SILinearDimensionRef    SILinearDimensionDeepCopy(SILinearDimensionRef original);
 OCIndex                 SILinearDimensionGetCount(SILinearDimensionRef dim);
 bool                    SILinearDimensionSetCount(SILinearDimensionRef dim,
                                                  OCIndex count);
@@ -175,6 +172,7 @@ bool                    SILinearDimensionSetReciprocal(SILinearDimensionRef dim,
                                                       SIDimensionRef rec);
 OCDictionaryRef         SILinearDimensionCopyAsDictionary(SILinearDimensionRef dim);
 SILinearDimensionRef    SILinearDimensionCreateFromDictionary(OCDictionaryRef dict);
+
 
 #ifdef __cplusplus
 }
