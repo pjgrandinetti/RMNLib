@@ -23,13 +23,11 @@ BIN_DIR         := $(BUILD_DIR)/bin
 LIB_DIR         := $(BUILD_DIR)/lib
 THIRD_PARTY_DIR := third_party
 TP_LIB_DIR      := $(THIRD_PARTY_DIR)/lib
-OCTYPES_DIR     := $(THIRD_PARTY_DIR)/OCTypes
-SITYPES_DIR     := $(THIRD_PARTY_DIR)/SITypes
 INCLUDE_DIR     := $(THIRD_PARTY_DIR)/include
+OCT_INCLUDE     := $(INCLUDE_DIR)/OCTypes
+SIT_INCLUDE     := $(INCLUDE_DIR)/SITypes
 
 # Include and library paths
-OCT_INCLUDE := $(INCLUDE_DIR)/OCTypes
-SIT_INCLUDE := $(INCLUDE_DIR)/SITypes
 OCT_LIBDIR  := $(TP_LIB_DIR)
 SIT_LIBDIR  := $(TP_LIB_DIR)
 
@@ -69,16 +67,12 @@ OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
 SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
 SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
-# Source repository URLs
-OCT_REPO_URL := https://github.com/pjgrandinetti/OCTypes.git
-SIT_REPO_URL := https://github.com/pjgrandinetti/SITypes.git
-
-.PHONY: all dirs clean prepare octypes sitypes octotypes-src sitypes-src test test-asan docs synclib fetchlibs
+.PHONY: all dirs clean prepare octypes sitypes test test-asan docs synclib fetchlibs
 
 fetchlibs: octypes sitypes
 	@echo "Both OCTypes and SITypes libraries are up to date."
 
-# Only fetch third-party libs when third_party directory is empty
+# Only fetch third-party libs when third_party is empty
 EMPTY_TP := $(shell [ -d $(THIRD_PARTY_DIR) ] && [ -z "$(wildcard $(THIRD_PARTY_DIR)/*)" ] && echo 1)
 ifeq ($(EMPTY_TP),1)
 TP_DEPS := octypes sitypes
@@ -86,7 +80,6 @@ else
 TP_DEPS :=
 endif
 
-# Default goal: build everything (but fetch only if needed)
 all: dirs octypes sitypes prepare $(LIB_DIR)/libRMNLib.a
 
 dirs: $(REQUIRED_DIRS)
@@ -109,16 +102,14 @@ $(OCT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching OCTypes headers"
 	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.1/libOCTypes-headers.zip -o $@
 
-# Detect Windows vs Unix shell once
+# Platform detection for shell vs PowerShell
 IS_MINGW := $(findstring MINGW,$(UNAME_S))
 
-# Ensure the third-party lib dir exists
-$(TP_LIB_DIR):
-	$(MKDIR_P) "$(TP_LIB_DIR)"
+# Ensure third-party lib and include dirs exist
+$(TP_LIB_DIR) $(OCT_INCLUDE) $(SIT_INCLUDE):
+	$(MKDIR_P) $@
 
-# ────────────────────────────────────────────────────────────────────────────
-# OCTypes extraction (linux/macOS vs Windows)
-# ────────────────────────────────────────────────────────────────────────────
+# ──────────────── OCTypes library ─────────────────
 $(TP_LIB_DIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE) | $(TP_LIB_DIR)
 ifeq ($(IS_MINGW),)
 	@echo "Extracting OCTypes library (linux/macOS)"
@@ -131,20 +122,24 @@ else
 	@echo "Extracting OCTypes library (Windows)"
 	@powershell -NoProfile -Command \
 	  "if (!(Test-Path '$(TP_LIB_DIR)/libOCTypes.a')) { \
-	     New-Item -ItemType Directory -Path '$(TP_LIB_DIR)' | Out-Null; \
 	     Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force \
-	   } else { Write-Host '  → libOCTypes.a exists, skipping' }"
+	   }"
 endif
 
-# Prepare include dir and extract OCTypes headers
-$(OCT_INCLUDE)/OCLibrary.h: $(OCT_HEADERS_ARCHIVE)
-	@echo "Extracting OCTypes headers"
-	@$(MKDIR_P) $(OCT_INCLUDE)
-	@if [ -f "$(OCT_INCLUDE)/OCLibrary.h" ]; then \
-	    echo "  → OCLibrary.h exists, skipping"; \
+# ──────────────── OCTypes headers ─────────────────
+$(OCT_INCLUDE)/OCLibrary.h: $(OCT_HEADERS_ARCHIVE) | $(OCT_INCLUDE)
+ifeq ($(IS_MINGW),)
+	@echo "Extracting OCTypes headers (linux/macOS)"
+	@if [ -f "$@" ]; then \
+	  echo "  → OCLibrary.h exists, skipping"; \
 	else \
-	    unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"; \
+	  unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"; \
 	fi
+else
+	@echo "Extracting OCTypes headers (Windows)"
+	@powershell -NoProfile -Command \
+	  "Expand-Archive -Path '$<' -DestinationPath '$(OCT_INCLUDE)' -Force"
+endif
 
 # Download and extract SITypes
 sitypes: $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SILibrary.h
@@ -157,9 +152,7 @@ $(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes headers"
 	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
 
-# ────────────────────────────────────────────────────────────────────────────
-# SITypes extraction (linux/macOS vs Windows)
-# ────────────────────────────────────────────────────────────────────────────
+# ──────────────── SITypes library ─────────────────
 $(TP_LIB_DIR)/libSITypes.a: $(SIT_LIB_ARCHIVE) | $(TP_LIB_DIR)
 ifeq ($(IS_MINGW),)
 	@echo "Extracting SITypes library (linux/macOS)"
@@ -172,20 +165,24 @@ else
 	@echo "Extracting SITypes library (Windows)"
 	@powershell -NoProfile -Command \
 	  "if (!(Test-Path '$(TP_LIB_DIR)/libSITypes.a')) { \
-	     New-Item -ItemType Directory -Path '$(TP_LIB_DIR)' | Out-Null; \
 	     Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force \
-	   } else { Write-Host '  → libSITypes.a exists, skipping' }"
+	   }"
 endif
 
-# Prepare include dir and extract SITypes headers
-$(SIT_INCLUDE)/SILibrary.h: $(SIT_HEADERS_ARCHIVE)
-	@echo "Extracting SITypes headers"
-	@$(MKDIR_P) $(SIT_INCLUDE)
-	@if [ -f "$(SIT_INCLUDE)/SILibrary.h" ]; then \
-	    echo "  → SILibrary.h exists, skipping"; \
+# ──────────────── SITypes headers ─────────────────
+$(SIT_INCLUDE)/SILibrary.h: $(SIT_HEADERS_ARCHIVE) | $(SIT_INCLUDE)
+ifeq ($(IS_MINGW),)
+	@echo "Extracting SITypes headers (linux/macOS)"
+	@if [ -f "$@" ]; then \
+	  echo "  → SILibrary.h exists, skipping"; \
 	else \
-	    unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"; \
+	  unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"; \
 	fi
+else
+	@echo "Extracting SITypes headers (Windows)"
+	@powershell -NoProfile -Command \
+	  "Expand-Archive -Path '$<' -DestinationPath '$(SIT_INCLUDE)' -Force"
+endif
 
 prepare:
 	@echo "Preparing generated files"
@@ -257,7 +254,6 @@ docs:
 	@cd docs && doxygen Doxyfile
 	@echo "Building Sphinx HTML..."
 	@cd docs && sphinx-build -b html . _build/html
-	@echo "Documentation available at docs/_build/html"
 
 .PHONY: synclib
 synclib:
@@ -265,7 +261,7 @@ synclib:
 	@$(MKDIR_P) $(THIRD_PARTY_DIR)
 	@$(RM) -r $(THIRD_PARTY_DIR)/lib $(THIRD_PARTY_DIR)/include
 	@$(MKDIR_P) $(THIRD_PARTY_DIR)/lib $(THIRD_PARTY_DIR)/include/OCTypes $(THIRD_PARTY_DIR)/include/SITypes
-	@cp ../OCTypes/install/lib/libOCTypes.a $(THIRD_PARTY_DIR)/lib/
-	@cp ../OCTypes/install/include/OCTypes/*.h   $(THIRD_PARTY_DIR)/include/OCTypes/
-	@cp ../SITypes/install/lib/libSITypes.a   $(THIRD_PARTY_DIR)/lib/
-	@cp ../SITypes/install/include/SITypes/*.h $(THIRD_PARTY_DIR)/include/SITypes/
+	@cp ../OCTypes/install/lib/libOCTypes.a        $(THIRD_PARTY_DIR)/lib/
+	@cp ../OCTypes/install/include/OCTypes/*.h     $(THIRD_PARTY_DIR)/include/OCTypes/
+	@cp ../SITypes/install/lib/libSITypes.a        $(THIRD_PARTY_DIR)/lib/
+	@cp ../SITypes/install/include/SITypes/*.h     $(THIRD_PARTY_DIR)/include/SITypes/
