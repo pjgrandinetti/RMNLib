@@ -5,7 +5,7 @@
 #include <fcntl.h>
 
 #include "RMNLibrary.h"
-#include "test_RMNDatum.h"
+#include "test_Datum.h"
 
 int main(void) {
     printf("=== Running RMNDatum Tests ===\n");
@@ -14,8 +14,8 @@ int main(void) {
     srand((unsigned int)time(NULL));
 
     // Run tests
-    test_RMNDatum_NULL_cases();
-    test_RMNDatum_functional();
+    test_Datum_NULL_cases();
+    test_Datum_functional();
 
     printf("=== All RMNDatum tests passed ===\n");
     return EXIT_SUCCESS;
