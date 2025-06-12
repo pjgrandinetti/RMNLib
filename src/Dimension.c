@@ -357,7 +357,7 @@ bool LabeledDimensionSetCoordinateLabels(LabeledDimensionRef dim, OCArrayRef coo
         fprintf(stderr, "LabeledDimensionSetCoordinateLabels: need ≥2 coordinate labels\n");
         return false;
     }
-    OCArrayRef coordLabelsCopy = (OCArrayRef)OCTypeDeepCopy((OCTypeRef)coordinateLabels);
+    OCMutableArrayRef coordLabelsCopy = (OCMutableArrayRef)OCTypeDeepCopy((OCTypeRef)coordinateLabels);
     if (!coordLabelsCopy) {
         fprintf(stderr, "LabeledDimensionSetCoordinateLabels: failed to deep-copy coordinate labels\n");
         return false;

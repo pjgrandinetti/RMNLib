@@ -1,6 +1,6 @@
 #include "RMNLibrary.h"
 
-typedef struct __RMNDataset *RMNDatasetRef;
+typedef struct impl_Dataset *DatasetRef;
 
 
 void RMNLibTypesShutdown(void);

@@ -25,6 +25,7 @@ as local modules (Datum, Dimension, Dataset).
 // Local module headers
 #include "Datum.h"
 #include "Dimension.h"
+#include "DependentVariable.h"
 #include "Dataset.h"
 
 #endif /* RMNLIBRARY_H */

@@ -14,6 +14,10 @@ struct impl_Datum {
     OCIndex memOffset;
     OCArrayRef coordinates;
 };
+OCTypeID DatumGetTypeID(void) {
+    if (kDatumID == kOCNotATypeID) kDatumID = OCRegisterType("Datum");
+    return kDatumID;
+}
 static bool impl_DatumEqual(const void *theType1, const void *theType2) {
     DatumRef input1 = (DatumRef)theType1;
     DatumRef input2 = (DatumRef)theType2;
@@ -71,10 +75,6 @@ static void *impl_DatumDeepCopy(const void *theType) {
 static void *impl_DatumDeepCopyMutable(const void *theType) {
     // Currently no mutable variant exists; fallback to immutable copy
     return impl_DatumDeepCopy(theType);
-}
-OCTypeID DatumGetTypeID(void) {
-    if (kDatumID == kOCNotATypeID) kDatumID = OCRegisterType("Datum");
-    return kDatumID;
 }
 static struct impl_Datum *DatumAllocate(void) {
     struct impl_Datum *obj = OCTypeAlloc(struct impl_Datum,

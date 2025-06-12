@@ -1,6 +1,6 @@
 #pragma once
-#ifndef RMNDATUM_H
-#define RMNDATUM_H
+#ifndef DATUM_H
+#define DATUM_H
 
 #include "RMNLibrary.h"
 
@@ -153,4 +153,4 @@ DatumRef DatumCreateWithDictionary(OCDictionaryRef dictionary, OCStringRef *erro
 
 /** @} */  // end of Datum group
 
-#endif /* RMNDATUM_H */
+#endif /* DATUM_H */

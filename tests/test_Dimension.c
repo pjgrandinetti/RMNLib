@@ -4,25 +4,6 @@
 #include "test_utils.h"
 
 
-bool test_Dimension(void)
-{
-    bool ok = true;
-    OCMutableArrayRef labels = NULL;
-    LabeledDimensionRef ld = NULL;
-
-    labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    
-    OCArrayAppendValue(labels, STR("X"));
-    OCArrayAppendValue(labels, STR("Y"));
-
-    ld = LabeledDimensionCreateWithCoordinateLabels(labels);
-
-cleanup:
-    OCRelease(labels); 
-    OCRelease(ld); 
-    return ok;
-}
-
 bool test_Dimension_base(void) {
     bool ok = false;
     OCMutableArrayRef labels = NULL;

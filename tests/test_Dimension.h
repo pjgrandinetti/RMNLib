@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 
-bool test_Dimension(void);
 bool test_Dimension_base(void);
 bool test_LabeledDimension_basic(void);
 

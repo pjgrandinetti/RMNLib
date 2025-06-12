@@ -14,9 +14,9 @@ struct impl_Dataset {
 
     // RMN extra attributes below
     OCStringRef             title;
-    DatumRef             focus;
-    DatumRef             previousFocus;
-    OCMutableArrayRef       dimensionPrecedence; // ordered array of indexes, representing dimension precedence.
+    DatumRef                focus;
+    DatumRef                previousFocus;
+    OCMutableIndexArrayRef  dimensionPrecedence; // ordered array of indexes, representing dimension precedence.
     OCDictionaryRef         metaData;
     OCMutableDictionaryRef  operations;
 
@@ -28,16 +28,15 @@ struct impl_Dataset {
 
 
 void RMNLibTypesShutdown(void) {
-    return;
-}
-
-__attribute__((destructor(500)))
-void RMNLibTypes_cleanup(void) {
-    fprintf(stderr, "Cleaning up RMNLibTypes...\n");
-    RMNLibTypesShutdown();
     fprintf(stderr, "Cleaning up SITypes...\n");
     SITypesShutdown();
     fprintf(stderr, "Cleaning up OCTypes...\n");
     OCTypesShutdown();
 }
+
+// __attribute__((destructor(100)))
+// void RMNLibTypes_cleanup(void) {
+//     fprintf(stderr, "Cleaning up RMNLibTypes...\n");
+//     RMNLibTypesShutdown();
+// }
 

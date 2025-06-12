@@ -20,7 +20,6 @@ int main(void) {
     fprintf(stderr, "\n=== Running Dimension Tests ===\n");
     
 
-    if (!test_Dimension())        failures++;
     if (!test_Dimension_base())        failures++;
     if (!test_LabeledDimension_basic()) failures++;
 //
@@ -33,5 +32,7 @@ int main(void) {
     }
 
     fprintf(stderr, "\nAll tests passed successfully!\n");
+
+    RMNLibTypesShutdown();
     return EXIT_SUCCESS;
 }
