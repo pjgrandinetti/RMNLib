@@ -21,8 +21,8 @@ int main(void) {
     
 
     if (!test_Dimension())        failures++;
-    // if (!test_Dimension_base())        failures++;
-    // if (!test_LabeledDimension_basic()) failures++;
+    if (!test_Dimension_base())        failures++;
+    if (!test_LabeledDimension_basic()) failures++;
 //
     // --- Summary & Exit ---
     if (failures > 0) {

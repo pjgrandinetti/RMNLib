@@ -293,6 +293,7 @@ static LabeledDimensionRef LabeledDimensionAllocate(void) {
         impl_LabeledDimensionDeepCopy,
         impl_LabeledDimensionDeepCopy);
     if (!obj) return NULL;
+
     impl_InitBaseDimensionFields((DimensionRef)obj);
     obj->coordinateLabels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     if (!obj->coordinateLabels) {
@@ -310,6 +311,7 @@ LabeledDimensionCreate(OCStringRef label, OCStringRef description, OCDictionaryR
     LabeledDimensionRef dim = LabeledDimensionAllocate();
     if (!dim)
         return NULL;
+
     // Base fields
     if (label) {
         if (!DimensionSetLabel((DimensionRef)dim, label)) {
@@ -351,8 +353,17 @@ bool LabeledDimensionSetCoordinateLabels(LabeledDimensionRef dim, OCArrayRef coo
         return false;
     if (dim->coordinateLabels == coordinateLabels)
         return true;
+    if (OCArrayGetCount(coordinateLabels) < 2) {
+        fprintf(stderr, "LabeledDimensionSetCoordinateLabels: need ≥2 coordinate labels\n");
+        return false;
+    }
+    OCArrayRef coordLabelsCopy = (OCArrayRef)OCTypeDeepCopy((OCTypeRef)coordinateLabels);
+    if (!coordLabelsCopy) {
+        fprintf(stderr, "LabeledDimensionSetCoordinateLabels: failed to deep-copy coordinate labels\n");
+        return false;
+    }
     OCRelease(dim->coordinateLabels);
-    dim->coordinateLabels = OCTypeDeepCopy(coordinateLabels);
+    dim->coordinateLabels = coordLabelsCopy;
     return true;
 }
 OCStringRef LabeledDimensionGetCoordinateLabelAtIndex(LabeledDimensionRef dim, OCIndex index) {

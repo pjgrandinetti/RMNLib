@@ -11,12 +11,15 @@ bool test_Dimension(void)
     LabeledDimensionRef ld = NULL;
 
     labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    
     OCArrayAppendValue(labels, STR("X"));
     OCArrayAppendValue(labels, STR("Y"));
+
     ld = LabeledDimensionCreateWithCoordinateLabels(labels);
+
+cleanup:
     OCRelease(labels); 
     OCRelease(ld); 
-
     return ok;
 }
 
