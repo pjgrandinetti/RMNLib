@@ -2,3 +2,5 @@
 
 typedef struct __RMNDataset *RMNDatasetRef;
 
+
+void RMNLibTypesShutdown(void);

@@ -25,3 +25,19 @@ struct impl_Dataset {
     bool                    base64;
 
 };
+
+
+void RMNLibTypesShutdown(void) {
+    return;
+}
+
+__attribute__((destructor(500)))
+void RMNLibTypes_cleanup(void) {
+    fprintf(stderr, "Cleaning up RMNLibTypes...\n");
+    RMNLibTypesShutdown();
+    fprintf(stderr, "Cleaning up SITypes...\n");
+    SITypesShutdown();
+    fprintf(stderr, "Cleaning up OCTypes...\n");
+    OCTypesShutdown();
+}
+
