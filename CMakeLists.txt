@@ -9,30 +9,32 @@ file(GLOB ALL_SOURCES
 
 # Build the static library
 add_library(RMNLib STATIC ${ALL_SOURCES})
-
-# Public include dirs: source, generated headers, and third-party includes
+# Include RMNLib sources and OCTypes + SITypes headers and generated binaries
 target_include_directories(RMNLib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/include/OCTypes
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/include/SITypes
+    ${CMAKE_SOURCE_DIR}/OCTypes/src
+    ${CMAKE_BINARY_DIR}/OCTypes
+    ${CMAKE_SOURCE_DIR}/SITypes/src
+    ${CMAKE_BINARY_DIR}/SITypes
 )
 
 # Tests
 enable_testing()
 file(GLOB TEST_SOURCES "tests/*.c")
-add_executable(runTests ${TEST_SOURCES})
-target_include_directories(runTests PRIVATE
+add_executable(RMNLib_runTests ${TEST_SOURCES})
+# Tests executable
+target_include_directories(RMNLib_runTests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/include/OCTypes
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/include/SITypes
+    ${CMAKE_SOURCE_DIR}/OCTypes/src
+    ${CMAKE_BINARY_DIR}/OCTypes
+    ${CMAKE_SOURCE_DIR}/SITypes/src
+    ${CMAKE_BINARY_DIR}/SITypes
 )
-target_link_libraries(runTests PRIVATE
+target_link_libraries(RMNLib_runTests PRIVATE
     RMNLib
-    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/lib/libSITypes.a"
-    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/lib/libOCTypes.a"
+    OCTypes
+    SITypes
     m
 )
-add_test(NAME runTests COMMAND runTests)
+add_test(NAME RMNLib_runTests COMMAND RMNLib_runTests)

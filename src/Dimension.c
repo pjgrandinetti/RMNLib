@@ -329,33 +329,19 @@ LabeledDimensionCreate(OCStringRef label, OCStringRef description, OCDictionaryR
             return NULL;
         }
     }
+    if(coordinateLabels) {
+        if(!LabeledDimensionSetCoordinateLabels(dim, coordinateLabels)) {
+            OCRelease(dim);
+            return NULL;
+        }
 
-    if (dim->coordinateLabels) OCRelease(dim->coordinateLabels);
-    dim->coordinateLabels = OCArrayCreateMutableCopy(coordinateLabels);
-    if (!dim->coordinateLabels) {
-        OCRelease(dim);
-        return NULL;
     }
     return dim;
 }
 LabeledDimensionRef
 LabeledDimensionCreateWithCoordinateLabels(OCArrayRef coordinateLabels) {
-    if (!coordinateLabels || OCArrayGetCount(coordinateLabels) < 2) {
-        fprintf(stderr,
-                "LabeledDimensionCreateWithCoordinateLabels: need ≥2 labels\n");
-        return NULL;
-    }
-    // (1) Allocate a fresh instance, with empty label/description and an empty metadata dict
-    LabeledDimensionRef dim = LabeledDimensionAllocate();
-    if (!dim) return NULL;
-
-    // (2) Use the public setter to populate the coordinateLabels field
-    if (!LabeledDimensionSetCoordinateLabels(dim, coordinateLabels)) {
-        OCRelease(dim);
-        return NULL;
-    }
-
-    return dim;
+    return LabeledDimensionCreate(NULL, 
+            NULL, NULL, coordinateLabels);
 }
 OCArrayRef LabeledDimensionGetCoordinateLabels(LabeledDimensionRef dim) {
     return dim ? dim->coordinateLabels : NULL;
@@ -366,7 +352,7 @@ bool LabeledDimensionSetCoordinateLabels(LabeledDimensionRef dim, OCArrayRef coo
     if (dim->coordinateLabels == coordinateLabels)
         return true;
     OCRelease(dim->coordinateLabels);
-    dim->coordinateLabels = OCArrayCreateMutableCopy(coordinateLabels);
+    dim->coordinateLabels = OCTypeDeepCopy(coordinateLabels);
     return true;
 }
 OCStringRef LabeledDimensionGetCoordinateLabelAtIndex(LabeledDimensionRef dim, OCIndex index) {
@@ -424,7 +410,7 @@ LabeledDimensionCopyAsDictionary(LabeledDimensionRef dim) {
         OCArrayRef labelsCopy = (OCArrayRef)OCTypeDeepCopy((OCTypeRef)labels);
         if (labelsCopy) {
             OCDictionarySetValue((OCMutableDictionaryRef) dict, STR("labels"), labelsCopy);
-            // Note: the dictionary will retain labelsCopy for us
+            OCRelease(labelsCopy);
         }
     }
     return dict;
@@ -1117,7 +1103,6 @@ SIDimensionCopyAsDictionary(SIDimensionRef dim) {
     // 6) periodic flag
     OCBooleanRef b = OCBooleanGetWithBool(SIDimensionIsPeriodic(dim));
     OCDictionarySetValue(dict, STR("periodic"), b);
-    OCRelease(b);
     // 7) scaling enum
     OCNumberRef num = OCNumberCreateWithInt((int)SIDimensionGetScaling(dim));
     OCDictionarySetValue(dict, STR("scaling"), num);
@@ -1477,7 +1462,10 @@ SIMonotonicDimensionCopyAsDictionary(SIMonotonicDimensionRef dim) {
 
     // 4) reciprocal (optional)
     if (dim->reciprocal) {
-        OCDictionarySetValue(dict, STR("reciprocal"), dim->reciprocal);
+        SIDimensionRef copy =
+            (SIDimensionRef)OCTypeDeepCopy((OCTypeRef)dim->reciprocal);
+        OCDictionarySetValue(dict, STR("reciprocal"), copy);
+        OCRelease(copy);
     }
 
     return (OCDictionaryRef)dict;
@@ -1819,7 +1807,9 @@ SILinearDimensionCopyAsDictionary(SILinearDimensionRef dim) {
 
     // 7) reciprocal dimension
     if (dim->reciprocal) {
-        OCDictionarySetValue(dict, STR("reciprocal"), dim->reciprocal);
+        SIDimensionRef copy = (SIDimensionRef) OCTypeDeepCopy((OCTypeRef) dim->reciprocal);
+        OCDictionarySetValue(dict, STR("reciprocal"), copy);
+        OCRelease(copy);
     }
 
     return (OCDictionaryRef)dict;

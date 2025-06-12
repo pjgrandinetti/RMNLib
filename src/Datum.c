@@ -53,7 +53,7 @@ static void *impl_DatumDeepCopy(const void *theType) {
     if (!response) return NULL;
     OCArrayRef coordCopy = NULL;
     if (orig->coordinates) {
-        coordCopy = OCArrayCreateCopy(orig->coordinates);
+        coordCopy = OCTypeDeepCopy(orig->coordinates);
         if (!coordCopy) {
             OCRelease(response);
             return NULL;

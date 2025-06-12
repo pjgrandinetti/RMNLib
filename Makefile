@@ -43,23 +43,13 @@ CFLAGS   := -O3 -Wall -Wextra \
 CFLAGS_DEBUG := -O0 -g -Wall -Wextra -Werror -MMD -MP
 
 # OS-specific library ZIP selection
-UNAME_S := $(shell uname -s)
 ARCH    := $(shell uname -m)
-ifeq ($(UNAME_S),Darwin)
-  OCT_LIB_BIN := libOCTypes-libOCTypes-macos-latest.zip
-  SIT_LIB_BIN := libSITypes-libSITypes-macos-latest.zip
-else ifeq ($(UNAME_S),Linux)
-  ifeq ($(ARCH),aarch64)
-    OCT_LIB_BIN := libOCTypes-libOCTypes-linux-arm64.zip
-    SIT_LIB_BIN := libSITypes-libSITypes-linux-arm64.zip
-  else
-    OCT_LIB_BIN := libOCTypes-libOCTypes-ubuntu-latest.zip
-    SIT_LIB_BIN := libSITypes-libSITypes-ubuntu-latest.zip
-  endif
-else ifneq ($(findstring MINGW,$(UNAME_S)),)
-  OCT_LIB_BIN := libOCTypes-libOCTypes-windows-latest.zip
-  SIT_LIB_BIN := libSITypes-libSITypes-windows-latest.zip
-endif
+
+# Build-xcode directory for Xcode workspace
+XCODE_BUILD    := build-xcode
+
+# Workspace root for combined CMake projects (OCTypes, SITypes, RMNLib)
+ROOT_DIR       := $(shell cd $(dir $(firstword $(MAKEFILE_LIST))).. && pwd)
 
 # Archives
 OCT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(OCT_LIB_BIN)
@@ -229,21 +219,24 @@ clean:
 # Xcode support
 #────────────────────────────────────────────────────────────────────────────
 .PHONY: xcode xcode-open xcode-run
-xcode: clean dirs octypes sitypes
-	@echo "Generating Xcode project in build-xcode/..."
-	@mkdir -p build-xcode
-	@cmake -G "Xcode" -S . -B build-xcode
-	@echo "✅ Xcode project created: build-xcode/RMNLib.xcodeproj"
+# Combined Xcode workspace for OCTypes, SITypes, and RMNLib
+xcode: clean dirs
+	@echo "Generating combined OCTypes+SITypes+RMNLib Xcode project in $(XCODE_BUILD)/..."
+	@mkdir -p $(XCODE_BUILD)
+	@cmake -G "Xcode" -S $(ROOT_DIR) -B $(XCODE_BUILD)
+	@echo "✅ Combined Xcode project created: $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj"
 
 xcode-open: xcode
 	@echo "Opening Xcode project..."
-	open build-xcode/RMNLib.xcodeproj
+	open $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj
 
 xcode-run: xcode
-	@echo "Building in Xcode..."
-	xcodebuild -project build-xcode/RMNLib.xcodeproj \
-		-configuration Debug \
-		-destination 'platform=macOS' build | xcpretty || true
+	@echo "Building RMNLib (and dependencies) inside Xcode workspace..."
+	xcodebuild -project $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj \
+	           -configuration Debug \
+	           -scheme RMNLib \
+	           -destination 'platform=macOS' \
+	build | xcpretty || true
 
 #────────────────────────────────────────────────────────────────────────────
 # Documentation

@@ -3,13 +3,12 @@
 #include "RMNLibrary.h"
 #include "test_utils.h"
 
+
 bool test_Dimension(void)
 {
     bool ok = true;
     OCMutableArrayRef labels = NULL;
     LabeledDimensionRef ld = NULL;
-    DimensionRef d = NULL;
-    DimensionRef d2 = NULL;
 
     labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(labels, STR("X"));
@@ -32,16 +31,17 @@ bool test_Dimension_base(void) {
     TEST_ASSERT(labels != NULL);
     OCArrayAppendValue(labels, STR("X"));
     OCArrayAppendValue(labels, STR("Y"));
-
     ld = LabeledDimensionCreateWithCoordinateLabels(labels);
     TEST_ASSERT(ld != NULL);
-
+    
+    
     TEST_ASSERT(DimensionGetLabel((DimensionRef)ld) != NULL);
     TEST_ASSERT(OCStringGetLength(DimensionGetLabel((DimensionRef)ld)) == 0);
     TEST_ASSERT(DimensionGetDescription((DimensionRef)ld) != NULL);
     TEST_ASSERT(OCStringGetLength(DimensionGetDescription((DimensionRef)ld)) == 0);
     TEST_ASSERT(DimensionGetMetadata((DimensionRef)ld) != NULL);
     TEST_ASSERT(OCDictionaryGetCount(DimensionGetMetadata((DimensionRef)ld)) == 0);
+
 
     TEST_ASSERT(DimensionSetLabel((DimensionRef)ld, STR("foo")));
     TEST_ASSERT(OCStringEqual(DimensionGetLabel((DimensionRef)ld), STR("foo")));

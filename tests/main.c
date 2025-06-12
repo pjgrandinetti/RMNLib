@@ -12,16 +12,18 @@ int main(void) {
     int failures = 0;
 
     // --- Datum Tests ---
-    printf("\n=== Running Datum Tests ===\n");
-    if (!test_Datum_NULL_cases()) failures++;
-    if (!test_Datum_functional()) failures++;
+     printf("\n=== Running Datum Tests ===\n");
+     if (!test_Datum_NULL_cases()) failures++;
+     if (!test_Datum_functional()) failures++;
 
     // --- Dimension Tests ---
     fprintf(stderr, "\n=== Running Dimension Tests ===\n");
+    
+
     if (!test_Dimension())        failures++;
     // if (!test_Dimension_base())        failures++;
     // if (!test_LabeledDimension_basic()) failures++;
-
+//
     // --- Summary & Exit ---
     if (failures > 0) {
         fprintf(stderr,
