@@ -42,14 +42,24 @@ CFLAGS   := -O3 -Wall -Wextra \
              -MMD -MP
 CFLAGS_DEBUG := -O0 -g -Wall -Wextra -Werror -MMD -MP
 
-# OS-specific library ZIP selection
+# OS-specific library ZIP selection (must come before Archives definitions)
+UNAME_S := $(shell uname -s)
 ARCH    := $(shell uname -m)
-
-# Build-xcode directory for Xcode workspace
-XCODE_BUILD    := build-xcode
-
-# Workspace root for combined CMake projects (OCTypes, SITypes, RMNLib)
-ROOT_DIR       := $(shell cd $(dir $(firstword $(MAKEFILE_LIST))).. && pwd)
+ifeq ($(UNAME_S),Darwin)
+  OCT_LIB_BIN := libOCTypes-libOCTypes-macos-latest.zip
+  SIT_LIB_BIN := libSITypes-libSITypes-macos-latest.zip
+else ifeq ($(UNAME_S),Linux)
+  ifeq ($(ARCH),aarch64)
+    OCT_LIB_BIN := libOCTypes-libOCTypes-linux-arm64.zip
+    SIT_LIB_BIN := libSITypes-libSITypes-linux-arm64.zip
+  else
+    OCT_LIB_BIN := libOCTypes-libOCTypes-ubuntu-latest.zip
+    SIT_LIB_BIN := libSITypes-libSITypes-ubuntu-latest.zip
+  endif
+else ifneq ($(findstring MINGW,$(UNAME_S)),)
+  OCT_LIB_BIN := libOCTypes-libOCTypes-windows-latest.zip
+  SIT_LIB_BIN := libSITypes-libSITypes-windows-latest.zip
+endif
 
 # Archives
 OCT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(OCT_LIB_BIN)
