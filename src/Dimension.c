@@ -434,7 +434,7 @@ LabeledDimensionCopyAsDictionary(LabeledDimensionRef dim) {
 static OCTypeID kSIDimensionID = kOCNotATypeID;
 typedef struct impl_SIDimension {
     struct impl_Dimension _super;  // inherit all base‐Dimension fields
-    OCStringRef quantity;
+    OCStringRef quantityName;
     SIScalarRef offset;
     SIScalarRef origin;
     SIScalarRef period;
@@ -454,8 +454,8 @@ static bool impl_SIDimensionEqual(const void *a, const void *b) {
     if (!impl_DimensionEqual((const DimensionRef)&dimA->_super,
                           (const DimensionRef)&dimB->_super))
         return false;
-    // 2) quantity
-    if (!OCTypeEqual(dimA->quantity, dimB->quantity))
+    // 2) quantityName
+    if (!OCTypeEqual(dimA->quantityName, dimB->quantityName))
         return false;
     // 3) coordinate & origin offsets
     if (!OCTypeEqual(dimA->offset, dimB->offset))
@@ -481,8 +481,8 @@ static void impl_SIDimensionFinalize(const void *obj) {
     if (!obj) return;
     SIDimensionRef dim = (SIDimensionRef)obj;
     impl_DimensionFinalize((DimensionRef)&dim->_super);
-    OCRelease(dim->quantity);
-    dim->quantity = NULL;
+    OCRelease(dim->quantityName);
+    dim->quantityName = NULL;
     OCRelease(dim->offset);
     dim->offset = NULL;
     OCRelease(dim->origin);
@@ -504,7 +504,7 @@ static OCStringRef impl_SIDimensionCopyFormattingDesc(OCTypeRef cf) {
     OCStringRef qty = SIDimensionGetQuantity(d);
     const char *periodic_str = SIDimensionIsPeriodic(d) ? "true" : "false";
     int scaling_mode = (int)SIDimensionGetScaling(d);
-    if (!qty || OCStringGetLength(qty) == 0) qty = STR("(no quantity)");
+    if (!qty || OCStringGetLength(qty) == 0) qty = STR("(no quantity name)");
     // Scalars: reference offset, origin offset, and (optional) period
     SIScalarRef offset = SIDimensionGetOffset(d);
     SIScalarRef origin = SIDimensionGetOrigin(d);
@@ -538,8 +538,8 @@ static void *impl_SIDimensionDeepCopy(const void *obj) {
     return copy;
 }
 static void impl_InitSIDimensionFields(SIDimensionRef dim) {
-    // Default quantity: dimensionless
-    dim->quantity = STR("dimensionless");
+    // Default quantity name: dimensionless
+    dim->quantityName = STR("dimensionless");
     // Use the unit‐less SI unit for all default scalars
     SIUnitRef u = SIUnitDimensionlessAndUnderived();
     // Default coordinate offset & origin both zero in the same unit
@@ -570,7 +570,7 @@ bool SIDimensionValidate(SIDimensionRef dim, OCStringRef *outErr) {
         if (outErr) *outErr = STR("dimension is NULL");
         return false;
     }
-    // 1) quantity must be non-NULL and known
+    // 1) quantityName must be non-NULL and known
     OCStringRef qty = SIDimensionGetQuantity(dim);
     if (!qty || OCStringGetLength(qty) == 0) {
         if (outErr) *outErr = STR("quantity name is empty");
@@ -597,7 +597,7 @@ bool SIDimensionValidate(SIDimensionRef dim, OCStringRef *outErr) {
     }
     SIDimensionalityRef offDim = SIQuantityGetUnitDimensionality((SIQuantityRef)off);
     if (!SIDimensionalityHasSameReducedDimensionality(qDim, offDim)) {
-        if (outErr) *outErr = STR("quantity and offset dimensionality mismatch");
+        if (outErr) *outErr = STR("quantity name and offset dimensionality mismatch");
         return false;
     }
     // 3) origin must match offset dimensionality (or be defaulted to zero)
@@ -638,29 +638,29 @@ static bool impl_InitSIDimensionFieldsFromArgs(
     OCStringRef label,
     OCStringRef description,
     OCDictionaryRef metadata,
-    OCStringRef quantity,
+    OCStringRef quantityName,
     SIScalarRef offset,
     SIScalarRef origin,
     SIScalarRef period,
     bool periodic,
     dimensionScaling scaling) {
     DimensionRef baseDim = (DimensionRef) dim;
-    return DimensionSetLabel(baseDim, label) && DimensionSetDescription(baseDim, description) && DimensionSetMetadata(baseDim, metadata) && SIDimensionSetQuantity(dim, quantity) && SIDimensionSetOffset(dim, offset) && SIDimensionSetOrigin(dim, origin) && (!periodic || SIDimensionSetPeriod(dim, period)) && SIDimensionSetPeriodic(dim, periodic) && SIDimensionSetScaling(dim, scaling);
+    return DimensionSetLabel(baseDim, label) && DimensionSetDescription(baseDim, description) && DimensionSetMetadata(baseDim, metadata) && SIDimensionSetQuantity(dim, quantityName) && SIDimensionSetOffset(dim, offset) && SIDimensionSetOrigin(dim, origin) && (!periodic || SIDimensionSetPeriod(dim, period)) && SIDimensionSetPeriodic(dim, periodic) && SIDimensionSetScaling(dim, scaling);
 }
 SIDimensionRef
 SIDimensionCreate(
     OCStringRef label,
     OCStringRef description,
     OCDictionaryRef metadata,
-    OCStringRef quantity,
+    OCStringRef quantityName,
     SIScalarRef offset,
     SIScalarRef origin,
     SIScalarRef period,
     bool periodic,
     dimensionScaling scaling) {
-    // 1) Required: quantity + offset
-    if (!quantity) {
-        fprintf(stderr, "SIDimensionCreate: quantity must be non-NULL\n");
+    // 1) Required: quantityName + offset
+    if (!quantityName) {
+        fprintf(stderr, "SIDimensionCreate: quantity name must be non-NULL\n");
         return NULL;
     }
     if (!offset) {
@@ -673,14 +673,14 @@ SIDimensionCreate(
         return NULL;
     }
     SIDimensionalityRef refDim = SIQuantityGetUnitDimensionality((SIQuantityRef)offset);
-    // 3) quantity must exist and match refDim
+    // 3) quantityName must exist and match refDim
     {
         OCStringRef err = NULL;
-        SIDimensionalityRef nameDim = SIDimensionalityForQuantity(quantity, &err);
+        SIDimensionalityRef nameDim = SIDimensionalityForQuantity(quantityName, &err);
         if (!nameDim ||
             !SIDimensionalityHasSameReducedDimensionality(nameDim, refDim)) {
-            fprintf(stderr, "SIDimensionCreate: quantity dimensionality mismatch \"%s\"\n",
-                    OCStringGetCString(quantity));
+            fprintf(stderr, "SIDimensionCreate: quantityName dimensionality mismatch \"%s\"\n",
+                    OCStringGetCString(quantityName));
             if (err) OCRelease(err);
             return NULL;
         }
@@ -752,10 +752,10 @@ SIDimensionCreate(
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
-    // 8) quantity
-    dim->quantity = OCStringCreateCopy(quantity);
-    if (!dim->quantity) {
-        fprintf(stderr, "SIDimensionCreate: failed to copy quantity\n");
+    // 8) quantityName
+    dim->quantityName = OCStringCreateCopy(quantityName);
+    if (!dim->quantityName) {
+        fprintf(stderr, "SIDimensionCreate: failed to copy quantityName\n");
         OCRelease(dim);
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
@@ -794,14 +794,14 @@ SIDimensionCreate(
     return dim;
 }
 OCStringRef SIDimensionGetQuantity(SIDimensionRef dim) {
-    return dim ? dim->quantity : NULL;
+    return dim ? dim->quantityName : NULL;
 }
 bool SIDimensionSetQuantity(SIDimensionRef dim, OCStringRef name) {
     if (!dim || !name) {
         fprintf(stderr, "SIDimensionSetQuantity: name must be non-NULL\n");
         return false;
     }
-    // 1) Look up the dimensionality for the requested quantity name.
+    // 1) Look up the dimensionality for the requested quantityName name.
     OCStringRef error = NULL;
     SIDimensionalityRef nameDim = SIDimensionalityForQuantity(name, &error);
     if (!nameDim) {
@@ -810,7 +810,7 @@ bool SIDimensionSetQuantity(SIDimensionRef dim, OCStringRef name) {
                     OCStringGetCString(error));
             OCRelease(error);
         } else {
-            fprintf(stderr, "SIDimensionSetQuantity: unknown quantity \"%s\"\n",
+            fprintf(stderr, "SIDimensionSetQuantity: unknown quantityName \"%s\"\n",
                     OCStringGetCString(name));
         }
         return false;
@@ -832,9 +832,9 @@ bool SIDimensionSetQuantity(SIDimensionRef dim, OCStringRef name) {
         return false;
     }
     // 4) All good — replace the old name.
-    OCRelease(dim->quantity);
-    dim->quantity = OCStringCreateCopy(name);
-    if (!dim->quantity) {
+    OCRelease(dim->quantityName);
+    dim->quantityName = OCStringCreateCopy(name);
+    if (!dim->quantityName) {
         fprintf(stderr, "SIDimensionSetQuantity: failed to copy name\n");
         return false;
     }
@@ -873,14 +873,14 @@ bool SIDimensionSetOffset(SIDimensionRef dim, SIScalarRef val) {
         fprintf(stderr, "SIDimensionSetOffset: val must be real-valued\n");
         return false;
     }
-    // 2) Find dimensionality of our quantity
+    // 2) Find dimensionality of our quantityName
     OCStringRef err = NULL;
-    SIDimensionalityRef nameDim = SIDimensionalityForQuantity(dim->quantity, &err);
+    SIDimensionalityRef nameDim = SIDimensionalityForQuantity(dim->quantityName, &err);
     if (!nameDim) {
         fprintf(stderr,
-                "SIDimensionSetOffset: invalid quantity \"%s\"\n",
+                "SIDimensionSetOffset: invalid quantityName \"%s\"\n",
                 err ? OCStringGetCString(err)
-                    : OCStringGetCString(dim->quantity));
+                    : OCStringGetCString(dim->quantityName));
         if (err) OCRelease(err);
         return false;
     }
@@ -890,7 +890,7 @@ bool SIDimensionSetOffset(SIDimensionRef dim, SIScalarRef val) {
     if (!SIDimensionalityHasSameReducedDimensionality(nameDim, valDim)) {
         fprintf(stderr,
                 "SIDimensionSetOffset: dimensionality mismatch for \"%s\"\n",
-                OCStringGetCString(dim->quantity));
+                OCStringGetCString(dim->quantityName));
         return false;
     }
     // 4) Deep-copy & swap in the new offset
@@ -976,14 +976,14 @@ bool SIDimensionSetPeriod(SIDimensionRef dim, SIScalarRef val) {
         fprintf(stderr, "SIDimensionSetPeriod: val must be real-valued\n");
         return false;
     }
-    // 2) Ensure it matches our quantity dimensionality
+    // 2) Ensure it matches our quantityName dimensionality
     OCStringRef err = NULL;
-    SIDimensionalityRef nameDim = SIDimensionalityForQuantity(dim->quantity, &err);
+    SIDimensionalityRef nameDim = SIDimensionalityForQuantity(dim->quantityName, &err);
     if (!nameDim) {
         fprintf(stderr,
-                "SIDimensionSetPeriod: invalid quantity \"%s\"\n",
+                "SIDimensionSetPeriod: invalid quantityName \"%s\"\n",
                 err ? OCStringGetCString(err)
-                    : OCStringGetCString(dim->quantity));
+                    : OCStringGetCString(dim->quantityName));
         OCRelease(err);
         return false;
     }
@@ -993,7 +993,7 @@ bool SIDimensionSetPeriod(SIDimensionRef dim, SIScalarRef val) {
     if (!SIDimensionalityHasSameReducedDimensionality(nameDim, perDim)) {
         fprintf(stderr,
                 "SIDimensionSetPeriod: dimensionality mismatch for \"%s\"\n",
-                OCStringGetCString(dim->quantity));
+                OCStringGetCString(dim->quantityName));
         return false;
     }
     // 4) If it's the same object, just enable periodicity
@@ -1054,7 +1054,7 @@ SIDimensionCreateFromDictionary(OCDictionaryRef dict) {
     OCStringRef description = (OCStringRef)OCDictionaryGetValue(dict, STR("description"));
     OCDictionaryRef meta = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata"));
     // 2) SIDimension‐specific
-    OCStringRef quantity = (OCStringRef)OCDictionaryGetValue(dict, STR("quantity"));
+    OCStringRef quantityName = (OCStringRef)OCDictionaryGetValue(dict, STR("quantity_name"));
     SIScalarRef offset  = (SIScalarRef)OCDictionaryGetValue(dict, STR("offset"));
     SIScalarRef origin  = (SIScalarRef)OCDictionaryGetValue(dict, STR("origin"));
     SIScalarRef period  = (SIScalarRef)OCDictionaryGetValue(dict, STR("period"));
@@ -1071,7 +1071,7 @@ SIDimensionCreateFromDictionary(OCDictionaryRef dict) {
         label,
         description,
         meta,
-        quantity,
+        quantityName,
         offset,
         origin,
         period,
@@ -1084,9 +1084,9 @@ SIDimensionCopyAsDictionary(SIDimensionRef dim) {
     // 1) Start with base‐class serialization
     OCMutableDictionaryRef dict = (OCMutableDictionaryRef) impl_DimensionCopyAsDictionary((DimensionRef)dim);
     if (!dict) return NULL;
-    // 2) quantity
+    // 2) quantityName
     OCStringRef qty = SIDimensionGetQuantity(dim);
-    if (qty) OCDictionarySetValue(dict, STR("quantity"), qty);
+    if (qty) OCDictionarySetValue(dict, STR("quantity_name"), qty);
     // 3) offset
     if (dim->offset) {
         SIScalarRef copy = SIScalarCreateCopy(dim->offset);
@@ -1259,7 +1259,7 @@ SIMonotonicDimensionCreate(
     OCStringRef      label,
     OCStringRef      description,
     OCDictionaryRef  metadata,
-    OCStringRef      quantity,
+    OCStringRef      quantityName,
     SIScalarRef      offset,
     SIScalarRef      origin,
     SIScalarRef      period,
@@ -1279,10 +1279,10 @@ SIMonotonicDimensionCreate(
     SIMonotonicDimensionRef dim = SIMonotonicDimensionAllocate();
     if (!dim) return NULL;
 
-    // 2.5) Validate quantity + offset (lifted from SIDimensionCreate)
-    if (!quantity) {
+    // 2.5) Validate quantityName + offset (lifted from SIDimensionCreate)
+    if (!quantityName) {
         fprintf(stderr,
-                "SIMonotonicDimensionCreate: quantity must be non-NULL\n");
+                "SIMonotonicDimensionCreate: quantityName must be non-NULL\n");
         OCRelease(dim);
         return NULL;
     }
@@ -1303,12 +1303,12 @@ SIMonotonicDimensionCreate(
     {
         OCStringRef err = NULL;
         SIDimensionalityRef qDim =
-            SIDimensionalityForQuantity(quantity, &err);
+            SIDimensionalityForQuantity(quantityName, &err);
         if (!qDim ||
             !SIDimensionalityHasSameReducedDimensionality(qDim, refDim)) {
             fprintf(stderr,
-                    "SIMonotonicDimensionCreate: quantity dimensionality mismatch \"%s\"\n",
-                    OCStringGetCString(quantity));
+                    "SIMonotonicDimensionCreate: quantityName dimensionality mismatch \"%s\"\n",
+                    OCStringGetCString(quantityName));
             OCRelease(err);
             OCRelease(dim);
             return NULL;
@@ -1337,7 +1337,7 @@ SIMonotonicDimensionCreate(
     if (!impl_InitSIDimensionFieldsFromArgs(
             (SIDimensionRef)dim,
             label, description, metadata,
-            quantity, offset, originArg,
+            quantityName, offset, originArg,
             period, periodic, scaling))
     {
         OCRelease(dim);
@@ -1411,7 +1411,7 @@ SIMonotonicDimensionCreateFromDictionary(OCDictionaryRef dict) {
     OCDictionaryRef metadata = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata"));
 
     // 2) SIDimension fields
-    OCStringRef   quantityObj = (OCStringRef) OCDictionaryGetValue(dict, STR("quantity"));
+    OCStringRef   quantityName = (OCStringRef) OCDictionaryGetValue(dict, STR("quantity_name"));
     SIScalarRef   offset      = (SIScalarRef)   OCDictionaryGetValue(dict, STR("offset"));
     SIScalarRef   origin      = (SIScalarRef)   OCDictionaryGetValue(dict, STR("origin"));
     SIScalarRef   period      = (SIScalarRef)   OCDictionaryGetValue(dict, STR("period"));
@@ -1440,7 +1440,7 @@ SIMonotonicDimensionCreateFromDictionary(OCDictionaryRef dict) {
         label,
         description,
         metadata,
-        quantityObj,
+        quantityName,
         offset,
         origin,
         period,
@@ -1582,7 +1582,7 @@ SILinearDimensionCreate(
     OCStringRef       label,
     OCStringRef       description,
     OCDictionaryRef   metadata,
-    OCStringRef       quantity,
+    OCStringRef       quantityName,
     SIScalarRef       offset,
     SIScalarRef       origin,
     SIScalarRef       period,
@@ -1600,10 +1600,10 @@ SILinearDimensionCreate(
         return NULL;
     }
 
-    // 2) Validate quantity + offset (lifted from SIDimensionCreate)
-    if (!quantity) {
+    // 2) Validate quantityName + offset (lifted from SIDimensionCreate)
+    if (!quantityName) {
         fprintf(stderr,
-                "SILinearDimensionCreate: quantity must be non-NULL\n");
+                "SILinearDimensionCreate: quantityName must be non-NULL\n");
         return NULL;
     }
     if (!offset) {
@@ -1621,12 +1621,12 @@ SILinearDimensionCreate(
     {
         OCStringRef err = NULL;
         SIDimensionalityRef qDim =
-            SIDimensionalityForQuantity(quantity, &err);
+            SIDimensionalityForQuantity(quantityName, &err);
         if (!qDim ||
             !SIDimensionalityHasSameReducedDimensionality(qDim, refDim)) {
             fprintf(stderr,
-                    "SILinearDimensionCreate: quantity dimensionality mismatch \"%s\"\n",
-                    OCStringGetCString(quantity));
+                    "SILinearDimensionCreate: quantityName dimensionality mismatch \"%s\"\n",
+                    OCStringGetCString(quantityName));
             OCRelease(err);
             return NULL;
         }
@@ -1658,7 +1658,7 @@ SILinearDimensionCreate(
     if (!impl_InitSIDimensionFieldsFromArgs(
             (SIDimensionRef)dim,
             label, description, metadata,
-            quantity, offset, originArg,
+            quantityName, offset, originArg,
             period, periodic, scaling))
     {
         OCRelease(dim);
@@ -1726,7 +1726,7 @@ SILinearDimensionCreateFromDictionary(OCDictionaryRef dict) {
     OCDictionaryRef metadata    = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata"));
 
     // 2) SIDimension fields
-    OCStringRef   quantityObj = (OCStringRef)   OCDictionaryGetValue(dict, STR("quantity"));
+    OCStringRef   quantityName = (OCStringRef)   OCDictionaryGetValue(dict, STR("quantity_name"));
     SIScalarRef   offset      = (SIScalarRef)   OCDictionaryGetValue(dict, STR("offset"));
     SIScalarRef   origin      = (SIScalarRef)   OCDictionaryGetValue(dict, STR("origin"));
     SIScalarRef   period      = (SIScalarRef)   OCDictionaryGetValue(dict, STR("period"));
@@ -1764,7 +1764,7 @@ SILinearDimensionCreateFromDictionary(OCDictionaryRef dict) {
         label,
         description,
         metadata,
-        quantityObj,
+        quantityName,
         offset,
         origin,
         period,

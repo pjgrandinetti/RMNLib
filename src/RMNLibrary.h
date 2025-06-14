@@ -16,9 +16,16 @@ as local modules (Datum, Dimension, Dataset).
 #ifndef RMNLIBRARY_H
 #define RMNLIBRARY_H
 
+#include <stdio.h>
+#include <stddef.h>
+#include <math.h>
+#include <complex.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
 // Include the core OCTypes definitions and utilities
 #include <OCLibrary.h>
-
 // Include the core SITypes definitions and utilities
 #include <SILibrary.h>
 
