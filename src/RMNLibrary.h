@@ -36,5 +36,7 @@ as local modules (Datum, Dimension, Dataset).
 #include "Dataset.h"
 #include "RMNGridUtils.h"
 
+void RMNLibTypesShutdown(void);
+
 #endif /* RMNLIBRARY_H */
 
