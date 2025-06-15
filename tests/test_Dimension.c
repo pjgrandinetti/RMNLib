@@ -8,7 +8,6 @@ bool test_Dimension_base(void) {
     bool ok = false;
     OCMutableArrayRef labels = NULL;
     LabeledDimensionRef ld = NULL;
-    DimensionRef d = NULL;
     DimensionRef d2 = NULL;
 
     labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);

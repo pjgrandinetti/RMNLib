@@ -12,6 +12,8 @@ YFLAGS  := -d
 
 RM      := rm -f
 MKDIR_P := mkdir -p
+# Xcode build directory under RMNLib
+XCODE_BUILD := $(CURDIR)/build-xcode
 
 # Directories
 SRC_DIR         := src
@@ -224,6 +226,10 @@ test-asan: $(BIN_DIR)/runTests.asan
 clean:
 	$(RM) -r $(BUILD_DIR) libRMNLib.a
 	$(RM) -rf $(THIRD_PARTY_DIR)
+
+# Determine repository root and Xcode build dir
+ROOT_DIR := $(shell cd $(dir $(firstword $(MAKEFILE_LIST))).. && pwd)
+XCODE_BUILD := $(CURDIR)/build
 
 #────────────────────────────────────────────────────────────────────────────
 # Xcode support

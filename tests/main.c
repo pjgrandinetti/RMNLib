@@ -26,6 +26,9 @@ int main(void) {
     if (!test_DependentVariable_base())        failures++;
     if (!test_DependentVariable_components())  failures++;
     if (!test_DependentVariable_values())      failures++;
+    if (!test_DependentVariable_typeQueries()) failures++;
+    if (!test_DependentVariable_complexCopy()) failures++;  
+    if (!test_DependentVariable_invalidCreate()) failures++;  
 
     // --- Summary & Exit ---
     if (failures > 0) {

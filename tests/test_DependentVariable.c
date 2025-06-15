@@ -1,14 +1,14 @@
-// tests/test_dependent_variable.c
-
 #include <stdio.h>
 #include <stdbool.h>
 #include "RMNLibrary.h"
+#include "DependentVariable.h"
 #include "test_utils.h"
 
 bool test_DependentVariable_base(void) {
     bool ok = false;
     DependentVariableRef dv   = NULL;
     DependentVariableRef dv2  = NULL;
+    DependentVariableRef dv3  = NULL;
     OCDictionaryRef       dict = NULL;
     OCStringRef           desc1= NULL;
     OCStringRef           desc2= NULL;
@@ -28,6 +28,7 @@ bool test_DependentVariable_base(void) {
     TEST_ASSERT(DependentVariableGetElementType(dv) == kSINumberFloat64Type);
     TEST_ASSERT(DependentVariableGetComponentCount(dv) == 1);
     TEST_ASSERT(DependentVariableGetSize(dv) == 4);
+
 
     // 2) setters / getters
     TEST_ASSERT(DependentVariableSetName(dv, STR("foo")));
@@ -52,11 +53,12 @@ bool test_DependentVariable_base(void) {
     TEST_ASSERT(dv2 != NULL);
     TEST_ASSERT(OCTypeEqual(dv, dv2));
 
+
     // 4) dict round-trip
     dict = DependentVariableCopyAsDictionary(dv);
     TEST_ASSERT(dict != NULL);
-    dv2 = DependentVariableCreateFromDictionary(dict);
-    TEST_ASSERT(dv2 != NULL);
+    dv3 = DependentVariableCreateFromDictionary(dict);
+    TEST_ASSERT(dv3 != NULL);
 
     // formatting comparison
     desc1 = OCTypeCopyFormattingDesc((OCTypeRef)dv);
@@ -64,10 +66,12 @@ bool test_DependentVariable_base(void) {
     TEST_ASSERT(OCStringEqual(desc1, desc2));
 
     ok = true;
+
 cleanup:
     if (desc1) OCRelease(desc1);
     if (desc2) OCRelease(desc2);
     if (dict)  OCRelease(dict);
+    if (dv3)   OCRelease(dv3);
     if (dv2)   OCRelease(dv2);
     if (dv)    OCRelease(dv);
     printf("DependentVariable base tests %s\n", ok ? "passed." : "failed.");
@@ -81,26 +85,26 @@ bool test_DependentVariable_components(void) {
     OCMutableDataRef extra  = NULL;
     OCIndex count;
 
-    // build two buffers of length=3 elements
+    // build one buffer of length=3 elements
     comps = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    for (int i = 0; i < 1; i++) {
+    {
         OCMutableDataRef b = OCDataCreateMutable(0);
         OCDataSetLength(b, 3 * sizeof(float));
         OCArrayAppendValue(comps, b);
         OCRelease(b);
     }
 
-dv = DependentVariableCreate(
-    /* name              = */ STR("v"),
-    /* description       = */ STR("vec"),
-    /* unit              = */ SIUnitForUnderivedSymbol(STR("m")),
-    /* quantityName      = */ kSIQuantityVelocity,
-    /* quantityType      = */ STR("vector_1"),
-    /* elementType       = */ kSINumberFloat32Type,
-    /* componentLabels   = */ NULL,
-    /* components        = */ comps,
-    /* owner (dataset)   = */ NULL
-);    
+    dv = DependentVariableCreate(
+        STR("v"),
+        STR("vec"),
+        SIUnitForUnderivedSymbol(STR("m/s")),
+        kSIQuantityVelocity,
+        STR("vector_1"),
+        kSINumberFloat32Type,
+        NULL,
+        comps,
+        NULL
+    );
     TEST_ASSERT(dv != NULL);
     TEST_ASSERT(DependentVariableGetComponentCount(dv) == 1);
     TEST_ASSERT(DependentVariableGetSize(dv) == 3);
@@ -133,7 +137,7 @@ dv = DependentVariableCreate(
     ok = true;
 cleanup:
     if (extra) OCRelease(extra);
-    if (dv)    OCRelease(dv);
+    if (dv   ) OCRelease(dv);
     if (comps) OCRelease(comps);
     printf("DependentVariable components tests %s\n", ok ? "passed." : "failed.");
     return ok;
@@ -153,7 +157,8 @@ bool test_DependentVariable_values(void) {
         kSINumberFloat64Type,
         NULL,
         4,
-        NULL);
+        NULL
+    );
     TEST_ASSERT(dv);
 
     // set element 2 to 7.5
@@ -170,9 +175,107 @@ bool test_DependentVariable_values(void) {
 
     ok = true;
 cleanup:
-    if (sIn)  OCRelease(sIn);
+    if (sIn ) OCRelease(sIn);
     if (sOut) OCRelease(sOut);
-    if (dv)   OCRelease(dv);
+    if (dv  ) OCRelease(dv);
     printf("DependentVariable values tests %s\n", ok ? "passed." : "failed.");
+    return ok;
+}
+
+
+
+bool test_DependentVariable_typeQueries(void) {
+    bool ok = false;
+    OCIndex count;
+
+    // scalar
+    DependentVariableRef dv1 = DependentVariableCreateDefault(STR("scalar"), kSINumberFloat64Type, 1, NULL);
+    TEST_ASSERT(dv1);
+    TEST_ASSERT(DependentVariableIsScalarType(dv1));
+    TEST_ASSERT(!DependentVariableIsVectorType(dv1, &count));
+    TEST_ASSERT(!DependentVariableIsPixelType(dv1, &count));
+    TEST_ASSERT(!DependentVariableIsMatrixType(dv1, &count, &count));
+    OCRelease(dv1);
+
+    // vector_3
+    DependentVariableRef dv2 = DependentVariableCreateDefault(STR("vector_3"), kSINumberFloat32Type, 3, NULL);
+    TEST_ASSERT(dv2);
+    TEST_ASSERT(!DependentVariableIsScalarType(dv2));
+    TEST_ASSERT(DependentVariableIsVectorType(dv2, &count) && count == 3);
+    TEST_ASSERT(DependentVariableComponentsCountFromQuantityType(STR("vector_3")) == 3);
+    OCRelease(dv2);
+
+    // pixel_2
+    DependentVariableRef dv3 = DependentVariableCreateDefault(STR("pixel_2"), kSINumberFloat32Type, 2, NULL);
+    TEST_ASSERT(dv3);
+    TEST_ASSERT(DependentVariableIsPixelType(dv3, &count) && count == 2);
+    OCRelease(dv3);
+
+    // matrix_2_2
+    DependentVariableRef dv4 = DependentVariableCreateDefault(STR("matrix_2_2"), kSINumberFloat32Type, 4, NULL);
+    OCIndex r, c;
+    TEST_ASSERT(dv4);
+    TEST_ASSERT(DependentVariableIsMatrixType(dv4, &r, &c) && r == 2 && c == 2);
+    OCRelease(dv4);
+
+    ok = true;
+cleanup:
+    printf("DependentVariable type-queries tests %s\n", ok ? "passed." : "FAILED!");
+    return ok;
+}
+
+bool test_DependentVariable_complexCopy(void) {
+    bool ok = false;
+    DependentVariableRef src = NULL, dst = NULL;
+
+    // make a real-only vector
+    OCMutableArrayRef comps = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    OCMutableDataRef blob = OCDataCreateMutable(0);
+    OCDataSetLength(blob, 3 * sizeof(double));
+    OCArrayAppendValue(comps, blob);
+    OCRelease(blob);
+
+    src = DependentVariableCreate(STR("dv"), STR("desc"), SIUnitDimensionlessAndUnderived(),
+                                  STR("dimensionless"), STR("scalar"),
+                                  kSINumberFloat64Type, NULL, comps, NULL);
+    TEST_ASSERT(src);
+    // src is real, so copying as complex should flip type
+    dst = DependentVariableCreateComplexCopy(src, NULL);
+    TEST_ASSERT(dst);
+    TEST_ASSERT(SIQuantityGetElementType((SIQuantityRef) dst) == kSINumberFloat64ComplexType);
+
+    ok = true;
+cleanup:
+    if (dst) OCRelease(dst);
+    if (src) OCRelease(src);
+    if (comps) OCRelease(comps);
+    printf("DependentVariable complex-copy tests %s\n", ok ? "passed." : "FAILED!");
+    return ok;
+}
+
+bool test_DependentVariable_invalidCreate(void) {
+    bool ok = false;
+    // vector_2 but only one buffer → should fail
+    OCMutableArrayRef oneBuf = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    OCMutableDataRef b = OCDataCreateMutable(0);
+    OCDataSetLength(b, 10);
+    OCArrayAppendValue(oneBuf, b);
+    OCRelease(b);
+    DependentVariableRef dv = DependentVariableCreate(
+        STR("x"),
+        STR("desc"),
+        SIUnitDimensionlessAndUnderived(),
+        STR("dimensionless"),
+        STR("vector_2"),
+        kSINumberFloat32Type,
+        NULL,
+        oneBuf,
+        NULL
+    );
+    TEST_ASSERT(dv == NULL);
+    ok = true;
+cleanup:
+    OCRelease(oneBuf);
+    printf("DependentVariable invalid-create tests %s\n", ok ? "passed." : "failed.");
     return ok;
 }

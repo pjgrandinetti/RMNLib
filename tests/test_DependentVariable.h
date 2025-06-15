@@ -27,4 +27,11 @@ bool test_DependentVariable_components(void);
  */
 bool test_DependentVariable_values(void);
 
+
+bool test_DependentVariable_typeQueries(void);
+bool test_DependentVariable_complexCopy(void);
+
+
+bool test_DependentVariable_invalidCreate(void);
+
 #endif // TEST_DEPENDENT_VARIABLE_H

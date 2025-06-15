@@ -87,7 +87,7 @@ static void *impl_DimensionDeepCopy(const void *obj) {
     return copy;
 }
 static DimensionRef impl_DimensionAllocate(void) {
-    DimensionRef dim = OCTypeAlloc(
+    return OCTypeAlloc(
         struct impl_Dimension,
         DimensionGetTypeID(),
         impl_DimensionFinalize,
@@ -95,10 +95,42 @@ static DimensionRef impl_DimensionAllocate(void) {
         impl_DimensionCopyFormattingDesc,
         impl_DimensionDeepCopy,
         impl_DimensionDeepCopy);
+}
+
+static DimensionRef impl_DimensionCreate(OCStringRef label,
+                                         OCStringRef description,
+                                         OCDictionaryRef metadata)
+{
+    // 1) Raw allocation
+    DimensionRef dim = impl_DimensionAllocate();
     if (!dim) return NULL;
+
+    // 2) One-time default initialization
     impl_InitBaseDimensionFields(dim);
+
+    // 3) Override with user values via setters (they handle copying & erroring)
+    if (label) {
+        if (!DimensionSetLabel(dim, label)) {
+            OCRelease(dim);
+            return NULL;
+        }
+    }
+    if (description) {
+        if (!DimensionSetDescription(dim, description)) {
+            OCRelease(dim);
+            return NULL;
+        }
+    }
+    if (metadata) {
+        if (!DimensionSetMetadata(dim, metadata)) {
+            OCRelease(dim);
+            return NULL;
+        }
+    }
+
     return dim;
 }
+
 OCStringRef DimensionGetLabel(DimensionRef dim) {
     return dim ? dim->label : NULL;
 }
@@ -153,28 +185,18 @@ bool DimensionSetMetadata(DimensionRef dim, OCDictionaryRef dict) {
     dim->metadata = dictCopy;
     return true;
 }
+
 static DimensionRef impl_DimensionCreateFromDictionary(OCDictionaryRef dict) {
     if (!dict) return NULL;
-    // Pull values out of the dictionary and cast them to the expected types
-    OCStringRef label = (OCStringRef)OCDictionaryGetValue(dict, STR("label"));
-    OCStringRef description = (OCStringRef)OCDictionaryGetValue(dict, STR("description"));
-    OCDictionaryRef metadata = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata"));
-    DimensionRef dim = impl_DimensionAllocate();
-    if (!dim) return NULL;
-    // Apply them via the public setters
-    if (label && !DimensionSetLabel(dim, label)) {
-        OCRelease(dim);
-        return NULL;
-    }
-    if (description && !DimensionSetDescription(dim, description)) {
-        OCRelease(dim);
-        return NULL;
-    }
-    if (metadata && !DimensionSetMetadata(dim, metadata)) {
-        OCRelease(dim);
-        return NULL;
-    }
-    return dim;
+
+    // 1) Pull values out of the dictionary
+    OCStringRef       label       = (OCStringRef)   OCDictionaryGetValue(dict, STR("label"));
+    OCStringRef       description = (OCStringRef)   OCDictionaryGetValue(dict, STR("description"));
+    OCDictionaryRef   metadata    = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata"));
+
+    // 2) Just call your one true initializer
+    //    (it will allocate + init exactly once, then return NULL on any failure)
+    return impl_DimensionCreate(label, description, metadata);
 }
 static OCDictionaryRef impl_DimensionCopyAsDictionary(DimensionRef dim) {
     if (!dim) return NULL;
@@ -284,7 +306,7 @@ static void *impl_LabeledDimensionDeepCopy(const void *obj) {
     return copy;
 }
 static LabeledDimensionRef LabeledDimensionAllocate(void) {
-    LabeledDimensionRef obj = OCTypeAlloc(
+    return OCTypeAlloc(
         struct impl_LabeledDimension,
         LabeledDimensionGetTypeID(),
         impl_LabeledDimensionFinalize,
@@ -292,53 +314,44 @@ static LabeledDimensionRef LabeledDimensionAllocate(void) {
         impl_LabeledDimensionCopyFormattingDesc,
         impl_LabeledDimensionDeepCopy,
         impl_LabeledDimensionDeepCopy);
-    if (!obj) return NULL;
-
-    impl_InitBaseDimensionFields((DimensionRef)obj);
-    obj->coordinateLabels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    if (!obj->coordinateLabels) {
-        OCRelease(obj);
-        return NULL;
-    }
-    return obj;
 }
 LabeledDimensionRef
-LabeledDimensionCreate(OCStringRef label, OCStringRef description, OCDictionaryRef metadata, OCArrayRef coordinateLabels) {
+LabeledDimensionCreate(OCStringRef         label,
+                       OCStringRef         description,
+                       OCDictionaryRef     metadata,
+                       OCArrayRef          coordinateLabels)
+{
+    // 1) Preconditions
     if (!coordinateLabels || OCArrayGetCount(coordinateLabels) < 2) {
         fprintf(stderr, "LabeledDimensionCreate: need ≥2 coordinate labels\n");
         return NULL;
     }
-    LabeledDimensionRef dim = LabeledDimensionAllocate();
-    if (!dim)
-        return NULL;
 
-    // Base fields
+    // 2) Allocate the raw object
+    LabeledDimensionRef dim = LabeledDimensionAllocate();
+    if (!dim) return NULL;
+
+    // 3) Initialize the base Dimension fields
+    impl_InitBaseDimensionFields((DimensionRef)dim);
     if (label) {
-        if (!DimensionSetLabel((DimensionRef)dim, label)) {
-            OCRelease(dim);
-            return NULL;
-        }
+        if (!DimensionSetLabel((DimensionRef)dim, label)) goto Err;
     }
     if (description) {
-        if (!DimensionSetDescription((DimensionRef)dim, description)) {
-            OCRelease(dim);
-            return NULL;
-        }
+        if (!DimensionSetDescription((DimensionRef)dim, description)) goto Err;
     }
     if (metadata) {
-        if (!DimensionSetMetadata((DimensionRef)dim, metadata)) {
-            OCRelease(dim);
-            return NULL;
-        }
+        if (!DimensionSetMetadata((DimensionRef)dim, metadata)) goto Err;
     }
-    if(coordinateLabels) {
-        if(!LabeledDimensionSetCoordinateLabels(dim, coordinateLabels)) {
-            OCRelease(dim);
-            return NULL;
-        }
 
-    }
+    // 4) Initialize the subclass field exactly once
+    dim->coordinateLabels = OCArrayCreateMutableCopy(coordinateLabels);
+    if (!dim->coordinateLabels) goto Err;
+
     return dim;
+
+Err:
+    OCRelease(dim);
+    return NULL;
 }
 LabeledDimensionRef
 LabeledDimensionCreateWithCoordinateLabels(OCArrayRef coordinateLabels) {
@@ -380,34 +393,18 @@ bool LabeledDimensionSetCoordinateLabelAtIndex(LabeledDimensionRef dim, OCIndex 
 LabeledDimensionRef
 LabeledDimensionCreateFromDictionary(OCDictionaryRef dict) {
     if (!dict) return NULL;
-    // 1) Extract & validate labels
-    OCArrayRef coordinateLabels =
-        (OCArrayRef)OCDictionaryGetValue(dict, STR("labels"));
-    if (!coordinateLabels || OCArrayGetCount(coordinateLabels) < 2) {
-        fprintf(stderr,
-                "LabeledDimensionCreateFromDictionary: 'labels' missing or <2 entries\n");
-        return NULL;
-    }
-    // 2) Allocate the full subclass
-    LabeledDimensionRef dim = LabeledDimensionAllocate();
-    if (!dim) return NULL;
-    // 3) Fill base Dimension fields
-    OCStringRef label = (OCStringRef)OCDictionaryGetValue(dict, STR("label"));
-    if (label && !DimensionSetLabel((DimensionRef)dim, label)) goto Err;
-    OCStringRef description =
-        (OCStringRef)OCDictionaryGetValue(dict, STR("description"));
-    if (description && !DimensionSetDescription((DimensionRef)dim, description)) goto Err;
-    OCDictionaryRef metadata =
-        (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata"));
-    if (metadata && !DimensionSetMetadata((DimensionRef)dim, metadata)) goto Err;
-    // 4) Deep-copy the labels array
-    OCRelease(dim->coordinateLabels);
-    dim->coordinateLabels = OCArrayCreateMutableCopy(coordinateLabels);
-    if (!dim->coordinateLabels) goto Err;
-    return dim;
-Err:
-    OCRelease(dim);
-    return NULL;
+
+    // Pull out exactly the four things our public Create wants
+    OCStringRef     label            = (OCStringRef)   OCDictionaryGetValue(dict, STR("label"));
+    OCStringRef     description      = (OCStringRef)   OCDictionaryGetValue(dict, STR("description"));
+    OCDictionaryRef metadata         = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata"));
+    OCArrayRef      coordinateLabels = (OCArrayRef)    OCDictionaryGetValue(dict, STR("labels"));
+
+    // Delegate all validation + initialization to LabeledDimensionCreate()
+    return LabeledDimensionCreate(label,
+                                  description,
+                                  metadata,
+                                  coordinateLabels);
 }
 OCDictionaryRef
 LabeledDimensionCopyAsDictionary(LabeledDimensionRef dim) {
@@ -551,7 +548,7 @@ static void impl_InitSIDimensionFields(SIDimensionRef dim) {
     dim->scaling = kDimensionScalingNone;
 }
 static SIDimensionRef SIDimensionAllocate(void) {
-    SIDimensionRef obj = OCTypeAlloc(
+    return OCTypeAlloc(
         struct impl_SIDimension,
         SIDimensionGetTypeID(),
         impl_SIDimensionFinalize,
@@ -559,9 +556,6 @@ static SIDimensionRef SIDimensionAllocate(void) {
         impl_SIDimensionCopyFormattingDesc,
         impl_SIDimensionDeepCopy,
         impl_SIDimensionDeepCopy);
-    impl_InitBaseDimensionFields((DimensionRef)&obj->_super);
-    impl_InitSIDimensionFields(obj);
-    return obj;
 }
 /// Returns true if `dim` passes *all* of the same checks that SIDimensionCreate performs.
 /// On failure, returns false and (optionally) writes a human-readable error into *outErr.
@@ -649,15 +643,16 @@ static bool impl_InitSIDimensionFieldsFromArgs(
 }
 SIDimensionRef
 SIDimensionCreate(
-    OCStringRef label,
-    OCStringRef description,
+    OCStringRef    label,
+    OCStringRef    description,
     OCDictionaryRef metadata,
-    OCStringRef quantityName,
-    SIScalarRef offset,
-    SIScalarRef origin,
-    SIScalarRef period,
-    bool periodic,
-    dimensionScaling scaling) {
+    OCStringRef    quantityName,
+    SIScalarRef    offset,
+    SIScalarRef    origin,
+    SIScalarRef    period,
+    bool           periodic,
+    dimensionScaling scaling)
+{
     // 1) Required: quantityName + offset
     if (!quantityName) {
         fprintf(stderr, "SIDimensionCreate: quantity name must be non-NULL\n");
@@ -667,42 +662,45 @@ SIDimensionCreate(
         fprintf(stderr, "SIDimensionCreate: offset must be non-NULL\n");
         return NULL;
     }
-    // 2) offset must be real-valued, get its reduced dimensionality
+
+    // 2) offset must be real-valued
     if (SIQuantityIsComplexType((SIQuantityRef)offset)) {
         fprintf(stderr, "SIDimensionCreate: offset must be real-valued\n");
         return NULL;
     }
     SIDimensionalityRef refDim = SIQuantityGetUnitDimensionality((SIQuantityRef)offset);
-    // 3) quantityName must exist and match refDim
+
+    // 3) quantityName must match offset dimensionality
     {
         OCStringRef err = NULL;
         SIDimensionalityRef nameDim = SIDimensionalityForQuantity(quantityName, &err);
         if (!nameDim ||
-            !SIDimensionalityHasSameReducedDimensionality(nameDim, refDim)) {
-            fprintf(stderr, "SIDimensionCreate: quantityName dimensionality mismatch \"%s\"\n",
+            !SIDimensionalityHasSameReducedDimensionality(nameDim, refDim))
+        {
+            fprintf(stderr,
+                    "SIDimensionCreate: quantityName dimensionality mismatch \"%s\"\n",
                     OCStringGetCString(quantityName));
             if (err) OCRelease(err);
             return NULL;
         }
         OCRelease(err);
     }
-    // 4) origin: default to 0×unit if NULL, else must be real & same dimensionality
+
+    // 4) origin: default to zero if NULL, else validate
     bool originWasDefaulted = false;
-    SIScalarRef tmpZero = NULL;
+    SIScalarRef tmpZero     = NULL;
     if (origin) {
-        if (SIQuantityIsComplexType((SIQuantityRef)origin)) {
-            fprintf(stderr, "SIDimensionCreate: origin must be real-valued\n");
-            return NULL;
-        }
-        if (!SIDimensionalityHasSameReducedDimensionality(
+        if (SIQuantityIsComplexType((SIQuantityRef)origin) ||
+            !SIDimensionalityHasSameReducedDimensionality(
                 refDim,
-                SIQuantityGetUnitDimensionality((SIQuantityRef)origin))) {
-            fprintf(stderr, "SIDimensionCreate: origin dimensionality mismatch\n");
+                SIQuantityGetUnitDimensionality((SIQuantityRef)origin)))
+        {
+            fprintf(stderr, "SIDimensionCreate: origin invalid or mismatched\n");
             return NULL;
         }
     } else {
-        SIUnitRef unit = SIQuantityGetUnit((SIQuantityRef)offset);
-        tmpZero = SIScalarCreateWithDouble(0.0, unit);
+        SIUnitRef u = SIQuantityGetUnit((SIQuantityRef)offset);
+        tmpZero     = SIScalarCreateWithDouble(0.0, u);
         if (!tmpZero) {
             fprintf(stderr, "SIDimensionCreate: failed to create zero origin\n");
             return NULL;
@@ -710,25 +708,23 @@ SIDimensionCreate(
         origin = tmpZero;
         originWasDefaulted = true;
     }
-    // 5) period: only enforced if periodic==true
+
+    // 5) period: only enforce if periodic==true
     if (periodic) {
-        if (!period) {
-            fprintf(stderr, "SIDimensionCreate: periodic==true requires non-NULL period\n");
-            if (originWasDefaulted) OCRelease(tmpZero);
-            return NULL;
-        }
-        if (SIQuantityIsComplexType((SIQuantityRef)period) ||
+        if (!period ||
+            SIQuantityIsComplexType((SIQuantityRef)period) ||
             !SIDimensionalityHasSameReducedDimensionality(
                 refDim,
-                SIQuantityGetUnitDimensionality((SIQuantityRef)period))) {
-            fprintf(stderr, "SIDimensionCreate: period dimensionality mismatch or complex\n");
+                SIQuantityGetUnitDimensionality((SIQuantityRef)period)))
+        {
+            fprintf(stderr, "SIDimensionCreate: invalid or mismatched period\n");
             if (originWasDefaulted) OCRelease(tmpZero);
             return NULL;
         }
     } else {
-        // ignore any incoming period when not periodic
         period = NULL;
     }
+
     // 6) Allocate
     SIDimensionRef dim = SIDimensionAllocate();
     if (!dim) {
@@ -736,23 +732,35 @@ SIDimensionCreate(
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
-    // 7) Base fields (label/description/metadata)
-    if (label && !DimensionSetLabel((DimensionRef)dim, label)) {
+
+    // 7) Initialize default fields
+    impl_InitBaseDimensionFields((DimensionRef)&dim->_super);
+    impl_InitSIDimensionFields(dim);
+
+    // 8) Apply user values
+    if (label &&
+        !DimensionSetLabel((DimensionRef)dim, label))
+    {
         OCRelease(dim);
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
-    if (description && !DimensionSetDescription((DimensionRef)dim, description)) {
+    if (description &&
+        !DimensionSetDescription((DimensionRef)dim, description))
+    {
         OCRelease(dim);
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
-    if (metadata && !DimensionSetMetadata((DimensionRef)dim, metadata)) {
+    if (metadata &&
+        !DimensionSetMetadata((DimensionRef)dim, metadata))
+    {
         OCRelease(dim);
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
-    // 8) quantityName
+
+    // 9) Copy SI‐specific fields
     dim->quantityName = OCStringCreateCopy(quantityName);
     if (!dim->quantityName) {
         fprintf(stderr, "SIDimensionCreate: failed to copy quantityName\n");
@@ -760,7 +768,7 @@ SIDimensionCreate(
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
-    // 9) offset, origin, period
+
     dim->offset = SIScalarCreateCopy(offset);
     if (!dim->offset) {
         fprintf(stderr, "SIDimensionCreate: failed to copy offset\n");
@@ -768,6 +776,7 @@ SIDimensionCreate(
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
+
     dim->origin = SIScalarCreateCopy(origin);
     if (!dim->origin) {
         fprintf(stderr, "SIDimensionCreate: failed to copy origin\n");
@@ -775,6 +784,7 @@ SIDimensionCreate(
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
+
     if (period) {
         dim->period = SIScalarCreateCopy(period);
         if (!dim->period) {
@@ -784,13 +794,16 @@ SIDimensionCreate(
             return NULL;
         }
     }
-    // release our temporary zero-origin if we made one
+
+    // 10) Clean up temp zero‐origin
     if (originWasDefaulted) {
         OCRelease(tmpZero);
     }
-    // 10) flags
+
+    // 11) Flags
     dim->periodic = periodic;
-    dim->scaling = scaling;
+    dim->scaling  = scaling;
+
     return dim;
 }
 OCStringRef SIDimensionGetQuantity(SIDimensionRef dim) {
@@ -1204,8 +1217,9 @@ static void *impl_SIMonotonicDimensionDeepCopy(const void *obj) {
     OCRelease(dict);
     return copy;
 }
+// internal, doesn’t touch any fields
 static SIMonotonicDimensionRef SIMonotonicDimensionAllocate(void) {
-    SIMonotonicDimensionRef obj = OCTypeAlloc(
+    return OCTypeAlloc(
         struct impl_SIMonotonicDimension,
         SIMonotonicDimensionGetTypeID(),
         impl_SIMonotonicDimensionFinalize,
@@ -1213,19 +1227,6 @@ static SIMonotonicDimensionRef SIMonotonicDimensionAllocate(void) {
         impl_SIMonotonicDimensionCopyFormattingDesc,
         impl_SIMonotonicDimensionDeepCopy,
         impl_SIMonotonicDimensionDeepCopy);
-    if (!obj) return NULL;
-    // Initialize the Dimension base fields
-    impl_InitBaseDimensionFields((DimensionRef)&obj->_super._super);
-    // Initialize the SI‐dimension fields
-    impl_InitSIDimensionFields((SIDimensionRef)&obj->_super);
-    // Set up our subclass fields
-    obj->coordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    if (!obj->coordinates) {
-        OCRelease(obj);
-        return NULL;
-    }
-    obj->reciprocal = NULL;
-    return obj;
 }
 static bool _SIDimensionIsReciprocalOf(SIDimensionRef src, SIDimensionRef rec) {
     if (!src || !rec) return false;
@@ -1254,6 +1255,7 @@ static bool _SIDimensionIsReciprocalOf(SIDimensionRef src, SIDimensionRef rec) {
     OCRelease(invDim);
     return match;
 }
+
 SIMonotonicDimensionRef
 SIMonotonicDimensionCreate(
     OCStringRef      label,
@@ -1275,11 +1277,21 @@ SIMonotonicDimensionCreate(
         return NULL;
     }
 
-    // 2) Allocate subclass and zero-init
+    // 2) Allocate just the raw shell
     SIMonotonicDimensionRef dim = SIMonotonicDimensionAllocate();
     if (!dim) return NULL;
 
-    // 2.5) Validate quantityName + offset (lifted from SIDimensionCreate)
+    // 3) Initialize all of our defaults exactly once
+    impl_InitBaseDimensionFields   ((DimensionRef)&dim->_super._super);
+    impl_InitSIDimensionFields     ((SIDimensionRef)&dim->_super);
+    dim->coordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    dim->reciprocal  = NULL;
+    if (!dim->coordinates) {
+        OCRelease(dim);
+        return NULL;
+    }
+
+    // 4) Validate quantityName + offset (same as SIDimensionCreate)
     if (!quantityName) {
         fprintf(stderr,
                 "SIMonotonicDimensionCreate: quantityName must be non-NULL\n");
@@ -1316,7 +1328,7 @@ SIMonotonicDimensionCreate(
         OCRelease(err);
     }
 
-    // 3) Provide a default zero-origin if none was passed in
+    // 5) Default origin → zero scalar if none provided
     SIScalarRef originArg   = origin;
     SIScalarRef tmpZero     = NULL;
     bool        originIsTmp = false;
@@ -1333,30 +1345,30 @@ SIMonotonicDimensionCreate(
         originIsTmp = true;
     }
 
-    // 4) Initialize embedded SI fields via our helper
+    // 6) Bulk‐initialize the SI‐fields + base label/desc/metadata in one helper
     if (!impl_InitSIDimensionFieldsFromArgs(
             (SIDimensionRef)dim,
             label, description, metadata,
             quantityName, offset, originArg,
             period, periodic, scaling))
     {
-        OCRelease(dim);
         if (originIsTmp) OCRelease(tmpZero);
+        OCRelease(dim);
         return NULL;
     }
     if (originIsTmp) {
         OCRelease(tmpZero);
     }
 
-    // 5) Monotonic-specific: clone the coordinates array
-    OCRelease(dim->coordinates);  // drop the empty array from allocate
+    // 7) Now replace our empty coordinates with a copy of the user’s
+    OCRelease(dim->coordinates);
     dim->coordinates = OCArrayCreateMutableCopy(coordinates);
     if (!dim->coordinates) {
         OCRelease(dim);
         return NULL;
     }
 
-    // 6) Reciprocal-dimensionality check (optional)
+    // 8) Optional reciprocal‐dimension check + retain
     if (reciprocal) {
         OCStringRef verr = NULL;
         if (!SIDimensionValidate(reciprocal, &verr)) {
@@ -1559,8 +1571,9 @@ static void *impl_SILinearDimensionDeepCopy(const void *obj) {
     OCRelease(dict);
     return copy;
 }
+
 static SILinearDimensionRef SILinearDimensionAllocate(void) {
-    SILinearDimensionRef obj = OCTypeAlloc(
+    return (SILinearDimensionRef)OCTypeAlloc(
         struct impl_SILinearDimension,
         SILinearDimensionGetTypeID(),
         impl_SILinearDimensionFinalize,
@@ -1568,15 +1581,8 @@ static SILinearDimensionRef SILinearDimensionAllocate(void) {
         impl_SILinearDimensionCopyFormattingDesc,
         impl_SILinearDimensionDeepCopy,
         impl_SILinearDimensionDeepCopy);
-    impl_InitBaseDimensionFields((DimensionRef)&obj->_super._super);
-    impl_InitSIDimensionFields((SIDimensionRef)&obj->_super);
-    obj->count = 0;
-    obj->increment = NULL;
-    obj->reciprocalIncrement = NULL;
-    obj->fft = false;
-    obj->reciprocal = NULL;
-    return obj;
 }
+
 SILinearDimensionRef
 SILinearDimensionCreate(
     OCStringRef       label,
@@ -1600,7 +1606,7 @@ SILinearDimensionCreate(
         return NULL;
     }
 
-    // 2) Validate quantityName + offset (lifted from SIDimensionCreate)
+    // 2) Validate quantityName + offset
     if (!quantityName) {
         fprintf(stderr,
                 "SILinearDimensionCreate: quantityName must be non-NULL\n");
@@ -1633,11 +1639,23 @@ SILinearDimensionCreate(
         OCRelease(err);
     }
 
-    // 3) Allocate + zero‐init
+    // 3) Allocate
     SILinearDimensionRef dim = SILinearDimensionAllocate();
-    if (!dim) return NULL;
+    if (!dim) {
+        fprintf(stderr, "SILinearDimensionCreate: allocation failed\n");
+        return NULL;
+    }
 
-    // 4) supply a default origin if none provided
+    // 4) Initialize base & SI fields and subclass defaults
+    impl_InitBaseDimensionFields     ((DimensionRef)&dim->_super._super);
+    impl_InitSIDimensionFields       ((SIDimensionRef)&dim->_super);
+    dim->count               = 0;
+    dim->increment           = NULL;
+    dim->reciprocalIncrement = NULL;
+    dim->fft                 = false;
+    dim->reciprocal          = NULL;
+
+    // 5) Supply a default zero-origin if none provided
     SIScalarRef originArg   = origin;
     SIScalarRef tmpZero     = NULL;
     bool        originIsTmp = false;
@@ -1654,7 +1672,7 @@ SILinearDimensionCreate(
         originIsTmp = true;
     }
 
-    // 5) Initialize all the shared SI fields in one go
+    // 6) Initialize all the shared SI fields in one go
     if (!impl_InitSIDimensionFieldsFromArgs(
             (SIDimensionRef)dim,
             label, description, metadata,
@@ -1667,7 +1685,7 @@ SILinearDimensionCreate(
     }
     if (originIsTmp) OCRelease(tmpZero);
 
-    // 6) Linear‐specific: set count + increment
+    // 7) Linear‐specific: set count + copy increment
     dim->count = count;
     dim->increment = SIScalarCreateCopy(increment);
     if (!dim->increment) {
@@ -1675,19 +1693,18 @@ SILinearDimensionCreate(
         return NULL;
     }
 
-    // 7) Compute reciprocalIncrement = (count·increment)⁻¹
+    // 8) Compute reciprocalIncrement = (count·increment)⁻¹
     {
         SIMutableScalarRef recInc = SIScalarCreateMutableCopy(increment);
         if (!recInc) {
             OCRelease(dim);
             return NULL;
         }
-        // ensure recInc is in same unit as offset:
         SIScalarConvertToUnit(recInc,
                               SIQuantityGetUnit((SIQuantityRef)offset),
                               NULL);
         if (!SIScalarMultiplyByDimensionlessRealConstant(recInc, (double)count) ||
-        !SIScalarRaiseToAPowerWithoutReducingUnit(recInc, -1.0, NULL))
+            !SIScalarRaiseToAPowerWithoutReducingUnit(recInc, -1.0, NULL))
         {
             OCRelease(recInc);
             OCRelease(dim);
@@ -1697,7 +1714,7 @@ SILinearDimensionCreate(
         dim->reciprocalIncrement = recInc;
     }
 
-    // 8) FFT flag + optional reciprocal
+    // 9) FFT flag + optional reciprocal dimension
     dim->fft = fft;
     if (reciprocal) {
         OCStringRef verr = NULL;
