@@ -1913,3 +1913,23 @@ bool SILinearDimensionSetReciprocal(SILinearDimensionRef dim, SIDimensionRef rec
 
 #pragma endregion SILinearDimension
 
+
+
+OCIndex DimensionGetCount(DimensionRef dim) {
+    if (!dim) return 0;
+    OCTypeID tid = OCGetTypeID(dim);
+    if (tid == SILinearDimensionGetTypeID()) {
+        return SILinearDimensionGetCount((SILinearDimensionRef)dim);
+    }
+    else if (tid == SIMonotonicDimensionGetTypeID()) {
+        OCArrayRef coords = SIMonotonicDimensionGetCoordinates((SIMonotonicDimensionRef)dim);
+        return coords ? OCArrayGetCount(coords) : 0;
+    }
+    else if (tid == LabeledDimensionGetTypeID()) {
+        OCArrayRef labels = LabeledDimensionGetCoordinateLabels((LabeledDimensionRef)dim);
+        return labels ? OCArrayGetCount(labels) : 0;
+    }
+    // abstract base and any other subclasses default to a single point
+    return 1;
+}
+

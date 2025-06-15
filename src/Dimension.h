@@ -174,6 +174,8 @@ OCDictionaryRef         SILinearDimensionCopyAsDictionary(SILinearDimensionRef d
 SILinearDimensionRef    SILinearDimensionCreateFromDictionary(OCDictionaryRef dict);
 
 
+OCIndex DimensionGetCount(DimensionRef dim);
+
 #ifdef __cplusplus
 }
 #endif
