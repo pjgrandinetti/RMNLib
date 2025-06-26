@@ -30,8 +30,8 @@ bool test_Datum_NULL_cases(void) {
     if (DatumCopy(NULL) != NULL)                   { ok = false; goto cleanup; }
     if (DatumHasSameReducedDimensionalities(NULL, NULL)) { ok = false; goto cleanup; }
     if (DatumCreateResponse(NULL) != NULL)         { ok = false; goto cleanup; }
-    if (DatumCreateDictionary(NULL) != NULL)       { ok = false; goto cleanup; }
-    if (DatumCreateWithDictionary(NULL, NULL) != NULL) { ok = false; goto cleanup; }
+    if (DatumCopyAsDictionary(NULL) != NULL)       { ok = false; goto cleanup; }
+    if (DatumCreateFromDictionary(NULL, NULL) != NULL) { ok = false; goto cleanup; }
 
 cleanup:
     fflush(stderr);
@@ -89,9 +89,9 @@ bool test_Datum_functional(void) {
     if (!DatumHasSameReducedDimensionalities(datum, copy)) { ok = false; goto cleanup; }
 
     // Dictionary round-trip
-    dict = DatumCreateDictionary(datum);
+    dict = DatumCopyAsDictionary(datum);
     if (!dict)                      { ok = false; goto cleanup; }
-    fromDict = DatumCreateWithDictionary(dict, &error);
+    fromDict = DatumCreateFromDictionary(dict, &error);
     if (!fromDict)                  { ok = false; goto cleanup; }
     if (error)                      { ok = false; goto cleanup; }
 

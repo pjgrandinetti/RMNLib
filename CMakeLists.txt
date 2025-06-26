@@ -33,7 +33,6 @@ target_include_directories(RMNLib_runTests PRIVATE
 )
 target_link_libraries(RMNLib_runTests PRIVATE
     RMNLib
-    OCTypes
     SITypes
     m
 )

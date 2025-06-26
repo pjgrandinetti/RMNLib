@@ -140,7 +140,7 @@ OCIndex DatumCoordinatesCount(DatumRef theDatum);
  * @return An OCDictionaryRef containing key-value pairs.
  * @ingroup Datum
  */
-OCDictionaryRef DatumCreateDictionary(DatumRef theDatum);
+OCDictionaryRef DatumCopyAsDictionary(DatumRef theDatum);
 
 /**
  * @brief Create a new Datum from a dictionary.
@@ -149,7 +149,7 @@ OCDictionaryRef DatumCreateDictionary(DatumRef theDatum);
  * @return A new DatumRef or NULL on error.
  * @ingroup Datum
  */
-DatumRef DatumCreateWithDictionary(OCDictionaryRef dictionary, OCStringRef *error);
+DatumRef DatumCreateFromDictionary(OCDictionaryRef dictionary, OCStringRef *error);
 
 /** @} */  // end of Datum group
 

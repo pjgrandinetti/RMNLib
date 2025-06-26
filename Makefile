@@ -229,7 +229,7 @@ clean:
 
 # Determine repository root and Xcode build dir
 ROOT_DIR := $(shell cd $(dir $(firstword $(MAKEFILE_LIST))).. && pwd)
-XCODE_BUILD := $(CURDIR)/build
+XCODE_BUILD := $(CURDIR)/build-xcode
 
 #────────────────────────────────────────────────────────────────────────────
 # Xcode support
@@ -237,10 +237,11 @@ XCODE_BUILD := $(CURDIR)/build
 .PHONY: xcode xcode-open xcode-run
 # Combined Xcode workspace for OCTypes, SITypes, and RMNLib
 xcode: clean dirs
-	@echo "Generating combined OCTypes+SITypes+RMNLib Xcode project in $(XCODE_BUILD)/..."
+	@echo "Generating combined Xcode workspace for OCTypes, SITypes & RMNLib in $(XCODE_BUILD)"
 	@mkdir -p $(XCODE_BUILD)
+	# Invoke CMake at the repository root so all subprojects are included
 	@cmake -G "Xcode" -S $(ROOT_DIR) -B $(XCODE_BUILD)
-	@echo "✅ Combined Xcode project created: $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj"
+	@echo "✅ Xcode workspace created: $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj"
 
 xcode-open: xcode
 	@echo "Opening Xcode project..."

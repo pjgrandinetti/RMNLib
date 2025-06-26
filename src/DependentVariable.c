@@ -74,6 +74,90 @@ static OCStringRef impl_DependentVariableCopyFormattingDesc(OCTypeRef cf) {
         dv->name,
         (unsigned long)OCArrayGetCount(dv->components));
 }
+cJSON *impl_DependentVariableCreateJSON(const void *obj) {
+    const struct impl_DependentVariable *var = (const struct impl_DependentVariable *)obj;
+    if (!var) return cJSON_CreateNull();
+
+    cJSON *json = cJSON_CreateObject();
+    if (!json) return NULL;
+
+    // unit (SIUnitRef)
+    if (var->unit) {
+        cJSON *unit_json = OCTypeCopyJSON((OCTypeRef)var->unit);
+        if (unit_json)
+            cJSON_AddItemToObject(json, "unit", unit_json);
+    }
+
+    // type (SINumberType as integer)
+    cJSON_AddNumberToObject(json, "type", (int)var->type);
+
+    // name (OCStringRef)
+    if (var->name) {
+        cJSON *name_json = OCTypeCopyJSON((OCTypeRef)var->name);
+        if (name_json)
+            cJSON_AddItemToObject(json, "name", name_json);
+    }
+
+    // description (OCStringRef)
+    if (var->description) {
+        cJSON *desc_json = OCTypeCopyJSON((OCTypeRef)var->description);
+        if (desc_json)
+            cJSON_AddItemToObject(json, "description", desc_json);
+    }
+
+    // metaData (OCMutableDictionaryRef)
+    if (var->metaData) {
+        cJSON *meta_json = OCTypeCopyJSON((OCTypeRef)var->metaData);
+        if (meta_json)
+            cJSON_AddItemToObject(json, "metaData", meta_json);
+    }
+
+    // quantityName (OCStringRef)
+    if (var->quantityName) {
+        cJSON *qname_json = OCTypeCopyJSON((OCTypeRef)var->quantityName);
+        if (qname_json)
+            cJSON_AddItemToObject(json, "quantityName", qname_json);
+    }
+
+    // quantityType (OCStringRef)
+    if (var->quantityType) {
+        cJSON *qtype_json = OCTypeCopyJSON((OCTypeRef)var->quantityType);
+        if (qtype_json)
+            cJSON_AddItemToObject(json, "quantityType", qtype_json);
+    }
+
+    // components (OCMutableArrayRef)
+    if (var->components) {
+        cJSON *comps_json = OCTypeCopyJSON((OCTypeRef)var->components);
+        if (comps_json)
+            cJSON_AddItemToObject(json, "components", comps_json);
+    }
+
+    // componentLabels (OCMutableArrayRef)
+    if (var->componentLabels) {
+        cJSON *clabels_json = OCTypeCopyJSON((OCTypeRef)var->componentLabels);
+        if (clabels_json)
+            cJSON_AddItemToObject(json, "componentLabels", clabels_json);
+    }
+
+    // sparseDimensionIndexes (OCIndexSetRef)
+    if (var->sparseDimensionIndexes) {
+        cJSON *idxs_json = OCTypeCopyJSON((OCTypeRef)var->sparseDimensionIndexes);
+        if (idxs_json)
+            cJSON_AddItemToObject(json, "sparseDimensionIndexes", idxs_json);
+    }
+
+    // sparseGridVertexes (OCStringRef)
+    if (var->sparseGridVertexes) {
+        cJSON *sgv_json = OCTypeCopyJSON((OCTypeRef)var->sparseGridVertexes);
+        if (sgv_json)
+            cJSON_AddItemToObject(json, "sparseGridVertexes", sgv_json);
+    }
+
+    // owner: skip (weak reference, not serialized)
+
+    return json;
+}
 // Deep-copy (immutable) via dictionary round-trip
 static void *
 impl_DependentVariableDeepCopy(const void *ptr) {
@@ -95,6 +179,7 @@ static struct impl_DependentVariable *DependentVariableAllocate(void) {
         impl_DependentVariableFinalize,
         impl_DependentVariableEqual,
         impl_DependentVariableCopyFormattingDesc,
+        impl_DependentVariableCreateJSON,
         impl_DependentVariableDeepCopy,
         impl_DependentVariableDeepCopy
     );
@@ -556,6 +641,8 @@ DependentVariableCopyAsDictionary(DependentVariableRef dv)
 
     return (OCDictionaryRef)dict;
 }
+
+
 bool DependentVariableIsScalarType(DependentVariableRef dv) {
     if (!dv || !dv->quantityType) return false;
     const char *qt = OCStringGetCString(dv->quantityType);
@@ -826,7 +913,7 @@ bool DependentVariableSetSize(DependentVariableRef dv, OCIndex newSize) {
         // install it
         OCArraySetValueAtIndex(dv->components, i, newBuf);
         // zero out the newly-appended region
-        uint8_t *bytes = (uint8_t *) OCDataGetMutableBytesPtr(newBuf);
+        uint8_t *bytes = (uint8_t *) OCDataGetMutableBytes(newBuf);
         size_t offset = (size_t)oldSize * elemSize;
         size_t count = (size_t)(newSize - oldSize) * elemSize;
         memset(bytes + offset, 0, count);
@@ -1169,7 +1256,7 @@ bool DependentVariableSetElementType(DependentVariableRef dv,
     size_t newBytes = nElems * OCNumberTypeSize((OCNumberType) newType);
     for (OCIndex ci = 0; ci < nComps; ci++) {
         OCMutableDataRef oldData = (OCMutableDataRef) OCArrayGetValueAtIndex(comps, ci);
-        uint8_t *oldPtr = OCDataGetMutableBytesPtr(oldData);
+        uint8_t *oldPtr = OCDataGetMutableBytes(oldData);
         OCMutableDataRef newData = OCDataCreateMutable(0);
         void *tmpBuf = malloc(newBytes);
         // copy/convert element-by-element:
@@ -1630,7 +1717,7 @@ bool DependentVariableSetValueAtMemOffset(DependentVariableRef dv,
     if (memOffset < 0) memOffset += size;
     // grab a mutable pointer into the data
     OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
-    void *bytes = OCDataGetMutableBytesPtr(data);
+    void *bytes = OCDataGetMutableBytes(data);
     switch (dv->type) {
         case kSINumberFloat32Type: {
             float v = SIScalarFloatValueInUnit(value, dv->unit, NULL);

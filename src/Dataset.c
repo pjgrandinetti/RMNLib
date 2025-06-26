@@ -74,6 +74,88 @@ static OCStringRef impl_DatasetCopyFormattingDesc(OCTypeRef cf) {
         (unsigned long)OCArrayGetCount(ds->tags),
         ds->title);
 }
+cJSON *impl_DatasetCreateJSON(const void *obj) {
+    const DatasetRef ds = (const DatasetRef)obj;
+    if (!ds) return cJSON_CreateNull();
+
+    cJSON *json = cJSON_CreateObject();
+    if (!json) return NULL;
+
+    // dimensions (OCMutableArrayRef)
+    if (ds->dimensions) {
+        cJSON *dims_json = OCTypeCopyJSON((OCTypeRef)ds->dimensions);
+        if (dims_json)
+            cJSON_AddItemToObject(json, "dimensions", dims_json);
+    }
+
+    // dependentVariables (OCMutableArrayRef)
+    if (ds->dependentVariables) {
+        cJSON *depvars_json = OCTypeCopyJSON((OCTypeRef)ds->dependentVariables);
+        if (depvars_json)
+            cJSON_AddItemToObject(json, "dependentVariables", depvars_json);
+    }
+
+    // tags (OCMutableArrayRef)
+    if (ds->tags) {
+        cJSON *tags_json = OCTypeCopyJSON((OCTypeRef)ds->tags);
+        if (tags_json)
+            cJSON_AddItemToObject(json, "tags", tags_json);
+    }
+
+    // description (OCStringRef)
+    if (ds->description) {
+        cJSON *desc_json = OCTypeCopyJSON((OCTypeRef)ds->description);
+        if (desc_json)
+            cJSON_AddItemToObject(json, "description", desc_json);
+    }
+
+    // title (OCStringRef)
+    if (ds->title) {
+        cJSON *title_json = OCTypeCopyJSON((OCTypeRef)ds->title);
+        if (title_json)
+            cJSON_AddItemToObject(json, "title", title_json);
+    }
+
+    // focus (DatumRef)
+    if (ds->focus) {
+        cJSON *focus_json = OCTypeCopyJSON((OCTypeRef)ds->focus);
+        if (focus_json)
+            cJSON_AddItemToObject(json, "focus", focus_json);
+    }
+
+    // previousFocus (DatumRef)
+    if (ds->previousFocus) {
+        cJSON *prevfocus_json = OCTypeCopyJSON((OCTypeRef)ds->previousFocus);
+        if (prevfocus_json)
+            cJSON_AddItemToObject(json, "previousFocus", prevfocus_json);
+    }
+
+    // dimensionPrecedence (OCMutableIndexArrayRef)
+    if (ds->dimensionPrecedence) {
+        cJSON *dp_json = OCTypeCopyJSON((OCTypeRef)ds->dimensionPrecedence);
+        if (dp_json)
+            cJSON_AddItemToObject(json, "dimensionPrecedence", dp_json);
+    }
+
+    // metaData (OCDictionaryRef)
+    if (ds->metaData) {
+        cJSON *meta_json = OCTypeCopyJSON((OCTypeRef)ds->metaData);
+        if (meta_json)
+            cJSON_AddItemToObject(json, "metaData", meta_json);
+    }
+
+    // operations (OCMutableDictionaryRef)
+    if (ds->operations) {
+        cJSON *ops_json = OCTypeCopyJSON((OCTypeRef)ds->operations);
+        if (ops_json)
+            cJSON_AddItemToObject(json, "operations", ops_json);
+    }
+
+    // base64 (bool)
+    cJSON_AddBoolToObject(json, "base64", ds->base64);
+
+    return json;
+}
 static void *impl_DatasetDeepCopy(const void *ptr) {
     if (!ptr) return NULL;
     DatasetRef src = (DatasetRef)ptr;
@@ -92,6 +174,7 @@ static struct impl_Dataset *DatasetAllocate(void) {
         impl_DatasetFinalize,
         impl_DatasetEqual,
         impl_DatasetCopyFormattingDesc,
+        impl_DatasetCreateJSON,
         impl_DatasetDeepCopy,
         impl_DatasetDeepCopy);
 }

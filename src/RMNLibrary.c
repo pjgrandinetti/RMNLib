@@ -8,7 +8,7 @@ void RMNLibTypesShutdown(void) {
 }
 
 // If you want automatic teardown when the library is unloaded:
-__attribute__((destructor(100)))
-static void __RMNLibCleanup(void) {
-    RMNLibTypesShutdown();
-}
+// __attribute__((destructor(100)))
+// static void __RMNLibCleanup(void) {
+//     RMNLibTypesShutdown();
+// }

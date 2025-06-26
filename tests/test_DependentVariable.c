@@ -97,7 +97,7 @@ bool test_DependentVariable_components(void) {
     dv = DependentVariableCreate(
         STR("v"),
         STR("vec"),
-        SIUnitForUnderivedSymbol(STR("m/s")),
+        SIUnitFindWithUnderivedSymbol(STR("m/s")),
         kSIQuantityVelocity,
         STR("vector_1"),
         kSINumberFloat32Type,
