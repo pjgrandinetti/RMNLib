@@ -89,8 +89,8 @@ SIDimensionRef  SIDimensionCreate(OCStringRef label,
                                   SIScalarRef period,
                                   bool periodic,
                                   dimensionScaling scaling);
-OCStringRef     SIDimensionGetQuantity(SIDimensionRef dim);
-bool            SIDimensionSetQuantity(SIDimensionRef dim,
+OCStringRef     SIDimensionGetQuantityName(SIDimensionRef dim);
+bool            SIDimensionSetQuantityName(SIDimensionRef dim,
                                        OCStringRef name);
 SIScalarRef     SIDimensionGetOffset(SIDimensionRef dim);
 bool            SIDimensionSetOffset(SIDimensionRef dim,
@@ -175,6 +175,7 @@ SILinearDimensionRef    SILinearDimensionCreateFromDictionary(OCDictionaryRef di
 
 
 OCIndex DimensionGetCount(DimensionRef dim);
+OCStringRef CreateLongDimensionLabel(DimensionRef dim, OCIndex index);
 
 #ifdef __cplusplus
 }
