@@ -1,7 +1,6 @@
 /* DependentVariable OCType implementation */
 #include "DependentVariable.h"
-#define DependentVariableComponentsFileName STR("dependent_variable-%ld.data")
-#pragma mark - Type Registration
+#pragma region Type Registration
 static OCTypeID kDependentVariableID = kOCNotATypeID;
 struct impl_DependentVariable {
     OCBase base;
@@ -30,8 +29,6 @@ OCTypeID DependentVariableGetTypeID(void) {
         kDependentVariableID = OCRegisterType("DependentVariable");
     return kDependentVariableID;
 }
-#pragma mark - Lifecycle
-// Finalizer: release all *owned* references (but not the weak owner)
 static void impl_DependentVariableFinalize(const void *ptr) {
     if (!ptr) return;
     struct impl_DependentVariable *dv = (struct impl_DependentVariable *)ptr;
@@ -52,7 +49,6 @@ static void impl_DependentVariableFinalize(const void *ptr) {
     OCRelease(dv->componentsURL);
     // NOTE: dv->owner is a weak back-pointer—do NOT OCRetain or OCRelease it
 }
-// Equality: compare all significant (owned) fields, but not the weak owner pointer
 static bool impl_DependentVariableEqual(const void *a, const void *b) {
     const struct impl_DependentVariable *dvA = a;
     const struct impl_DependentVariable *dvB = b;
@@ -77,7 +73,6 @@ static bool impl_DependentVariableEqual(const void *a, const void *b) {
     // 3) do NOT compare dvA->owner (weak pointer)
     return true;
 }
-// Formatting: produce a human-readable description
 static OCStringRef impl_DependentVariableCopyFormattingDesc(OCTypeRef cf) {
     const struct impl_DependentVariable *dv = (struct impl_DependentVariable *)cf;
     return OCStringCreateWithFormat(
@@ -100,7 +95,6 @@ cJSON *impl_DependentVariableCreateJSON(const void *obj) {
     OCRelease(dict);
     return json;
 }
-// Deep-copy (immutable) via dictionary round-trip
 static void *impl_DependentVariableDeepCopy(const void *ptr) {
     if (!ptr) return NULL;
     // 1) Serialize the original into a dictionary
@@ -112,7 +106,6 @@ static void *impl_DependentVariableDeepCopy(const void *ptr) {
     OCRelease(dict);
     return copy;
 }
-// Allocate only — do *not* initialize any fields here
 static struct impl_DependentVariable *DependentVariableAllocate(void) {
     return OCTypeAlloc(
         struct impl_DependentVariable,
@@ -124,7 +117,6 @@ static struct impl_DependentVariable *DependentVariableAllocate(void) {
         impl_DependentVariableDeepCopy,
         impl_DependentVariableDeepCopy);
 }
-// internal helper
 static void impl_InitDependentVariableFields(DependentVariableRef dv) {
     dv->unit = SIUnitDimensionlessAndUnderived();
     dv->numericType = kSINumberFloat64Type;
@@ -142,13 +134,7 @@ static void impl_InitDependentVariableFields(DependentVariableRef dv) {
     dv->componentsURL = NULL;  // start out empty
     dv->owner = NULL;
 }
-static bool validateDependentVariableParameters(
-    OCStringRef type,
-    SIUnitRef unit,
-    OCStringRef quantityName,
-    OCStringRef quantityType,
-    OCArrayRef componentLabels,
-    OCIndex componentsCount) {
+static bool validateDependentVariableParameters(OCStringRef type, SIUnitRef unit, OCStringRef quantityName, OCStringRef quantityType, OCArrayRef componentLabels, OCIndex componentsCount) {
     // — 0) type must be either "internal" or "external" —
     if (!type ||
         (!OCStringEqual(type, STR("internal")) &&
@@ -216,6 +202,8 @@ static bool validateDependentVariableParameters(
     }
     return true;
 }
+#pragma endregion Type Registration
+#pragma region Creators
 static DependentVariableRef impl_DependentVariableCreate(
     OCStringRef type,            // "internal" or "external"
     OCStringRef name,            // optional name
@@ -260,9 +248,8 @@ static DependentVariableRef impl_DependentVariableCreate(
         if (componentsCount == kOCNotFound) {
             if (outError) {
                 // assuming OCStringCreateWithFormat exists to embed the bad quantityType
-                *outError = OCStringCreateWithFormat(
-                    "cannot determine components count for quantityType \"%@\"",
-                    quantityType);
+                *outError = OCStringCreateWithFormat(STR("cannot determine components count for quantityType %@"),
+                                                      quantityType);
             }
             return NULL;
         }
@@ -358,18 +345,7 @@ static DependentVariableRef impl_DependentVariableCreate(
     }
     return (DependentVariableRef)dv;
 }
-// ————————————————————————————————————————————————————————————————————————
-// now the public APIs
-DependentVariableRef DependentVariableCreate(
-    OCStringRef name,
-    OCStringRef description,
-    SIUnitRef unit,
-    OCStringRef quantityName,
-    OCStringRef quantityType,
-    SINumberType elementType,
-    OCArrayRef componentLabels,
-    OCArrayRef components,
-    OCStringRef *outError) {
+DependentVariableRef DependentVariableCreate(OCStringRef name, OCStringRef description, SIUnitRef unit, OCStringRef quantityName, OCStringRef quantityType, SINumberType elementType, OCArrayRef componentLabels, OCArrayRef components, OCStringRef *outError) {
     return impl_DependentVariableCreate(
         /* type            = */ STR("internal"),
         /* name            = */ name,
@@ -384,16 +360,7 @@ DependentVariableRef DependentVariableCreate(
         /* explicitSize    = */ (OCIndex)-1,
         /* outError        = */ outError);
 }
-DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
-    OCStringRef name,
-    OCStringRef description,
-    SIUnitRef unit,
-    OCStringRef quantityName,
-    OCStringRef quantityType,
-    SINumberType elementType,
-    OCArrayRef componentLabels,
-    OCArrayRef components,
-    OCStringRef *outError) {
+DependentVariableRef DependentVariableCreateWithComponentsNoCopy(OCStringRef name, OCStringRef description, SIUnitRef unit, OCStringRef quantityName, OCStringRef quantityType, SINumberType elementType, OCArrayRef componentLabels, OCArrayRef components, OCStringRef *outError) {
     return impl_DependentVariableCreate(
         /* type            = */ STR("internal"),
         /* name            = */ name,
@@ -408,16 +375,7 @@ DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
         /* explicitSize    = */ (OCIndex)-1,
         /* outError        = */ outError);
 }
-DependentVariableRef DependentVariableCreateWithSize(
-    OCStringRef name,
-    OCStringRef description,
-    SIUnitRef unit,
-    OCStringRef quantityName,
-    OCStringRef quantityType,
-    SINumberType elementType,
-    OCArrayRef componentLabels,
-    OCIndex size,
-    OCStringRef *outError) {
+DependentVariableRef DependentVariableCreateWithSize(OCStringRef name, OCStringRef description, SIUnitRef unit, OCStringRef quantityName, OCStringRef quantityType, SINumberType elementType, OCArrayRef componentLabels, OCIndex size, OCStringRef *outError) {
     return impl_DependentVariableCreate(
         /* type            = */ STR("internal"),
         /* name            = */ name,
@@ -432,11 +390,7 @@ DependentVariableRef DependentVariableCreateWithSize(
         /* explicitSize    = */ size,
         /* outError        = */ outError);
 }
-DependentVariableRef DependentVariableCreateDefault(
-    OCStringRef quantityType,
-    SINumberType elementType,
-    OCIndex size,
-    OCStringRef *outError) {
+DependentVariableRef DependentVariableCreateDefault(OCStringRef quantityType, SINumberType elementType, OCIndex size, OCStringRef *outError) {
     return impl_DependentVariableCreate(
         /* type            = */ STR("internal"),
         /* name            = */ NULL,
@@ -451,15 +405,7 @@ DependentVariableRef DependentVariableCreateDefault(
         /* explicitSize    = */ size,
         /* outError        = */ outError);
 }
-DependentVariableRef DependentVariableCreateWithComponent(
-    OCStringRef name,
-    OCStringRef description,
-    SIUnitRef unit,
-    OCStringRef quantityName,
-    SINumberType elementType,
-    OCArrayRef componentLabels,
-    OCDataRef component,
-    OCStringRef *outError) {
+DependentVariableRef DependentVariableCreateWithComponent(OCStringRef name, OCStringRef description, SIUnitRef unit, OCStringRef quantityName, SINumberType elementType, OCArrayRef componentLabels, OCDataRef component, OCStringRef *outError) {
     OCMutableArrayRef arr = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(arr, component);
     DependentVariableRef dv = impl_DependentVariableCreate(
@@ -489,8 +435,7 @@ DependentVariableRef DependentVariableCreateCopy(DependentVariableRef src) {
     OCRelease(dict);
     return copy;
 }
-DependentVariableRef DependentVariableCreateComplexCopy(DependentVariableRef src,
-                                                        OCTypeRef owner) {
+DependentVariableRef DependentVariableCreateComplexCopy(DependentVariableRef src, OCTypeRef owner) {
     DependentVariableRef dv = DependentVariableCreateCopy(src);
     if (dv && !SIQuantityIsComplexType((SIQuantityRef)dv)) {
         SINumberType newType = (dv->numericType == kSINumberFloat32Type
@@ -651,9 +596,7 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
     }
     return (OCDictionaryRef)dict;
 }
-DependentVariableRef DependentVariableCreateFromDictionary(
-    OCDictionaryRef dict,
-    OCStringRef *outError) {
+DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!dict) {
         if (outError) *outError = STR("input dictionary is NULL");
@@ -938,10 +881,7 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
     OCRelease(dict);
     return dv;
 }
-DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv,
-                                                         OCArrayRef dimensions,
-                                                         OCIndexPairSetRef indexPairs,
-                                                         OCStringRef *outError) {
+DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv, OCArrayRef dimensions, OCIndexPairSetRef indexPairs, OCStringRef *outError) {
     // 0) bail if caller already has an error
     if (outError && *outError) return NULL;
     if (!dv) return NULL;
@@ -1049,9 +989,7 @@ DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv
     OCRelease(fixedDims);
     return outDV;
 }
-bool DependentVariableAppend(DependentVariableRef dv,
-                             DependentVariableRef appendedDV,
-                             OCStringRef *outError) {
+bool DependentVariableAppend(DependentVariableRef dv, DependentVariableRef appendedDV, OCStringRef *outError) {
     // 0) if caller already has an error, bail
     if (outError && *outError) return false;
     // 1) sanity
@@ -1096,8 +1034,7 @@ bool DependentVariableAppend(DependentVariableRef dv,
     }
     return true;
 }
-OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableRef dv,
-                                                              OCArrayRef dimensions) {
+OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableRef dv, OCArrayRef dimensions) {
     if (!dv || !dimensions) return NULL;
     OCIndexSetRef idxs = DependentVariableGetSparseDimensionIndexes(dv);
     OCArrayRef verts = DependentVariableGetSparseGridVertexes(dv);
@@ -1173,7 +1110,8 @@ OCDataRef DependentVariableCreateCSDMComponentsData(DependentVariableRef dv, OCA
     }
     return (OCDataRef)components;
 }
-#pragma mark - Getters & Setters
+#pragma endregion Creators
+#pragma region Tests, Getters & Setters
 bool DependentVariableIsScalarType(DependentVariableRef dv) {
     if (!dv || !dv->quantityType) return false;
     const char *qt = OCStringGetCString(dv->quantityType);
@@ -1274,23 +1212,17 @@ OCIndex DependentVariableComponentsCountFromQuantityType(OCStringRef quantityTyp
     }
     return (OCIndex)kOCNotFound;
 }
-// — Get number of components —
-OCIndex
-DependentVariableGetComponentCount(DependentVariableRef dv) {
+OCIndex DependentVariableGetComponentCount(DependentVariableRef dv) {
     if (!dv) return 0;
     return OCArrayGetCount(dv->components);
 }
-// — Access the mutable components array directly —
-OCMutableArrayRef
-DependentVariableGetComponents(DependentVariableRef dv) {
+OCMutableArrayRef DependentVariableGetComponents(DependentVariableRef dv) {
     return dv ? dv->components : NULL;
 }
 bool DependentVariableSetComponents(DependentVariableRef dv, OCArrayRef newComponents) {
     if (!dv || !newComponents) return false;
-
     OCIndex count = OCArrayGetCount(newComponents);
     if (count == 0) return false;
-
     // Validate each component is OCDataRef and has matching size
     uint64_t expectedLength = 0;
     for (OCIndex i = 0; i < count; ++i) {
@@ -1298,25 +1230,21 @@ bool DependentVariableSetComponents(DependentVariableRef dv, OCArrayRef newCompo
         if (OCGetTypeID(obj) != OCDataGetTypeID()) {
             return false;
         }
-
         OCDataRef data = (OCDataRef)obj;
         uint64_t len = OCDataGetLength(data);
         if (i == 0) {
             expectedLength = len;
         } else if (len != expectedLength) {
-            return false; // mismatched component sizes
+            return false;  // mismatched component sizes
         }
     }
-
     // Install the new components (retain or copy, depending on usage needs)
     OCMutableArrayRef newArray = OCArrayCreateMutable(count, &kOCTypeArrayCallBacks);
     for (OCIndex i = 0; i < count; ++i) {
         OCArrayAppendValue(newArray, OCArrayGetValueAtIndex(newComponents, i));
     }
-
     OCRelease(dv->components);
     dv->components = newArray;
-
     // Rebuild or adjust component labels
     OCRelease(dv->componentLabels);
     dv->componentLabels = OCArrayCreateMutable(count, &kOCTypeArrayCallBacks);
@@ -1325,7 +1253,6 @@ bool DependentVariableSetComponents(DependentVariableRef dv, OCArrayRef newCompo
         OCArrayAppendValue(dv->componentLabels, lbl);
         OCRelease(lbl);
     }
-
     // Update quantityType if necessary
     OCRelease(dv->quantityType);
     if (count == 1) {
@@ -1333,12 +1260,9 @@ bool DependentVariableSetComponents(DependentVariableRef dv, OCArrayRef newCompo
     } else {
         dv->quantityType = OCStringCreateWithFormat(STR("vector_%ld"), (long)count);
     }
-
     return true;
 }
-// — Deep-copy all components (so callers get their own buffers) —
-OCMutableArrayRef
-DependentVariableCopyComponents(DependentVariableRef dv) {
+OCMutableArrayRef DependentVariableCopyComponents(DependentVariableRef dv) {
     if (!dv || !dv->components) return NULL;
     OCIndex n = OCArrayGetCount(dv->components);
     OCMutableArrayRef copy =
@@ -1354,20 +1278,14 @@ DependentVariableCopyComponents(DependentVariableRef dv) {
     }
     return copy;
 }
-// — Get a single component buffer (no copy) —
-OCDataRef
-DependentVariableGetComponentAtIndex(DependentVariableRef dv,
-                                     OCIndex componentIndex) {
+OCDataRef DependentVariableGetComponentAtIndex(DependentVariableRef dv, OCIndex componentIndex) {
     if (!dv || !dv->components ||
         componentIndex < 0 ||
         componentIndex >= OCArrayGetCount(dv->components))
         return NULL;
     return (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
 }
-// — Swap in a new component buffer (must be same length) —
-bool DependentVariableSetComponentAtIndex(DependentVariableRef dv,
-                                          OCDataRef newBuf,
-                                          OCIndex componentIndex) {
+bool DependentVariableSetComponentAtIndex(DependentVariableRef dv, OCDataRef newBuf, OCIndex componentIndex) {
     if (!dv || !dv->components || !newBuf) return false;
     OCIndex n = OCArrayGetCount(dv->components);
     if (componentIndex < 0 || componentIndex >= n) return false;
@@ -1393,9 +1311,7 @@ static void updateForComponentCountChange(DependentVariableRef dv) {
         dv->quantityType = OCStringCreateWithFormat(STR("vector_%ld"), (long)count);
     }
 }
-bool DependentVariableInsertComponentAtIndex(DependentVariableRef dv,
-                                             OCDataRef component,
-                                             OCIndex idx) {
+bool DependentVariableInsertComponentAtIndex(DependentVariableRef dv, OCDataRef component, OCIndex idx) {
     if (!dv || !component) return false;
     OCMutableArrayRef comps = dv->components;
     if (!comps) return false;
@@ -1413,12 +1329,7 @@ bool DependentVariableInsertComponentAtIndex(DependentVariableRef dv,
     updateForComponentCountChange(dv);
     return true;
 }
-///
-/// Remove the component (and its label) at index `idx`.
-/// Returns false if out‐of‐range or only one component remains.
-///
-bool DependentVariableRemoveComponentAtIndex(DependentVariableRef dv,
-                                             OCIndex idx) {
+bool DependentVariableRemoveComponentAtIndex(DependentVariableRef dv, OCIndex idx) {
     if (!dv) return false;
     OCIndex count = OCArrayGetCount(dv->components);
     if (idx >= count || count <= 1)
@@ -1428,9 +1339,7 @@ bool DependentVariableRemoveComponentAtIndex(DependentVariableRef dv,
     updateForComponentCountChange(dv);
     return true;
 }
-/// Return the “length” (number of elements) of each component buffer
-OCIndex
-DependentVariableGetSize(DependentVariableRef dv) {
+OCIndex DependentVariableGetSize(DependentVariableRef dv) {
     if (!dv) return 0;
     OCIndex componentsCount = OCArrayGetCount(dv->components);
     if (componentsCount == 0) return 0;
@@ -1441,8 +1350,6 @@ DependentVariableGetSize(DependentVariableRef dv) {
     if (eltSize == 0) return 0;
     return (OCIndex)(byteLength / eltSize);
 }
-/// Resize *all* component buffers to exactly `size` elements,
-/// zero‐filling any newly-appended tail.
 bool DependentVariableSetSize(DependentVariableRef dv, OCIndex newSize) {
     if (!dv) return false;
     OCIndex nComps = OCArrayGetCount(dv->components);
@@ -1508,7 +1415,6 @@ bool DependentVariableSetEncoding(DependentVariableRef dv, OCStringRef newEnc) {
     dv->encoding = copy;
     return true;
 }
-// Getter for the “type” field (“internal” or “external”)
 OCStringRef DependentVariableGetType(DependentVariableRef dv) {
     if (!dv) return NULL;
     return dv->type;
@@ -1516,9 +1422,6 @@ OCStringRef DependentVariableGetType(DependentVariableRef dv) {
 bool DependentVariableShouldSerializeExternally(DependentVariableRef dv) {
     return dv && OCStringEqual(dv->type, STR("external"));
 }
-
-// Setter for the “type” field—returns true on success, false on failure.
-// You may wish to further validate that `type` is exactly "internal" or "external".
 bool DependentVariableSetType(DependentVariableRef dv, OCStringRef newType) {
     if (!dv || !newType) return false;
     // Copy the incoming string
@@ -1539,14 +1442,11 @@ bool DependentVariableSetComponentsURL(DependentVariableRef dv, OCStringRef url)
     dv->componentsURL = copy;
     return true;
 }
-OCStringRef
-DependentVariableGetName(DependentVariableRef dv) {
+OCStringRef DependentVariableGetName(DependentVariableRef dv) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
     // If the name field is NULL, return the interned empty string
     return dv->name ? dv->name : STR("");
 }
-// Setter
-// Returns true on success, false on allocation failure or invalid dv.
 bool DependentVariableSetName(DependentVariableRef dv, OCStringRef newName) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, false);
     // If it’s literally the same pointer, nothing to do
@@ -1566,15 +1466,11 @@ bool DependentVariableSetName(DependentVariableRef dv, OCStringRef newName) {
     dv->name = copy;
     return true;
 }
-// Getter for the description field
-OCStringRef
-DependentVariableGetDescription(DependentVariableRef dv) {
+OCStringRef DependentVariableGetDescription(DependentVariableRef dv) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
     // Return the stored description, or the empty interned string if NULL
     return dv->description ? dv->description : STR("");
 }
-// Setter for the description field
-// Returns true on success (including no-op), false on allocation failure or invalid dv.
 bool DependentVariableSetDescription(DependentVariableRef dv, OCStringRef newDesc) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, false);
     // If it's literally the same object, nothing to do
@@ -1593,13 +1489,10 @@ bool DependentVariableSetDescription(DependentVariableRef dv, OCStringRef newDes
     dv->description = copy;
     return true;
 }
-// Getter
 OCStringRef DependentVariableGetQuantityType(DependentVariableRef dv) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
     return dv->quantityType;
 }
-// Setter
-// Returns true if quantityType was updated (or was already valid), false on mismatch.
 bool DependentVariableSetQuantityType(DependentVariableRef dv, OCStringRef qt) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, false);
     if (!qt) return false;
@@ -1652,8 +1545,7 @@ bool DependentVariableSetQuantityType(DependentVariableRef dv, OCStringRef qt) {
     }
     return false;
 }
-OCMutableArrayRef
-DependentVariableCreateQuantityTypesArray(DependentVariableRef dv) {
+OCMutableArrayRef DependentVariableCreateQuantityTypesArray(DependentVariableRef dv) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
     OCIndex count = OCArrayGetCount(dv->components);
     OCMutableArrayRef types = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
@@ -1717,7 +1609,6 @@ bool DependentVariableSetOwner(DependentVariableRef dv, OCTypeRef owner) {
     dv->owner = owner;
     return true;
 }
-// — sparseDimensionIndexes —
 OCIndexSetRef DependentVariableGetSparseDimensionIndexes(DependentVariableRef dv) {
     if (!dv) return NULL;
     return dv->sparseDimensionIndexes;
@@ -1728,7 +1619,6 @@ bool DependentVariableSetSparseDimensionIndexes(DependentVariableRef dv, OCIndex
     dv->sparseDimensionIndexes = idxSet ? OCIndexSetCreateMutableCopy(idxSet) : OCIndexSetCreateMutable();
     return dv->sparseDimensionIndexes != NULL;
 }
-// — sparseGridVertexes —
 OCArrayRef DependentVariableGetSparseGridVertexes(DependentVariableRef dv) {
     if (!dv) return NULL;
     return dv->sparseGridVertexes;
@@ -1743,13 +1633,11 @@ bool DependentVariableSetSparseGridVertexes(DependentVariableRef dv, OCArrayRef 
     }
     return dv->sparseGridVertexes != NULL;
 }
-OCStringRef
-DependentVariableGetQuantityName(DependentVariableRef dv) {
+OCStringRef DependentVariableGetQuantityName(DependentVariableRef dv) {
     if (!dv) return NULL;
     return dv->quantityName;
 }
-bool DependentVariableSetQuantityName(DependentVariableRef dv,
-                                      OCStringRef quantityName) {
+bool DependentVariableSetQuantityName(DependentVariableRef dv, OCStringRef quantityName) {
     if (!dv || !quantityName) return false;
     // 1) Check that the name corresponds to a known dimensionality
     OCStringRef err = NULL;
@@ -1776,22 +1664,11 @@ bool DependentVariableSetQuantityName(DependentVariableRef dv,
     dv->quantityName = OCStringCreateCopy(quantityName);
     return dv->quantityName != NULL;
 }
-//-----------------------------------------------------------------------------
-// Getter for the componentLabels array.
-// Returns the mutable array (as an OCArrayRef) or NULL if dv is NULL.
-//-----------------------------------------------------------------------------
-OCArrayRef
-DependentVariableGetComponentLabels(DependentVariableRef dv) {
+OCArrayRef DependentVariableGetComponentLabels(DependentVariableRef dv) {
     if (!dv) return NULL;
     return (OCArrayRef)dv->componentLabels;
 }
-//-----------------------------------------------------------------------------
-// Setter for the componentLabels array.
-// Makes a deep mutable‐copy of the input array (or creates an empty one if NULL).
-// Returns true on success, false on NULL dv or allocation failure.
-//-----------------------------------------------------------------------------
-bool DependentVariableSetComponentLabels(DependentVariableRef dv,
-                                         OCArrayRef labels) {
+bool DependentVariableSetComponentLabels(DependentVariableRef dv, OCArrayRef labels) {
     if (!dv) return false;
     // release old labels
     OCRelease(dv->componentLabels);
@@ -1804,9 +1681,7 @@ bool DependentVariableSetComponentLabels(DependentVariableRef dv,
     }
     return dv->componentLabels != NULL;
 }
-OCStringRef
-DependentVariableCreateComponentLabelForIndex(DependentVariableRef dv,
-                                              OCIndex componentIndex) {
+OCStringRef DependentVariableCreateComponentLabelForIndex(DependentVariableRef dv, OCIndex componentIndex) {
     if (!dv) return NULL;
     OCStringRef name = dv->name;
     OCArrayRef labels = (OCArrayRef)dv->componentLabels;
@@ -1828,12 +1703,7 @@ DependentVariableCreateComponentLabelForIndex(DependentVariableRef dv,
         return STR("");
     }
 }
-//-----------------------------------------------------------------------------
-// Direct getter for the componentLabels array at index.
-//-----------------------------------------------------------------------------
-OCStringRef
-DependentVariableGetComponentLabelAtIndex(DependentVariableRef dv,
-                                          OCIndex componentIndex) {
+OCStringRef DependentVariableGetComponentLabelAtIndex(DependentVariableRef dv, OCIndex componentIndex) {
     if (!dv) return NULL;
     OCArrayRef labels = (OCArrayRef)dv->componentLabels;
     if (!labels ||
@@ -1843,12 +1713,7 @@ DependentVariableGetComponentLabelAtIndex(DependentVariableRef dv,
     }
     return OCArrayGetValueAtIndex(labels, componentIndex);
 }
-//-----------------------------------------------------------------------------
-// Replace the component label at the given index.
-//-----------------------------------------------------------------------------
-bool DependentVariableSetComponentLabelAtIndex(DependentVariableRef dv,
-                                               OCStringRef newLabel,
-                                               OCIndex componentIndex) {
+bool DependentVariableSetComponentLabelAtIndex(DependentVariableRef dv, OCStringRef newLabel, OCIndex componentIndex) {
     if (!dv || !newLabel) return false;
     OCArrayRef comps = (OCArrayRef)dv->components;
     OCMutableArrayRef labels = dv->componentLabels;
@@ -1860,22 +1725,11 @@ bool DependentVariableSetComponentLabelAtIndex(DependentVariableRef dv,
     OCArraySetValueAtIndex(labels, componentIndex, newLabel);
     return true;
 }
-SINumberType
-DependentVariableGetElementType(DependentVariableRef dv) {
+SINumberType DependentVariableGetElementType(DependentVariableRef dv) {
     if (!dv) return kSINumberTypeInvalid;
     return dv->numericType;
 }
-//-----------------------------------------------------------------------------
-// Change the element type of all components.
-//   - Reinterprets each old value as the new type,
-//     e.g. from float → double, float → complex, etc.
-//   - Returns false if:
-//       • dv is NULL
-//       • there are no components
-//       • newType == oldType (no work done)
-//-----------------------------------------------------------------------------
-bool DependentVariableSetElementType(DependentVariableRef dv,
-                                     SINumberType newType) {
+bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newType) {
     if (!dv) return false;
     SINumberType oldType = dv->numericType;
     if (oldType == newType) return true;
@@ -1989,9 +1843,7 @@ bool DependentVariableSetElementType(DependentVariableRef dv,
     dv->numericType = newType;
     return true;
 }
-bool DependentVariableSetValues(DependentVariableRef dv,
-                                OCIndex componentIndex,
-                                OCDataRef values) {
+bool DependentVariableSetValues(DependentVariableRef dv, OCIndex componentIndex, OCDataRef values) {
     // NULL‐check
     if (!dv) return false;
     // Bounds check
@@ -2016,9 +1868,7 @@ bool DependentVariableSetValues(DependentVariableRef dv,
     OCRelease(newValues);
     return true;
 }
-float DependentVariableGetFloatValueAtMemOffset(DependentVariableRef dv,
-                                                OCIndex componentIndex,
-                                                OCIndex memOffset) {
+float DependentVariableGetFloatValueAtMemOffset(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset) {
     if (!dv) return NAN;
     OCIndex size = DependentVariableGetSize(dv);
     OCIndex nComps = OCArrayGetCount(dv->components);
@@ -2052,10 +1902,7 @@ float DependentVariableGetFloatValueAtMemOffset(DependentVariableRef dv,
             return NAN;
     }
 }
-double
-DependentVariableGetDoubleValueAtMemOffset(DependentVariableRef dv,
-                                           OCIndex componentIndex,
-                                           OCIndex memOffset) {
+double DependentVariableGetDoubleValueAtMemOffset(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset) {
     if (!dv) return NAN;
     OCIndex size = DependentVariableGetSize(dv);
     OCIndex nComps = OCArrayGetCount(dv->components);
@@ -2088,10 +1935,7 @@ DependentVariableGetDoubleValueAtMemOffset(DependentVariableRef dv,
             return NAN;
     }
 }
-float complex
-DependentVariableGetFloatComplexValueAtMemOffset(DependentVariableRef dv,
-                                                 OCIndex componentIndex,
-                                                 OCIndex memOffset) {
+float complex DependentVariableGetFloatComplexValueAtMemOffset(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset) {
     if (!dv) return NAN + NAN * I;
     OCIndex size = DependentVariableGetSize(dv);
     OCIndex nComps = OCArrayGetCount(dv->components);
@@ -2124,10 +1968,7 @@ DependentVariableGetFloatComplexValueAtMemOffset(DependentVariableRef dv,
             return NAN + NAN * I;
     }
 }
-double complex
-DependentVariableGetDoubleComplexValueAtMemOffset(DependentVariableRef dv,
-                                                  OCIndex componentIndex,
-                                                  OCIndex memOffset) {
+double complex DependentVariableGetDoubleComplexValueAtMemOffset(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset) {
     if (!dv) return NAN + NAN * I;
     OCIndex size = DependentVariableGetSize(dv);
     OCIndex nComps = OCArrayGetCount(dv->components);
@@ -2160,11 +2001,7 @@ DependentVariableGetDoubleComplexValueAtMemOffset(DependentVariableRef dv,
             return NAN + NAN * I;
     }
 }
-double
-DependentVariableGetDoubleValueAtMemOffsetForPart(DependentVariableRef dv,
-                                                  OCIndex componentIndex,
-                                                  OCIndex memOffset,
-                                                  complexPart part) {
+double DependentVariableGetDoubleValueAtMemOffsetForPart(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset, complexPart part) {
     if (!dv) return NAN;
     OCIndex size = DependentVariableGetSize(dv);
     OCIndex nComps = OCArrayGetCount(dv->components);
@@ -2220,10 +2057,7 @@ DependentVariableGetDoubleValueAtMemOffsetForPart(DependentVariableRef dv,
     }
     return NAN;
 }
-float DependentVariableGetFloatValueAtMemOffsetForPart(DependentVariableRef dv,
-                                                       OCIndex componentIndex,
-                                                       OCIndex memOffset,
-                                                       complexPart part) {
+float DependentVariableGetFloatValueAtMemOffsetForPart(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset, complexPart part) {
     if (!dv) return NAN;
     OCIndex size = DependentVariableGetSize(dv);
     OCIndex nComps = OCArrayGetCount(dv->components);
@@ -2279,10 +2113,7 @@ float DependentVariableGetFloatValueAtMemOffsetForPart(DependentVariableRef dv,
     }
     return NAN;
 }
-SIScalarRef
-DependentVariableCreateValueFromMemOffset(DependentVariableRef dv,
-                                          OCIndex componentIndex,
-                                          OCIndex memOffset) {
+SIScalarRef DependentVariableCreateValueFromMemOffset(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset) {
     if (!dv) return NULL;
     OCIndex size = DependentVariableGetSize(dv);
     OCIndex nComps = OCArrayGetCount(dv->components);
@@ -2317,14 +2148,7 @@ DependentVariableCreateValueFromMemOffset(DependentVariableRef dv,
             return NULL;
     }
 }
-// -----------------------------------------------------------------------------
-// Overwrite the raw component‐array at memOffset with the given scalar.
-// -----------------------------------------------------------------------------
-bool DependentVariableSetValueAtMemOffset(DependentVariableRef dv,
-                                          OCIndex componentIndex,
-                                          OCIndex memOffset,
-                                          SIScalarRef value,
-                                          OCStringRef *error) {
+bool DependentVariableSetValueAtMemOffset(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset, SIScalarRef value, OCStringRef *error) {
     // if caller already set *error, bail
     if (error && *error) return false;
     if (!dv) return false;
@@ -2374,3 +2198,4 @@ bool DependentVariableSetValueAtMemOffset(DependentVariableRef dv,
     }
     return true;
 }
+#pragma endregion Tests, Getters & Setters

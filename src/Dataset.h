@@ -22,7 +22,7 @@ OCTypeID DatasetGetTypeID(void);
 /// Returns NULL on validation failure (e.g. no dependent‐variables, size mismatches, bad types).
 DatasetRef DatasetCreate(
     OCArrayRef     dimensions,
-    OCArrayRef     dimensionPrecedence,
+    OCIndexArrayRef dimensionPrecedence,
     OCArrayRef     dependentVariables,
     OCArrayRef     tags,
     OCStringRef    description,
@@ -34,13 +34,12 @@ DatasetRef DatasetCreate(
 /// Re-instantiate a Dataset from the dictionary form produced by DatasetCopyAsDictionary
 DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError);
 /// Serialize into a dictionary (deep-copyable, for persistence or DatasetCreateCopy)
-OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds, const char *exportDirectory);
-cJSON *DatasetCreateJSON(OCTypeRef obj);
+OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds);
 /// Shorthand deep-copy via CopyAsDictionary + CreateFromDictionary
 static inline DatasetRef DatasetCreateCopy(DatasetRef ds) {
     if (!ds) return NULL;
     OCStringRef err = NULL;
-    OCDictionaryRef d = DatasetCopyAsDictionary(ds, NULL);
+    OCDictionaryRef d = DatasetCopyAsDictionary(ds);
     DatasetRef c = DatasetCreateFromDictionary(d, &err);
     OCRelease(d);
     if (!c) {

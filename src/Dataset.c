@@ -3,17 +3,26 @@
 // ============================================================================
 #include <errno.h>
 #include <libgen.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include "RMNLibrary.h"
-// Provide a default file pattern for DV blobs if not defined elsewhere
-#ifndef COMPONENTS_FILE_PATTERN
-#define COMPONENTS_FILE_PATTERN "component_%ld.bin"
+#if defined(_WIN32)
+#include <direct.h>
+#define MKDIR(path) _mkdir(path)
+#define PATH_SEPARATOR '\\'
+#else
+#include <sys/types.h>
+#define MKDIR(path) mkdir(path, 0755)
+#define PATH_SEPARATOR '/'
 #endif
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+#pragma region Type Registration
 static OCTypeID kDatasetID = kOCNotATypeID;
-// SIScalar Opaque Type
 struct impl_Dataset {
     OCBase base;
     // CSDM attributes
@@ -28,17 +37,11 @@ struct impl_Dataset {
     OCMutableIndexArrayRef dimensionPrecedence;  // ordered array of indexes, representing dimension precedence.
     OCDictionaryRef metaData;
 };
-//==============================================================================
-// MARK: - Type Registration
-//==============================================================================
 OCTypeID DatasetGetTypeID(void) {
     if (kDatasetID == kOCNotATypeID)
         kDatasetID = OCRegisterType("Dataset");
     return kDatasetID;
 }
-//==============================================================================
-// MARK: - Finalizer, Equal, Description, DeepCopy
-//==============================================================================
 static void impl_DatasetFinalize(const void *ptr) {
     if (!ptr) return;
     DatasetRef ds = (DatasetRef)ptr;
@@ -72,89 +75,32 @@ static OCStringRef impl_DatasetCopyFormattingDesc(OCTypeRef cf) {
     DatasetRef ds = (DatasetRef)cf;
     if (!ds) return STR("<Dataset: NULL>");
     return OCStringCreateWithFormat(
-        STR("<Dataset dims=%lu vars=%lu tags=%lu title=\"%@\">"),
+        STR("<Dataset dims=%lu vars=%lu tags=%lu title=%@>"),
         (unsigned long)OCArrayGetCount(ds->dimensions),
         (unsigned long)OCArrayGetCount(ds->dependentVariables),
         (unsigned long)OCArrayGetCount(ds->tags),
         ds->title);
 }
 cJSON *impl_DatasetCreateJSON(const void *obj) {
-    const DatasetRef ds = (const DatasetRef)obj;
-    if (!ds) return cJSON_CreateNull();
-    cJSON *json = cJSON_CreateObject();
-    if (!json) return NULL;
-    // dimensions (OCMutableArrayRef)
-    if (ds->dimensions) {
-        cJSON *dims_json = OCTypeCopyJSON((OCTypeRef)ds->dimensions);
-        if (dims_json)
-            cJSON_AddItemToObject(json, "dimensions", dims_json);
-    }
-    // dependentVariables (OCMutableArrayRef)
-    if (ds->dependentVariables) {
-        cJSON *depvars_json = OCTypeCopyJSON((OCTypeRef)ds->dependentVariables);
-        if (depvars_json)
-            cJSON_AddItemToObject(json, "dependentVariables", depvars_json);
-    }
-    // tags (OCMutableArrayRef)
-    if (ds->tags) {
-        cJSON *tags_json = OCTypeCopyJSON((OCTypeRef)ds->tags);
-        if (tags_json)
-            cJSON_AddItemToObject(json, "tags", tags_json);
-    }
-    // description (OCStringRef)
-    if (ds->description) {
-        cJSON *desc_json = OCTypeCopyJSON((OCTypeRef)ds->description);
-        if (desc_json)
-            cJSON_AddItemToObject(json, "description", desc_json);
-    }
-    // title (OCStringRef)
-    if (ds->title) {
-        cJSON *title_json = OCTypeCopyJSON((OCTypeRef)ds->title);
-        if (title_json)
-            cJSON_AddItemToObject(json, "title", title_json);
-    }
-    // focus (DatumRef)
-    if (ds->focus) {
-        cJSON *focus_json = OCTypeCopyJSON((OCTypeRef)ds->focus);
-        if (focus_json)
-            cJSON_AddItemToObject(json, "focus", focus_json);
-    }
-    // previousFocus (DatumRef)
-    if (ds->previousFocus) {
-        cJSON *prevfocus_json = OCTypeCopyJSON((OCTypeRef)ds->previousFocus);
-        if (prevfocus_json)
-            cJSON_AddItemToObject(json, "previousFocus", prevfocus_json);
-    }
-    // dimensionPrecedence (OCMutableIndexArrayRef)
-    if (ds->dimensionPrecedence) {
-        cJSON *dp_json = OCTypeCopyJSON((OCTypeRef)ds->dimensionPrecedence);
-        if (dp_json)
-            cJSON_AddItemToObject(json, "dimensionPrecedence", dp_json);
-    }
-    // metaData (OCDictionaryRef)
-    if (ds->metaData) {
-        cJSON *meta_json = OCTypeCopyJSON((OCTypeRef)ds->metaData);
-        if (meta_json)
-            cJSON_AddItemToObject(json, "metaData", meta_json);
-    }
+    if (!obj) return cJSON_CreateNull();
+    DatasetRef ds = (DatasetRef)obj;
+    OCDictionaryRef dict = DatasetCopyAsDictionary(ds);
+    if (!dict) return cJSON_CreateNull();
+    cJSON *json = OCTypeCopyJSON((OCTypeRef)dict);
+    OCRelease(dict);
     return json;
 }
 static void *impl_DatasetDeepCopy(const void *ptr) {
     if (!ptr) return NULL;
     DatasetRef src = (DatasetRef)ptr;
-    OCDictionaryRef dict = DatasetCopyAsDictionary(src, NULL);
+    OCDictionaryRef dict = DatasetCopyAsDictionary(src);
     if (!dict) return NULL;
-
     OCStringRef err = NULL;
     DatasetRef copy = DatasetCreateFromDictionary(dict, &err);
     OCRelease(dict);
     OCRelease(err);  // Discard error, since deep copy failure isn't recoverable here
-
     return copy;
 }
-//==============================================================================
-// MARK: - Allocation & Initialization
-//==============================================================================
 static struct impl_Dataset *DatasetAllocate(void) {
     return OCTypeAlloc(
         struct impl_Dataset,
@@ -177,15 +123,7 @@ static void impl_InitDatasetFields(DatasetRef ds) {
     ds->dimensionPrecedence = OCIndexArrayCreateMutable(0);
     ds->metaData = OCDictionaryCreateMutable(0);
 }
-//==============================================================================
-// Validate that
-//  • dependentVariables is non-NULL & non-empty,
-//  • every element is a DependentVariableRef,
-//  • if dimensions != NULL, every element is some DimensionRef subtype,
-//  • all dependentVariables have the same total “size” as produced by RMNCalculateSizeFromDimensions.
-//==============================================================================
-static bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
-                                           OCArrayRef dependentVariables) {
+static bool impl_ValidateDatasetParameters(OCArrayRef dimensions, OCArrayRef dependentVariables) {
     // must have at least one dependent variable
     if (!dependentVariables || OCArrayGetCount(dependentVariables) == 0)
         return false;
@@ -219,12 +157,11 @@ static bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
     }
     return true;
 }
-//==============================================================================
-// MARK: - Public Constructor
-//==============================================================================
+#pragma endregion Type Registration
+#pragma region Creators
 DatasetRef DatasetCreate(
     OCArrayRef dimensions,
-    OCArrayRef dimensionPrecedence,
+    OCIndexArrayRef dimensionPrecedence,
     OCArrayRef dependentVariables,
     OCArrayRef tags,
     OCStringRef description,
@@ -232,14 +169,11 @@ DatasetRef DatasetCreate(
     DatumRef focus,
     DatumRef previousFocus,
     OCDictionaryRef metaData) {
-    // 1) validate inputs
     if (!impl_ValidateDatasetParameters(dimensions, dependentVariables))
         return NULL;
-    // 2) allocate & initialize defaults
     DatasetRef ds = DatasetAllocate();
     if (!ds) return NULL;
     impl_InitDatasetFields(ds);
-    // 3) copy dimensions array
     if (dimensions) {
         OCIndex n = OCArrayGetCount(dimensions);
         for (OCIndex i = 0; i < n; i++) {
@@ -249,8 +183,7 @@ DatasetRef DatasetCreate(
             OCRelease(dc);
         }
     }
-    // 4) copy dependentVariables
-    {
+    if (dependentVariables) {
         OCIndex n = OCArrayGetCount(dependentVariables);
         for (OCIndex i = 0; i < n; i++) {
             DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(dependentVariables, i);
@@ -259,7 +192,6 @@ DatasetRef DatasetCreate(
             OCRelease(copy);
         }
     }
-    // 5) copy tags
     if (tags) {
         OCIndex n = OCArrayGetCount(tags);
         for (OCIndex i = 0; i < n; i++) {
@@ -267,280 +199,437 @@ DatasetRef DatasetCreate(
             OCArrayAppendValue(ds->tags, s);
         }
     }
-    // 6) build or default dimensionPrecedence
     OCIndex dimCount = OCArrayGetCount(ds->dimensions);
-    if (dimensionPrecedence && OCArrayGetCount(dimensionPrecedence) == dimCount) {
+    if (dimensionPrecedence && OCIndexArrayGetCount(dimensionPrecedence) == dimCount) {
         for (OCIndex i = 0; i < dimCount; i++) {
-            OCNumberRef idx = (OCNumberRef)OCArrayGetValueAtIndex(dimensionPrecedence, i);
-            OCIndex tmpIdx = 0;
-            OCNumberGetValue(idx, kOCNumberIntType, &tmpIdx);
-            OCIndexArrayAppendValue(ds->dimensionPrecedence, tmpIdx);
+            OCIndex idx = OCIndexArrayGetValueAtIndex(dimensionPrecedence, i);
+            OCIndexArrayAppendValue(ds->dimensionPrecedence, idx);
         }
     } else {
         for (OCIndex i = 0; i < dimCount; i++) {
             OCIndexArrayAppendValue(ds->dimensionPrecedence, i);
         }
     }
-    // 7) copy simple fields (cast retain back into DatumRef)
     ds->description = description ? OCStringCreateCopy(description) : STR("");
     ds->title = title ? OCStringCreateCopy(title) : STR("");
     ds->focus = focus ? (DatumRef)OCRetain(focus) : NULL;
     ds->previousFocus = previousFocus ? (DatumRef)OCRetain(previousFocus) : NULL;
-    // 8) copy metaData
     if (metaData) {
         OCRelease(ds->metaData);
         ds->metaData = OCTypeDeepCopyMutable(metaData);
     }
     return ds;
 }
+OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
+    if (!ds) return NULL;
+    OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
+    if (!dict) return NULL;
+    // — tags —
+    if (ds->tags) {
+        OCMutableArrayRef tags_copy = OCArrayCreateMutableCopy(ds->tags);
+        if (tags_copy) {
+            OCDictionarySetValue(dict, STR("tags"), tags_copy);
+            OCRelease(tags_copy);
+        }
+    }
+    // — description & title —
+    if (ds->description) {
+        OCStringRef dcopy = OCStringCreateCopy(ds->description);
+        OCDictionarySetValue(dict, STR("description"), dcopy);
+        OCRelease(dcopy);
+    }
+    if (ds->title) {
+        OCStringRef tcopy = OCStringCreateCopy(ds->title);
+        OCDictionarySetValue(dict, STR("title"), tcopy);
+        OCRelease(tcopy);
+    }
+    // — dimensions —
+    if (ds->dimensions) {
+        OCIndex n = OCArrayGetCount(ds->dimensions);
+        OCMutableArrayRef dims_arr = OCArrayCreateMutable(n, &kOCTypeArrayCallBacks);
+        for (OCIndex i = 0; i < n; ++i) {
+            DimensionRef d = (DimensionRef)OCArrayGetValueAtIndex(ds->dimensions, i);
+            OCDictionaryRef d_dict = DimensionCopyAsDictionary(d);
+            OCArrayAppendValue(dims_arr, d_dict);
+            OCRelease(d_dict);
+        }
+        OCDictionarySetValue(dict, STR("dimensions"), dims_arr);
+        OCRelease(dims_arr);
+    }
+    // — dimension_precedence —
+    if (ds->dimensionPrecedence) {
+        OCIndexArrayRef prec_copy = OCIndexArrayCreateMutableCopy(ds->dimensionPrecedence);
+        OCDictionarySetValue(dict, STR("dimension_precedence"), prec_copy);
+        OCRelease(prec_copy);
+    }
+    // — dependent_variables —
+    if (ds->dependentVariables) {
+        OCIndex m = OCArrayGetCount(ds->dependentVariables);
+        OCMutableArrayRef dvs_arr = OCArrayCreateMutable(m, &kOCTypeArrayCallBacks);
+        for (OCIndex i = 0; i < m; ++i) {
+            DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(ds->dependentVariables, i);
+            DependentVariableRef copy = DependentVariableCreateCopy(dv);
+            DependentVariableSetType(copy, STR("internal"));
+            OCDictionaryRef dv_dict = DependentVariableCopyAsDictionary(copy);
+            OCArrayAppendValue(dvs_arr, dv_dict);
+            OCRelease(dv_dict);
+            OCRelease(copy);
+        }
+        OCDictionarySetValue(dict, STR("dependent_variables"), dvs_arr);
+        OCRelease(dvs_arr);
+    }
+    // — focus & previous_focus —
+    if (ds->focus) {
+        OCDictionaryRef fdict = DatumCopyAsDictionary(ds->focus);
+        OCDictionarySetValue(dict, STR("focus"), fdict);
+        OCRelease(fdict);
+    }
+    if (ds->previousFocus) {
+        OCDictionaryRef pf = DatumCopyAsDictionary(ds->previousFocus);
+        OCDictionarySetValue(dict, STR("previous_focus"), pf);
+        OCRelease(pf);
+    }
+    // — metadata: just deep-copy the existing dictionary —
+    if (ds->metaData) {
+        OCDictionaryRef meta_copy = (OCDictionaryRef)OCTypeDeepCopyMutable(ds->metaData);
+        if (meta_copy) {
+            OCDictionarySetValue(dict, STR("metadata"), meta_copy);
+            OCRelease(meta_copy);
+        }
+    }
+    return (OCDictionaryRef)dict;
+}
 DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!dict) {
-        if (outError && !*outError) *outError = STR("Input dictionary is NULL");
+        if (outError) *outError = STR("Input dictionary is NULL");
         return NULL;
     }
-
-    DatasetRef ds = DatasetAllocate();
-    if (!ds) {
-        if (outError && !*outError) *outError = STR("Failed to allocate Dataset");
-        return NULL;
-    }
-
-    impl_InitDatasetFields(ds);
-
+    OCArrayRef dims = NULL;
+    OCIndexArrayRef dimPrec = NULL;
+    OCArrayRef dvs = NULL;
+    OCArrayRef tags = NULL;
+    OCStringRef desc = NULL;
+    OCStringRef title = NULL;
+    DatumRef focus = NULL;
+    DatumRef prevFocus = NULL;
+    OCDictionaryRef metadata = NULL;
+    DatasetRef ds = NULL;
     // — dimensions —
     OCArrayRef rawDims = (OCArrayRef)OCDictionaryGetValue(dict, STR("dimensions"));
     if (rawDims) {
-        OCRelease(ds->dimensions);
-        ds->dimensions = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-        if (!ds->dimensions) {
-            OCRelease(ds);
-            if (outError && !*outError) *outError = STR("Failed to create dimensions array");
-            return NULL;
-        }
-
         OCIndex n = OCArrayGetCount(rawDims);
-        for (OCIndex i = 0; i < n; i++) {
-            OCTypeRef item = OCArrayGetValueAtIndex(rawDims, i);
-            if (!item || OCGetTypeID(item) != OCDictionaryGetTypeID()) {
-                if (outError && !*outError) *outError = STR("Invalid dimension entry (expected dictionary)");
-                OCRelease(ds);
-                return NULL;
+        OCMutableArrayRef tmp = OCArrayCreateMutable(n, &kOCTypeArrayCallBacks);
+        if (!tmp) {
+            *outError = STR("Failed to allocate dimensions array");
+            goto cleanup;
+        }
+        for (OCIndex i = 0; i < n; ++i) {
+            OCDictionaryRef ddict = (OCDictionaryRef)OCArrayGetValueAtIndex(rawDims, i);
+            if (OCGetTypeID(ddict) != OCDictionaryGetTypeID()) {
+                *outError = STR("Invalid dimension entry (expected dictionary)");
+                OCRelease(tmp);
+                goto cleanup;
             }
-
             OCStringRef err = NULL;
-            DimensionRef d = DimensionCreateFromDictionary((OCDictionaryRef)item, &err);
+            DimensionRef d = DimensionCreateFromDictionary(ddict, &err);
             if (!d) {
-                if (outError && err && !*outError) *outError = OCStringCreateCopy(err);
+                *outError = err ? OCStringCreateCopy(err) : STR("Failed to parse dimension");
                 OCRelease(err);
-                OCRelease(ds);
-                return NULL;
+                OCRelease(tmp);
+                goto cleanup;
             }
-            OCRelease(err);
-
-            if (!OCArrayAppendValue(ds->dimensions, d)) {
-                OCRelease(d);
-                if (outError && !*outError) *outError = STR("Failed to append Dimension");
-                OCRelease(ds);
-                return NULL;
-            }
+            OCArrayAppendValue(tmp, d);
             OCRelease(d);
         }
+        dims = tmp;
     }
-
-    // — dimensionPrecedence —
+    // — dimension_precedence —
     OCIndexArrayRef rawPrec = (OCIndexArrayRef)OCDictionaryGetValue(dict, STR("dimension_precedence"));
     if (rawPrec) {
-        OCRelease(ds->dimensionPrecedence);
-        ds->dimensionPrecedence = OCIndexArrayCreateMutableCopy(rawPrec);
-        if (!ds->dimensionPrecedence) {
-            if (outError && !*outError) *outError = STR("Failed to copy dimension_precedence");
-            OCRelease(ds);
-            return NULL;
-        }
+        dimPrec = OCIndexArrayCreateMutableCopy(rawPrec);
     }
-
-    // — dependentVariables —
+    // — dependent_variables —
     OCArrayRef rawDVs = (OCArrayRef)OCDictionaryGetValue(dict, STR("dependent_variables"));
     if (rawDVs) {
-        OCRelease(ds->dependentVariables);
-        ds->dependentVariables = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-        if (!ds->dependentVariables) {
-            if (outError && !*outError) *outError = STR("Failed to create dependentVariables array");
-            OCRelease(ds);
-            return NULL;
-        }
-
         OCIndex m = OCArrayGetCount(rawDVs);
-        for (OCIndex i = 0; i < m; i++) {
-            OCTypeRef item = OCArrayGetValueAtIndex(rawDVs, i);
-            if (!item || OCGetTypeID(item) != OCDictionaryGetTypeID()) {
-                if (outError && !*outError) *outError = STR("Invalid dependent variable entry (expected dictionary)");
-                OCRelease(ds);
-                return NULL;
+        OCMutableArrayRef tmp = OCArrayCreateMutable(m, &kOCTypeArrayCallBacks);
+        if (!tmp) {
+            *outError = STR("Failed to allocate dependentVariables array");
+            goto cleanup;
+        }
+        for (OCIndex i = 0; i < m; ++i) {
+            OCDictionaryRef dd = (OCDictionaryRef)OCArrayGetValueAtIndex(rawDVs, i);
+            if (OCGetTypeID(dd) != OCDictionaryGetTypeID()) {
+                *outError = STR("Invalid dependent variable entry (expected dictionary)");
+                OCRelease(tmp);
+                goto cleanup;
             }
-
             OCStringRef err = NULL;
-            DependentVariableRef dv = DependentVariableCreateFromDictionary((OCDictionaryRef)item, &err);
+            DependentVariableRef dv = DependentVariableCreateFromDictionary(dd, &err);
             if (!dv) {
-                if (outError && err && !*outError) *outError = OCStringCreateCopy(err);
+                *outError = err ? OCStringCreateCopy(err) : STR("Failed to parse dependent variable");
                 OCRelease(err);
-                OCRelease(ds);
-                return NULL;
+                OCRelease(tmp);
+                goto cleanup;
             }
-            OCRelease(err);
-
-            if (!OCArrayAppendValue(ds->dependentVariables, dv)) {
-                OCRelease(dv);
-                if (outError && !*outError) *outError = STR("Failed to append DependentVariable");
-                OCRelease(ds);
-                return NULL;
-            }
+            OCArrayAppendValue(tmp, dv);
             OCRelease(dv);
         }
+        dvs = tmp;
     }
-
     // — tags —
     OCArrayRef rawTags = (OCArrayRef)OCDictionaryGetValue(dict, STR("tags"));
     if (rawTags) {
-        OCRelease(ds->tags);
-        ds->tags = OCArrayCreateMutableCopy(rawTags);
-        if (!ds->tags) {
-            if (outError && !*outError) *outError = STR("Failed to copy tags array");
-            OCRelease(ds);
-            return NULL;
-        }
+        tags = OCArrayCreateMutableCopy(rawTags);
     }
-
     // — description & title —
-    OCStringRef tmpStr;
-    if ((tmpStr = (OCStringRef)OCDictionaryGetValue(dict, STR("description")))) {
-        OCRelease(ds->description);
-        ds->description = OCStringCreateCopy(tmpStr);
+    OCStringRef s;
+    if ((s = (OCStringRef)OCDictionaryGetValue(dict, STR("description")))) {
+        desc = OCStringCreateCopy(s);
     }
-    if ((tmpStr = (OCStringRef)OCDictionaryGetValue(dict, STR("title")))) {
-        OCRelease(ds->title);
-        ds->title = OCStringCreateCopy(tmpStr);
+    if ((s = (OCStringRef)OCDictionaryGetValue(dict, STR("title")))) {
+        title = OCStringCreateCopy(s);
     }
-
     // — focus & previous_focus —
-    OCDictionaryRef tmpDict;
-    if ((tmpDict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("focus")))) {
-        OCRelease(ds->focus);
-        ds->focus = DatumCreateFromDictionary(tmpDict, outError);
-        if (!ds->focus && outError && *outError) {
-            OCRelease(ds);
-            return NULL;
+    OCDictionaryRef ddict;
+    if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("focus")))) {
+        focus = DatumCreateFromDictionary(ddict, outError);
+        if (!focus) goto cleanup;
+    }
+    if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("previous_focus")))) {
+        prevFocus = DatumCreateFromDictionary(ddict, outError);
+        if (!prevFocus) goto cleanup;
+    }
+    // — metadata — deep-copy existing dictionary
+    if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata")))) {
+        metadata = (OCDictionaryRef)OCTypeDeepCopyMutable(ddict);
+        if (!metadata) {
+            *outError = STR("Failed to copy metadata");
+            goto cleanup;
         }
     }
-
-    if ((tmpDict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("previous_focus")))) {
-        OCRelease(ds->previousFocus);
-        ds->previousFocus = DatumCreateFromDictionary(tmpDict, outError);
-        if (!ds->previousFocus && outError && *outError) {
-            OCRelease(ds);
-            return NULL;
-        }
-    }
-
-    // — meta_data —
-    if ((tmpDict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata")))) {
-        OCRelease(ds->metaData);
-        ds->metaData = (OCDictionaryRef)OCTypeDeepCopyMutable(tmpDict);
-        if (!ds->metaData) {
-            if (outError && !*outError) *outError = STR("Failed to copy metadata dictionary");
-            OCRelease(ds);
-            return NULL;
-        }
-    }
-
+    // — construct the Dataset —
+    ds = DatasetCreate(dims, dimPrec, dvs, tags, desc, title, focus, prevFocus, metadata);
+cleanup:
+    OCRelease(dims);
+    OCRelease(dimPrec);
+    OCRelease(dvs);
+    OCRelease(tags);
+    OCRelease(desc);
+    OCRelease(title);
+    OCRelease(focus);
+    OCRelease(prevFocus);
+    OCRelease(metadata);
     return ds;
 }
-/// Ensures the directory `dir` exists (you’ll need to implement or link your favorite mkdir-recursive).
-static bool ensure_directory(const char *dir, OCStringRef *outError);
-/// Export the entire dataset:
-///   - writes JSON to `json_path`
-///   - for each DV with type == "external", writes its blobs to `binary_dir`/components_url
-bool ExportDataset(DatasetRef ds, const char *json_path, const char *binary_dir, OCStringRef *outError) {
+OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
+                                                OCStringRef *outError) {
     if (outError) *outError = NULL;
-    if (!ds || !json_path || !binary_dir) {
-        if (outError) *outError = STR("Invalid arguments");
-        return false;
+    if (!json || !cJSON_IsObject(json)) {
+        if (outError) *outError = STR("Expected a JSON object for Dataset");
+        return NULL;
     }
-    // 1) Build the cJSON DOM for the dataset (no I/O here)
-    cJSON *root = DatasetCreateJSON((OCTypeRef)ds);
-    if (!root) {
-        if (outError) *outError = STR("Failed to serialize Dataset to JSON");
-        return false;
+    OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
+    if (!dict) {
+        if (outError) *outError = STR("Failed to create dictionary");
+        return NULL;
     }
-    // 2) Render JSON to string
-    char *json_text = cJSON_Print(root);
-    cJSON_Delete(root);
-    if (!json_text) {
-        if (outError) *outError = STR("Failed to render JSON text");
-        return false;
-    }
-    // 3) Write the JSON file
-    FILE *jf = fopen(json_path, "wb");
-    if (!jf) {
-        free(json_text);
-        if (outError) *outError = STR("Unable to open JSON output file");
-        return false;
-    }
-    fwrite(json_text, 1, strlen(json_text), jf);
-    fclose(jf);
-    free(json_text);
-    // 4) Make sure the binary export directory exists
-    if (!ensure_directory(binary_dir, outError)) {
-        return false;
-    }
-    // 5) Walk all dependent variables, export externals
-    OCIndex dvCount = DatasetGetDependentVariableCount(ds);
-    for (OCIndex i = 0; i < dvCount; ++i) {
-        DependentVariableRef dv = DatasetGetDependentVariableAtIndex(ds, i);
-        if (!dv) continue;
-        if (DependentVariableShouldSerializeExternally(dv)) {
-            OCStringRef url = DependentVariableGetComponentsURL(dv);
-            if (!url) {
-                if (outError) *outError = STR("external DV missing components_url");
-                return false;
+    // --- tags ---
+    cJSON *entry = cJSON_GetObjectItem(json, "tags");
+    if (entry && cJSON_IsArray(entry)) {
+        OCMutableArrayRef tagsArr =
+            OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+        cJSON *e;
+        cJSON_ArrayForEach(e, entry) {
+            if (cJSON_IsString(e)) {
+                OCStringRef s = OCStringCreateWithCString(e->valuestring);
+                OCArrayAppendValue(tagsArr, s);
+                OCRelease(s);
             }
-            const char *relpath = OCStringGetCString(url);
-            char fullpath[4096];
-            snprintf(fullpath, sizeof(fullpath), "%s/%s", binary_dir, relpath);
-            // Ensure parent directories exist
-            if (!ensure_parent_dirs(fullpath, outError)) {
-                return false;
+        }
+        OCDictionarySetValue(dict, STR("tags"), tagsArr);
+        OCRelease(tagsArr);
+    }
+    // --- description & title ---
+    entry = cJSON_GetObjectItem(json, "description");
+    if (entry && cJSON_IsString(entry)) {
+        OCStringRef desc = OCStringCreateWithCString(entry->valuestring);
+        OCDictionarySetValue(dict, STR("description"), desc);
+        OCRelease(desc);
+    }
+    entry = cJSON_GetObjectItem(json, "title");
+    if (entry && cJSON_IsString(entry)) {
+        OCStringRef title = OCStringCreateWithCString(entry->valuestring);
+        OCDictionarySetValue(dict, STR("title"), title);
+        OCRelease(title);
+    }
+    // --- dimensions ---
+    entry = cJSON_GetObjectItem(json, "dimensions");
+    if (entry && cJSON_IsArray(entry)) {
+        OCMutableArrayRef dimsArr =
+            OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+        cJSON *e;
+        cJSON_ArrayForEach(e, entry) {
+            if (cJSON_IsObject(e)) {
+                OCStringRef err = NULL;
+                DimensionRef dim = DimensionCreateFromJSON(e, &err);
+                if (!dim) {
+                    if (outError && err) *outError = OCStringCreateCopy(err);
+                    OCRelease(err);
+                    OCRelease(dimsArr);
+                    OCRelease(dict);
+                    return NULL;
+                }
+                OCDictionaryRef dd = DimensionCopyAsDictionary(dim);
+                OCRelease(dim);
+                OCArrayAppendValue(dimsArr, dd);
+                OCRelease(dd);
             }
-            FILE *bf = fopen(fullpath, "wb");
-            if (!bf) {
+        }
+        OCDictionarySetValue(dict, STR("dimensions"), dimsArr);
+        OCRelease(dimsArr);
+    }
+    // --- dimension_precedence ---
+    entry = cJSON_GetObjectItem(json, "dimension_precedence");
+    if (entry && cJSON_IsArray(entry)) {
+        OCMutableIndexArrayRef precArr = OCIndexArrayCreateMutable(0);
+        cJSON *e;
+        cJSON_ArrayForEach(e, entry) {
+            if (cJSON_IsNumber(e)) {
+                OCIndex idx = (OCIndex)e->valuedouble;
+                OCIndexArrayAppendValue(precArr, idx);
+            }
+        }
+        OCDictionarySetValue(dict, STR("dimension_precedence"), precArr);
+        OCRelease(precArr);
+    }
+    // --- dependent_variables ---
+    entry = cJSON_GetObjectItem(json, "dependent_variables");
+    if (entry && cJSON_IsArray(entry)) {
+        OCMutableArrayRef dvsArr =
+            OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+        cJSON *e;
+        cJSON_ArrayForEach(e, entry) {
+            if (cJSON_IsObject(e)) {
+                OCStringRef err = NULL;
+                DependentVariableRef dv =
+                    DependentVariableCreateFromJSON(e, &err);
+                if (!dv) {
+                    if (outError && err) *outError = OCStringCreateCopy(err);
+                    OCRelease(err);
+                    OCRelease(dvsArr);
+                    OCRelease(dict);
+                    return NULL;
+                }
+                OCDictionaryRef ddv = DependentVariableCopyAsDictionary(dv);
+                OCRelease(dv);
+                OCArrayAppendValue(dvsArr, ddv);
+                OCRelease(ddv);
+            }
+        }
+        OCDictionarySetValue(dict, STR("dependent_variables"), dvsArr);
+        OCRelease(dvsArr);
+    }
+    // --- focus & previous_focus ---
+    entry = cJSON_GetObjectItem(json, "focus");
+    if (entry && cJSON_IsObject(entry)) {
+        OCStringRef err = NULL;
+        DatumRef d = DatumCreateFromJSON(entry, &err);
+        if (!d) {
+            if (outError && err) *outError = OCStringCreateCopy(err);
+            OCRelease(err);
+            OCRelease(dict);
+            return NULL;
+        }
+        OCDictionaryRef fd = DatumCopyAsDictionary(d);
+        OCRelease(d);
+        OCDictionarySetValue(dict, STR("focus"), fd);
+        OCRelease(fd);
+    }
+    entry = cJSON_GetObjectItem(json, "previous_focus");
+    if (entry && cJSON_IsObject(entry)) {
+        OCStringRef err = NULL;
+        DatumRef d = DatumCreateFromJSON(entry, &err);
+        if (!d) {
+            if (outError && err) *outError = OCStringCreateCopy(err);
+            OCRelease(err);
+            OCRelease(dict);
+            return NULL;
+        }
+        OCDictionaryRef fd = DatumCopyAsDictionary(d);
+        OCRelease(d);
+        OCDictionarySetValue(dict, STR("previous_focus"), fd);
+        OCRelease(fd);
+    }
+    // --- metadata ---
+    entry = cJSON_GetObjectItem(json, "metadata");
+    if (entry && cJSON_IsObject(entry)) {
+        OCDictionaryRef md = OCMetadataCreateFromJSON(entry, outError);
+        if (!md) {
+            OCRelease(dict);
+            return NULL;
+        }
+        OCDictionarySetValue(dict, STR("metadata"), md);
+        OCRelease(md);
+    }
+    return dict;
+}
+DatasetRef DatasetCreateFromJSON(cJSON *json, OCStringRef *outError) {
+    OCDictionaryRef dict = DatasetDictionaryCreateFromJSON(json, outError);
+    if (!dict) return NULL;
+    DatasetRef ds = DatasetCreateFromDictionary(dict, outError);
+    OCRelease(dict);
+    return ds;
+}
+#pragma endregion Creators
+#pragma region Export/Import
+static bool join_path(char *out, size_t size, const char *dir, char sep, const char *relpath) {
+    if (!out || !dir || !relpath) return false;
+    int len = snprintf(out, size, "%s%c%s", dir, sep, relpath);
+    return len > 0 && (size_t)len < size;
+}
+static bool ensure_directory(const char *dir, OCStringRef *outError) {
+    if (outError) *outError = NULL;
+    if (!dir || !*dir) {
+        if (outError) *outError = STR("Invalid directory path");
+        return false;
+    }
+    size_t dlen = strnlen(dir, PATH_MAX);
+    if (dlen >= PATH_MAX) {
+        if (outError) *outError = STR("Directory path too long");
+        return false;
+    }
+    // Copy into a mutable buffer and strip trailing slashes
+    char path[PATH_MAX];
+    memcpy(path, dir, dlen);
+    path[dlen] = '\0';
+    while (dlen > 0 && (path[dlen - 1] == '/' || path[dlen - 1] == '\\')) {
+        path[--dlen] = '\0';
+    }
+    // Iteratively create each path segment
+    for (size_t i = 1; i <= dlen; ++i) {
+        if (path[i] == '/' || path[i] == '\\' || i == dlen) {
+            char saved = path[i];
+            path[i] = '\0';
+            errno = 0;
+            if (MKDIR(path) != 0 && errno != EEXIST) {
                 if (outError) {
-                    OCStringRef tmpPath = OCStringCreateWithCString(fullpath);
+                    OCStringRef fp = OCStringCreateWithCString(path);
                     *outError = OCStringCreateWithFormat(
-                        STR("Unable to open binary output file \"%@\""), tmpPath);
-                    OCRelease(tmpPath);
+                        STR("Failed to create directory %@"), fp);
+                    OCRelease(fp);
                 }
                 return false;
             }
-            OCIndex ncomps = DependentVariableGetComponentCount(dv);
-            for (OCIndex ci = 0; ci < ncomps; ++ci) {
-                OCDataRef blob = DependentVariableGetComponentAtIndex(dv, ci);
-                const void *bytes = OCDataGetBytesPtr(blob);
-                uint64_t len = OCDataGetLength(blob);
-                if (fwrite(bytes, 1, (size_t)len, bf) != len) {
-                    fclose(bf);
-                    if (outError) *outError = STR("Failed writing binary component");
-                    OCRelease(ds); 
-                    return false;
-                }
-            }
-            fclose(bf);
+            path[i] = saved;
         }
     }
     return true;
 }
-/// Read an entire file into a malloc()’d buffer; returns NULL on error.
 static uint8_t *read_file_bytes(const char *path, size_t *out_len) {
+    if (out_len) *out_len = 0;
+    if (!path) return NULL;
     FILE *f = fopen(path, "rb");
     if (!f) return NULL;
     struct stat st;
@@ -549,112 +638,237 @@ static uint8_t *read_file_bytes(const char *path, size_t *out_len) {
         return NULL;
     }
     size_t len = (size_t)st.st_size;
-    uint8_t *buf = malloc(len);
+    // Guard against malloc(0)
+    uint8_t *buf = malloc(len ? len : 1);
     if (!buf) {
         fclose(f);
         return NULL;
     }
-    if (fread(buf, 1, len, f) != len) {
+    size_t got = fread(buf, 1, len, f);
+    fclose(f);
+    if (got != len) {
         free(buf);
-        fclose(f);
         return NULL;
     }
-    fclose(f);
-    *out_len = len;
+    if (out_len) *out_len = len;
     return buf;
 }
-/// Ensure that all directories in `fullpath` exist (mkdir -p style).
 static bool ensure_parent_dirs(const char *fullpath, OCStringRef *outError) {
-    char tmp[4096];
-    strncpy(tmp, fullpath, sizeof(tmp));
-    tmp[sizeof(tmp) - 1] = 0;
+    if (!fullpath) {
+        if (outError) *outError = STR("Invalid path");
+        return false;
+    }
+    // Copy since dirname() may modify its argument
+    char tmp[PATH_MAX];
+    size_t plen = strnlen(fullpath, PATH_MAX);
+    if (plen >= PATH_MAX) {
+        if (outError) *outError = STR("Path too long");
+        return false;
+    }
+    memcpy(tmp, fullpath, plen);
+    tmp[plen] = '\0';
     char *dir = dirname(tmp);
-    struct stat st;
-    if (stat(dir, &st) == 0) return true;  // already exists
-    // recursively create parent
-    if (!ensure_parent_dirs(dir, outError)) return false;
-    if (mkdir(dir, 0755) != 0 && errno != EEXIST) {
+    // If dirname returns "." or empty, nothing to do
+    if (!dir || !*dir || (dir[0] == '.' && dir[1] == '\0'))
+        return true;
+    return ensure_directory(dir, outError);
+}
+bool ExportDataset(DatasetRef ds, const char *json_path, const char *binary_dir, OCStringRef *outError) {
+    if (outError) *outError = NULL;
+    if (!ds || !json_path || !binary_dir) {
+        if (outError) *outError = STR("Invalid arguments");
+        return false;
+    }
+    // — 0) Decide if any DV is external, so we know which extension we require —
+    bool hasExternal = false;
+    OCIndex dvCount = DatasetGetDependentVariableCount(ds);
+    for (OCIndex i = 0; i < dvCount; ++i) {
+        DependentVariableRef dv = DatasetGetDependentVariableAtIndex(ds, i);
+        if (dv && DependentVariableShouldSerializeExternally(dv)) {
+            hasExternal = true;
+            break;
+        }
+    }
+
+    // Check user-supplied json_path extension:
+    const char *dot     = strrchr(json_path, '.');
+    const char *gotExt  = dot ? dot + 1 : "";
+    const char *wantExt = hasExternal ? "csdfe" : "csdf";
+    if (strcasecmp(gotExt, wantExt) != 0) {
         if (outError) {
-            OCStringRef tmp = OCStringCreateWithCString(dir);
+            OCStringRef pathStr = OCStringCreateWithCString(json_path);
+            OCStringRef extStr  = OCStringCreateWithCString(wantExt);
+            OCStringRef stateStr= OCStringCreateWithCString(hasExternal ? "contains" : "does not contain");
             *outError = OCStringCreateWithFormat(
-                STR("Failed to create directory \"%@\""), tmp);
-            OCRelease(tmp);
+                STR("CSDM requires %@ extension when the file %s external data; got %@"),
+                extStr, stateStr, pathStr);
+            OCRelease(pathStr);
+            OCRelease(extStr);
+            OCRelease(stateStr);
         }
         return false;
     }
+    // 1) Serialize to JSON via an intermediate dictionary
+    OCDictionaryRef dict = DatasetCopyAsDictionary(ds);
+    if (!dict) {
+        if (outError) *outError = STR("Failed to create dictionary from Dataset");
+        return false;
+    }
+    cJSON *json = OCTypeCopyJSON((OCTypeRef)dict);
+    OCRelease(dict);
+    if (!json) {
+        if (outError) *outError = STR("Failed to convert dictionary to JSON");
+        return false;
+    }
+    // 2) Render JSON to string
+    char *json_text = cJSON_PrintUnformatted(json);
+    cJSON_Delete(json);
+    if (!json_text) {
+        if (outError) *outError = STR("Failed to generate JSON string");
+        return false;
+    }
+    size_t json_len = strlen(json_text);
+    // 3) Ensure parent dirs for JSON and write it out
+    if (!ensure_parent_dirs(json_path, outError)) {
+        free(json_text);
+        return false;
+    }
+    FILE *jf = fopen(json_path, "wb");
+    if (!jf) {
+        free(json_text);
+        if (outError) *outError = STR("Failed to open JSON output file");
+        return false;
+    }
+    size_t written = fwrite(json_text, 1, json_len, jf);
+    fclose(jf);
+    free(json_text);
+    if (written != json_len) {
+        if (outError) *outError = STR("Failed writing JSON file");
+        return false;
+    }
+    // 4) Ensure binary directory exists
+    if (!ensure_directory(binary_dir, outError))
+        return false;
+    // 5) Export each external DependentVariable
+    OCArrayRef dims = DatasetGetDimensions(ds);
+    for (OCIndex i = 0; i < dvCount; ++i) {
+        DependentVariableRef dv = DatasetGetDependentVariableAtIndex(ds, i);
+        if (!dv || !DependentVariableShouldSerializeExternally(dv))
+            continue;
+        OCStringRef url = DependentVariableGetComponentsURL(dv);
+        if (!url) {
+            if (outError) *outError = STR("External DV missing components_url");
+            return false;
+        }
+        // build full path for the blob
+        const char *relpath = OCStringGetCString(url);
+        char fullpath[PATH_MAX];
+        if (!join_path(fullpath, sizeof(fullpath), binary_dir, PATH_SEPARATOR, relpath)) {
+            if (outError) *outError = STR("Binary path too long");
+            return false;
+        }
+        if (!ensure_parent_dirs(fullpath, outError))
+            return false;
+        // serialize the blob
+        OCDataRef blob = DependentVariableCreateCSDMComponentsData(dv, dims);
+        if (!blob) {
+            if (outError) *outError = STR("Failed to create binary blob for DV");
+            return false;
+        }
+        // write it
+        FILE *bf = fopen(fullpath, "wb");
+        if (!bf) {
+            OCRelease(blob);
+            if (outError) *outError = STR("Failed to open binary output file");
+            return false;
+        }
+        const void *bytes = OCDataGetBytesPtr(blob);
+        size_t len = (size_t)OCDataGetLength(blob);
+        bool success = (fwrite(bytes, 1, len, bf) == len);
+        fclose(bf);
+        OCRelease(blob);
+        if (!success) {
+            if (outError) *outError = STR("Error writing binary blob");
+            return false;
+        }
+    }
     return true;
 }
-/// Inverse of ExportDataset: reads JSON + external blobs and reconstructs a DatasetRef.
-DatasetRef ImportDataset(const char *json_path, const char *binary_dir, OCStringRef *outError) {
+DatasetRef ImportDataset(const char *json_path,
+                         const char *binary_dir,
+                         OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!json_path || !binary_dir) {
         if (outError) *outError = STR("Invalid arguments");
         return NULL;
     }
-    // Step 1: Load JSON file
+    // 1) Read entire JSON file into memory
     FILE *jf = fopen(json_path, "rb");
     if (!jf) {
-        if (outError) *outError = STR("Unable to open JSON file");
+        if (outError) *outError = STR("Failed to open JSON file");
         return NULL;
     }
-    fseek(jf, 0, SEEK_END);
-    long fsize = ftell(jf);
-    fseek(jf, 0, SEEK_SET);
-    char *json_text = malloc((size_t)fsize + 1);
-    if (!json_text) {
+    if (fseek(jf, 0, SEEK_END) != 0) {
         fclose(jf);
-        if (outError) *outError = STR("Memory allocation failed for JSON buffer");
+        if (outError) *outError = STR("Failed to seek JSON file");
         return NULL;
     }
-    size_t read_bytes = fread(json_text, 1, (size_t)fsize, jf);
+    long fsize = ftell(jf);
+    rewind(jf);
+    char *buffer = malloc((size_t)fsize + 1);
+    if (!buffer) {
+        fclose(jf);
+        if (outError) *outError = STR("Memory allocation failed");
+        return NULL;
+    }
+    size_t got = fread(buffer, 1, (size_t)fsize, jf);
     fclose(jf);
-    if (read_bytes != (size_t)fsize) {
-        free(json_text);
-        if (outError) *outError = STR("Failed to read entire JSON file");
+    if (got != (size_t)fsize) {
+        free(buffer);
+        if (outError) *outError = STR("Failed to read full JSON file");
         return NULL;
     }
-    json_text[fsize] = '\0';
-    // Step 2: Parse JSON
-    cJSON *root = cJSON_Parse(json_text);
-    free(json_text);
+    buffer[fsize] = '\0';
+    // 2) Parse JSON
+    cJSON *root = cJSON_Parse(buffer);
+    free(buffer);
     if (!root) {
-        if (outError) *outError = STR("Invalid JSON");
+        if (outError) *outError = STR("Invalid JSON format");
         return NULL;
     }
-    // Step 3: Convert JSON → OCDictionary
-    OCTypeRef obj = OCTypeCreateFromJSON((OCTypeRef)root);
+    // 3) Create Dataset object
+    DatasetRef ds = DatasetCreateFromJSON(root, outError);
     cJSON_Delete(root);
-    if (!obj || OCGetTypeID(obj) != OCDictionaryGetTypeID()) {
-        if (outError) *outError = STR("Expected JSON object at top level");
-        if (obj) OCRelease(obj);
+    if (!ds)
         return NULL;
-    }
-    OCDictionaryRef dsDict = (OCDictionaryRef)obj;
-    DatasetRef ds = DatasetCreateFromDictionary(dsDict, outError);
-    OCRelease(dsDict);
-    if (!ds) return NULL;
-    // Step 4: Load external binary data for dependent variables
-    OCIndex ndv = DatasetGetDependentVariableCount(ds);
-    for (OCIndex i = 0; i < ndv; ++i) {
+    // 4) Load each external blob
+    OCIndex count = DatasetGetDependentVariableCount(ds);
+    for (OCIndex i = 0; i < count; ++i) {
         DependentVariableRef dv = DatasetGetDependentVariableAtIndex(ds, i);
-        if (!dv || !DependentVariableShouldSerializeExternally(dv)) continue;
+        if (!dv || !DependentVariableShouldSerializeExternally(dv))
+            continue;
         OCStringRef url = DependentVariableGetComponentsURL(dv);
-        const char *rel = url ? OCStringGetCString(url) : NULL;
-        if (!rel || strlen(rel) == 0) {
-            if (outError) *outError = STR("Missing or invalid components_url in external DV");
+        if (!url) {
+            if (outError) *outError = STR("Missing components_url in external DV");
             OCRelease(ds);
             return NULL;
         }
-        char full[4096];
-        snprintf(full, sizeof(full), "%s/%s", binary_dir, rel);
-        full[sizeof(full) - 1] = '\0';
+        const char *relpath = OCStringGetCString(url);
+        char fullpath[PATH_MAX];
+        if (!join_path(fullpath, sizeof(fullpath), binary_dir, PATH_SEPARATOR, relpath)) {
+            if (outError) *outError = STR("Binary path too long");
+            OCRelease(ds);
+            return NULL;
+        }
         size_t total_bytes = 0;
-        uint8_t *all = read_file_bytes(full, &total_bytes);
-        if (!all) {
+        uint8_t *bytes = read_file_bytes(fullpath, &total_bytes);
+        if (!bytes) {
             if (outError) {
-                OCStringRef tmpPath = OCStringCreateWithCString(full);
-                *outError = OCStringCreateWithFormat(STR("Failed to read binary file \"%@\""), tmpPath);
-                OCRelease(tmpPath);
+                OCStringRef pathStr = OCStringCreateWithCString(fullpath);
+                *outError = OCStringCreateWithFormat(
+                    STR("Failed to read file %@"),
+                    pathStr);
+                OCRelease(pathStr);
             }
             OCRelease(ds);
             return NULL;
@@ -664,29 +878,22 @@ DatasetRef ImportDataset(const char *json_path, const char *binary_dir, OCString
             ncomps = DependentVariableComponentsCountFromQuantityType(
                 DependentVariableGetQuantityType(dv));
         }
-        size_t elemSize = SIQuantityElementSize((SIQuantityRef)dv);
         OCIndex npts = DependentVariableGetSize(dv);
+        size_t elemSize = SIQuantityElementSize((SIQuantityRef)dv);
         size_t chunk = (size_t)npts * elemSize;
         if (chunk * (size_t)ncomps != total_bytes) {
-            free(all);
-            if (outError && !*outError)
-                *outError = STR("Binary size mismatch for DV");
+            free(bytes);
+            if (outError) *outError = STR("Binary size mismatch");
             OCRelease(ds);
             return NULL;
         }
         OCMutableArrayRef comps = OCArrayCreateMutable(ncomps, &kOCTypeArrayCallBacks);
-        if (!comps) {
-            free(all);
-            if (outError) *outError = STR("Failed to allocate components array");
-            OCRelease(ds);
-            return NULL;
-        }
         for (OCIndex ci = 0; ci < ncomps; ++ci) {
             OCMutableDataRef buf = OCDataCreateMutable(chunk);
-            if (!buf || !OCDataAppendBytes(buf, all + (size_t)ci * chunk, chunk)) {
+            if (!buf || !OCDataAppendBytes(buf, bytes + (ci * chunk), chunk)) {
                 OCRelease(buf);
                 OCRelease(comps);
-                free(all);
+                free(bytes);
                 if (outError) *outError = STR("Failed to create component buffer");
                 OCRelease(ds);
                 return NULL;
@@ -694,132 +901,19 @@ DatasetRef ImportDataset(const char *json_path, const char *binary_dir, OCString
             OCArrayAppendValue(comps, buf);
             OCRelease(buf);
         }
-        free(all);
+        free(bytes);
         if (!DependentVariableSetComponents(dv, comps)) {
-            if (outError && !*outError)
-                *outError = STR("Failed to install components into DependentVariable");
             OCRelease(comps);
             OCRelease(ds);
+            if (outError) *outError = STR("Failed to install DV components");
             return NULL;
         }
         OCRelease(comps);
     }
     return ds;
 }
-OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds, const char *exportDirectory) {
-    if (!ds) return NULL;
-
-    OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
-    if (!dict) return NULL;
-
-    // — tags —
-    if (ds->tags) {
-        OCMutableArrayRef tags_copy = OCArrayCreateMutableCopy(ds->tags);
-        if (tags_copy) {
-            OCDictionarySetValue(dict, STR("tags"), tags_copy);
-            OCRelease(tags_copy);
-        }
-    }
-
-    // — description & title —
-    if (ds->description) {
-        OCStringRef desc_copy = OCStringCreateCopy(ds->description);
-        if (desc_copy) {
-            OCDictionarySetValue(dict, STR("description"), desc_copy);
-            OCRelease(desc_copy);
-        }
-    }
-    if (ds->title) {
-        OCStringRef title_copy = OCStringCreateCopy(ds->title);
-        if (title_copy) {
-            OCDictionarySetValue(dict, STR("title"), title_copy);
-            OCRelease(title_copy);
-        }
-    }
-
-    // — dimensions —
-    if (ds->dimensions) {
-        OCIndex n = OCArrayGetCount(ds->dimensions);
-        OCMutableArrayRef dims_arr = OCArrayCreateMutable(n, &kOCTypeArrayCallBacks);
-        if (dims_arr) {
-            for (OCIndex i = 0; i < n; ++i) {
-                DimensionRef d = (DimensionRef)OCArrayGetValueAtIndex(ds->dimensions, i);
-                OCDictionaryRef d_dict = DimensionCopyAsDictionary(d);
-                if (d_dict) {
-                    OCArrayAppendValue(dims_arr, d_dict);
-                    OCRelease(d_dict);
-                }
-            }
-            OCDictionarySetValue(dict, STR("dimensions"), dims_arr);
-            OCRelease(dims_arr);
-        }
-    }
-
-    // — dimension_precedence —
-    if (ds->dimensionPrecedence) {
-        OCIndexArrayRef prec_copy = OCIndexArrayCreateMutableCopy(ds->dimensionPrecedence);
-        if (prec_copy) {
-            OCDictionarySetValue(dict, STR("dimension_precedence"), prec_copy);
-            OCRelease(prec_copy);
-        }
-    }
-
-    // — dependent_variables —
-    if (ds->dependentVariables) {
-        OCStringRef err = NULL;
-        if (exportDirectory) {
-            if (!DatasetExportDependentVariableBlobs(ds, exportDirectory, &err)) {
-                // optionally log or retain `err` for diagnostics
-                OCRelease(err);
-            }
-        }
-
-        OCIndex m = OCArrayGetCount(ds->dependentVariables);
-        OCMutableArrayRef dvs_arr = OCArrayCreateMutable(m, &kOCTypeArrayCallBacks);
-        if (dvs_arr) {
-            for (OCIndex i = 0; i < m; ++i) {
-                DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(ds->dependentVariables, i);
-                OCDictionaryRef dv_dict = DependentVariableCopyAsDictionary(dv);
-                if (dv_dict) {
-                    OCArrayAppendValue(dvs_arr, dv_dict);
-                    OCRelease(dv_dict);
-                }
-            }
-            OCDictionarySetValue(dict, STR("dependent_variables"), dvs_arr);
-            OCRelease(dvs_arr);
-        }
-    }
-
-    // — focus & previous_focus —
-    if (ds->focus) {
-        OCDictionaryRef fdict = DatumCopyAsDictionary(ds->focus);
-        if (fdict) {
-            OCDictionarySetValue(dict, STR("focus"), fdict);
-            OCRelease(fdict);
-        }
-    }
-    if (ds->previousFocus) {
-        OCDictionaryRef pf = DatumCopyAsDictionary(ds->previousFocus);
-        if (pf) {
-            OCDictionarySetValue(dict, STR("previous_focus"), pf);
-            OCRelease(pf);
-        }
-    }
-
-    // — metadata —
-    if (ds->metaData) {
-        OCMutableDictionaryRef md_copy = (OCMutableDictionaryRef)OCTypeDeepCopyMutable(ds->metaData);
-        if (md_copy) {
-            OCDictionarySetValue(dict, STR("metadata"), md_copy);
-            OCRelease(md_copy);
-        }
-    }
-
-    return (OCDictionaryRef)dict;
-}
-//-----------------------
-// Accessors & Mutators
-//-----------------------
+#pragma endregion Export / Import
+#pragma region Getters/Setters
 OCMutableArrayRef DatasetGetDimensions(DatasetRef ds) {
     return ds ? ds->dimensions : NULL;
 }
@@ -901,3 +995,4 @@ bool DatasetSetMetaData(DatasetRef ds, OCDictionaryRef md) {
     ds->metaData = (OCDictionaryRef)OCRetain(md);
     return true;
 }
+#pragma endregion Getters / Setters

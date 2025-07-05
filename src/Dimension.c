@@ -2842,3 +2842,4 @@ DimensionRef DimensionCreateFromDictionary(OCDictionaryRef dict, OCStringRef *ou
     // no type discriminator → treat as abstract‐base Dimension
     return impl_DimensionCreateFromDictionary(dict);
 }
+#pragma endregion Dimension Utilities

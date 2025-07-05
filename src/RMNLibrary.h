@@ -38,6 +38,7 @@ typedef struct impl_SILinearDimension *SILinearDimensionRef;
 typedef struct impl_Dataset *DatasetRef;
 /** @endcond */
 
+#define DependentVariableComponentsFileName STR("dependent_variable-%ld.data")
 
 // Local module headers
 #include "Datum.h"
