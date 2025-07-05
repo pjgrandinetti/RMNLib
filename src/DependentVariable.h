@@ -11,8 +11,6 @@
  * @brief Object model for a dependent variable.
  * @{
  */
-/** Opaque handle to a DependentVariable instance. */
-typedef struct impl_DependentVariable *DependentVariableRef;
 /**
  * @name Type & Copying
  * @{
@@ -21,12 +19,9 @@ typedef struct impl_DependentVariable *DependentVariableRef;
 OCTypeID
 DependentVariableGetTypeID(void);
 /** Deep (immutable) copy. */
-DependentVariableRef
-DependentVariableCreateCopy(DependentVariableRef orig);
+DependentVariableRef DependentVariableCreateCopy(DependentVariableRef orig);
 /** Like CreateCopy, but result is guaranteed complex-typed. */
-DependentVariableRef
-DependentVariableCreateComplexCopy(DependentVariableRef src,
-                                   OCTypeRef owner);
+DependentVariableRef DependentVariableCreateComplexCopy(DependentVariableRef src, OCTypeRef owner);
 /** @} */
 /**
  * @name Creation
@@ -86,6 +81,7 @@ DependentVariableCreateWithComponent(
     OCArrayRef componentLabels,
     OCDataRef component,
     OCStringRef *outError);
+DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *outError);
 /**
  * Create a “cross‐section” of a multi-DIM sampling over a specified fixed
  * `indexPairs`.  On error, returns NULL and sets `*outError` (if non-NULL).
@@ -151,50 +147,28 @@ bool DependentVariableIsVectorType(DependentVariableRef dv, OCIndex *outCount);
 bool DependentVariableIsPixelType(DependentVariableRef dv, OCIndex *outCount);
 bool DependentVariableIsMatrixType(DependentVariableRef dv, OCIndex *outRows, OCIndex *outCols);
 bool DependentVariableIsSymmetricMatrixType(DependentVariableRef dv, OCIndex *outN);
-OCStringRef
-DependentVariableGetType(DependentVariableRef dv);
-bool DependentVariableSetType(DependentVariableRef dv,
-                              OCStringRef newType);
-OCStringRef
-DependentVariableGetEncoding(DependentVariableRef dv);
-bool DependentVariableSetEncoding(DependentVariableRef dv,
-                                  OCStringRef newEnc);
-OCStringRef
-DependentVariableGetComponentsURL(DependentVariableRef dv);
-bool DependentVariableSetComponentsURL(DependentVariableRef dv,
-                                       OCStringRef url);
-OCStringRef
-DependentVariableGetName(DependentVariableRef dv);
-bool DependentVariableSetName(DependentVariableRef dv,
-                              OCStringRef newName);
-OCStringRef
-DependentVariableGetDescription(DependentVariableRef dv);
-bool DependentVariableSetDescription(DependentVariableRef dv,
-                                     OCStringRef newDesc);
-OCStringRef
-DependentVariableGetQuantityName(DependentVariableRef dv);
-bool DependentVariableSetQuantityName(DependentVariableRef dv,
-                                      OCStringRef quantityName);
+OCStringRef DependentVariableGetType(DependentVariableRef dv);
+bool DependentVariableSetType(DependentVariableRef dv, OCStringRef newType);
+bool DependentVariableShouldSerializeExternally(DependentVariableRef dv);
+OCStringRef DependentVariableGetEncoding(DependentVariableRef dv);
+bool DependentVariableSetEncoding(DependentVariableRef dv, OCStringRef newEnc);
+OCStringRef DependentVariableGetComponentsURL(DependentVariableRef dv);
+bool DependentVariableSetComponentsURL(DependentVariableRef dv, OCStringRef url);
+OCStringRef DependentVariableGetName(DependentVariableRef dv);
+bool DependentVariableSetName(DependentVariableRef dv, OCStringRef newName);
+OCStringRef DependentVariableGetDescription(DependentVariableRef dv);
+bool DependentVariableSetDescription(DependentVariableRef dv, OCStringRef newDesc);
+OCStringRef DependentVariableGetQuantityName(DependentVariableRef dv);
+bool DependentVariableSetQuantityName(DependentVariableRef dv, OCStringRef quantityName);
 OCIndex DependentVariableComponentsCountFromQuantityType(OCStringRef quantityType);
-OCStringRef
-DependentVariableGetQuantityType(DependentVariableRef dv);
-bool DependentVariableSetQuantityType(DependentVariableRef dv,
-                                      OCStringRef quantityType);
-OCIndexSetRef
-DependentVariableGetSparseDimensionIndexes(DependentVariableRef dv);
-bool DependentVariableSetSparseDimensionIndexes(
-    DependentVariableRef dv,
-    OCIndexSetRef idxSet);
-OCArrayRef
-DependentVariableGetSparseGridVertexes(DependentVariableRef dv);
-bool DependentVariableSetSparseGridVertexes(
-    DependentVariableRef dv,
-    OCArrayRef verts);
-OCDictionaryRef
-DependentVariableGetMetaData(DependentVariableRef dv);
-bool DependentVariableSetMetaData(DependentVariableRef dv,
-                                  OCDictionaryRef dict);
-                                  
+OCStringRef DependentVariableGetQuantityType(DependentVariableRef dv);
+bool DependentVariableSetQuantityType(DependentVariableRef dv, OCStringRef quantityType);
+OCIndexSetRef DependentVariableGetSparseDimensionIndexes(DependentVariableRef dv);
+bool DependentVariableSetSparseDimensionIndexes(DependentVariableRef dv, OCIndexSetRef idxSet);
+OCArrayRef DependentVariableGetSparseGridVertexes(DependentVariableRef dv);
+bool DependentVariableSetSparseGridVertexes(DependentVariableRef dv, OCArrayRef verts);
+OCDictionaryRef DependentVariableGetMetaData(DependentVariableRef dv);
+bool DependentVariableSetMetaData(DependentVariableRef dv, OCDictionaryRef dict);
 OCTypeRef DependentVariableGetOwner(DependentVariableRef dv);
 bool DependentVariableSetOwner(DependentVariableRef dv, OCTypeRef owner);
 /** @} */
@@ -202,23 +176,14 @@ bool DependentVariableSetOwner(DependentVariableRef dv, OCTypeRef owner);
  * @name Component-array Accessors
  * @{
  */
-OCIndex
-DependentVariableGetComponentCount(DependentVariableRef dv);
-OCMutableArrayRef
-DependentVariableGetComponents(DependentVariableRef dv);
-OCMutableArrayRef
-DependentVariableCopyComponents(DependentVariableRef dv);
-OCDataRef
-DependentVariableGetComponentAtIndex(DependentVariableRef dv,
-                                     OCIndex idx);
-bool DependentVariableSetComponentAtIndex(DependentVariableRef dv,
-                                          OCDataRef newBuf,
-                                          OCIndex idx);
-bool DependentVariableInsertComponentAtIndex(DependentVariableRef dv,
-                                             OCDataRef component,
-                                             OCIndex idx);
-bool DependentVariableRemoveComponentAtIndex(DependentVariableRef dv,
-                                             OCIndex idx);
+OCIndex DependentVariableGetComponentCount(DependentVariableRef dv);
+OCMutableArrayRef DependentVariableGetComponents(DependentVariableRef dv);
+bool DependentVariableSetComponents(DependentVariableRef dv, OCArrayRef newComponents);
+OCMutableArrayRef DependentVariableCopyComponents(DependentVariableRef dv);
+OCDataRef DependentVariableGetComponentAtIndex(DependentVariableRef dv, OCIndex idx);
+bool DependentVariableSetComponentAtIndex(DependentVariableRef dv, OCDataRef newBuf, OCIndex idx);
+bool DependentVariableInsertComponentAtIndex(DependentVariableRef dv, OCDataRef component, OCIndex idx);
+bool DependentVariableRemoveComponentAtIndex(DependentVariableRef dv, OCIndex idx);
 /** @} */
 /**
  * @name Size & Element-type

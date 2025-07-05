@@ -56,18 +56,14 @@ static cJSON *impl_DatumCreateJSON(const void *obj) {
     DatumRef datum = (DatumRef)obj;
     if (!datum)
         return cJSON_CreateNull();
-
     // 1) Get a plain OC‐dictionary of all fields
     OCDictionaryRef dict = DatumCopyAsDictionary(datum);
     if (!dict)
         return cJSON_CreateNull();
-
     // 2) Convert that dictionary to cJSON in one shot
     cJSON *json = OCDictionaryCreateJSON(dict);
-
     // 3) Clean up
     OCRelease(dict);
-
     // 4) In case your OCDictionaryCreateJSON can return NULL on failure:
     return json ? json : cJSON_CreateNull();
 }
@@ -169,8 +165,9 @@ OCIndex DatumCoordinatesCount(DatumRef theDatum) {
     return 0;
 }
 DatumRef DatumCreateFromDictionary(OCDictionaryRef dictionary, OCStringRef *error) {
-    if (error)
-        if (*error) return NULL;
+    if (error && *error) {
+        return NULL;
+    }
     IF_NO_OBJECT_EXISTS_RETURN(dictionary, NULL);
     OCIndex dependentVariableIndex = 0;
     if (OCDictionaryContainsKey(dictionary, STR("dependent_variable_index")))
@@ -236,4 +233,80 @@ OCDictionaryRef DatumCopyAsDictionary(DatumRef theDatum) {
         OCRelease(coordinates);
     }
     return dictionary;
+}
+static OCDictionaryRef DatumDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
+    if (outError) *outError = NULL;
+    if (!json || !cJSON_IsObject(json)) {
+        if (outError) *outError = STR("Expected JSON object for Datum");
+        return NULL;
+    }
+    OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
+    cJSON *item = NULL;
+    // Required: dependent_variable_index
+    item = cJSON_GetObjectItemCaseSensitive(json, "dependent_variable_index");
+    if (!cJSON_IsNumber(item)) {
+        if (outError) *outError = STR("Missing or invalid \"dependent_variable_index\"");
+        OCRelease(dict);
+        return NULL;
+    }
+    OCNumberRef dvIdx = OCNumberCreateWithOCIndex(item->valueint);
+    OCDictionarySetValue(dict, STR("dependent_variable_index"), dvIdx);
+    OCRelease(dvIdx);
+    // Required: component_index
+    item = cJSON_GetObjectItemCaseSensitive(json, "component_index");
+    if (!cJSON_IsNumber(item)) {
+        if (outError) *outError = STR("Missing or invalid \"component_index\"");
+        OCRelease(dict);
+        return NULL;
+    }
+    OCNumberRef compIdx = OCNumberCreateWithOCIndex(item->valueint);
+    OCDictionarySetValue(dict, STR("component_index"), compIdx);
+    OCRelease(compIdx);
+    // Required: mem_offset
+    item = cJSON_GetObjectItemCaseSensitive(json, "mem_offset");
+    if (!cJSON_IsNumber(item)) {
+        if (outError) *outError = STR("Missing or invalid \"mem_offset\"");
+        OCRelease(dict);
+        return NULL;
+    }
+    OCNumberRef memOffset = OCNumberCreateWithOCIndex(item->valueint);
+    OCDictionarySetValue(dict, STR("mem_offset"), memOffset);
+    OCRelease(memOffset);
+    // Optional: response
+    item = cJSON_GetObjectItemCaseSensitive(json, "response");
+    if (cJSON_IsString(item)) {
+        OCStringRef response = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR("response"), response);
+        OCRelease(response);
+    }
+    // Optional: coordinates
+    item = cJSON_GetObjectItemCaseSensitive(json, "coordinates");
+    if (cJSON_IsArray(item)) {
+        OCMutableArrayRef coords = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
+        cJSON *coord = NULL;
+        cJSON_ArrayForEach(coord, item) {
+            if (cJSON_IsString(coord)) {
+                OCStringRef coordStr = OCStringCreateWithCString(coord->valuestring);
+                OCArrayAppendValue(coords, coordStr);
+                OCRelease(coordStr);
+            }
+        }
+        OCDictionarySetValue(dict, STR("coordinates"), coords);
+        OCRelease(coords);
+    }
+    return dict;
+}
+DatumRef DatumCreateFromJSON(cJSON *json, OCStringRef *outError) {
+    if (outError) *outError = NULL;
+    if (!json || !cJSON_IsObject(json)) {
+        if (outError) *outError = STR("Expected a JSON object");
+        return NULL;
+    }
+    // Step 1: Convert JSON → OCDictionary
+    OCDictionaryRef dict = DatumDictionaryCreateFromJSON(json, outError);
+    if (!dict) return NULL;
+    // Step 2: Convert dictionary → Datum
+    DatumRef datum = DatumCreateFromDictionary(dict, outError);
+    OCRelease(dict);
+    return datum;
 }

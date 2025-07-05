@@ -32,18 +32,21 @@ DatasetRef DatasetCreate(
     OCDictionaryRef metaData);
 
 /// Re-instantiate a Dataset from the dictionary form produced by DatasetCopyAsDictionary
-DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict);
-
+DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError);
 /// Serialize into a dictionary (deep-copyable, for persistence or DatasetCreateCopy)
 OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds, const char *exportDirectory);
-
+cJSON *DatasetCreateJSON(OCTypeRef obj);
 /// Shorthand deep-copy via CopyAsDictionary + CreateFromDictionary
-static inline DatasetRef
-DatasetCreateCopy(DatasetRef ds) {
+static inline DatasetRef DatasetCreateCopy(DatasetRef ds) {
     if (!ds) return NULL;
+    OCStringRef err = NULL;
     OCDictionaryRef d = DatasetCopyAsDictionary(ds, NULL);
-    DatasetRef c = DatasetCreateFromDictionary(d);
+    DatasetRef c = DatasetCreateFromDictionary(d, &err);
     OCRelease(d);
+    if (!c) {
+        OCRelease(err);  // optional: log or inspect err before releasing
+        return NULL;
+    }
     return c;
 }
 
@@ -65,6 +68,8 @@ bool DatasetSetDimensionPrecedence(DatasetRef ds,
 OCMutableArrayRef DatasetGetDependentVariables(DatasetRef ds);
 bool DatasetSetDependentVariables(DatasetRef ds,
                                   OCMutableArrayRef dvs);
+OCIndex DatasetGetDependentVariableCount(DatasetRef ds);
+DependentVariableRef DatasetGetDependentVariableAtIndex(DatasetRef ds, OCIndex index);
 
 /// tags
 OCMutableArrayRef DatasetGetTags(DatasetRef ds);

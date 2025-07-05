@@ -12,11 +12,6 @@
  * @{
  */
 /**
- * @typedef DatumRef
- * @brief A reference to an Datum object.
- */
-typedef struct impl_Datum *DatumRef;
-/**
  * @brief Get the OCTypeID for Datum objects.
  * @return The type ID for Datum.
  * @ingroup Datum
@@ -131,5 +126,24 @@ OCDictionaryRef DatumCopyAsDictionary(DatumRef theDatum);
  * @ingroup Datum
  */
 DatumRef DatumCreateFromDictionary(OCDictionaryRef dictionary, OCStringRef *error);
+
+/**
+ * @brief Constructs a DatumRef from a schema-bound JSON object.
+ *
+ * This function deserializes a cJSON object that represents a Datum
+ * in the schema format produced by DatumCopyAsDictionary() and
+ * DatumCreateJSON().
+ *
+ * The function converts the JSON to an OCDictionaryRef using
+ * DatumDictionaryCreateFromJSON(), then constructs the DatumRef using
+ * DatumCreateFromDictionary().
+ *
+ * @param json A cJSON object representing the serialized Datum.
+ * @param outError Optional pointer to receive an error message on failure.
+ * @return A newly created DatumRef, or NULL on error.
+ */
+DatumRef DatumCreateFromJSON(cJSON *json, OCStringRef *outError);
+
 /** @} */  // end of Datum group
 #endif     /* DATUM_H */
+
