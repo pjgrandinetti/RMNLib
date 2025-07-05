@@ -48,27 +48,21 @@ RMNCalculateSizeFromDimensionsIgnoring(OCArrayRef dimensions,
     }
     return size;
 }
-
-OCIndex
-RMNGridMemOffsetFromIndexes(OCArrayRef    dimensions,
-                            const OCIndex indexes[])
-{
+OCIndex RMNGridMemOffsetFromIndexes(OCArrayRef dimensions,const OCIndex indexes[]) {
     if (!dimensions || !indexes) return (OCIndex)-1;
     OCIndex nDims = OCArrayGetCount(dimensions);
     if (nDims == 0) return 0;
-
     // start with the last dimension
     OCIndex memOffset;
     {
-        DimensionRef d = (DimensionRef)OCArrayGetValueAtIndex(dimensions, nDims-1);
+        DimensionRef d = (DimensionRef)OCArrayGetValueAtIndex(dimensions, nDims - 1);
         OCIndex npts = DimensionGetCount(d);
-        OCIndex idx  = indexes[nDims-1] % npts;
+        OCIndex idx = indexes[nDims - 1] % npts;
         if (idx < 0) idx += npts;
         memOffset = idx;
     }
-
     // then fold in each earlier dimension
-    for (OCIndex i = nDims-1; i-- > 0; ) {
+    for (OCIndex i = nDims - 1; i-- > 0;) {
         DimensionRef d = (DimensionRef)OCArrayGetValueAtIndex(dimensions, i);
         OCIndex npts = DimensionGetCount(d);
         memOffset *= npts;
@@ -76,19 +70,15 @@ RMNGridMemOffsetFromIndexes(OCArrayRef    dimensions,
         if (idx < 0) idx += npts;
         memOffset += idx;
     }
-
     return memOffset;
 }
-
 OCIndex
 RMNGridCoordinateIndexFromMemOffset(OCArrayRef dimensions,
-                                    OCIndex     memOffset,
-                                    OCIndex     dimensionIndex)
-{
+                                    OCIndex memOffset,
+                                    OCIndex dimensionIndex) {
     if (!dimensions) return (OCIndex)-1;
     OCIndex nDims = OCArrayGetCount(dimensions);
     if (dimensionIndex >= nDims) return (OCIndex)-1;
-
     OCIndex hyper = 1;
     for (OCIndex i = 0; i <= dimensionIndex; ++i) {
         DimensionRef d = (DimensionRef)OCArrayGetValueAtIndex(dimensions, i);
@@ -99,10 +89,8 @@ RMNGridCoordinateIndexFromMemOffset(OCArrayRef dimensions,
         }
         hyper *= npts;
     }
-
     return (OCIndex)-1;  // should never happen
 }
-
 OCIndex strideAlongDimensionIndex(const OCIndex *npts, const OCIndex dimensionsCount, const OCIndex dimensionIndex) {
     if (dimensionIndex == 0) return 1;
     OCIndex stride = 1;

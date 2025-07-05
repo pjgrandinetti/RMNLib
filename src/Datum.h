@@ -1,33 +1,27 @@
 #pragma once
 #ifndef DATUM_H
 #define DATUM_H
-
 #include "RMNLibrary.h"
-
 /**
  * @file Datum.h
  * @brief Public API for Datum, a data structure for managing scalar quantities with coordinates.
  */
-
 /**
  * @defgroup Datum Datum
  * @brief Object model for data points with scalar value and coordinates.
  * @{
  */
-
 /**
  * @typedef DatumRef
  * @brief A reference to an Datum object.
  */
 typedef struct impl_Datum *DatumRef;
-
 /**
  * @brief Get the OCTypeID for Datum objects.
  * @return The type ID for Datum.
  * @ingroup Datum
  */
 OCTypeID DatumGetTypeID(void);
-
 /**
  * @brief Create a new Datum object.
  * @param theScalar The scalar value.
@@ -39,11 +33,10 @@ OCTypeID DatumGetTypeID(void);
  * @ingroup Datum
  */
 DatumRef DatumCreate(SIScalarRef theScalar,
-                           OCArrayRef coordinates,
-                           OCIndex dependentVariableIndex,
-                           OCIndex componentIndex,
-                           OCIndex memOffset);
-
+                     OCArrayRef coordinates,
+                     OCIndex dependentVariableIndex,
+                     OCIndex componentIndex,
+                     OCIndex memOffset);
 /**
  * @brief Create a copy of an Datum.
  * @param theDatum The Datum to copy.
@@ -51,7 +44,6 @@ DatumRef DatumCreate(SIScalarRef theScalar,
  * @ingroup Datum
  */
 DatumRef DatumCopy(DatumRef theDatum);
-
 /**
  * @brief Compare whether two datums share the same reduced dimensionalities.
  * @param input1 First datum.
@@ -60,7 +52,6 @@ DatumRef DatumCopy(DatumRef theDatum);
  * @ingroup Datum
  */
 bool DatumHasSameReducedDimensionalities(DatumRef input1, DatumRef input2);
-
 /**
  * @brief Get the component index of a datum.
  * @param theDatum The datum to query.
@@ -68,7 +59,6 @@ bool DatumHasSameReducedDimensionalities(DatumRef input1, DatumRef input2);
  * @ingroup Datum
  */
 OCIndex DatumGetComponentIndex(DatumRef theDatum);
-
 /**
  * @brief Set the component index.
  * @param theDatum The datum to modify.
@@ -76,7 +66,6 @@ OCIndex DatumGetComponentIndex(DatumRef theDatum);
  * @ingroup Datum
  */
 void DatumSetComponentIndex(DatumRef theDatum, OCIndex componentIndex);
-
 /**
  * @brief Get the dependent variable index.
  * @param theDatum The datum to query.
@@ -84,7 +73,6 @@ void DatumSetComponentIndex(DatumRef theDatum, OCIndex componentIndex);
  * @ingroup Datum
  */
 OCIndex DatumGetDependentVariableIndex(DatumRef theDatum);
-
 /**
  * @brief Set the dependent variable index.
  * @param theDatum The datum to modify.
@@ -92,7 +80,6 @@ OCIndex DatumGetDependentVariableIndex(DatumRef theDatum);
  * @ingroup Datum
  */
 void DatumSetDependentVariableIndex(DatumRef theDatum, OCIndex dependentVariableIndex);
-
 /**
  * @brief Get the memory offset.
  * @param theDatum The datum to query.
@@ -100,7 +87,6 @@ void DatumSetDependentVariableIndex(DatumRef theDatum, OCIndex dependentVariable
  * @ingroup Datum
  */
 OCIndex DatumGetMemOffset(DatumRef theDatum);
-
 /**
  * @brief Set the memory offset.
  * @param theDatum The datum to modify.
@@ -108,7 +94,6 @@ OCIndex DatumGetMemOffset(DatumRef theDatum);
  * @ingroup Datum
  */
 void DatumSetMemOffset(DatumRef theDatum, OCIndex memOffset);
-
 /**
  * @brief Get a coordinate at a given index.
  * @param theDatum The datum to query.
@@ -117,7 +102,6 @@ void DatumSetMemOffset(DatumRef theDatum, OCIndex memOffset);
  * @ingroup Datum
  */
 SIScalarRef DatumGetCoordinateAtIndex(DatumRef theDatum, OCIndex index);
-
 /**
  * @brief Create a scalar response based on the datum’s configuration.
  * @param theDatum The datum to process.
@@ -125,7 +109,6 @@ SIScalarRef DatumGetCoordinateAtIndex(DatumRef theDatum, OCIndex index);
  * @ingroup Datum
  */
 SIScalarRef DatumCreateResponse(DatumRef theDatum);
-
 /**
  * @brief Get the number of coordinates.
  * @param theDatum The datum to query.
@@ -133,7 +116,6 @@ SIScalarRef DatumCreateResponse(DatumRef theDatum);
  * @ingroup Datum
  */
 OCIndex DatumCoordinatesCount(DatumRef theDatum);
-
 /**
  * @brief Create a dictionary representation of the datum.
  * @param theDatum The Datum to serialize.
@@ -141,7 +123,6 @@ OCIndex DatumCoordinatesCount(DatumRef theDatum);
  * @ingroup Datum
  */
 OCDictionaryRef DatumCopyAsDictionary(DatumRef theDatum);
-
 /**
  * @brief Create a new Datum from a dictionary.
  * @param dictionary The dictionary to parse.
@@ -150,7 +131,5 @@ OCDictionaryRef DatumCopyAsDictionary(DatumRef theDatum);
  * @ingroup Datum
  */
 DatumRef DatumCreateFromDictionary(OCDictionaryRef dictionary, OCStringRef *error);
-
 /** @} */  // end of Datum group
-
-#endif /* DATUM_H */
+#endif     /* DATUM_H */

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "RMNLibrary.h"
-#include "DependentVariable.h"
 #include "test_utils.h"
 
 bool test_DependentVariable_base(void) {
@@ -45,8 +44,13 @@ bool test_DependentVariable_base(void) {
     // sparse fields
     TEST_ASSERT(DependentVariableGetSparseDimensionIndexes(dv) != NULL);
     TEST_ASSERT(DependentVariableGetSparseGridVertexes(dv) != NULL);
-    TEST_ASSERT(DependentVariableSetSparseGridVertexes(dv, STR("verts")));
-    TEST_ASSERT(OCStringEqual(DependentVariableGetSparseGridVertexes(dv), STR("verts")));
+    // Fix: Set an array, not a string, as sparse grid vertexes
+    OCMutableArrayRef vertsArr = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    OCArrayAppendValue(vertsArr, STR("verts"));
+    TEST_ASSERT(DependentVariableSetSparseGridVertexes(dv, vertsArr));
+    // Fix: Compare arrays, not strings
+    TEST_ASSERT(OCTypeEqual(DependentVariableGetSparseGridVertexes(dv), vertsArr));
+    OCRelease(vertsArr);
 
     // 3) copy via OCTypeDeepCopy
     dv2 = OCTypeDeepCopy(dv);
@@ -57,7 +61,7 @@ bool test_DependentVariable_base(void) {
     // 4) dict round-trip
     dict = DependentVariableCopyAsDictionary(dv);
     TEST_ASSERT(dict != NULL);
-    dv3 = DependentVariableCreateFromDictionary(dict);
+    dv3 = DependentVariableCreateFromDictionary(dict, NULL);
     TEST_ASSERT(dv3 != NULL);
 
     // formatting comparison

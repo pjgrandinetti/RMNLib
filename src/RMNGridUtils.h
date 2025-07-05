@@ -1,4 +1,5 @@
 // RMNGridUtils.h
+
 #ifndef RMNGRIDUTILS_H
 #define RMNGRIDUTILS_H
 
@@ -18,17 +19,17 @@ extern "C" {
  *  - all other Dimension subclasses → 1
  *
  * @param dimensions  An OCArrayRef of DimensionRef
- * @return            The product of all per-dimension sample counts.
+ * @return            The product of all per-dimension sample counts (or 1 if NULL).
  */
 OCIndex
 RMNCalculateSizeFromDimensions(OCArrayRef dimensions);
 
 /**
  * @brief Like RMNCalculateSizeFromDimensions, but skip any dimensions
- *        whose index is present in `ignored`.
+ *        whose index appears in `ignored`.
  *
  * @param dimensions  An OCArrayRef of DimensionRef
- * @param ignored     An OCIndexSetRef of dimension indices to skip
+ * @param ignored     An OCIndexSetRef of dimension‐indices to skip
  * @return            The product of sample counts over the non-ignored dimensions.
  */
 OCIndex
@@ -36,88 +37,117 @@ RMNCalculateSizeFromDimensionsIgnoring(OCArrayRef    dimensions,
                                        OCIndexSetRef ignored);
 
 /**
+ * @brief Convert a multi‐dimensional index vector into a single memory offset.
+ *
+ * Wraps each index into [0..npts−1] before computing:
+ *   offset = Σ_{k=0..D−1} ( index[k] * ∏_{j<k} npts[j] )
+ *
+ * @param dimensions   An OCArrayRef of DimensionRef
+ * @param indexes      Array of length D giving each coordinate (may be out of range)
+ * @return             The flat memory offset, or (OCIndex)−1 on error.
+ */
+OCIndex
+RMNGridMemOffsetFromIndexes(OCArrayRef   dimensions,
+                            const OCIndex indexes[]);
+
+/**
+ * @brief Recover a single coordinate along one dimension from a flat offset.
+ *
+ * coord = (offset / ∏_{j<dim} npts[j]) % npts[dim]
+ *
+ * @param dimensions      An OCArrayRef of DimensionRef
+ * @param memOffset       The flat offset
+ * @param dimensionIndex  Which dimension to extract
+ * @return                The wrapped coordinate, or (OCIndex)−1 on error.
+ */
+OCIndex
+RMNGridCoordinateIndexFromMemOffset(OCArrayRef   dimensions,
+                                    OCIndex      memOffset,
+                                    OCIndex      dimensionIndex);
+
+/**
  * @brief Compute the stride (flat‐index increment) along a given dimension.
  *
- * stride = product(npts[0..dimensionIndex-1]), or 1 if dimensionIndex == 0.
+ * stride = ∏_{j<dimensionIndex} npts[j], or 1 if dimensionIndex == 0.
  *
- * @param npts              Array of length `dimensionsCount` with per-dimension sizes.
- * @param dimensionsCount   Number of dimensions (length of `npts`).
- * @param dimensionIndex    Which dimension’s stride to compute.
+ * @param npts              Array of per-dimension sizes (length D)
+ * @param dimensionsCount   Number of dimensions (D)
+ * @param dimensionIndex    Which dimension’s stride to compute
  * @return                  The linear stride for that dimension.
  */
 OCIndex
 strideAlongDimensionIndex(const OCIndex *npts,
-                          const OCIndex  dimensionsCount,
-                          const OCIndex  dimensionIndex);
+                          OCIndex        dimensionsCount,
+                          OCIndex        dimensionIndex);
 
 /**
- * @brief Convert a multi‐dimensional index vector into a single memory offset.
+ * @brief Convert a full index‐vector into a flat offset, wrapping out‐of‐range indexes.
  *
- * Wraps each index into [0..npts[idim]) before computing:
- *   offset = Σ_{k=0..D-1} ( index[k] * ∏_{j<k} npts[j] )
+ * On exit, each indexes[i] has been reduced modulo npts[i].
+ * offset = Σ_{k=0..D−1} ( indexes[k] * ∏_{j<k} npts[j] )
  *
- * @param indexes           In/out array of length `dimensionsCount`; on entry, may be out‐of-range;
- *                          on exit, each index is wrapped into [0..npts[idim]).
- * @param dimensionsCount   Number of dimensions.
- * @param npts              Per-dimension counts (length `dimensionsCount`).
- * @return                  The single linear offset.
+ * @param indexes           In/out array of length D; on entry may be arbitrary,
+ *                          on exit each entry is wrapped into valid range.
+ * @param dimensionsCount   Number of dimensions (D)
+ * @param npts              Per-dimension sizes (length D)
+ * @return                  The flat offset.
  */
 OCIndex
 memOffsetFromIndexes(OCIndex       *indexes,
-                     const OCIndex  dimensionsCount,
-                     const OCIndex  *npts);
+                     OCIndex        dimensionsCount,
+                     const OCIndex *npts);
 
 /**
- * @brief Convert a single memory offset into a full index-vector.
+ * @brief Convert a flat offset into a full index‐vector.
  *
  * index[k] = (offset / ∏_{j<k} npts[j]) % npts[k]
  *
- * @param memOffset         The linear offset.
- * @param indexes           Output array of length `dimensionsCount`.
- * @param dimensionsCount   Number of dimensions.
- * @param npts              Per-dimension counts.
+ * @param memOffset         The flat offset.
+ * @param indexes           Output array of length D.
+ * @param dimensionsCount   Number of dimensions (D).
+ * @param npts              Per-dimension sizes (length D).
  */
 void
-setIndexesForMemOffset(const OCIndex  memOffset,
+setIndexesForMemOffset(OCIndex        memOffset,
                        OCIndex        indexes[],
-                       const OCIndex  dimensionsCount,
-                       const OCIndex  *npts);
+                       OCIndex        dimensionsCount,
+                       const OCIndex *npts);
 
 /**
  * @brief Like setIndexesForMemOffset, but skip one dimension.
  *
- * Fills `indexes[idim]` for all idim != ignoredDimension.
+ * Fills `indexes[idim]` only for idim ≠ ignoredDimension; the array must be pre-initialized.
  *
- * @param memOffset           The linear offset.
- * @param indexes             Output array of length `dimensionsCount`.
- * @param dimensionsCount     Number of dimensions.
- * @param npts                Per-dimension counts.
+ * @param memOffset           The flat offset.
+ * @param indexes             Output array of length D.
+ * @param dimensionsCount     Number of dimensions (D).
+ * @param npts                Per-dimension sizes (length D).
  * @param ignoredDimension    The one dimension index to skip.
  */
 void
-setIndexesForReducedMemOffsetIgnoringDimension(const OCIndex  memOffset,
+setIndexesForReducedMemOffsetIgnoringDimension(OCIndex        memOffset,
                                                OCIndex        indexes[],
-                                               const OCIndex  dimensionsCount,
-                                               const OCIndex  *npts,
-                                               const OCIndex  ignoredDimension);
+                                               OCIndex        dimensionsCount,
+                                               const OCIndex *npts,
+                                               OCIndex        ignoredDimension);
 
 /**
- * @brief Like setIndexesForMemOffset, but skip any in a set.
+ * @brief Like setIndexesForMemOffset, but skip any dimensions in a set.
  *
- * Fills `indexes[idim]` for all idim not in `dimensionIndexSet`.
+ * Fills `indexes[idim]` for all idim ∉ dimensionIndexSet; the array must be pre-initialized.
  *
- * @param memOffset           The linear offset.
- * @param indexes             Output array of length `dimensionsCount`.
- * @param dimensionsCount     Number of dimensions.
- * @param npts                Per-dimension counts.
- * @param dimensionIndexSet   Indices of dimensions to skip.
+ * @param memOffset            The flat offset.
+ * @param indexes              Output array of length D.
+ * @param dimensionsCount      Number of dimensions (D).
+ * @param npts                 Per-dimension sizes (length D).
+ * @param dimensionIndexSet    Set of dimension‐indices to skip.
  */
 void
-setIndexesForReducedMemOffsetIgnoringDimensions(const OCIndex       memOffset,
-                                                OCIndex             indexes[],
-                                                const OCIndex       dimensionsCount,
-                                                const OCIndex       *npts,
-                                                OCIndexSetRef       dimensionIndexSet);
+setIndexesForReducedMemOffsetIgnoringDimensions(OCIndex        memOffset,
+                                                OCIndex        indexes[],
+                                                OCIndex        dimensionsCount,
+                                                const OCIndex *npts,
+                                                OCIndexSetRef  dimensionIndexSet);
 
 #ifdef __cplusplus
 }

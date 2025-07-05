@@ -133,7 +133,7 @@ bool test_LabeledDimension(void) {
     // Round-trip via dictionary
     dict = LabeledDimensionCopyAsDictionary(ld);
     TEST_ASSERT(dict);
-    ld2 = LabeledDimensionCreateFromDictionary(dict);
+    ld2 = LabeledDimensionCreateFromDictionary(dict,NULL);
     TEST_ASSERT(ld2);
     // Formatting desc
     f1 = OCTypeCopyFormattingDesc((OCTypeRef)ld);
@@ -166,7 +166,7 @@ bool test_SIDimension(void) {
     // Round-trip
     dict = SIDimensionCopyAsDictionary(si);
     TEST_ASSERT(dict != NULL);
-    si2 = SIDimensionCreateFromDictionary(dict);
+    si2 = SIDimensionCreateFromDictionary(dict, NULL);
     TEST_ASSERT(si2 != NULL);
     TEST_ASSERT(OCStringEqual(SIDimensionGetQuantityName(si2), STR("length")));
     ok = true;

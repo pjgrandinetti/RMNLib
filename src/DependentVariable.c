@@ -1,23 +1,28 @@
 /* DependentVariable OCType implementation */
 #include "DependentVariable.h"
 #define DependentVariableComponentsFileName STR("dependent_variable-%ld.data")
+#pragma mark - Type Registration
 static OCTypeID kDependentVariableID = kOCNotATypeID;
 struct impl_DependentVariable {
     OCBase base;
     // SIQuantity Type attributes
     SIUnitRef unit;
-    SINumberType type;
+    SINumberType numericType;
     // Dependent Variable Type attributes
     OCStringRef name;
     OCStringRef description;
     OCMutableDictionaryRef metaData;
     OCStringRef quantityName;
     OCStringRef quantityType;
+    // components...
+    OCStringRef type;           // "internal" / "external"
+    OCStringRef encoding;       // "base64" / "none" -- used for type = "internal" storage
+    OCStringRef componentsURL;  // needed for serialization (external-only)
     OCMutableArrayRef components;
     OCMutableArrayRef componentLabels;
     OCIndexSetRef sparseDimensionIndexes;
-    OCStringRef sparseGridVertexes;
-    // weak reference to the dataset this variable belongs to.  Do not retain!
+    OCMutableArrayRef sparseGridVertexes;
+    // weak back-pointer
     OCTypeRef owner;
 };
 OCTypeID DependentVariableGetTypeID(void) {
@@ -25,6 +30,7 @@ OCTypeID DependentVariableGetTypeID(void) {
         kDependentVariableID = OCRegisterType("DependentVariable");
     return kDependentVariableID;
 }
+#pragma mark - Lifecycle
 // Finalizer: release all *owned* references (but not the weak owner)
 static void impl_DependentVariableFinalize(const void *ptr) {
     if (!ptr) return;
@@ -32,28 +38,33 @@ static void impl_DependentVariableFinalize(const void *ptr) {
     // Dependent-Variable fields
     // string fields
     OCRelease(dv->name);
+    OCRelease(dv->type);
+    OCRelease(dv->encoding);
     OCRelease(dv->description);
     OCRelease(dv->quantityName);
     OCRelease(dv->quantityType);
     OCRelease(dv->sparseGridVertexes);
-
     // collection fields
     OCRelease(dv->components);
     OCRelease(dv->componentLabels);
     OCRelease(dv->sparseDimensionIndexes);
     OCRelease(dv->metaData);
+    OCRelease(dv->componentsURL);
     // NOTE: dv->owner is a weak back-pointer—do NOT OCRetain or OCRelease it
 }
 // Equality: compare all significant (owned) fields, but not the weak owner pointer
 static bool impl_DependentVariableEqual(const void *a, const void *b) {
     const struct impl_DependentVariable *dvA = a;
     const struct impl_DependentVariable *dvB = b;
+    if (!OCTypeEqual(dvA->componentsURL, dvB->componentsURL)) return false;
     if (!dvA || !dvB) return false;
     if (dvA == dvB) return true;
     // 1) compare the SI‐quantity fields
     if (!OCTypeEqual(dvA->unit, dvB->unit)) return false;
-    if (dvA->type != dvB->type) return false;
+    if (dvA->numericType != dvB->numericType) return false;
     // 2) compare all DependentVariable attributes
+    if (!OCTypeEqual(dvA->type, dvB->type)) return false;
+    if (!OCTypeEqual(dvA->encoding, dvB->encoding)) return false;
     if (!OCTypeEqual(dvA->name, dvB->name)) return false;
     if (!OCTypeEqual(dvA->components, dvB->components)) return false;
     if (!OCTypeEqual(dvA->componentLabels, dvB->componentLabels)) return false;
@@ -75,98 +86,28 @@ static OCStringRef impl_DependentVariableCopyFormattingDesc(OCTypeRef cf) {
         (unsigned long)OCArrayGetCount(dv->components));
 }
 cJSON *impl_DependentVariableCreateJSON(const void *obj) {
-    const struct impl_DependentVariable *var = (const struct impl_DependentVariable *)obj;
-    if (!var) return cJSON_CreateNull();
-
-    cJSON *json = cJSON_CreateObject();
-    if (!json) return NULL;
-
-    // unit (SIUnitRef)
-    if (var->unit) {
-        cJSON *unit_json = OCTypeCopyJSON((OCTypeRef)var->unit);
-        if (unit_json)
-            cJSON_AddItemToObject(json, "unit", unit_json);
-    }
-
-    // type (SINumberType as integer)
-    cJSON_AddNumberToObject(json, "type", (int)var->type);
-
-    // name (OCStringRef)
-    if (var->name) {
-        cJSON *name_json = OCTypeCopyJSON((OCTypeRef)var->name);
-        if (name_json)
-            cJSON_AddItemToObject(json, "name", name_json);
-    }
-
-    // description (OCStringRef)
-    if (var->description) {
-        cJSON *desc_json = OCTypeCopyJSON((OCTypeRef)var->description);
-        if (desc_json)
-            cJSON_AddItemToObject(json, "description", desc_json);
-    }
-
-    // metaData (OCMutableDictionaryRef)
-    if (var->metaData) {
-        cJSON *meta_json = OCTypeCopyJSON((OCTypeRef)var->metaData);
-        if (meta_json)
-            cJSON_AddItemToObject(json, "metaData", meta_json);
-    }
-
-    // quantityName (OCStringRef)
-    if (var->quantityName) {
-        cJSON *qname_json = OCTypeCopyJSON((OCTypeRef)var->quantityName);
-        if (qname_json)
-            cJSON_AddItemToObject(json, "quantityName", qname_json);
-    }
-
-    // quantityType (OCStringRef)
-    if (var->quantityType) {
-        cJSON *qtype_json = OCTypeCopyJSON((OCTypeRef)var->quantityType);
-        if (qtype_json)
-            cJSON_AddItemToObject(json, "quantityType", qtype_json);
-    }
-
-    // components (OCMutableArrayRef)
-    if (var->components) {
-        cJSON *comps_json = OCTypeCopyJSON((OCTypeRef)var->components);
-        if (comps_json)
-            cJSON_AddItemToObject(json, "components", comps_json);
-    }
-
-    // componentLabels (OCMutableArrayRef)
-    if (var->componentLabels) {
-        cJSON *clabels_json = OCTypeCopyJSON((OCTypeRef)var->componentLabels);
-        if (clabels_json)
-            cJSON_AddItemToObject(json, "componentLabels", clabels_json);
-    }
-
-    // sparseDimensionIndexes (OCIndexSetRef)
-    if (var->sparseDimensionIndexes) {
-        cJSON *idxs_json = OCTypeCopyJSON((OCTypeRef)var->sparseDimensionIndexes);
-        if (idxs_json)
-            cJSON_AddItemToObject(json, "sparseDimensionIndexes", idxs_json);
-    }
-
-    // sparseGridVertexes (OCStringRef)
-    if (var->sparseGridVertexes) {
-        cJSON *sgv_json = OCTypeCopyJSON((OCTypeRef)var->sparseGridVertexes);
-        if (sgv_json)
-            cJSON_AddItemToObject(json, "sparseGridVertexes", sgv_json);
-    }
-
-    // owner: skip (weak reference, not serialized)
-
+    if (!obj) return cJSON_CreateNull();
+    // 1) Copy to an OCDictionary
+    //    — we pass NULL for dimensions (no context),
+    //      external = false (embed components inline),
+    //      base64Encoding = false (emit JSON arrays)
+    OCDictionaryRef dict = DependentVariableCopyAsDictionary(
+        (DependentVariableRef)obj);
+    if (!dict) return NULL;
+    // 2) Use the generic OCType → cJSON converter
+    cJSON *json = OCTypeCopyJSON((OCTypeRef)dict);
+    // 3) Clean up
+    OCRelease(dict);
     return json;
 }
 // Deep-copy (immutable) via dictionary round-trip
-static void *
-impl_DependentVariableDeepCopy(const void *ptr) {
+static void *impl_DependentVariableDeepCopy(const void *ptr) {
     if (!ptr) return NULL;
     // 1) Serialize the original into a dictionary
     OCDictionaryRef dict = DependentVariableCopyAsDictionary((DependentVariableRef)ptr);
     if (!dict) return NULL;
     // 2) Create a fresh object from that dictionary
-    DependentVariableRef copy = DependentVariableCreateFromDictionary(dict);
+    DependentVariableRef copy = DependentVariableCreateFromDictionary(dict, NULL);
     // 3) Clean up
     OCRelease(dict);
     return copy;
@@ -181,31 +122,40 @@ static struct impl_DependentVariable *DependentVariableAllocate(void) {
         impl_DependentVariableCopyFormattingDesc,
         impl_DependentVariableCreateJSON,
         impl_DependentVariableDeepCopy,
-        impl_DependentVariableDeepCopy
-    );
+        impl_DependentVariableDeepCopy);
 }
 // internal helper
 static void impl_InitDependentVariableFields(DependentVariableRef dv) {
-    dv->unit                   = SIUnitDimensionlessAndUnderived();
-    dv->type                   = kSINumberFloat64Type;
-    dv->name                   = STR("");
-    dv->components             = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    dv->componentLabels        = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    dv->quantityName           = STR("");
-    dv->quantityType           = STR("");
-    dv->description            = STR("");
+    dv->unit = SIUnitDimensionlessAndUnderived();
+    dv->numericType = kSINumberFloat64Type;
+    dv->name = STR("");
+    dv->type = STR("internal");
+    dv->encoding = STR("none");
+    dv->components = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    dv->componentLabels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    dv->quantityName = STR("");
+    dv->quantityType = STR("");
+    dv->description = STR("");
     dv->sparseDimensionIndexes = OCIndexSetCreateMutable();
-    dv->sparseGridVertexes     = STR("");
-    dv->metaData               = OCDictionaryCreateMutable(0);
-    dv->owner                  = NULL;
+    dv->sparseGridVertexes = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    dv->metaData = OCDictionaryCreateMutable(0);
+    dv->componentsURL = NULL;  // start out empty
+    dv->owner = NULL;
 }
 static bool validateDependentVariableParameters(
+    OCStringRef type,
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
     OCArrayRef componentLabels,
     OCIndex componentsCount) {
-    // --- 1) components‐vs‐labels check ---
+    // — 0) type must be either "internal" or "external" —
+    if (!type ||
+        (!OCStringEqual(type, STR("internal")) &&
+         !OCStringEqual(type, STR("external")))) {
+        return false;
+    }
+    // — 1) components‐vs‐labels check —
     if (componentLabels) {
         OCIndex labelCount = OCArrayGetCount(componentLabels);
         if (labelCount != componentsCount) return false;
@@ -216,7 +166,7 @@ static bool validateDependentVariableParameters(
             }
         }
     }
-    // --- 2) quantityName vs unit dimensionality ---
+    // — 2) quantityName vs unit dimensionality —
     if (quantityName) {
         OCStringRef err = NULL;
         SIDimensionalityRef nameDim =
@@ -232,7 +182,7 @@ static bool validateDependentVariableParameters(
         OCRelease(err);
         if (!match) return false;
     }
-    // --- 3) quantityType semantics ---
+    // — 3) quantityType semantics —
     const char *qt = OCStringGetCString(quantityType);
     size_t len = qt ? strlen(qt) : 0;
     // “scalar” → exactly 1 component
@@ -266,83 +216,89 @@ static bool validateDependentVariableParameters(
     }
     return true;
 }
-
-
-static DependentVariableRef
-_DependentVariableCreateInternal(
-    OCStringRef   name,
-    OCStringRef   description,
-    SIUnitRef     unit,
-    OCStringRef   quantityName,
-    OCStringRef   quantityType,
-    SINumberType  elementType,
-    OCArrayRef    componentLabels,
-    OCArrayRef    components,
-    bool          copyComponents,
-    OCIndex       explicitSize,
-    OCTypeRef     owner)
-{
+static DependentVariableRef impl_DependentVariableCreate(
+    OCStringRef type,            // "internal" or "external"
+    OCStringRef name,            // optional name
+    OCStringRef description,     // optional description
+    SIUnitRef unit,              // optional SIUnitRef, defaults to dimensionless
+    OCStringRef quantityName,    // optional quantity name, defaults to SIUnitGuessQuantityName(unit)
+    OCStringRef quantityType,    // optional quantity type, defaults to "scalar"
+    SINumberType elementType,    // SINumberType, defaults to kSINumberFloat64Type
+    OCArrayRef componentLabels,  // optional array of component labels, defaults to "component-0", "component-1", etc.
+    OCArrayRef components,       // array of OCDataRef components, all must have the same length
+    bool copyComponents,         // if true, copy the components, otherwise retain them
+    OCIndex explicitSize,        // size of each component in bytes, only used if components is NULL
+    OCStringRef *outError) {
     // 1) figure out how many components, validate OCData types & lengths
     OCIndex componentsCount = 0;
     if (components) {
         componentsCount = OCArrayGetCount(components);
         for (OCIndex i = 0; i < componentsCount; i++) {
-            if (OCGetTypeID(OCArrayGetValueAtIndex(components, i))
-                != OCDataGetTypeID())
-            {
+            if (OCGetTypeID(OCArrayGetValueAtIndex(components, i)) != OCDataGetTypeID()) {
+                if (outError) {
+                    *outError = OCStringCreateWithCString(
+                        "component at index does not contain OCDataRef");
+                }
                 return NULL;
             }
         }
         if (componentsCount > 1) {
-            uint64_t len0 = OCDataGetLength((OCDataRef)
-                             OCArrayGetValueAtIndex(components, 0));
+            uint64_t len0 = OCDataGetLength((OCDataRef)OCArrayGetValueAtIndex(components, 0));
             for (OCIndex i = 1; i < componentsCount; i++) {
-                if (OCDataGetLength((OCDataRef)
-                    OCArrayGetValueAtIndex(components, i)) != len0)
-                {
+                uint64_t leni = OCDataGetLength((OCDataRef)OCArrayGetValueAtIndex(components, i));
+                if (leni != len0) {
+                    if (outError) {
+                        *outError = OCStringCreateWithCString(
+                            "component buffers have mismatched lengths");
+                    }
                     return NULL;
                 }
             }
         }
     } else {
         componentsCount = DependentVariableComponentsCountFromQuantityType(quantityType);
-        if (componentsCount == kOCNotFound) return NULL;
+        if (componentsCount == kOCNotFound) {
+            if (outError) {
+                // assuming OCStringCreateWithFormat exists to embed the bad quantityType
+                *outError = OCStringCreateWithFormat(
+                    "cannot determine components count for quantityType \"%@\"",
+                    quantityType);
+            }
+            return NULL;
+        }
     }
-
-    // 2) semantic validation
+    // 2) semantic validation — now uses the passed‐in `type`
     if (!validateDependentVariableParameters(
-            unit, quantityName, quantityType,
-            componentLabels, componentsCount))
-    {
+            type,
+            unit,
+            quantityName,
+            quantityType,
+            componentLabels,
+            componentsCount)) {
         return NULL;
     }
-
     // 3) allocate & init all defaults in one go
     struct impl_DependentVariable *dv = DependentVariableAllocate();
     if (!dv) return NULL;
     impl_InitDependentVariableFields(dv);
-
-    // 4) now populate every field exactly once
-    dv->type  = elementType;
-    dv->unit  = unit ? unit : SIUnitDimensionlessAndUnderived();
-
-    dv->quantityType = quantityType
-                       ? OCRetain(quantityType)
-                       : STR("");
-
-    dv->name = name
-               ? OCStringCreateCopy(name)
-               : STR("");
-
-    dv->description = description
-                      ? OCStringCreateCopy(description)
-                      : STR("");
-
-    dv->quantityName = quantityName
-                       ? OCRetain(quantityName)
-                       : OCStringCreateCopy(SIUnitGuessQuantityName(dv->unit));
-
-    // 5) components array — drop the default, then build new
+    // 3a) set the `type` ivar
+    OCRelease(dv->type);
+    dv->type = OCStringCreateCopy(type);
+    // 3b) set the new `encoding` ivar (only for internal)
+    OCRelease(dv->encoding);
+    if (OCStringEqual(type, STR("internal"))) {
+        dv->encoding = STR("none");
+    } else {
+        dv->encoding = NULL;
+    }
+    // 4) now populate every other field exactly once
+    dv->numericType = elementType;
+    dv->unit = unit ? unit : SIUnitDimensionlessAndUnderived();
+    dv->quantityType = quantityType ? OCRetain(quantityType) : STR("");
+    dv->name = name ? OCStringCreateCopy(name) : STR("");
+    dv->description = description ? OCStringCreateCopy(description) : STR("");
+    dv->quantityName = quantityName ? OCRetain(quantityName) : OCStringCreateCopy(SIUnitGuessQuantityName(dv->unit));
+    // 5) build the components array
     OCRelease(dv->components);
     dv->components = OCArrayCreateMutable(componentsCount, &kOCTypeArrayCallBacks);
     if (!dv->components) {
@@ -361,6 +317,16 @@ _DependentVariableCreateInternal(
             }
         }
     } else {
+        // —— new explicitSize validity check ——
+        if (explicitSize <= 0) {
+            if (outError) {
+                *outError = OCStringCreateWithCString(
+                    "invalid explicitSize: must be > 0 when constructing from size");
+            }
+            OCRelease(dv);
+            return NULL;
+        }
+        // now safe to allocate byteLen
         size_t byteLen = explicitSize * OCNumberTypeSize((OCNumberType)elementType);
         for (OCIndex i = 0; i < componentsCount; i++) {
             OCMutableDataRef buf = OCDataCreateMutable(0);
@@ -369,8 +335,7 @@ _DependentVariableCreateInternal(
             OCRelease(buf);
         }
     }
-
-    // 6) component labels — drop the default, then build new
+    // 6) build the componentLabels array
     OCRelease(dv->componentLabels);
     dv->componentLabels = OCArrayCreateMutable(componentsCount, &kOCTypeArrayCallBacks);
     if (!dv->componentLabels) {
@@ -379,8 +344,8 @@ _DependentVariableCreateInternal(
     }
     if (componentLabels) {
         for (OCIndex i = 0; i < componentsCount; i++) {
-            OCStringRef lbl     = (OCStringRef)OCArrayGetValueAtIndex(componentLabels, i);
-            OCStringRef lblCopy = OCStringCreateCopy(lbl);
+            OCStringRef lblCopy = OCStringCreateCopy(
+                (OCStringRef)OCArrayGetValueAtIndex(componentLabels, i));
             OCArrayAppendValue(dv->componentLabels, lblCopy);
             OCRelease(lblCopy);
         }
@@ -391,18 +356,11 @@ _DependentVariableCreateInternal(
             OCRelease(autoLbl);
         }
     }
-
-    // 7) metadata is already a fresh mutable dictionary from init helper
-
-    // 8) weak back-pointer
-    dv->owner = owner;
-
     return (DependentVariableRef)dv;
 }
 // ————————————————————————————————————————————————————————————————————————
 // now the public APIs
-DependentVariableRef
-DependentVariableCreateWithComponentsNoCopy(
+DependentVariableRef DependentVariableCreate(
     OCStringRef name,
     OCStringRef description,
     SIUnitRef unit,
@@ -411,17 +369,22 @@ DependentVariableCreateWithComponentsNoCopy(
     SINumberType elementType,
     OCArrayRef componentLabels,
     OCArrayRef components,
-    OCTypeRef owner) {
-    return _DependentVariableCreateInternal(
-        name, description, unit,
-        quantityName, quantityType, elementType,
-        componentLabels, components,
-        /*copy=*/false,
-        /*explicitSize=*/-1,
-        owner);
+    OCStringRef *outError) {
+    return impl_DependentVariableCreate(
+        /* type            = */ STR("internal"),
+        /* name            = */ name,
+        /* description     = */ description,
+        /* unit            = */ unit,
+        /* quantityName    = */ quantityName,
+        /* quantityType    = */ quantityType,
+        /* elementType     = */ elementType,
+        /* componentLabels = */ componentLabels,
+        /* components      = */ components,
+        /* copyComponents  = */ true,
+        /* explicitSize    = */ (OCIndex)-1,
+        /* outError        = */ outError);
 }
-DependentVariableRef
-DependentVariableCreate(
+DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
     OCStringRef name,
     OCStringRef description,
     SIUnitRef unit,
@@ -430,17 +393,22 @@ DependentVariableCreate(
     SINumberType elementType,
     OCArrayRef componentLabels,
     OCArrayRef components,
-    OCTypeRef owner) {
-    return _DependentVariableCreateInternal(
-        name, description, unit,
-        quantityName, quantityType, elementType,
-        componentLabels, components,
-        /*copy=*/true,
-        /*explicitSize=*/-1,
-        owner);
+    OCStringRef *outError) {
+    return impl_DependentVariableCreate(
+        /* type            = */ STR("internal"),
+        /* name            = */ name,
+        /* description     = */ description,
+        /* unit            = */ unit,
+        /* quantityName    = */ quantityName,
+        /* quantityType    = */ quantityType,
+        /* elementType     = */ elementType,
+        /* componentLabels = */ componentLabels,
+        /* components      = */ components,
+        /* copyComponents  = */ false,
+        /* explicitSize    = */ (OCIndex)-1,
+        /* outError        = */ outError);
 }
-DependentVariableRef
-DependentVariableCreateWithSize(
+DependentVariableRef DependentVariableCreateWithSize(
     OCStringRef name,
     OCStringRef description,
     SIUnitRef unit,
@@ -449,24 +417,28 @@ DependentVariableCreateWithSize(
     SINumberType elementType,
     OCArrayRef componentLabels,
     OCIndex size,
-    OCTypeRef owner) {
-    return _DependentVariableCreateInternal(
-        name, description, unit,
-        quantityName, quantityType, elementType,
-        componentLabels,
-        /*components=*/NULL,
-        /*copy=*/false,
-        size,
-        owner);
+    OCStringRef *outError) {
+    return impl_DependentVariableCreate(
+        /* type            = */ STR("internal"),
+        /* name            = */ name,
+        /* description     = */ description,
+        /* unit            = */ unit,
+        /* quantityName    = */ quantityName,
+        /* quantityType    = */ quantityType,
+        /* elementType     = */ elementType,
+        /* componentLabels = */ componentLabels,
+        /* components      = */ NULL,
+        /* copyComponents  = */ false,
+        /* explicitSize    = */ size,
+        /* outError        = */ outError);
 }
-DependentVariableRef
-DependentVariableCreateDefault(
-    OCStringRef  quantityType,
+DependentVariableRef DependentVariableCreateDefault(
+    OCStringRef quantityType,
     SINumberType elementType,
-    OCIndex       size,
-    OCTypeRef     owner)
-{
-    return _DependentVariableCreateInternal(
+    OCIndex size,
+    OCStringRef *outError) {
+    return impl_DependentVariableCreate(
+        /* type            = */ STR("internal"),
         /* name            = */ NULL,
         /* description     = */ NULL,
         /* unit            = */ NULL,
@@ -477,11 +449,9 @@ DependentVariableCreateDefault(
         /* components      = */ NULL,
         /* copyComponents  = */ false,
         /* explicitSize    = */ size,
-        /* owner           = */ owner
-    );
+        /* outError        = */ outError);
 }
-DependentVariableRef
-DependentVariableCreateWithComponent(
+DependentVariableRef DependentVariableCreateWithComponent(
     OCStringRef name,
     OCStringRef description,
     SIUnitRef unit,
@@ -489,160 +459,656 @@ DependentVariableCreateWithComponent(
     SINumberType elementType,
     OCArrayRef componentLabels,
     OCDataRef component,
-    OCTypeRef owner) {
+    OCStringRef *outError) {
     OCMutableArrayRef arr = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(arr, component);
-    DependentVariableRef dv = DependentVariableCreate(
-        name, description, unit,
-        quantityName, STR("scalar"), elementType,
-        componentLabels, arr,
-        owner);
+    DependentVariableRef dv = impl_DependentVariableCreate(
+        /* type            = */ STR("internal"),
+        /* name            = */ name,
+        /* description     = */ description,
+        /* unit            = */ unit,
+        /* quantityName    = */ quantityName,
+        /* quantityType    = */ STR("scalar"),
+        /* elementType     = */ elementType,
+        /* componentLabels = */ componentLabels,
+        /* components      = */ arr,
+        /* copyComponents  = */ true,
+        /* explicitSize    = */ (OCIndex)-1,
+        /* outError        = */ outError);
     OCRelease(arr);
     return dv;
 }
-DependentVariableRef
-DependentVariableCreateCopy(DependentVariableRef src) {
+DependentVariableRef DependentVariableCreateCopy(DependentVariableRef src) {
     if (!src) return NULL;
-    return DependentVariableCreate(
-        src->name,
-        src->description,
-        src->unit,
-        src->quantityName,
-        src->quantityType,
-        src->type,
-        src->componentLabels,
-        src->components,
-        NULL);
+    // 1) Serialize the source into a dictionary (captures type, encoding, URL or blobs, etc.)
+    OCDictionaryRef dict = DependentVariableCopyAsDictionary(src);
+    if (!dict) return NULL;
+    // 2) Rehydrate a new object from that dictionary
+    DependentVariableRef copy = DependentVariableCreateFromDictionary(dict, NULL);
+    // 3) Clean up
+    OCRelease(dict);
+    return copy;
 }
-DependentVariableRef
-DependentVariableCreateComplexCopy(DependentVariableRef src,
-                                   OCTypeRef owner) {
+DependentVariableRef DependentVariableCreateComplexCopy(DependentVariableRef src,
+                                                        OCTypeRef owner) {
     DependentVariableRef dv = DependentVariableCreateCopy(src);
-    if (dv && !SIQuantityIsComplexType((SIQuantityRef) dv)) {
-        SINumberType newType = (dv->type == kSINumberFloat32Type
+    if (dv && !SIQuantityIsComplexType((SIQuantityRef)dv)) {
+        SINumberType newType = (dv->numericType == kSINumberFloat32Type
                                     ? kSINumberFloat32ComplexType
                                     : kSINumberFloat64ComplexType);
         DependentVariableSetElementType(dv, newType);
     }
     return dv;
 }
-// ————————————————————————————————————————————————————————————————————————
-// Reconstruct a DependentVariable from the above dictionary format
-// ————————————————————————————————————————————————————————————————————————
-DependentVariableRef
-DependentVariableCreateFromDictionary(OCDictionaryRef dict) {
-    if (!dict) return NULL;
+DependentVariableRef DependentVariableCreateFromDictionary(
+    OCDictionaryRef dict,
+    OCStringRef *outError)
+{
+    if (outError) *outError = NULL;
+    if (!dict) {
+        if (outError) *outError = STR("input dictionary is NULL");
+        return NULL;
+    }
 
-    // 1) Allocate the bare object
-    struct impl_DependentVariable *dv = DependentVariableAllocate();
-    if (!dv) return NULL;
-
-    // 2) Initialize all defaults exactly once
+    // 1) start with a fresh DV and init defaults
+    DependentVariableRef dv = DependentVariableAllocate();
+    if (!dv) {
+        if (outError) *outError = STR("allocation failed");
+        return NULL;
+    }
     impl_InitDependentVariableFields(dv);
 
-    // 3) Pull out each field and swap in
-    OCStringRef     tmpStr;
-    OCArrayRef      tmpArr;
-    OCIndexSetRef   tmpSet;
-    OCDictionaryRef tmpDict;
-
-#define SWAP_STRING(key, field)                                         \
-    if ((tmpStr = (OCStringRef)OCDictionaryGetValue(dict, STR(key)))) { \
-        OCRelease(dv->field);                                           \
-        dv->field = OCStringCreateCopy(tmpStr);                         \
+    // 2) type discriminator
+    OCStringRef typeStr = OCDictionaryGetValue(dict, STR("type"));
+    if (!typeStr) {
+        if (outError) *outError = STR("missing \"type\"");
+        OCRelease(dv);
+        return NULL;
     }
-#define SWAP_ARRAY(key, field)                                          \
-    if ((tmpArr = (OCArrayRef)OCDictionaryGetValue(dict, STR(key)))) {  \
-        OCRelease(dv->field);                                           \
-        dv->field = OCTypeDeepCopyMutable(tmpArr);                      \
+    bool isInternal = OCStringEqual(typeStr, STR("internal"));
+    bool isExternal = OCStringEqual(typeStr, STR("external"));
+    if (!isInternal && !isExternal) {
+        if (outError) *outError = OCStringCreateWithFormat(STR("unknown \"type\": %@"), typeStr);
+        OCRelease(dv);
+        return NULL;
     }
-#define SWAP_DICT(key, field)                                           \
-    if ((tmpDict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR(key)))) { \
-        OCRelease(dv->field);                                           \
-        dv->field = OCTypeDeepCopyMutable(tmpDict);                     \
+    DependentVariableSetType(dv, typeStr);
+
+    // 3) optional name / description
+    OCStringRef tmp;
+    if ((tmp = OCDictionaryGetValue(dict, STR("name"))))
+        DependentVariableSetName(dv, tmp);
+    if ((tmp = OCDictionaryGetValue(dict, STR("description"))))
+        DependentVariableSetDescription(dv, tmp);
+
+    // 4) quantity_name (opt) & quantity_type (req)
+    if ((tmp = OCDictionaryGetValue(dict, STR("quantity_name"))))
+        DependentVariableSetQuantityName(dv, tmp);
+    OCStringRef quantityType = OCDictionaryGetValue(dict, STR("quantity_type"));
+    if (!quantityType) {
+        if (outError) *outError = STR("missing \"quantity_type\"");
+        OCRelease(dv);
+        return NULL;
     }
-#define SWAP_SET(key, field)                                              \
-    if ((tmpSet = (OCIndexSetRef)OCDictionaryGetValue(dict, STR(key)))) { \
-        OCRelease(dv->field);                                             \
-        dv->field = OCIndexSetCreateMutableCopy(tmpSet);                  \
+    if (!DependentVariableSetQuantityType(dv, quantityType)) {
+        if (outError) *outError = OCStringCreateWithFormat(STR("invalid \"quantity_type\": %@"), quantityType);
+        OCRelease(dv);
+        return NULL;
     }
 
-    SWAP_STRING("name",                   name);
-    SWAP_STRING("quantityName",           quantityName);
-    SWAP_STRING("quantityType",           quantityType);
-    SWAP_STRING("description",            description);
-    SWAP_STRING("sparseGridVertexes",     sparseGridVertexes);
+    // 5) unit (opt)
+    if ((tmp = OCDictionaryGetValue(dict, STR("unit")))) {
+        double mult = 1;
+        OCStringRef uerr = NULL;
+        SIUnitRef u = SIUnitFromExpression(tmp, &mult, &uerr);
+        if (uerr) OCRelease(uerr);
+        dv->unit = u ? u : SIUnitDimensionlessAndUnderived();
+    }
 
-    SWAP_ARRAY ("components",             components);
-    SWAP_ARRAY ("componentLabels",        componentLabels);
+    // 6) numeric_type -> elementType (req)
+    OCNumberRef numType = (OCNumberRef)OCDictionaryGetValue(dict, STR("numeric_type"));
+    if (!numType ||
+        !OCNumberGetValue(numType, kOCNumberIntType, &(int){0})) {
+        if (outError) *outError = STR("missing or invalid \"numeric_type\"");
+        OCRelease(dv);
+        return NULL;
+    }
+    {
+        int it; OCNumberGetValue(numType, kOCNumberIntType, &it);
+        DependentVariableSetElementType(dv, (SINumberType)it);
+    }
 
-    SWAP_SET   ("sparseDimensionIndexes", sparseDimensionIndexes);
-    SWAP_DICT  ("metaData",               metaData);
+    // 7) encoding (for internal only)
+    bool isBase64 = false;
+    if (isInternal) {
+        OCStringRef enc = (OCStringRef)OCDictionaryGetValue(dict, STR("encoding"));
+        if (enc && OCStringEqual(enc, STR("base64"))) {
+            isBase64 = true;
+            DependentVariableSetEncoding(dv, STR("base64"));
+        } else {
+            DependentVariableSetEncoding(dv, STR("none"));
+        }
+    }
 
-#undef SWAP_STRING
-#undef SWAP_ARRAY
-#undef SWAP_DICT
-#undef SWAP_SET
+    // 8) If external, grab the URL hint—but do NOT skip raw components
+    if (isExternal) {
+        OCStringRef url = OCDictionaryGetValue(dict, STR("components_url"));
+        if (url) {
+            DependentVariableSetComponentsURL(dv, url);
+        }
+    }
 
-    return (DependentVariableRef)dv;
+    // 9) **always** parse the embedded "components" array
+    OCArrayRef compArr = (OCArrayRef)OCDictionaryGetValue(dict, STR("components"));
+    if (!compArr) {
+        if (outError) *outError = STR("missing \"components\"");
+        OCRelease(dv);
+        return NULL;
+    }
+    OCIndex count = OCArrayGetCount(compArr);
+    OCMutableArrayRef blobs = OCArrayCreateMutable(count, &kOCTypeArrayCallBacks);
+    SINumberType et = DependentVariableGetElementType(dv);
+    size_t stride = OCNumberTypeSize((OCNumberType)et);
+    for (OCIndex i = 0; i < count; ++i) {
+        if (isBase64) {
+            // decode from b64 string
+            OCStringRef b64 = OCArrayGetValueAtIndex(compArr, i);
+            OCDataRef data = OCDataCreateFromBase64EncodedString(b64);
+            OCArrayAppendValue(blobs, data);
+            OCRelease(data);
+        } else {
+            // numeric array
+            OCArrayRef numList = OCArrayGetValueAtIndex(compArr, i);
+            OCIndex n = OCArrayGetCount(numList);
+            size_t bytes = n * stride;
+            OCMutableDataRef data = OCDataCreateMutable(bytes);
+            uint8_t *buf = OCDataGetMutableBytes(data);
+            for (OCIndex j = 0; j < n; ++j) {
+                OCNumberRef num = OCArrayGetValueAtIndex(numList, j);
+                double     v   = 0;
+                OCNumberGetValue(num, kOCNumberFloat64Type, &v);
+                memcpy(buf + j * stride, &v, stride);
+            }
+            OCArrayAppendValue(blobs, data);
+            OCRelease(data);
+        }
+    }
+    // hand off to the same logic that builds dv->components + labels:
+    OCMutableArrayRef labelsCopy = OCArrayCreateMutable(count, &kOCTypeArrayCallBacks);
+    OCArrayRef      labelArr  = (OCArrayRef)OCDictionaryGetValue(dict, STR("component_labels"));
+    if (labelArr && OCArrayGetCount(labelArr) == count) {
+        for (OCIndex i = 0; i < count; ++i) {
+            OCArrayAppendValue(labelsCopy,
+                OCArrayGetValueAtIndex(labelArr, i));
+        }
+    }
+    DependentVariableRef fresh =
+      DependentVariableCreateWithComponentsNoCopy(
+         dv->name, dv->description, dv->unit,
+         dv->quantityName, dv->quantityType,
+         et, labelsCopy, blobs, NULL
+      );
+    OCRelease(labelsCopy);
+    OCRelease(blobs);
+    // override the encoding we already set, just to be safe
+    if (isInternal) {
+        DependentVariableSetEncoding(fresh, isBase64 ? STR("base64") : STR("none"));
+    }
+    // carry over the components_url for externals
+    if (isExternal && dv->componentsURL) {
+        DependentVariableSetComponentsURL(fresh, dv->componentsURL);
+    }
+
+    OCRelease(dv);
+    return fresh;
 }
-//-----------------------------------------------------------------------------
-// Serialize a DependentVariable to a dictionary (for deep-copy & tests)
-//-----------------------------------------------------------------------------
-OCDictionaryRef
-DependentVariableCopyAsDictionary(DependentVariableRef dv)
-{
+OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
     if (!dv) return NULL;
-
-    // 1) Create a mutable dictionary with default callbacks
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
+    if (!dict) return NULL;
 
-    // 2) Simple string fields
-    OCDictionarySetValue(dict, STR("name"),                dv->name);
-    OCDictionarySetValue(dict, STR("description"),         dv->description);
-    OCDictionarySetValue(dict, STR("quantityName"),        dv->quantityName);
-    OCDictionarySetValue(dict, STR("quantityType"),        dv->quantityType);
-    OCDictionarySetValue(dict, STR("sparseGridVertexes"),  dv->sparseGridVertexes);
-
-    // 3) Components array (deep-copy each OCData)
-    OCIndex nComps = OCArrayGetCount(dv->components);
-    OCMutableArrayRef compArr = OCArrayCreateMutable(nComps, &kOCTypeArrayCallBacks);
-    for (OCIndex i = 0; i < nComps; ++i) {
-        OCDataRef blob = (OCDataRef)OCArrayGetValueAtIndex(dv->components, i);
-        OCMutableDataRef copy = OCDataCreateMutableCopy(0, blob);
-        OCArrayAppendValue(compArr, copy);
-        OCRelease(copy);
-    }
-    OCDictionarySetValue(dict, STR("components"), compArr);
-    OCRelease(compArr);
-
-    // 4) Component labels (shallow-copy strings)
-    OCMutableArrayRef lblArr = OCArrayCreateMutable(nComps, &kOCTypeArrayCallBacks);
-    for (OCIndex i = 0; i < nComps; ++i) {
-        OCStringRef lbl = (OCStringRef)OCArrayGetValueAtIndex(dv->componentLabels, i);
-        OCArrayAppendValue(lblArr, lbl);
-    }
-    OCDictionarySetValue(dict, STR("componentLabels"), lblArr);
-    OCRelease(lblArr);
-
-    // 5) Sparse indexes (if any)
-    if (dv->sparseDimensionIndexes) {
-        OCIndexSetRef copySet = OCIndexSetCreateMutableCopy(dv->sparseDimensionIndexes);
-        OCDictionarySetValue(dict, STR("sparseDimensionIndexes"), copySet);
-        OCRelease(copySet);
+    // 1) type (external vs. internal)
+    OCDictionarySetValue(dict, STR("type"), OCStringCreateCopy(dv->type ?: STR("internal")));
+    // 1a) if external, record the URL hint—but we STILL embed the raw blobs below
+    if (OCStringEqual(dv->type, STR("external")) && dv->componentsURL) {
+        OCStringRef urlCopy = OCStringCreateCopy(dv->componentsURL);
+        OCDictionarySetValue(dict, STR("components_url"), urlCopy);
+        OCRelease(urlCopy);
     }
 
-    // 6) Metadata (deep-copy dictionary)
+    // 2) encoding (base64 or none)
+    {
+        OCStringRef enc = dv->encoding ?: STR("none");
+        OCStringRef encCopy = OCStringCreateCopy(enc);
+        OCDictionarySetValue(dict, STR("encoding"), encCopy);
+        OCRelease(encCopy);
+    }
+
+    // 3) components (always embed raw data for round-trip)
+    {
+        SINumberType et    = DependentVariableGetElementType(dv);
+        bool          isBase64 = dv->encoding && OCStringEqual(dv->encoding, STR("base64"));
+        bool          isComplex= (et==kSINumberFloat32ComplexType||et==kSINumberFloat64ComplexType);
+        OCIndex       ncomps = DependentVariableGetComponentCount(dv);
+        OCMutableArrayRef compsArr = OCArrayCreateMutable(ncomps, &kOCTypeArrayCallBacks);
+        for (OCIndex i = 0; i < ncomps; ++i) {
+            OCDataRef blob = DependentVariableGetComponentAtIndex(dv, i);
+            if (isBase64) {
+                OCStringRef b64 = OCDataCreateBase64EncodedString(blob, OCBase64EncodingOptionsNone);
+                OCArrayAppendValue(compsArr, b64);
+                OCRelease(b64);
+            } else {
+                const void *bytes = OCDataGetBytesPtr(blob);
+                size_t      stride= OCNumberTypeSize((OCNumberType)et);
+                OCIndex     count = (OCIndex)(OCDataGetLength(blob)/stride);
+                OCMutableArrayRef numArr =
+                  OCArrayCreateMutable(isComplex ? count*2 : count, &kOCTypeArrayCallBacks);
+                if (!isComplex) {
+                    if (et==kSINumberFloat32Type) {
+                        float  *arr = (float*)bytes;
+                        for (OCIndex j=0; j<count; ++j) {
+                            OCNumberRef num = OCNumberCreateWithDouble((double)arr[j]);
+                            OCArrayAppendValue(numArr, num);
+                            OCRelease(num);
+                        }
+                    } else {
+                        double *arr = (double*)bytes;
+                        for (OCIndex j=0; j<count; ++j) {
+                            OCNumberRef num = OCNumberCreateWithDouble(arr[j]);
+                            OCArrayAppendValue(numArr, num);
+                            OCRelease(num);
+                        }
+                    }
+                } else {
+                    if (et==kSINumberFloat32ComplexType) {
+                        float complex *arr = (float complex*)bytes;
+                        for (OCIndex j=0; j<count; ++j) {
+                            OCNumberRef re = OCNumberCreateWithDouble((double)crealf(arr[j]));
+                            OCNumberRef im = OCNumberCreateWithDouble((double)cimagf(arr[j]));
+                            OCArrayAppendValue(numArr, re);
+                            OCArrayAppendValue(numArr, im);
+                            OCRelease(re);
+                            OCRelease(im);
+                        }
+                    } else {
+                        double complex *arr = (double complex*)bytes;
+                        for (OCIndex j=0; j<count; ++j) {
+                            OCNumberRef re = OCNumberCreateWithDouble(creal(arr[j]));
+                            OCNumberRef im = OCNumberCreateWithDouble(cimag(arr[j]));
+                            OCArrayAppendValue(numArr, re);
+                            OCArrayAppendValue(numArr, im);
+                            OCRelease(re);
+                            OCRelease(im);
+                        }
+                    }
+                }
+                OCArrayAppendValue(compsArr, numArr);
+                OCRelease(numArr);
+            }
+        }
+        OCDictionarySetValue(dict, STR("components"), compsArr);
+        OCRelease(compsArr);
+    }
+
+    // 4) name, description
+    if (dv->name) {
+        OCStringRef c = OCStringCreateCopy(dv->name);
+        OCDictionarySetValue(dict, STR("name"), c);
+        OCRelease(c);
+    }
+    if (dv->description) {
+        OCStringRef c = OCStringCreateCopy(dv->description);
+        OCDictionarySetValue(dict, STR("description"), c);
+        OCRelease(c);
+    }
+
+    // 5) quantity_name, quantity_type, unit, numeric_type
+    if (dv->quantityName) {
+        OCStringRef c = OCStringCreateCopy(dv->quantityName);
+        OCDictionarySetValue(dict, STR("quantity_name"), c);
+        OCRelease(c);
+    }
+    if (dv->quantityType) {
+        OCStringRef c = OCStringCreateCopy(dv->quantityType);
+        OCDictionarySetValue(dict, STR("quantity_type"), c);
+        OCRelease(c);
+    }
+    if (dv->unit) {
+        OCStringRef s = SIUnitCopySymbol(dv->unit);
+        OCDictionarySetValue(dict, STR("unit"), s);
+        OCRelease(s);
+    }
+    {
+        OCNumberRef num = OCNumberCreateWithInt((int)DependentVariableGetElementType(dv));
+        OCDictionarySetValue(dict, STR("numeric_type"), num);
+        OCRelease(num);
+    }
+
+    // 6) component_labels
+    {
+        OCIndex nlab = DependentVariableGetComponentCount(dv);
+        OCMutableArrayRef lbls = OCArrayCreateMutable(nlab, &kOCTypeArrayCallBacks);
+        for (OCIndex i = 0; i < nlab; ++i) {
+            OCStringRef lbl = DependentVariableGetComponentLabelAtIndex(dv, i);
+            if (lbl) OCArrayAppendValue(lbls, lbl);
+        }
+        OCDictionarySetValue(dict, STR("component_labels"), lbls);
+        OCRelease(lbls);
+    }
+
+    // 7) sparse_sampling
+    if (dv->sparseDimensionIndexes || dv->sparseGridVertexes) {
+        OCMutableDictionaryRef sp = OCDictionaryCreateMutable(0);
+        if (dv->sparseDimensionIndexes) {
+            OCArrayRef idxArr = OCIndexSetCreateOCNumberArray(dv->sparseDimensionIndexes);
+            if (idxArr) {
+                OCDictionarySetValue(sp, STR("dimension_indexes"), idxArr);
+                OCRelease(idxArr);
+            }
+        }
+        if (dv->sparseGridVertexes) {
+            OCDictionarySetValue(sp, STR("sparse_grid_vertexes"), dv->sparseGridVertexes);
+        }
+        OCDictionarySetValue(dict, STR("sparse_sampling"), sp);
+        OCRelease(sp);
+    }
+
+    // 8) metadata
     if (dv->metaData) {
-        OCDictionaryRef mdCopy = OCTypeDeepCopyMutable(dv->metaData);
-        OCDictionarySetValue(dict, STR("metaData"), mdCopy);
+        OCMutableDictionaryRef mdCopy = (OCMutableDictionaryRef)OCTypeDeepCopyMutable(dv->metaData);
+        OCDictionarySetValue(dict, STR("metadata"), mdCopy);
         OCRelease(mdCopy);
     }
 
     return (OCDictionaryRef)dict;
 }
 
+cJSON *DependentVariableCreateJSON(DependentVariableRef dv) {
+    if (!dv) {
+        // if you prefer, return NULL here instead of cJSON null
+        return cJSON_CreateNull();
+    }
 
+    // 1) Turn the DV into an OCDictionary (no I/O, just in-memory)
+    OCDictionaryRef dict = DependentVariableCopyAsDictionary(dv);
+    if (!dict) {
+        // serialization-to-dictionary failed
+        return cJSON_CreateNull();
+    }
+
+    // 2) Convert that dictionary into a cJSON tree
+    cJSON *json = OCTypeCopyJSON((OCTypeRef)dict);
+
+    // 3) Clean up
+    OCRelease(dict);
+
+    // 4) Return the cJSON object (caller is responsible for cJSON_Delete)
+    return json;
+}
+
+/// Parse a cJSON back into a DependentVariableRef.
+/// Returns NULL on error (and if outError!=NULL, *outError is populated).
+DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *outError) {
+    if (outError) *outError = NULL;
+
+    if (!json || json->type == cJSON_NULL) {
+        if (outError) *outError = STR("input JSON is null");
+        return NULL;
+    }
+
+    // 1) cJSON → OCDictionary
+    OCTypeRef obj = OCTypeCreateFromJSON((OCTypeRef)json);
+    if (!obj || OCGetTypeID(obj) != OCDictionaryGetTypeID()) {
+        if (outError) *outError = STR("JSON did not represent a dictionary");
+        if (obj) OCRelease(obj);
+        return NULL;
+    }
+    OCDictionaryRef dict = (OCDictionaryRef)obj;
+
+    // 2) build a DV from that dictionary
+    DependentVariableRef dv = DependentVariableCreateFromDictionary(dict, outError);
+
+    // 3) cleanup
+    OCRelease(dict);
+    return dv;
+}
+
+DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv,
+                                                         OCArrayRef dimensions,
+                                                         OCIndexPairSetRef indexPairs,
+                                                         OCStringRef *outError) {
+    // 0) bail if caller already has an error
+    if (outError && *outError) return NULL;
+    if (!dv) return NULL;
+    OCIndex allDimsCount = OCArrayGetCount(dimensions);
+    OCIndex fixedCount = OCIndexPairSetGetCount(indexPairs);
+    OCIndex freeCount = allDimsCount - fixedCount;
+    if (freeCount < 0 || freeCount > allDimsCount) return NULL;
+    // 1) no dims fixed? just copy
+    if (freeCount == allDimsCount) {
+        return DependentVariableCreateCopy(dv);
+    }
+    // 2) build an OCIndexSet of the *fixed* dimension‐indices
+    OCIndexSetRef fixedDims =
+        OCIndexPairSetCreateIndexSetOfIndexes(indexPairs);
+    // 3) compute cross‐section length = product of all *free* dims
+    OCIndex crossSize =
+        RMNCalculateSizeFromDimensionsIgnoring(dimensions, fixedDims);
+    // 4) allocate output DV of the right size
+    DependentVariableRef outDV =
+        DependentVariableCreateWithSize(
+            DependentVariableGetName(dv),
+            DependentVariableGetDescription(dv),
+            dv->unit,
+            DependentVariableGetQuantityName(dv),
+            DependentVariableGetQuantityType(dv),
+            DependentVariableGetElementType(dv),
+            DependentVariableGetComponentLabels(dv),
+            crossSize,
+            /* owner */ NULL);
+    if (!outDV) {
+        OCRelease(fixedDims);
+        return NULL;
+    }
+    // 5) prepare coord & npts arrays
+    OCIndex *coords = calloc((size_t)allDimsCount, sizeof(OCIndex));
+    OCIndex *npts = calloc((size_t)allDimsCount, sizeof(OCIndex));
+    for (OCIndex d = 0; d < allDimsCount; d++) {
+        DimensionRef dim = (DimensionRef)OCArrayGetValueAtIndex(dimensions, d);
+        // fixed dims get their specified coordinate; others start at 0
+        coords[d] = OCIndexPairSetContainsIndex(indexPairs, d)
+                        ? OCIndexPairSetValueForIndex(indexPairs, d)
+                        : 0;
+        // record the total length along each dimension
+        npts[d] = DimensionGetCount(dim);
+    }
+    // 6) for each component buffer, walk the cross‐section
+    SINumberType elemType = DependentVariableGetElementType(dv);
+    OCIndex nComps = DependentVariableGetComponentCount(dv);
+    for (OCIndex ci = 0; ci < nComps; ci++) {
+        OCDataRef srcBlob = DependentVariableGetComponentAtIndex(dv, ci);
+        OCMutableDataRef dstBlob = (OCMutableDataRef)
+            DependentVariableGetComponentAtIndex(outDV, ci);
+        const void *srcPtr = OCDataGetBytesPtr(srcBlob);
+        void *dstPtr = OCDataGetMutableBytes(dstBlob);
+        if (freeCount == 0) {
+            // single‐point slice
+            OCIndex memOff = RMNGridMemOffsetFromIndexes(dimensions, coords);
+            switch (elemType) {
+                case kSINumberFloat32Type:
+                    ((float *)dstPtr)[0] = ((float *)srcPtr)[memOff];
+                    break;
+                case kSINumberFloat64Type:
+                    ((double *)dstPtr)[0] = ((double *)srcPtr)[memOff];
+                    break;
+                case kSINumberFloat32ComplexType:
+                    ((float complex *)dstPtr)[0] =
+                        ((float complex *)srcPtr)[memOff];
+                    break;
+                case kSINumberFloat64ComplexType:
+                    ((double complex *)dstPtr)[0] =
+                        ((double complex *)srcPtr)[memOff];
+                    break;
+                default:
+                    break;
+            }
+        } else {
+            // full slice: for each output offset, decode the *free* dims
+            for (OCIndex outOff = 0; outOff < crossSize; outOff++) {
+                setIndexesForReducedMemOffsetIgnoringDimensions(outOff, coords, allDimsCount, npts, fixedDims);
+                OCIndex memOff =
+                    RMNGridMemOffsetFromIndexes(dimensions, coords);
+                switch (elemType) {
+                    case kSINumberFloat32Type:
+                        ((float *)dstPtr)[outOff] = ((float *)srcPtr)[memOff];
+                        break;
+                    case kSINumberFloat64Type:
+                        ((double *)dstPtr)[outOff] = ((double *)srcPtr)[memOff];
+                        break;
+                    case kSINumberFloat32ComplexType:
+                        ((float complex *)dstPtr)[outOff] =
+                            ((float complex *)srcPtr)[memOff];
+                        break;
+                    case kSINumberFloat64ComplexType:
+                        ((double complex *)dstPtr)[outOff] =
+                            ((double complex *)srcPtr)[memOff];
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+    free(coords);
+    free(npts);
+    OCRelease(fixedDims);
+    return outDV;
+}
+bool DependentVariableAppend(DependentVariableRef dv,
+                             DependentVariableRef appendedDV,
+                             OCStringRef *outError) {
+    // 0) if caller already has an error, bail
+    if (outError && *outError) return false;
+    // 1) sanity
+    if (!dv || !appendedDV) return false;
+    // 2) must have matching physical dimensionality
+    if (!SIQuantityHasSameReducedDimensionality((SIQuantityRef)dv,
+                                                (SIQuantityRef)appendedDV)) {
+        if (outError) {
+            *outError = OCStringCreateWithFormat(
+                STR("Append Error: Incompatible dimensionalities."));
+        }
+        return false;
+    }
+    // 3) must have the same element type
+    SINumberType et1 = DependentVariableGetElementType(dv);
+    SINumberType et2 = DependentVariableGetElementType(appendedDV);
+    if (et1 != et2) {
+        if (outError) {
+            *outError = OCStringCreateWithFormat(
+                STR("Append Error: Incompatible numeric types."));
+        }
+        return false;
+    }
+    // 4) component‐count checks
+    OCIndex n1 = DependentVariableGetComponentCount(dv);
+    OCIndex n2 = DependentVariableGetComponentCount(appendedDV);
+    if (n1 == 0 || n2 == 0) return false;
+    // allow either exactly matching or a single “broadcast” component on dv
+    if (n1 != n2 && n1 != 1) return false;
+    // 5) for each component, append raw bytes
+    for (OCIndex ci = 0; ci < n1; ++ci) {
+        // dest is always mutable
+        OCMutableDataRef dest = (OCMutableDataRef)
+            DependentVariableGetComponentAtIndex(dv, ci);
+        // pick matching source, or 0 if appendedDV has exactly one component
+        OCIndex srcIdx = (n2 != 1 ? ci : 0);
+        OCDataRef src = DependentVariableGetComponentAtIndex(appendedDV, srcIdx);
+        OCDataAppendBytes(
+            dest,
+            OCDataGetBytesPtr(src),
+            OCDataGetLength(src));
+    }
+    return true;
+}
+OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableRef dv,
+                                                              OCArrayRef dimensions) {
+    if (!dv || !dimensions) return NULL;
+    OCIndexSetRef idxs = DependentVariableGetSparseDimensionIndexes(dv);
+    OCArrayRef verts = DependentVariableGetSparseGridVertexes(dv);
+    if (!idxs || !verts) return NULL;
+    OCIndex nVerts = OCArrayGetCount(verts);
+    // 1) Build an “output” DV of exactly the right size (nVerts)
+    DependentVariableRef outDV =
+        DependentVariableCreateWithSize(
+            DependentVariableGetName(dv),
+            DependentVariableGetDescription(dv),
+            dv->unit,
+            DependentVariableGetQuantityName(dv),
+            DependentVariableGetQuantityType(dv),
+            DependentVariableGetElementType(dv),
+            DependentVariableGetComponentLabels(dv),
+            nVerts,
+            /* owner */ NULL);
+    if (!outDV) return NULL;
+    OCStringRef err = NULL;
+    // 2) Cross‐section each sparse vertex into outDV
+    for (OCIndex iVert = 0; iVert < nVerts; ++iVert) {
+        OCIndexPairSetRef pairs = (OCIndexPairSetRef)OCArrayGetValueAtIndex(verts, iVert);
+        DependentVariableRef slice =
+            DependentVariableCreateCrossSection(dv, dimensions, pairs, &err);
+        if (slice) {
+            DependentVariableAppend(outDV, slice, &err);
+            OCRelease(slice);
+        }
+    }
+    // 3) Extract & return a _deep_ mutable copy of the packed components
+    OCArrayRef packed =
+        OCArrayCreateMutableCopy(outDV->components);
+    OCRelease(outDV);
+    return packed;
+}
+OCDataRef DependentVariableCreateCSDMComponentsData(DependentVariableRef dv, OCArrayRef dimensions) {
+    if (!dv) return NULL;
+    // 1) Create an empty mutable data buffer
+    OCMutableDataRef components = OCDataCreateMutable(0);
+    if (!components) return NULL;
+    // 2) How many components does the DV have?
+    OCIndex nComps = DependentVariableGetComponentCount(dv);
+    // 3) Do we have any sparse dims?
+    OCIndexSetRef sparseIdxs = DependentVariableGetSparseDimensionIndexes(dv);
+    if (sparseIdxs && OCIndexSetGetCount(sparseIdxs) > 0) {
+        // pack the sparse components first
+        OCArrayRef packed = DependentVariableCreatePackedSparseComponentsArray(dv, dimensions);
+        if (packed) {
+            OCIndex nPacked = OCArrayGetCount(packed);
+            for (OCIndex i = 0; i < nPacked; ++i) {
+                OCDataRef comp = (OCDataRef)OCArrayGetValueAtIndex(packed, i);
+                const uint8_t *bytes = (const uint8_t *)OCDataGetBytesPtr(comp);
+                uint64_t len = OCDataGetLength(comp);
+                if (!OCDataAppendBytes(components, bytes, len)) {
+                    OCRelease(packed);
+                    OCRelease(components);
+                    return NULL;
+                }
+            }
+            OCRelease(packed);
+        }
+        return (OCDataRef)components;
+    }
+    // 4) Otherwise, just concatenate all raw components
+    for (OCIndex i = 0; i < nComps; ++i) {
+        OCDataRef comp = DependentVariableGetComponentAtIndex(dv, i);
+        const uint8_t *bytes = (const uint8_t *)OCDataGetBytesPtr(comp);
+        uint64_t len = OCDataGetLength(comp);
+        if (!OCDataAppendBytes(components, bytes, len)) {
+            OCRelease(components);
+            return NULL;
+        }
+    }
+    return (OCDataRef)components;
+}
+#pragma mark - Getters & Setters
 bool DependentVariableIsScalarType(DependentVariableRef dv) {
     if (!dv || !dv->quantityType) return false;
     const char *qt = OCStringGetCString(dv->quantityType);
@@ -811,20 +1277,15 @@ static void updateForComponentCountChange(DependentVariableRef dv) {
         dv->quantityType = OCStringCreateWithFormat(STR("vector_%ld"), (long)count);
     }
 }
-bool
-DependentVariableInsertComponentAtIndex(DependentVariableRef dv,
-                                        OCDataRef          component,
-                                        OCIndex            idx)
-{
+bool DependentVariableInsertComponentAtIndex(DependentVariableRef dv,
+                                             OCDataRef component,
+                                             OCIndex idx) {
     if (!dv || !component) return false;
-
     OCMutableArrayRef comps = dv->components;
     if (!comps) return false;
-
     OCIndex count = OCArrayGetCount(comps);
     // valid positions are 0…count
     if (idx < 0 || idx > count) return false;
-
     // if there's already at least one component, enforce matching byte‐length
     if (count > 0) {
         OCDataRef first = (OCDataRef)OCArrayGetValueAtIndex(comps, 0);
@@ -832,7 +1293,6 @@ DependentVariableInsertComponentAtIndex(DependentVariableRef dv,
             return false;
         }
     }
-
     OCArrayInsertValueAtIndex(comps, idx, component);
     updateForComponentCountChange(dv);
     return true;
@@ -874,7 +1334,7 @@ bool DependentVariableSetSize(DependentVariableRef dv, OCIndex newSize) {
     OCIndex oldSize = DependentVariableGetSize(dv);
     // pick up byte‐size per element
     size_t elemSize;
-    switch (dv->type) {
+    switch (dv->numericType) {
         case kSINumberFloat32Type:
             elemSize = sizeof(float);
             break;
@@ -913,12 +1373,51 @@ bool DependentVariableSetSize(DependentVariableRef dv, OCIndex newSize) {
         // install it
         OCArraySetValueAtIndex(dv->components, i, newBuf);
         // zero out the newly-appended region
-        uint8_t *bytes = (uint8_t *) OCDataGetMutableBytes(newBuf);
+        uint8_t *bytes = (uint8_t *)OCDataGetMutableBytes(newBuf);
         size_t offset = (size_t)oldSize * elemSize;
         size_t count = (size_t)(newSize - oldSize) * elemSize;
         memset(bytes + offset, 0, count);
         OCRelease(newBuf);
     }
+    return true;
+}
+OCStringRef DependentVariableGetEncoding(DependentVariableRef dv) {
+    return dv ? dv->encoding : NULL;
+}
+bool DependentVariableSetEncoding(DependentVariableRef dv, OCStringRef newEnc) {
+    if (!dv || !newEnc) return false;
+    OCStringRef copy = OCStringCreateCopy(newEnc);
+    if (!copy) return false;
+    OCRelease(dv->encoding);
+    dv->encoding = copy;
+    return true;
+}
+// Getter for the “type” field (“internal” or “external”)
+OCStringRef
+DependentVariableGetType(DependentVariableRef dv) {
+    if (!dv) return NULL;
+    return dv->type;
+}
+// Setter for the “type” field—returns true on success, false on failure.
+// You may wish to further validate that `type` is exactly "internal" or "external".
+bool DependentVariableSetType(DependentVariableRef dv, OCStringRef newType) {
+    if (!dv || !newType) return false;
+    // Copy the incoming string
+    OCStringRef copy = OCStringCreateCopy(newType);
+    if (!copy) return false;
+    // Swap out the old value
+    OCRelease(dv->type);
+    dv->type = copy;
+    return true;
+}
+OCStringRef DependentVariableGetComponentsURL(DependentVariableRef dv) {
+    return dv ? dv->componentsURL : NULL;
+}
+bool DependentVariableSetComponentsURL(DependentVariableRef dv, OCStringRef url) {
+    if (!dv) return false;
+    OCStringRef copy = url ? OCStringCreateCopy(url) : NULL;
+    OCRelease(dv->componentsURL);
+    dv->componentsURL = copy;
     return true;
 }
 OCStringRef
@@ -976,8 +1475,7 @@ bool DependentVariableSetDescription(DependentVariableRef dv, OCStringRef newDes
     return true;
 }
 // Getter
-OCStringRef
-DependentVariableGetQuantityType(DependentVariableRef dv) {
+OCStringRef DependentVariableGetQuantityType(DependentVariableRef dv) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
     return dv->quantityType;
 }
@@ -1081,59 +1579,51 @@ DependentVariableCreateQuantityTypesArray(DependentVariableRef dv) {
     }
     return types;
 }
-OCDictionaryRef
-DependentVariableGetMetaData(DependentVariableRef dv) {
+OCDictionaryRef DependentVariableGetMetaData(DependentVariableRef dv) {
     if (!dv) return NULL;
     return dv->metaData;
 }
-
-bool
-DependentVariableSetMetaData(DependentVariableRef dv,
-                             OCDictionaryRef      dict)
-{
+bool DependentVariableSetMetaData(DependentVariableRef dv, OCDictionaryRef dict) {
     if (!dv) return false;
     OCRelease(dv->metaData);
     dv->metaData = dict ? OCTypeDeepCopyMutable(dict) : OCDictionaryCreateMutable(0);
     return dv->metaData != NULL;
 }
+OCTypeRef DependentVariableGetOwner(DependentVariableRef dv) {
+    if (!dv) return NULL;
+    return dv->owner;
+}
+bool DependentVariableSetOwner(DependentVariableRef dv, OCTypeRef owner) {
+    if (!dv) return false;
+    dv->owner = owner;
+    return true;
+}
 // — sparseDimensionIndexes —
-OCIndexSetRef
-DependentVariableGetSparseDimensionIndexes(DependentVariableRef dv) {
+OCIndexSetRef DependentVariableGetSparseDimensionIndexes(DependentVariableRef dv) {
     if (!dv) return NULL;
     return dv->sparseDimensionIndexes;
 }
-
-bool
-DependentVariableSetSparseDimensionIndexes(DependentVariableRef dv,
-                                           OCIndexSetRef        idxSet)
-{
+bool DependentVariableSetSparseDimensionIndexes(DependentVariableRef dv, OCIndexSetRef idxSet) {
     if (!dv) return false;
     OCRelease(dv->sparseDimensionIndexes);
-    dv->sparseDimensionIndexes = idxSet
-        ? OCIndexSetCreateMutableCopy(idxSet)
-        : OCIndexSetCreateMutable();
+    dv->sparseDimensionIndexes = idxSet ? OCIndexSetCreateMutableCopy(idxSet) : OCIndexSetCreateMutable();
     return dv->sparseDimensionIndexes != NULL;
 }
-
 // — sparseGridVertexes —
-OCStringRef
-DependentVariableGetSparseGridVertexes(DependentVariableRef dv) {
+OCArrayRef DependentVariableGetSparseGridVertexes(DependentVariableRef dv) {
     if (!dv) return NULL;
     return dv->sparseGridVertexes;
 }
-
-bool
-DependentVariableSetSparseGridVertexes(DependentVariableRef dv,
-                                       OCStringRef         s)
-{
+bool DependentVariableSetSparseGridVertexes(DependentVariableRef dv, OCArrayRef verts) {
     if (!dv) return false;
     OCRelease(dv->sparseGridVertexes);
-    dv->sparseGridVertexes = s
-        ? OCStringCreateCopy(s)
-        : STR("");
+    if (verts) {
+        dv->sparseGridVertexes = OCArrayCreateMutableCopy(verts);
+    } else {
+        dv->sparseGridVertexes = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    }
     return dv->sparseGridVertexes != NULL;
 }
-
 // — (optional) owner —
 OCTypeRef
 DependentVariableGetOwner(DependentVariableRef dv) {
@@ -1160,18 +1650,46 @@ bool DependentVariableSetQuantityName(DependentVariableRef dv,
     if (dv->quantityName == quantityName) return true;
     // 3) Validate everything else still lines up (unit, type, labels, count)
     OCIndex count = OCArrayGetCount(dv->components);
-    if (!validateDependentVariableParameters(
-            dv->unit,
-            quantityName,
-            dv->quantityType,
-            (OCArrayRef)dv->componentLabels,
-            count)) {
+    if (!validateDependentVariableParameters(dv->type,
+                                             dv->unit,
+                                             quantityName,
+                                             dv->quantityType,
+                                             (OCArrayRef)dv->componentLabels,
+                                             count)) {
         return false;
     }
     // 4) All good—swap in the new name
     OCRelease(dv->quantityName);
     dv->quantityName = OCStringCreateCopy(quantityName);
     return dv->quantityName != NULL;
+}
+//-----------------------------------------------------------------------------
+// Getter for the componentLabels array.
+// Returns the mutable array (as an OCArrayRef) or NULL if dv is NULL.
+//-----------------------------------------------------------------------------
+OCArrayRef
+DependentVariableGetComponentLabels(DependentVariableRef dv) {
+    if (!dv) return NULL;
+    return (OCArrayRef)dv->componentLabels;
+}
+//-----------------------------------------------------------------------------
+// Setter for the componentLabels array.
+// Makes a deep mutable‐copy of the input array (or creates an empty one if NULL).
+// Returns true on success, false on NULL dv or allocation failure.
+//-----------------------------------------------------------------------------
+bool DependentVariableSetComponentLabels(DependentVariableRef dv,
+                                         OCArrayRef labels) {
+    if (!dv) return false;
+    // release old labels
+    OCRelease(dv->componentLabels);
+    if (labels) {
+        // deep‐mutable copy of the incoming array
+        dv->componentLabels = OCArrayCreateMutableCopy(labels);
+    } else {
+        // no labels → empty mutable array
+        dv->componentLabels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    }
+    return dv->componentLabels != NULL;
 }
 OCStringRef
 DependentVariableCreateComponentLabelForIndex(DependentVariableRef dv,
@@ -1232,7 +1750,7 @@ bool DependentVariableSetComponentLabelAtIndex(DependentVariableRef dv,
 SINumberType
 DependentVariableGetElementType(DependentVariableRef dv) {
     if (!dv) return kSINumberTypeInvalid;
-    return dv->type;
+    return dv->numericType;
 }
 //-----------------------------------------------------------------------------
 // Change the element type of all components.
@@ -1244,18 +1762,17 @@ DependentVariableGetElementType(DependentVariableRef dv) {
 //       • newType == oldType (no work done)
 //-----------------------------------------------------------------------------
 bool DependentVariableSetElementType(DependentVariableRef dv,
-                                     SINumberType newType) 
-                                     {
+                                     SINumberType newType) {
     if (!dv) return false;
-    SINumberType oldType = dv->type;
+    SINumberType oldType = dv->numericType;
     if (oldType == newType) return true;
     OCMutableArrayRef comps = dv->components;
     if (!comps) return false;
     OCIndex nComps = OCArrayGetCount(comps);
     OCIndex nElems = DependentVariableGetSize(dv);
-    size_t newBytes = nElems * OCNumberTypeSize((OCNumberType) newType);
+    size_t newBytes = nElems * OCNumberTypeSize((OCNumberType)newType);
     for (OCIndex ci = 0; ci < nComps; ci++) {
-        OCMutableDataRef oldData = (OCMutableDataRef) OCArrayGetValueAtIndex(comps, ci);
+        OCMutableDataRef oldData = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, ci);
         uint8_t *oldPtr = OCDataGetMutableBytes(oldData);
         OCMutableDataRef newData = OCDataCreateMutable(0);
         void *tmpBuf = malloc(newBytes);
@@ -1356,7 +1873,7 @@ bool DependentVariableSetElementType(DependentVariableRef dv,
         OCArraySetValueAtIndex(comps, ci, newData);
         OCRelease(newData);
     }
-    dv->type = newType;
+    dv->numericType = newType;
     return true;
 }
 bool DependentVariableSetValues(DependentVariableRef dv,
@@ -1401,7 +1918,7 @@ float DependentVariableGetFloatValueAtMemOffset(DependentVariableRef dv,
     if (memOffset < 0) memOffset += size;
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
-    switch (dv->type) {
+    switch (dv->numericType) {
         case kSINumberFloat32Type: {
             float *arr = (float *)bytes;
             return arr[memOffset];
@@ -1437,7 +1954,7 @@ DependentVariableGetDoubleValueAtMemOffset(DependentVariableRef dv,
     if (memOffset < 0) memOffset += size;
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
-    switch (dv->type) {
+    switch (dv->numericType) {
         case kSINumberFloat32Type: {
             float *arr = (float *)bytes;
             return (double)arr[memOffset];
@@ -1473,7 +1990,7 @@ DependentVariableGetFloatComplexValueAtMemOffset(DependentVariableRef dv,
     if (memOffset < 0) memOffset += size;
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
-    switch (dv->type) {
+    switch (dv->numericType) {
         case kSINumberFloat32Type: {
             float *arr = (float *)bytes;
             return (float complex)arr[memOffset];
@@ -1509,7 +2026,7 @@ DependentVariableGetDoubleComplexValueAtMemOffset(DependentVariableRef dv,
     if (memOffset < 0) memOffset += size;
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
-    switch (dv->type) {
+    switch (dv->numericType) {
         case kSINumberFloat32Type: {
             float *arr = (float *)bytes;
             return (double complex)arr[memOffset];
@@ -1546,7 +2063,7 @@ DependentVariableGetDoubleValueAtMemOffsetForPart(DependentVariableRef dv,
     if (memOffset < 0) memOffset += size;
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
-    switch (dv->type) {
+    switch (dv->numericType) {
         case kSINumberFloat32Type: {
             float *arr = (float *)bytes;
             return (double)arr[memOffset];
@@ -1605,7 +2122,7 @@ float DependentVariableGetFloatValueAtMemOffsetForPart(DependentVariableRef dv,
     if (memOffset < 0) memOffset += size;
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
-    switch (dv->type) {
+    switch (dv->numericType) {
         case kSINumberFloat32Type: {
             float *arr = (float *)bytes;
             return arr[memOffset];
@@ -1666,7 +2183,7 @@ DependentVariableCreateValueFromMemOffset(DependentVariableRef dv,
     // grab the raw bytes
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
-    switch (dv->type) {
+    switch (dv->numericType) {
         case kSINumberFloat32Type: {
             float v = ((float *)bytes)[memOffset];
             return SIScalarCreateWithFloat(v, dv->unit);
@@ -1718,7 +2235,7 @@ bool DependentVariableSetValueAtMemOffset(DependentVariableRef dv,
     // grab a mutable pointer into the data
     OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     void *bytes = OCDataGetMutableBytes(data);
-    switch (dv->type) {
+    switch (dv->numericType) {
         case kSINumberFloat32Type: {
             float v = SIScalarFloatValueInUnit(value, dv->unit, NULL);
             ((float *)bytes)[memOffset] = v;

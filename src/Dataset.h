@@ -1,115 +1,106 @@
 #ifndef DATASET_H
 #define DATASET_H
 
-#include "RMNLibrary.h"
+#include "Datum.h"
+#include "OCArray.h"
+#include "OCDictionary.h"
+#include "OCIndexArray.h"
+#include "OCString.h"
+#include "OCType.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/// Opaque Dataset type
 typedef struct impl_Dataset *DatasetRef;
 
-///-----------------------------
-/// Type registration & creation
-///-----------------------------
+/// Type ID registration
+OCTypeID DatasetGetTypeID(void);
 
-/// Returns the OCTypeID for Dataset
-OCTypeID                DatasetGetTypeID(void);
+/// Create a new Dataset with the given contents.
+/// Returns NULL on validation failure (e.g. no dependent‐variables, size mismatches, bad types).
+DatasetRef DatasetCreate(
+    OCArrayRef     dimensions,
+    OCArrayRef     dimensionPrecedence,
+    OCArrayRef     dependentVariables,
+    OCArrayRef     tags,
+    OCStringRef    description,
+    OCStringRef    title,
+    DatumRef       focus,
+    DatumRef       previousFocus,
+    OCDictionaryRef metaData);
 
-/// Allocate & initialize an empty, zero-dimensional Dataset
-DatasetRef              DatasetCreateEmpty(void);
+/// Re-instantiate a Dataset from the dictionary form produced by DatasetCopyAsDictionary
+DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict);
 
-/// Construct a Dataset with everything specified.
-/// Returns NULL on validation failure (mismatched sizes, bad types, etc).
-DatasetRef
-DatasetCreate(
-    OCArrayRef      dimensions,          // array of DimensionRef subclasses
-    OCArrayRef      dimensionPrecedence, // array of OCNumberRefs, length == dimensions count
-    OCArrayRef      dependentVariables,  // array of DependentVariableRef
-    OCArrayRef      tags,                // array of OCStringRef
-    OCStringRef     description,
-    OCStringRef     title,
-    DatumRef        focus,
-    DatumRef        previousFocus,
-    OCDictionaryRef operations,
-    OCDictionaryRef metaData
-);
+/// Serialize into a dictionary (deep-copyable, for persistence or DatasetCreateCopy)
+OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds, const char *exportDirectory);
 
-/// Rehydrate a Dataset from its dictionary form (as emitted by CopyAsDictionary)
-DatasetRef              DatasetCreateFromDictionary(OCDictionaryRef dict);
-
-/// Serialize a Dataset to a dictionary for persistence or deep-copy
-OCDictionaryRef         DatasetCopyAsDictionary(DatasetRef ds);
-
-/// Deep-copy a Dataset (via CopyAsDictionary + CreateFromDictionary)
+/// Shorthand deep-copy via CopyAsDictionary + CreateFromDictionary
 static inline DatasetRef
 DatasetCreateCopy(DatasetRef ds) {
     if (!ds) return NULL;
-    OCDictionaryRef dict = DatasetCopyAsDictionary(ds);
-    DatasetRef     copy = DatasetCreateFromDictionary(dict);
-    OCRelease(dict);
-    return copy;
+    OCDictionaryRef d = DatasetCopyAsDictionary(ds, NULL);
+    DatasetRef c = DatasetCreateFromDictionary(d);
+    OCRelease(d);
+    return c;
 }
 
-///---------------------------------
-/// Accessors & mutators
-///---------------------------------
+///-----------------------
+/// Accessors & Mutators
+///-----------------------
 
-// — dimensions —
-OCMutableArrayRef       DatasetGetDimensions(DatasetRef ds);
-bool                    DatasetSetDimensions(DatasetRef ds,
-                                              OCMutableArrayRef dims);
+/// dimensions
+OCMutableArrayRef DatasetGetDimensions(DatasetRef ds);
+bool DatasetSetDimensions(DatasetRef ds,
+                          OCMutableArrayRef dims);
 
-// — dependent variables —
-OCMutableArrayRef       DatasetGetDependentVariables(DatasetRef ds);
-bool                    DatasetSetDependentVariables(DatasetRef ds,
-                                                     OCMutableArrayRef dvs);
+/// dimension precedence
+OCMutableIndexArrayRef DatasetGetDimensionPrecedence(DatasetRef ds);
+bool DatasetSetDimensionPrecedence(DatasetRef ds,
+                                   OCMutableIndexArrayRef order);
 
-// — tags —
-OCMutableArrayRef       DatasetGetTags(DatasetRef ds);
-bool                    DatasetSetTags(DatasetRef ds,
-                                       OCMutableArrayRef tags);
+/// dependent-variables
+OCMutableArrayRef DatasetGetDependentVariables(DatasetRef ds);
+bool DatasetSetDependentVariables(DatasetRef ds,
+                                  OCMutableArrayRef dvs);
 
-// — description —
-OCStringRef             DatasetGetDescription(DatasetRef ds);
-bool                    DatasetSetDescription(DatasetRef ds,
-                                              OCStringRef desc);
+/// tags
+OCMutableArrayRef DatasetGetTags(DatasetRef ds);
+bool DatasetSetTags(DatasetRef ds,
+                    OCMutableArrayRef tags);
 
-// — title —
-OCStringRef             DatasetGetTitle(DatasetRef ds);
-bool                    DatasetSetTitle(DatasetRef ds,
-                                         OCStringRef title);
+/// description
+OCStringRef DatasetGetDescription(DatasetRef ds);
+bool DatasetSetDescription(DatasetRef ds,
+                           OCStringRef desc);
 
-// — focus & previous focus —
-DatumRef                DatasetGetFocus(DatasetRef ds);
-bool                    DatasetSetFocus(DatasetRef ds,
-                                        DatumRef focus);
-DatumRef                DatasetGetPreviousFocus(DatasetRef ds);
-bool                    DatasetSetPreviousFocus(DatasetRef ds,
-                                                DatumRef previousFocus);
+/// title
+OCStringRef DatasetGetTitle(DatasetRef ds);
+bool DatasetSetTitle(DatasetRef ds,
+                     OCStringRef title);
 
-// — dimension precedence (ordered indexes) —
-OCMutableIndexArrayRef  DatasetGetDimensionPrecedence(DatasetRef ds);
-bool                    DatasetSetDimensionPrecedence(DatasetRef ds,
-                                                      OCMutableIndexArrayRef order);
+/// focus & previous‐focus
+DatumRef DatasetGetFocus(DatasetRef ds);
+bool DatasetSetFocus(DatasetRef ds,
+                     DatumRef focus);
+DatumRef DatasetGetPreviousFocus(DatasetRef ds);
+bool DatasetSetPreviousFocus(DatasetRef ds, DatumRef previousFocus);
 
-// — metadata dictionary —
-OCDictionaryRef         DatasetGetMetaData(DatasetRef ds);
-bool                    DatasetSetMetaData(DatasetRef ds,
-                                           OCDictionaryRef md);
+/// metadata dictionary
+OCDictionaryRef DatasetGetMetaData(DatasetRef ds);
+bool DatasetSetMetaData(DatasetRef ds,
+                        OCDictionaryRef md);
 
-// — operations dictionary —
-OCMutableDictionaryRef  DatasetGetOperations(DatasetRef ds);
-bool                    DatasetSetOperations(DatasetRef ds,
-                                             OCMutableDictionaryRef ops);
-
-// — base64 flag —
-bool                    DatasetGetBase64(DatasetRef ds);
-bool                    DatasetSetBase64(DatasetRef ds,
-                                          bool base64);
+/// base64‐flag
+bool DatasetGetBase64(DatasetRef ds);
+bool DatasetSetBase64(DatasetRef ds,
+                      bool base64);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // DATASET_H
+#endif  // DATASET_H
+
