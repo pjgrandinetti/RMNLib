@@ -98,58 +98,48 @@ static inline DatasetRef DatasetCreateCopy(DatasetRef ds) {
 /** @name Accessors & Mutators
  * @{ */
 /** @brief Get mutable array of Dimensions. */
-OCMutableArrayRef
-DatasetGetDimensions(DatasetRef ds);
+OCMutableArrayRef DatasetGetDimensions(DatasetRef ds);
 /** @brief Replace the dimensions array (must match existing DVs). */
 bool DatasetSetDimensions(DatasetRef ds,
                           OCMutableArrayRef dims);
 /** @brief Get mutable index array for dimension precedence. */
-OCMutableIndexArrayRef
-DatasetGetDimensionPrecedence(DatasetRef ds);
+OCMutableIndexArrayRef DatasetGetDimensionPrecedence(DatasetRef ds);
 /** @brief Replace the dimension precedence ordering. */
 bool DatasetSetDimensionPrecedence(DatasetRef ds,
                                    OCMutableIndexArrayRef order);
 /** @brief Get mutable array of DependentVariable. */
-OCMutableArrayRef
-DatasetGetDependentVariables(DatasetRef ds);
+OCMutableArrayRef DatasetGetDependentVariables(DatasetRef ds);
 /** @brief Replace the dependent-variables list. */
 bool DatasetSetDependentVariables(DatasetRef ds,
                                   OCMutableArrayRef dvs);
 /** @brief How many dependent variables in this Dataset. */
-OCIndex
-DatasetGetDependentVariableCount(DatasetRef ds);
+OCIndex DatasetGetDependentVariableCount(DatasetRef ds);
 /** @brief Fetch the i-th dependent variable. */
 DependentVariableRef
 DatasetGetDependentVariableAtIndex(DatasetRef ds,
                                    OCIndex index);
 /** @brief Get/replace tags. */
-OCMutableArrayRef
-DatasetGetTags(DatasetRef ds);
+OCMutableArrayRef DatasetGetTags(DatasetRef ds);
 bool DatasetSetTags(DatasetRef ds,
                     OCMutableArrayRef tags);
 /** @brief Get/replace description. */
-OCStringRef
-DatasetGetDescription(DatasetRef ds);
+OCStringRef DatasetGetDescription(DatasetRef ds);
 bool DatasetSetDescription(DatasetRef ds,
                            OCStringRef desc);
 /** @brief Get/replace title. */
-OCStringRef
-DatasetGetTitle(DatasetRef ds);
+OCStringRef DatasetGetTitle(DatasetRef ds);
 bool DatasetSetTitle(DatasetRef ds,
                      OCStringRef title);
 /** @brief Get/replace focus Datum. */
-DatumRef
-DatasetGetFocus(DatasetRef ds);
+DatumRef DatasetGetFocus(DatasetRef ds);
 bool DatasetSetFocus(DatasetRef ds,
                      DatumRef focus);
 /** @brief Get/replace previous focus Datum. */
-DatumRef
-DatasetGetPreviousFocus(DatasetRef ds);
+DatumRef DatasetGetPreviousFocus(DatasetRef ds);
 bool DatasetSetPreviousFocus(DatasetRef ds,
                              DatumRef previousFocus);
 /** @brief Get/replace arbitrary metadata dictionary. */
-OCDictionaryRef
-DatasetGetMetaData(DatasetRef ds);
+OCDictionaryRef DatasetGetMetaData(DatasetRef ds);
 bool DatasetSetMetaData(DatasetRef ds,
                         OCDictionaryRef md);
 /** @} */ /* end group Accessors & Mutators */
