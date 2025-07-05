@@ -8,9 +8,9 @@ bool test_DependentVariable_base(void) {
     DependentVariableRef dv   = NULL;
     DependentVariableRef dv2  = NULL;
     DependentVariableRef dv3  = NULL;
-    OCDictionaryRef       dict = NULL;
-    OCStringRef           desc1= NULL;
-    OCStringRef           desc2= NULL;
+    OCDictionaryRef dict      = NULL;
+    OCStringRef desc1         = NULL;
+    OCStringRef desc2         = NULL;
 
     // 1) default-create scalar length=4
     dv = DependentVariableCreateDefault(
@@ -28,7 +28,6 @@ bool test_DependentVariable_base(void) {
     TEST_ASSERT(DependentVariableGetComponentCount(dv) == 1);
     TEST_ASSERT(DependentVariableGetSize(dv) == 4);
 
-
     // 2) setters / getters
     TEST_ASSERT(DependentVariableSetName(dv, STR("foo")));
     TEST_ASSERT(OCStringEqual(DependentVariableGetName(dv), STR("foo")));
@@ -44,11 +43,9 @@ bool test_DependentVariable_base(void) {
     // sparse fields
     TEST_ASSERT(DependentVariableGetSparseDimensionIndexes(dv) != NULL);
     TEST_ASSERT(DependentVariableGetSparseGridVertexes(dv) != NULL);
-    // Fix: Set an array, not a string, as sparse grid vertexes
     OCMutableArrayRef vertsArr = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(vertsArr, STR("verts"));
     TEST_ASSERT(DependentVariableSetSparseGridVertexes(dv, vertsArr));
-    // Fix: Compare arrays, not strings
     TEST_ASSERT(OCTypeEqual(DependentVariableGetSparseGridVertexes(dv), vertsArr));
     OCRelease(vertsArr);
 
@@ -57,14 +54,14 @@ bool test_DependentVariable_base(void) {
     TEST_ASSERT(dv2 != NULL);
     TEST_ASSERT(OCTypeEqual(dv, dv2));
 
-
     // 4) dict round-trip
     dict = DependentVariableCopyAsDictionary(dv);
     TEST_ASSERT(dict != NULL);
     dv3 = DependentVariableCreateFromDictionary(dict, NULL);
     TEST_ASSERT(dv3 != NULL);
+    TEST_ASSERT(OCTypeEqual(dv, dv3));
 
-    // formatting comparison
+    // 5) formatting comparison
     desc1 = OCTypeCopyFormattingDesc((OCTypeRef)dv);
     desc2 = OCTypeCopyFormattingDesc((OCTypeRef)dv2);
     TEST_ASSERT(OCStringEqual(desc1, desc2));
@@ -82,6 +79,7 @@ cleanup:
     return ok;
 }
 
+
 bool test_DependentVariable_components(void) {
     bool ok = false;
     DependentVariableRef dv = NULL;
@@ -89,7 +87,6 @@ bool test_DependentVariable_components(void) {
     OCMutableDataRef extra  = NULL;
     OCIndex count;
 
-    // build one buffer of length=3 elements
     comps = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     {
         OCMutableDataRef b = OCDataCreateMutable(0);
@@ -102,7 +99,7 @@ bool test_DependentVariable_components(void) {
         STR("v"),
         STR("vec"),
         SIUnitFindWithUnderivedSymbol(STR("m/s")),
-        kSIQuantityVelocity,
+        STR("velocity"),
         STR("vector_1"),
         kSINumberFloat32Type,
         NULL,
@@ -113,25 +110,17 @@ bool test_DependentVariable_components(void) {
     TEST_ASSERT(DependentVariableGetComponentCount(dv) == 1);
     TEST_ASSERT(DependentVariableGetSize(dv) == 3);
 
-    // insert another matching buffer
     extra = OCDataCreateMutable(0);
     OCDataSetLength(extra, 3 * sizeof(float));
     TEST_ASSERT(DependentVariableInsertComponentAtIndex(dv, extra, 1));
     TEST_ASSERT(DependentVariableGetComponentCount(dv) == 2);
-
-    // remove it
     TEST_ASSERT(DependentVariableRemoveComponentAtIndex(dv, 1));
     TEST_ASSERT(DependentVariableGetComponentCount(dv) == 1);
-
-    // out-of-bounds insertion/removal should fail
     TEST_ASSERT(!DependentVariableInsertComponentAtIndex(dv, extra, 5));
     TEST_ASSERT(!DependentVariableRemoveComponentAtIndex(dv, 1));
-
-    // resize all buffers to length=5
     TEST_ASSERT(DependentVariableSetSize(dv, 5));
     TEST_ASSERT(DependentVariableGetSize(dv) == 5);
 
-    // component copy
     OCMutableArrayRef copy = DependentVariableCopyComponents(dv);
     TEST_ASSERT(copy != NULL);
     count = OCArrayGetCount(copy);
@@ -150,11 +139,9 @@ cleanup:
 bool test_DependentVariable_values(void) {
     bool ok = false;
     DependentVariableRef dv = NULL;
-    SIScalarRef sIn   = NULL;
-    SIScalarRef sOut  = NULL;
-    double     dVal;
+    SIScalarRef sIn = NULL, sOut = NULL;
+    double dVal;
 
-    // create scalar length=4 double
     dv = DependentVariableCreateWithSize(
         NULL, NULL, NULL, NULL,
         STR("scalar"),
@@ -165,15 +152,11 @@ bool test_DependentVariable_values(void) {
     );
     TEST_ASSERT(dv);
 
-    // set element 2 to 7.5
     sIn = SIScalarCreateWithDouble(7.5, SIUnitDimensionlessAndUnderived());
     TEST_ASSERT(DependentVariableSetValueAtMemOffset(dv, 0, 2, sIn, NULL));
-
-    // get back as double
     dVal = DependentVariableGetDoubleValueAtMemOffset(dv, 0, 2);
     TEST_ASSERT(dVal == 7.5);
 
-    // get back as scalar
     sOut = DependentVariableCreateValueFromMemOffset(dv, 0, 2);
     TEST_ASSERT(SIScalarDoubleValueInUnit(sOut, SIUnitDimensionlessAndUnderived(), NULL) == 7.5);
 
@@ -186,13 +169,10 @@ cleanup:
     return ok;
 }
 
-
-
 bool test_DependentVariable_typeQueries(void) {
     bool ok = false;
     OCIndex count;
 
-    // scalar
     DependentVariableRef dv1 = DependentVariableCreateDefault(STR("scalar"), kSINumberFloat64Type, 1, NULL);
     TEST_ASSERT(dv1);
     TEST_ASSERT(DependentVariableIsScalarType(dv1));
@@ -201,7 +181,6 @@ bool test_DependentVariable_typeQueries(void) {
     TEST_ASSERT(!DependentVariableIsMatrixType(dv1, &count, &count));
     OCRelease(dv1);
 
-    // vector_3
     DependentVariableRef dv2 = DependentVariableCreateDefault(STR("vector_3"), kSINumberFloat32Type, 3, NULL);
     TEST_ASSERT(dv2);
     TEST_ASSERT(!DependentVariableIsScalarType(dv2));
@@ -209,13 +188,11 @@ bool test_DependentVariable_typeQueries(void) {
     TEST_ASSERT(DependentVariableComponentsCountFromQuantityType(STR("vector_3")) == 3);
     OCRelease(dv2);
 
-    // pixel_2
     DependentVariableRef dv3 = DependentVariableCreateDefault(STR("pixel_2"), kSINumberFloat32Type, 2, NULL);
     TEST_ASSERT(dv3);
     TEST_ASSERT(DependentVariableIsPixelType(dv3, &count) && count == 2);
     OCRelease(dv3);
 
-    // matrix_2_2
     DependentVariableRef dv4 = DependentVariableCreateDefault(STR("matrix_2_2"), kSINumberFloat32Type, 4, NULL);
     OCIndex r, c;
     TEST_ASSERT(dv4);
@@ -232,7 +209,6 @@ bool test_DependentVariable_complexCopy(void) {
     bool ok = false;
     DependentVariableRef src = NULL, dst = NULL;
 
-    // make a real-only vector
     OCMutableArrayRef comps = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCMutableDataRef blob = OCDataCreateMutable(0);
     OCDataSetLength(blob, 3 * sizeof(double));
@@ -243,7 +219,7 @@ bool test_DependentVariable_complexCopy(void) {
                                   STR("dimensionless"), STR("scalar"),
                                   kSINumberFloat64Type, NULL, comps, NULL);
     TEST_ASSERT(src);
-    // src is real, so copying as complex should flip type
+
     dst = DependentVariableCreateComplexCopy(src, NULL);
     TEST_ASSERT(dst);
     TEST_ASSERT(SIQuantityGetElementType((SIQuantityRef) dst) == kSINumberFloat64ComplexType);
@@ -259,12 +235,12 @@ cleanup:
 
 bool test_DependentVariable_invalidCreate(void) {
     bool ok = false;
-    // vector_2 but only one buffer → should fail
     OCMutableArrayRef oneBuf = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCMutableDataRef b = OCDataCreateMutable(0);
     OCDataSetLength(b, 10);
     OCArrayAppendValue(oneBuf, b);
     OCRelease(b);
+
     DependentVariableRef dv = DependentVariableCreate(
         STR("x"),
         STR("desc"),
@@ -283,3 +259,4 @@ cleanup:
     printf("DependentVariable invalid-create tests %s\n", ok ? "passed." : "failed.");
     return ok;
 }
+

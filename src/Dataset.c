@@ -681,9 +681,9 @@ bool ExportDataset(DatasetRef ds, const char *json_path, const char *binary_dir,
     }
     // — 0) Decide if any DV is external, so we know which extension we require —
     bool hasExternal = false;
-    OCIndex dvCount = DatasetGetDependentVariableCount(ds);
+    OCIndex dvCount = ds && ds->dependentVariables ? OCArrayGetCount(ds->dependentVariables) : 0;
     for (OCIndex i = 0; i < dvCount; ++i) {
-        DependentVariableRef dv = DatasetGetDependentVariableAtIndex(ds, i);
+        DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(ds->dependentVariables, i);
         if (dv && DependentVariableShouldSerializeExternally(dv)) {
             hasExternal = true;
             break;
@@ -752,7 +752,7 @@ bool ExportDataset(DatasetRef ds, const char *json_path, const char *binary_dir,
     // 5) Export each external DependentVariable
     OCArrayRef dims = DatasetGetDimensions(ds);
     for (OCIndex i = 0; i < dvCount; ++i) {
-        DependentVariableRef dv = DatasetGetDependentVariableAtIndex(ds, i);
+        DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(ds->dependentVariables, i);
         if (!dv || !DependentVariableShouldSerializeExternally(dv))
             continue;
         OCStringRef url = DependentVariableGetComponentsURL(dv);
@@ -794,9 +794,7 @@ bool ExportDataset(DatasetRef ds, const char *json_path, const char *binary_dir,
     }
     return true;
 }
-DatasetRef ImportDataset(const char *json_path,
-                         const char *binary_dir,
-                         OCStringRef *outError) {
+DatasetRef ImportDataset(const char *json_path,const char *binary_dir,OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!json_path || !binary_dir) {
         if (outError) *outError = STR("Invalid arguments");
@@ -842,9 +840,9 @@ DatasetRef ImportDataset(const char *json_path,
     if (!ds)
         return NULL;
     // 4) Load each external blob
-    OCIndex count = DatasetGetDependentVariableCount(ds);
+    OCIndex count = ds && ds->dependentVariables ? OCArrayGetCount(ds->dependentVariables) : 0;
     for (OCIndex i = 0; i < count; ++i) {
-        DependentVariableRef dv = DatasetGetDependentVariableAtIndex(ds, i);
+        DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(ds->dependentVariables, i);
         if (!dv || !DependentVariableShouldSerializeExternally(dv))
             continue;
         OCStringRef url = DependentVariableGetComponentsURL(dv);

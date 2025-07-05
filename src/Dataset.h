@@ -1,110 +1,199 @@
 #ifndef DATASET_H
 #define DATASET_H
-
 #include "Datum.h"
 #include "OCArray.h"
 #include "OCDictionary.h"
 #include "OCIndexArray.h"
 #include "OCString.h"
 #include "OCType.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/// Opaque Dataset type
+/**
+ * @file Dataset.h
+ * @brief Core API for the Dataset type and its serialization.
+ *
+ * A Dataset bundles:
+ *  - a list of dimensions (with optional custom ordering),
+ *  - one or more dependent variables (each potentially externalized),
+ *  - string tags, title & description,
+ *  - an optional focus datum and metadata dictionary.
+ *
+ * You can create one in‐memory, serialize it to a deep dictionary (for testing
+ * or round‐trip), and read/write full CSDF/CSDFE files with Export/Import.
+ */
+/**
+ * @ingroup CoreTypes
+ * @brief Opaque handle for a Dataset object.
+ */
 typedef struct impl_Dataset *DatasetRef;
-
-/// Type ID registration
+/**
+ * @brief Return the unique OCTypeID for Dataset.
+ */
 OCTypeID DatasetGetTypeID(void);
-
-/// Create a new Dataset with the given contents.
-/// Returns NULL on validation failure (e.g. no dependent‐variables, size mismatches, bad types).
-DatasetRef DatasetCreate(
-    OCArrayRef     dimensions,
+/**
+ * @brief Construct a new Dataset.
+ *
+ * Performs basic validation:
+ *  - at least one dependent variable,
+ *  - each DV’s length matches the product of all dimension sizes,
+ *  - dimensions themselves have valid types.
+ *
+ * @param dimensions          Array of DimensionRef (may be NULL ⇒ scalar DV only).
+ * @param dimensionPrecedence Optional index‐ordering array (NULL ⇒ natural order).
+ * @param dependentVariables  Array of DependentVariableRef (must not be empty).
+ * @param tags                Array of OCStringRef tags (may be NULL).
+ * @param description         Short description (may be NULL or empty).
+ * @param title               Human-readable title (may be NULL or empty).
+ * @param focus               Optional DatumRef focus (may be NULL).
+ * @param previousFocus       Optional previous focus (may be NULL).
+ * @param metaData            Arbitrary key/value metadata (may be NULL).
+ * @return Newly allocated DatasetRef on success, or NULL on validation error.
+ */
+DatasetRef
+DatasetCreate(
+    OCArrayRef dimensions,
     OCIndexArrayRef dimensionPrecedence,
-    OCArrayRef     dependentVariables,
-    OCArrayRef     tags,
-    OCStringRef    description,
-    OCStringRef    title,
-    DatumRef       focus,
-    DatumRef       previousFocus,
+    OCArrayRef dependentVariables,
+    OCArrayRef tags,
+    OCStringRef description,
+    OCStringRef title,
+    DatumRef focus,
+    DatumRef previousFocus,
     OCDictionaryRef metaData);
-
-/// Re-instantiate a Dataset from the dictionary form produced by DatasetCopyAsDictionary
-DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError);
-/// Serialize into a dictionary (deep-copyable, for persistence or DatasetCreateCopy)
-OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds);
-/// Shorthand deep-copy via CopyAsDictionary + CreateFromDictionary
+/**
+ * @brief Rebuild a Dataset from a deep‐copied dictionary.
+ * @param dict     Dictionary produced by DatasetCopyAsDictionary().
+ * @param outError On error, set to an OCStringRef describing the problem.
+ * @return DatasetRef or NULL on parse/factory failure.
+ */
+DatasetRef
+DatasetCreateFromDictionary(
+    OCDictionaryRef dict,
+    OCStringRef *outError);
+/**
+ * @brief Serialize a Dataset into a deep‐copyable dictionary.
+ *
+ * Use this for tests, round-trip, or JSON conversion via cJSON.
+ *
+ * @param ds DatasetRef to serialize.
+ * @return An OCDictionaryRef you must OCRelease() when done.
+ */
+OCDictionaryRef
+DatasetCopyAsDictionary(DatasetRef ds);
+/**
+ * @brief Convenience: deep-copy via CopyAsDictionary + CreateFromDictionary.
+ * @param ds Source DatasetRef (must not be NULL).
+ * @return New DatasetRef copy, or NULL if any error.
+ */
 static inline DatasetRef DatasetCreateCopy(DatasetRef ds) {
     if (!ds) return NULL;
     OCStringRef err = NULL;
     OCDictionaryRef d = DatasetCopyAsDictionary(ds);
     DatasetRef c = DatasetCreateFromDictionary(d, &err);
     OCRelease(d);
-    if (!c) {
-        OCRelease(err);  // optional: log or inspect err before releasing
-        return NULL;
-    }
+    if (!c) OCRelease(err);
     return c;
 }
-
-///-----------------------
-/// Accessors & Mutators
-///-----------------------
-
-/// dimensions
-OCMutableArrayRef DatasetGetDimensions(DatasetRef ds);
+/** @name Accessors & Mutators
+ * @{ */
+/** @brief Get mutable array of Dimensions. */
+OCMutableArrayRef
+DatasetGetDimensions(DatasetRef ds);
+/** @brief Replace the dimensions array (must match existing DVs). */
 bool DatasetSetDimensions(DatasetRef ds,
                           OCMutableArrayRef dims);
-
-/// dimension precedence
-OCMutableIndexArrayRef DatasetGetDimensionPrecedence(DatasetRef ds);
+/** @brief Get mutable index array for dimension precedence. */
+OCMutableIndexArrayRef
+DatasetGetDimensionPrecedence(DatasetRef ds);
+/** @brief Replace the dimension precedence ordering. */
 bool DatasetSetDimensionPrecedence(DatasetRef ds,
                                    OCMutableIndexArrayRef order);
-
-/// dependent-variables
-OCMutableArrayRef DatasetGetDependentVariables(DatasetRef ds);
+/** @brief Get mutable array of DependentVariable. */
+OCMutableArrayRef
+DatasetGetDependentVariables(DatasetRef ds);
+/** @brief Replace the dependent-variables list. */
 bool DatasetSetDependentVariables(DatasetRef ds,
                                   OCMutableArrayRef dvs);
-OCIndex DatasetGetDependentVariableCount(DatasetRef ds);
-DependentVariableRef DatasetGetDependentVariableAtIndex(DatasetRef ds, OCIndex index);
-
-/// tags
-OCMutableArrayRef DatasetGetTags(DatasetRef ds);
+/** @brief How many dependent variables in this Dataset. */
+OCIndex
+DatasetGetDependentVariableCount(DatasetRef ds);
+/** @brief Fetch the i-th dependent variable. */
+DependentVariableRef
+DatasetGetDependentVariableAtIndex(DatasetRef ds,
+                                   OCIndex index);
+/** @brief Get/replace tags. */
+OCMutableArrayRef
+DatasetGetTags(DatasetRef ds);
 bool DatasetSetTags(DatasetRef ds,
                     OCMutableArrayRef tags);
-
-/// description
-OCStringRef DatasetGetDescription(DatasetRef ds);
+/** @brief Get/replace description. */
+OCStringRef
+DatasetGetDescription(DatasetRef ds);
 bool DatasetSetDescription(DatasetRef ds,
                            OCStringRef desc);
-
-/// title
-OCStringRef DatasetGetTitle(DatasetRef ds);
+/** @brief Get/replace title. */
+OCStringRef
+DatasetGetTitle(DatasetRef ds);
 bool DatasetSetTitle(DatasetRef ds,
                      OCStringRef title);
-
-/// focus & previous‐focus
-DatumRef DatasetGetFocus(DatasetRef ds);
+/** @brief Get/replace focus Datum. */
+DatumRef
+DatasetGetFocus(DatasetRef ds);
 bool DatasetSetFocus(DatasetRef ds,
                      DatumRef focus);
-DatumRef DatasetGetPreviousFocus(DatasetRef ds);
-bool DatasetSetPreviousFocus(DatasetRef ds, DatumRef previousFocus);
-
-/// metadata dictionary
-OCDictionaryRef DatasetGetMetaData(DatasetRef ds);
+/** @brief Get/replace previous focus Datum. */
+DatumRef
+DatasetGetPreviousFocus(DatasetRef ds);
+bool DatasetSetPreviousFocus(DatasetRef ds,
+                             DatumRef previousFocus);
+/** @brief Get/replace arbitrary metadata dictionary. */
+OCDictionaryRef
+DatasetGetMetaData(DatasetRef ds);
 bool DatasetSetMetaData(DatasetRef ds,
                         OCDictionaryRef md);
-
-/// base64‐flag
-bool DatasetGetBase64(DatasetRef ds);
-bool DatasetSetBase64(DatasetRef ds,
-                      bool base64);
-
+/** @} */ /* end group Accessors & Mutators */
+/** @defgroup IO Disk I/O: .csdf / .csdfe
+ *  Read & write full Dataset + external blobs.
+ *  @{
+ */
+/**
+ * @brief Write a Dataset to disk.
+ *
+ * - Serializes the Dataset to JSON and writes to `json_path` (must end in
+ *   “.csdf” if no externals, or “.csdfe” if any external DVs),
+ * - Writes each external DV’s raw blob under `binary_dir/…`.
+ *
+ * @param ds         Dataset to export.
+ * @param json_path  Full path to JSON file (.csdf/.csdfe).
+ * @param binary_dir Directory under which to write external‐data files.
+ * @param outError   On error, set to a brief OCStringRef.
+ * @return true on success, false on failure (and `*outError` set).
+ */
+bool ExportDataset(
+    DatasetRef ds,
+    const char *json_path,
+    const char *binary_dir,
+    OCStringRef *outError);
+/**
+ * @brief Read a Dataset + externals back from disk.
+ *
+ * - Parses the JSON file at `json_path`,
+ * - Constructs the Dataset object,
+ * - Loads any external blobs from `binary_dir/…`.
+ *
+ * @param json_path  Path to JSON (.csdf/.csdfe).
+ * @param binary_dir Directory where external-data files live.
+ * @param outError   On error, set to a brief OCStringRef.
+ * @return Newly allocated DatasetRef, or NULL on failure.
+ */
+DatasetRef
+ImportDataset(
+    const char *json_path,
+    const char *binary_dir,
+    OCStringRef *outError);
+/** @} */ /* end group IO */
 #ifdef __cplusplus
 }
 #endif
-
 #endif  // DATASET_H
-
