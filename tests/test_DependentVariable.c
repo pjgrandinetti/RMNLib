@@ -1,16 +1,18 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "RMNLibrary.h"
+#include "SparseSampling.h"
 #include "test_utils.h"
+
 
 bool test_DependentVariable_base(void) {
     bool ok = false;
     DependentVariableRef dv   = NULL;
     DependentVariableRef dv2  = NULL;
     DependentVariableRef dv3  = NULL;
-    OCDictionaryRef dict      = NULL;
-    OCStringRef desc1         = NULL;
-    OCStringRef desc2         = NULL;
+    OCDictionaryRef      dict = NULL;
+    OCStringRef          desc1 = NULL;
+    OCStringRef          desc2 = NULL;
 
     // 1) default-create scalar length=4
     dv = DependentVariableCreateDefault(
@@ -40,28 +42,74 @@ bool test_DependentVariable_base(void) {
     TEST_ASSERT(DependentVariableSetMetaData(dv, NULL));
     TEST_ASSERT(OCDictionaryGetCount(DependentVariableGetMetaData(dv)) == 0);
 
-    // sparse fields
-    TEST_ASSERT(DependentVariableGetSparseDimensionIndexes(dv) != NULL);
-    TEST_ASSERT(DependentVariableGetSparseGridVertexes(dv) != NULL);
-    OCMutableArrayRef vertsArr = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    OCArrayAppendValue(vertsArr, STR("verts"));
-    TEST_ASSERT(DependentVariableSetSparseGridVertexes(dv, vertsArr));
-    TEST_ASSERT(OCTypeEqual(DependentVariableGetSparseGridVertexes(dv), vertsArr));
-    OCRelease(vertsArr);
+    // 3) exercise new SparseSampling API
+    // initially none
+    TEST_ASSERT(DependentVariableGetSparseSampling(dv) == NULL);
 
-    // 3) copy via OCTypeDeepCopy
+    // create a simple SparseSamplingRef
+    {
+        OCIndexSetRef     dims  = OCIndexSetCreateMutable();
+        OCIndexSetAddIndex(dims, 2);
+
+        OCMutableArrayRef verts = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+        OCIndexPairSetRef pset  = OCIndexPairSetCreateMutable();
+        OCIndexPairSetAddIndexPair(pset, 2, 5);
+        OCArrayAppendValue(verts, pset);
+        OCRelease(pset);
+
+        SparseSamplingRef ss = SparseSamplingCreate(
+            dims,
+            verts,
+            kOCNumberUInt32Type,
+            STR(kSparseSamplingEncodingValueNone),
+            STR("test-desc"),
+            NULL,
+            NULL);
+        OCRelease(dims);
+        OCRelease(verts);
+
+        TEST_ASSERT(ss != NULL);
+        // set on DV
+        TEST_ASSERT(DependentVariableSetSparseSampling(dv, ss));
+
+        // get it back
+        SparseSamplingRef got = DependentVariableGetSparseSampling(dv);
+        TEST_ASSERT(got != NULL);
+        TEST_ASSERT(OCTypeEqual(got, ss));
+
+        // inspect contents
+        TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(got) == kOCNumberUInt32Type);
+        TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(got), STR(kSparseSamplingEncodingValueNone)));
+        TEST_ASSERT(OCStringEqual(SparseSamplingGetDescription(got), STR("test-desc")));
+
+        OCRelease(ss);
+    }
+
+    // **ensure the internal buffer is non-empty before serializing**
+    {
+        SIScalarRef zero = SIScalarCreateWithDouble(0.0,
+                                      SIUnitDimensionlessAndUnderived());
+        OCIndex size = DependentVariableGetSize(dv);
+        for (OCIndex i = 0; i < size; ++i) {
+            TEST_ASSERT(
+              DependentVariableSetValueAtMemOffset(dv, 0, i, zero, NULL));
+        }
+        OCRelease(zero);
+    }
+
+    // 4) copy via OCTypeDeepCopy
     dv2 = OCTypeDeepCopy(dv);
     TEST_ASSERT(dv2 != NULL);
     TEST_ASSERT(OCTypeEqual(dv, dv2));
 
-    // 4) dict round-trip
+    // 5) dict round-trip
     dict = DependentVariableCopyAsDictionary(dv);
     TEST_ASSERT(dict != NULL);
     dv3 = DependentVariableCreateFromDictionary(dict, NULL);
     TEST_ASSERT(dv3 != NULL);
     TEST_ASSERT(OCTypeEqual(dv, dv3));
 
-    // 5) formatting comparison
+    // 6) formatting comparison
     desc1 = OCTypeCopyFormattingDesc((OCTypeRef)dv);
     desc2 = OCTypeCopyFormattingDesc((OCTypeRef)dv2);
     TEST_ASSERT(OCStringEqual(desc1, desc2));
@@ -71,10 +119,10 @@ bool test_DependentVariable_base(void) {
 cleanup:
     if (desc1) OCRelease(desc1);
     if (desc2) OCRelease(desc2);
-    if (dict)  OCRelease(dict);
-    if (dv3)   OCRelease(dv3);
-    if (dv2)   OCRelease(dv2);
-    if (dv)    OCRelease(dv);
+    if (dict ) OCRelease(dict);
+    if (dv3  ) OCRelease(dv3);
+    if (dv2  ) OCRelease(dv2);
+    if (dv   ) OCRelease(dv);
     printf("DependentVariable base tests %s\n", ok ? "passed." : "failed.");
     return ok;
 }
@@ -222,7 +270,7 @@ bool test_DependentVariable_complexCopy(void) {
 
     dst = DependentVariableCreateComplexCopy(src, NULL);
     TEST_ASSERT(dst);
-    TEST_ASSERT(SIQuantityGetElementType((SIQuantityRef) dst) == kSINumberFloat64ComplexType);
+    TEST_ASSERT(DependentVariableGetElementType(dst) == kSINumberFloat64ComplexType);
 
     ok = true;
 cleanup:
@@ -259,4 +307,3 @@ cleanup:
     printf("DependentVariable invalid-create tests %s\n", ok ? "passed." : "failed.");
     return ok;
 }
-

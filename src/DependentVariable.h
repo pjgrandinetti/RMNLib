@@ -2,7 +2,6 @@
 #define DEPENDENTVARIABLE_H
 
 #include "RMNLibrary.h"
-#include "cJSON.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -250,11 +249,28 @@ OCStringRef DependentVariableGetUnitSymbol(DependentVariableRef dv);
 SINumberType DependentVariableGetElementType(DependentVariableRef dv);
 bool         DependentVariableSetElementType(DependentVariableRef dv, SINumberType newType);
 
-OCIndexSetRef DependentVariableGetSparseDimensionIndexes(DependentVariableRef dv);
-bool          DependentVariableSetSparseDimensionIndexes(DependentVariableRef dv, OCIndexSetRef idxSet);
+/**
+ * @name Sparse-sampling Accessors
+ * @{
+ */
+/**
+ * @brief Get the full SparseSampling metadata for this variable.
+ * @param dv    The DependentVariable.
+ * @return      A retained SparseSamplingRef, or NULL if none set.
+ */
+SparseSamplingRef
+DependentVariableGetSparseSampling(DependentVariableRef dv);
 
-OCArrayRef    DependentVariableGetSparseGridVertexes(DependentVariableRef dv);
-bool          DependentVariableSetSparseGridVertexes(DependentVariableRef dv, OCArrayRef verts);
+/**
+ * @brief Replace this variable’s SparseSampling metadata.
+ * @param dv    The DependentVariable.
+ * @param ss    New SparseSampling; may be NULL to clear out.
+ * @return      true on success, false on failure.
+ */
+bool
+DependentVariableSetSparseSampling(DependentVariableRef dv,
+                                   SparseSamplingRef   ss);
+/** @} end of Sparse-sampling Accessors */
 
 OCDictionaryRef DependentVariableGetMetaData(DependentVariableRef dv);
 bool            DependentVariableSetMetaData(DependentVariableRef dv, OCDictionaryRef dict);

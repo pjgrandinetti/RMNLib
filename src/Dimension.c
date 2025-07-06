@@ -988,7 +988,11 @@ SIDimensionRef SIDimensionCreate(
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
-    // 9) Copy SI‐specific fields
+    // 9) Copy SI‐specific fields: release defaults and copy new values
+    OCRelease(dim->quantityName);
+    OCRelease(dim->offset);
+    OCRelease(dim->origin);
+
     dim->quantityName = OCStringCreateCopy(quantityName);
     if (!dim->quantityName) {
         fprintf(stderr, "SIDimensionCreate: failed to copy quantityName\n");
@@ -996,6 +1000,7 @@ SIDimensionRef SIDimensionCreate(
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
+
     dim->offset = SIScalarCreateCopy(offset);
     if (!dim->offset) {
         fprintf(stderr, "SIDimensionCreate: failed to copy offset\n");
@@ -1003,6 +1008,7 @@ SIDimensionRef SIDimensionCreate(
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
+
     dim->origin = SIScalarCreateCopy(origin);
     if (!dim->origin) {
         fprintf(stderr, "SIDimensionCreate: failed to copy origin\n");
@@ -1010,6 +1016,7 @@ SIDimensionRef SIDimensionCreate(
         if (originWasDefaulted) OCRelease(tmpZero);
         return NULL;
     }
+
     if (period) {
         dim->period = SIScalarCreateCopy(period);
         if (!dim->period) {

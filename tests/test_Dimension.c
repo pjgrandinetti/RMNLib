@@ -62,6 +62,7 @@ cleanup:
         printf("CreateLongDimensionLabel test passed.\n");
     return ok;
 }
+
 // -- Base Dimension API
 bool test_Dimension_base(void) {
     bool ok = false;
