@@ -1,14 +1,19 @@
 #ifndef DATASET_H
 #define DATASET_H
+
 #include "Datum.h"
+#include "DependentVariable.h"
+#include "GeographicCoordinate.h"
 #include "OCArray.h"
 #include "OCDictionary.h"
 #include "OCIndexArray.h"
 #include "OCString.h"
 #include "OCType.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 /**
  * @file Dataset.h
  * @brief Core API for the Dataset type and its serialization.
@@ -22,15 +27,18 @@ extern "C" {
  * You can create one in‐memory, serialize it to a deep dictionary (for testing
  * or round‐trip), and read/write full CSDF/CSDFE files with Export/Import.
  */
+
 /**
  * @ingroup CoreTypes
  * @brief Opaque handle for a Dataset object.
  */
 typedef struct impl_Dataset *DatasetRef;
+
 /**
  * @brief Return the unique OCTypeID for Dataset.
  */
 OCTypeID DatasetGetTypeID(void);
+
 /**
  * @brief Construct a new Dataset.
  *
@@ -61,6 +69,7 @@ DatasetCreate(
     DatumRef focus,
     DatumRef previousFocus,
     OCDictionaryRef metaData);
+
 /**
  * @brief Rebuild a Dataset from a deep‐copied dictionary.
  * @param dict     Dictionary produced by DatasetCopyAsDictionary().
@@ -71,6 +80,7 @@ DatasetRef
 DatasetCreateFromDictionary(
     OCDictionaryRef dict,
     OCStringRef *outError);
+
 /**
  * @brief Serialize a Dataset into a deep‐copyable dictionary.
  *
@@ -81,6 +91,7 @@ DatasetCreateFromDictionary(
  */
 OCDictionaryRef
 DatasetCopyAsDictionary(DatasetRef ds);
+
 /**
  * @brief Convenience: deep-copy via CopyAsDictionary + CreateFromDictionary.
  * @param ds Source DatasetRef (must not be NULL).
@@ -95,18 +106,22 @@ static inline DatasetRef DatasetCreateCopy(DatasetRef ds) {
     if (!c) OCRelease(err);
     return c;
 }
+
 /** @name Accessors & Mutators
  * @{ */
+
 /** @brief Get mutable array of Dimensions. */
 OCMutableArrayRef DatasetGetDimensions(DatasetRef ds);
 /** @brief Replace the dimensions array (must match existing DVs). */
 bool DatasetSetDimensions(DatasetRef ds,
                           OCMutableArrayRef dims);
+
 /** @brief Get mutable index array for dimension precedence. */
 OCMutableIndexArrayRef DatasetGetDimensionPrecedence(DatasetRef ds);
 /** @brief Replace the dimension precedence ordering. */
 bool DatasetSetDimensionPrecedence(DatasetRef ds,
                                    OCMutableIndexArrayRef order);
+
 /** @brief Get mutable array of DependentVariable. */
 OCMutableArrayRef DatasetGetDependentVariables(DatasetRef ds);
 /** @brief Replace the dependent-variables list. */
@@ -118,35 +133,43 @@ OCIndex DatasetGetDependentVariableCount(DatasetRef ds);
 DependentVariableRef
 DatasetGetDependentVariableAtIndex(DatasetRef ds,
                                    OCIndex index);
+
 /** @brief Get/replace tags. */
 OCMutableArrayRef DatasetGetTags(DatasetRef ds);
 bool DatasetSetTags(DatasetRef ds,
                     OCMutableArrayRef tags);
+
 /** @brief Get/replace description. */
 OCStringRef DatasetGetDescription(DatasetRef ds);
 bool DatasetSetDescription(DatasetRef ds,
                            OCStringRef desc);
+
 /** @brief Get/replace title. */
 OCStringRef DatasetGetTitle(DatasetRef ds);
 bool DatasetSetTitle(DatasetRef ds,
                      OCStringRef title);
+
 /** @brief Get/replace focus Datum. */
 DatumRef DatasetGetFocus(DatasetRef ds);
 bool DatasetSetFocus(DatasetRef ds,
                      DatumRef focus);
+
 /** @brief Get/replace previous focus Datum. */
 DatumRef DatasetGetPreviousFocus(DatasetRef ds);
 bool DatasetSetPreviousFocus(DatasetRef ds,
                              DatumRef previousFocus);
+
 /** @brief Get/replace arbitrary metadata dictionary. */
 OCDictionaryRef DatasetGetMetaData(DatasetRef ds);
 bool DatasetSetMetaData(DatasetRef ds,
                         OCDictionaryRef md);
-/** @} */ /* end group Accessors & Mutators */
+/** @} */
+
 /** @defgroup IO Disk I/O: .csdf / .csdfe
  *  Read & write full Dataset + external blobs.
  *  @{
  */
+
 /**
  * @brief Write a Dataset to disk.
  *
@@ -165,6 +188,7 @@ bool ExportDataset(
     const char *json_path,
     const char *binary_dir,
     OCStringRef *outError);
+
 /**
  * @brief Read a Dataset + externals back from disk.
  *
@@ -182,8 +206,38 @@ ImportDataset(
     const char *json_path,
     const char *binary_dir,
     OCStringRef *outError);
-/** @} */ /* end group IO */
+/** @} */
+
+/** @name CSDM-1.0 Fields
+ * @{ */
+
+/** @brief Dataset version string (always “1.0”). */
+OCStringRef DatasetGetVersion(DatasetRef ds);
+/** @brief Override version (rarely needed). */
+bool DatasetSetVersion(DatasetRef ds,
+                       OCStringRef version);
+
+/** @brief ISO-8601 timestamp of serialization. */
+OCStringRef DatasetGetTimestamp(DatasetRef ds);
+/** @brief Override timestamp (rarely needed). */
+bool DatasetSetTimestamp(DatasetRef ds,
+                         OCStringRef timestamp);
+
+/** @brief Geographic coordinate, if set. */
+GeographicCoordinateRef DatasetGetGeographicCoordinate(DatasetRef ds);
+/** @brief Override geographic coordinate. */
+bool DatasetSetGeographicCoordinate(DatasetRef ds,
+                                    GeographicCoordinateRef gc);
+
+/** @brief Read-only flag. */
+bool DatasetGetReadOnly(DatasetRef ds);
+/** @brief Set or clear read-only. */
+bool DatasetSetReadOnly(DatasetRef ds,
+                        bool readOnly);
+/** @} */
+
 #ifdef __cplusplus
 }
 #endif
+
 #endif  // DATASET_H

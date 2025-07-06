@@ -175,26 +175,21 @@ static void impl_InitDependentVariableFields(DependentVariableRef dv) {
     // SIQuantity defaults
     dv->unit = SIUnitDimensionlessAndUnderived();
     dv->numericType = kSINumberFloat64Type;
-
     // Basic DV fields
-    dv->name         = STR("");
-    dv->description  = STR("");
+    dv->name = STR("");
+    dv->description = STR("");
     dv->quantityName = STR("");
     dv->quantityType = STR("");
-    dv->metaData     = OCDictionaryCreateMutable(0);
-
+    dv->metaData = OCDictionaryCreateMutable(0);
     // Storage mode defaults
-    dv->type          = STR(kDependentVariableComponentTypeValueInternal);
-    dv->encoding      = STR(kDependentVariableEncodingValueNone);
+    dv->type = STR(kDependentVariableComponentTypeValueInternal);
+    dv->encoding = STR(kDependentVariableEncodingValueNone);
     dv->componentsURL = NULL;
-
     // Components & labels
-    dv->components      = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    dv->components = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     dv->componentLabels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-
     // Sparse-sampling: start out with NO sparseSampling attached
     dv->sparseSampling = NULL;
-
     // weak back-pointer
     dv->owner = NULL;
 }
@@ -205,26 +200,34 @@ static bool validateDependentVariableParameters(
     OCStringRef quantityType,
     OCArrayRef componentLabels,
     OCIndex componentsCount,
-    SparseSamplingRef sparseSampling)  // ← new parameter
+    SparseSamplingRef sparseSampling)
 {
     // 0) type must be either "internal" or "external"
     if (!type ||
         (!OCStringEqual(type, STR(kDependentVariableComponentTypeValueInternal)) &&
          !OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal))))
+    {
         return false;
+    }
+
     // 1) components‐vs‐labels
     if (componentLabels) {
         OCIndex labelCount = OCArrayGetCount(componentLabels);
         if (labelCount != componentsCount) return false;
         for (OCIndex i = 0; i < labelCount; ++i) {
-            if (OCGetTypeID(OCArrayGetValueAtIndex(componentLabels, i)) != OCStringGetTypeID())
+            if (OCGetTypeID(OCArrayGetValueAtIndex(componentLabels, i))
+                != OCStringGetTypeID())
+            {
                 return false;
+            }
         }
     }
+
     // 2) quantityName vs unit dimensionality
     if (quantityName) {
         OCStringRef err = NULL;
-        SIDimensionalityRef nameDim = SIDimensionalityForQuantity(quantityName, &err);
+        SIDimensionalityRef nameDim =
+            SIDimensionalityForQuantity(quantityName, &err);
         if (!nameDim) {
             OCRelease(err);
             return false;
@@ -234,6 +237,7 @@ static bool validateDependentVariableParameters(
         OCRelease(err);
         if (!match) return false;
     }
+
     // 3) quantityType semantics (“scalar”, “vector_N”, etc.)
     const char *qt = OCStringGetCString(quantityType);
     size_t len = qt ? strlen(qt) : 0;
@@ -241,75 +245,105 @@ static bool validateDependentVariableParameters(
         if (componentsCount != 1) return false;
     } else if (len > 6 && strncmp(qt, "pixel_", 6) == 0) {
         long n = 0;
-        if (sscanf(qt + 6, "%ld", &n) != 1 || n != componentsCount) return false;
+        if (sscanf(qt + 6, "%ld", &n) != 1 || n != componentsCount)
+            return false;
     } else if (len > 7 && strncmp(qt, "vector_", 7) == 0) {
         long n = 0;
-        if (sscanf(qt + 7, "%ld", &n) != 1 || n != componentsCount) return false;
+        if (sscanf(qt + 7, "%ld", &n) != 1 || n != componentsCount)
+            return false;
     } else if (len > 7 && strncmp(qt, "matrix_", 7) == 0) {
         long r = 0, c = 0;
-        if (sscanf(qt + 7, "%ld_%ld", &r, &c) != 2 || r * c != componentsCount) return false;
+        if (sscanf(qt + 7, "%ld_%ld", &r, &c) != 2 || r * c != componentsCount)
+            return false;
     } else if (len > 17 && strncmp(qt, "symmetric_matrix_", 17) == 0) {
         long n = 0;
-        if (sscanf(qt + 17, "%ld", &n) != 1 || n * (n + 1) / 2 != componentsCount) return false;
+        if (sscanf(qt + 17, "%ld", &n) != 1 ||
+            n * (n + 1) / 2 != componentsCount)
+            return false;
     }
+
     // 4) sparse‐sampling consistency
     if (sparseSampling) {
         OCStringRef err = NULL;
         if (!validateSparseSampling(sparseSampling, &err)) {
-            // you can choose to log or propagate `err` here
+            OCRelease(err);
             return false;
         }
     }
+
     return true;
 }
+
 #pragma endregion Type Registration
 #pragma region Creators
+#pragma mark — Core Creator
+
 static DependentVariableRef impl_DependentVariableCreate(
-    OCStringRef type,                  // "internal" or "external"
-    OCStringRef name,                  // optional name
-    OCStringRef description,           // optional description
-    SIUnitRef unit,                    // optional SIUnitRef
-    OCStringRef quantityName,          // optional quantity name
-    OCStringRef quantityType,          // optional quantity type
-    SINumberType elementType,          // element numeric type
-    OCArrayRef componentLabels,        // optional labels
-    OCArrayRef components,             // data buffers
-    bool copyComponents,               // deep‐copy flag
-    OCIndex explicitSize,              // bytes-per-component if components==NULL
-    SparseSamplingRef sparseSampling,  // NEW! sparse‐sampling metadata
-    OCStringRef *outError)
+    OCStringRef   type,                   // "internal" or "external"
+    OCStringRef   name,
+    OCStringRef   description,
+    SIUnitRef     unit,
+    OCStringRef   quantityName,
+    OCStringRef   quantityType,
+    SINumberType  elementType,
+    OCArrayRef    componentLabels,
+    OCArrayRef    components,
+    bool          copyComponents,
+    OCIndex       explicitSize,          // elements-per-component if components==NULL
+    OCStringRef   componentsURL,         // only for external
+    SparseSamplingRef sparseSampling,
+    OCStringRef  *outError)
 {
-    // 1) determine component count & validate
-    OCIndex componentsCount = 0;
-    if (components) {
+    bool isExternal = type && OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal));
+
+    // 0) internal must have either buffers or positive explicitSize
+    if (!isExternal && !components && explicitSize <= 0) {
+        if (outError) *outError = STR(
+            "DependentVariableCreate: must supply either component buffers or an explicitSize > 0");
+        return NULL;
+    }
+
+    // 1) determine component count
+    OCIndex componentsCount;
+    if (isExternal) {
+        // derive count from quantityType (“scalar”→1, “vector_3”→3, etc.)
+        componentsCount = DependentVariableComponentsCountFromQuantityType(quantityType);
+        if (componentsCount == kOCNotFound) {
+            if (outError) *outError = STR("DependentVariableCreate: invalid quantityType for external");
+            return NULL;
+        }
+    }
+    else if (components) {
         componentsCount = OCArrayGetCount(components);
+        // validate each element is OCDataRef, and all lengths match
         for (OCIndex i = 0; i < componentsCount; ++i) {
             if (OCGetTypeID(OCArrayGetValueAtIndex(components, i)) != OCDataGetTypeID()) {
                 if (outError) *outError = STR("component at index does not contain OCDataRef");
                 return NULL;
             }
         }
-        if (componentsCount > 1) {
-            uint64_t len0 = OCDataGetLength((OCDataRef)OCArrayGetValueAtIndex(components, 0));
-            for (OCIndex i = 1; i < componentsCount; ++i) {
-                uint64_t leni = OCDataGetLength((OCDataRef)OCArrayGetValueAtIndex(components, i));
-                if (leni != len0) {
-                    if (outError) *outError = STR("component buffers have mismatched lengths");
-                    return NULL;
-                }
+        uint64_t len0 = componentsCount ? OCDataGetLength((OCDataRef)OCArrayGetValueAtIndex(components,0)) : 0;
+        for (OCIndex i = 1; i < componentsCount; ++i) {
+            uint64_t leni = OCDataGetLength((OCDataRef)OCArrayGetValueAtIndex(components,i));
+            if (leni != len0) {
+                if (outError) *outError = STR("component buffers have mismatched lengths");
+                return NULL;
             }
         }
-    } else {
+    }
+    else {
+        // no buffers → build count from quantityType
         componentsCount = DependentVariableComponentsCountFromQuantityType(quantityType);
         if (componentsCount == kOCNotFound) {
             if (outError) {
                 *outError = OCStringCreateWithFormat(
-                    STR("cannot determine components count for quantityType %@"),
+                    STR("DependentVariableCreate: cannot determine count for quantityType %@"),
                     quantityType);
             }
             return NULL;
         }
     }
+
     // 2) semantic validation
     if (!validateDependentVariableParameters(
             type, unit, quantityName, quantityType,
@@ -319,34 +353,34 @@ static DependentVariableRef impl_DependentVariableCreate(
         return NULL;
     }
 
-    // 3) allocate & init defaults
+    // 3) allocate & init
     struct impl_DependentVariable *dv = DependentVariableAllocate();
     if (!dv) return NULL;
     impl_InitDependentVariableFields(dv);
 
-    // override default sparseSampling if one was passed; leave NULL otherwise
+    // sparseSampling
     OCRelease(dv->sparseSampling);
-    if (sparseSampling) {
-        dv->sparseSampling = (SparseSamplingRef)OCTypeDeepCopyMutable(sparseSampling);
-    } else {
-        dv->sparseSampling = NULL;
-    }
+    dv->sparseSampling = sparseSampling
+                             ? (SparseSamplingRef)OCTypeDeepCopyMutable(sparseSampling)
+                             : NULL;
 
-    // 4) storage-mode fields
+    // 4) storage‐mode and URL
     OCRelease(dv->type);
     dv->type = OCStringCreateCopy(type);
     OCRelease(dv->encoding);
-    if (OCStringEqual(type, STR(kDependentVariableComponentTypeValueInternal))) {
-        dv->encoding = STR(kDependentVariableEncodingValueNone);
-    } else {
-        dv->encoding = NULL;
-    }
+    dv->encoding = isExternal
+                   ? NULL
+                   : STR(kDependentVariableEncodingValueNone);
+    OCRelease(dv->componentsURL);
+    dv->componentsURL = componentsURL
+                            ? OCStringCreateCopy(componentsURL)
+                            : NULL;
 
-    // 5) fill out all the rest
+    // 5) metadata
     dv->numericType  = elementType;
     dv->unit         = unit ? unit : SIUnitDimensionlessAndUnderived();
-    dv->quantityType = quantityType ? OCRetain(quantityType) : STR("");
-    dv->name         = name ? OCStringCreateCopy(name) : STR("");
+    dv->quantityType = quantityType ? OCRetain(quantityType) : STR("scalar");
+    dv->name         = name        ? OCStringCreateCopy(name)       : STR("");
     dv->description  = description ? OCStringCreateCopy(description) : STR("");
     dv->quantityName = quantityName
                           ? OCRetain(quantityName)
@@ -359,7 +393,13 @@ static DependentVariableRef impl_DependentVariableCreate(
         OCRelease(dv);
         return NULL;
     }
-    if (components) {
+
+    if (isExternal) {
+        // we’ll fill dv->components later when actually loading the URL…
+        // for now leave it an empty array of length 0.
+    }
+    else if (components) {
+        // copy or reference each existing buffer
         for (OCIndex i = 0; i < componentsCount; ++i) {
             OCDataRef blob = (OCDataRef)OCArrayGetValueAtIndex(components, i);
             if (copyComponents) {
@@ -370,13 +410,11 @@ static DependentVariableRef impl_DependentVariableCreate(
                 OCArrayAppendValue(dv->components, blob);
             }
         }
-    } else {
-        if (explicitSize <= 0) {
-            if (outError) *outError = STR("invalid explicitSize: must be > 0");
-            OCRelease(dv);
-            return NULL;
-        }
-        size_t byteLen = explicitSize * OCNumberTypeSize((OCNumberType)elementType);
+    }
+    else {
+        // zero-initialize explicitSize elements-per-component
+        size_t eltSize = OCNumberTypeSize((OCNumberType)elementType);
+        size_t byteLen = (size_t)explicitSize * eltSize;
         for (OCIndex i = 0; i < componentsCount; ++i) {
             OCMutableDataRef buf = OCDataCreateMutable(0);
             OCDataSetLength(buf, byteLen);
@@ -394,12 +432,13 @@ static DependentVariableRef impl_DependentVariableCreate(
     }
     if (componentLabels) {
         for (OCIndex i = 0; i < componentsCount; ++i) {
-            OCStringRef lbl = (OCStringRef)OCArrayGetValueAtIndex(componentLabels, i);
-            OCArrayAppendValue(dv->componentLabels, lbl);
+            OCArrayAppendValue(dv->componentLabels,
+                                OCArrayGetValueAtIndex(componentLabels,i));
         }
     } else {
         for (OCIndex i = 0; i < componentsCount; ++i) {
-            OCStringRef autoLbl = OCStringCreateWithFormat(STR("component-%ld"), (long)i);
+            OCStringRef autoLbl = OCStringCreateWithFormat(
+                STR("component-%ld"), (long)i);
             OCArrayAppendValue(dv->componentLabels, autoLbl);
             OCRelease(autoLbl);
         }
@@ -407,128 +446,157 @@ static DependentVariableRef impl_DependentVariableCreate(
 
     return (DependentVariableRef)dv;
 }
+
+#pragma mark — Public Factories
+
 DependentVariableRef DependentVariableCreate(
-    OCStringRef name,
-    OCStringRef description,
-    SIUnitRef unit,
-    OCStringRef quantityName,
-    OCStringRef quantityType,
-    SINumberType elementType,
-    OCArrayRef componentLabels,
-    OCArrayRef components,
-    OCStringRef *outError) {
+    OCStringRef   name,
+    OCStringRef   description,
+    SIUnitRef     unit,
+    OCStringRef   quantityName,
+    OCStringRef   quantityType,
+    SINumberType  elementType,
+    OCArrayRef    componentLabels,
+    OCArrayRef    components,
+    OCStringRef  *outError)
+{
     return impl_DependentVariableCreate(
-        /* type               = */ STR(kDependentVariableComponentTypeValueInternal),
-        /* name               = */ name,
-        /* description        = */ description,
-        /* unit               = */ unit,
-        /* quantityName       = */ quantityName,
-        /* quantityType       = */ quantityType,
-        /* elementType        = */ elementType,
-        /* componentLabels    = */ componentLabels,
-        /* components         = */ components,
-        /* copyComponents     = */ true,
-        /* explicitSize       = */ (OCIndex)-1,
-        /* sparseSampling     = */ NULL,
-        /* outError           = */ outError);
+        STR(kDependentVariableComponentTypeValueInternal),
+        name, description, unit,
+        quantityName, quantityType, elementType,
+        componentLabels, components,
+        true,      /* copyComponents */
+        (OCIndex)-1,
+        NULL,      /* componentsURL */
+        NULL,      /* sparseSampling */
+        outError);
 }
+
 DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
-    OCStringRef name,
-    OCStringRef description,
-    SIUnitRef unit,
-    OCStringRef quantityName,
-    OCStringRef quantityType,
-    SINumberType elementType,
-    OCArrayRef componentLabels,
-    OCArrayRef components,
-    OCStringRef *outError) {
+    OCStringRef   name,
+    OCStringRef   description,
+    SIUnitRef     unit,
+    OCStringRef   quantityName,
+    OCStringRef   quantityType,
+    SINumberType  elementType,
+    OCArrayRef    componentLabels,
+    OCArrayRef    components,
+    OCStringRef  *outError)
+{
     return impl_DependentVariableCreate(
-        /* type               = */ STR(kDependentVariableComponentTypeValueInternal),
-        /* name               = */ name,
-        /* description        = */ description,
-        /* unit               = */ unit,
-        /* quantityName       = */ quantityName,
-        /* quantityType       = */ quantityType,
-        /* elementType        = */ elementType,
-        /* componentLabels    = */ componentLabels,
-        /* components         = */ components,
-        /* copyComponents     = */ false,
-        /* explicitSize       = */ (OCIndex)-1,
-        /* sparseSampling     = */ NULL,
-        /* outError           = */ outError);
+        STR(kDependentVariableComponentTypeValueInternal),
+        name, description, unit,
+        quantityName, quantityType, elementType,
+        componentLabels, components,
+        false,     /* copyComponents */
+        (OCIndex)-1,
+        NULL,
+        NULL,
+        outError);
 }
+
 DependentVariableRef DependentVariableCreateWithSize(
-    OCStringRef name,
-    OCStringRef description,
-    SIUnitRef unit,
-    OCStringRef quantityName,
-    OCStringRef quantityType,
-    SINumberType elementType,
-    OCArrayRef componentLabels,
-    OCIndex size,
-    OCStringRef *outError) {
+    OCStringRef   name,
+    OCStringRef   description,
+    SIUnitRef     unit,
+    OCStringRef   quantityName,
+    OCStringRef   quantityType,
+    SINumberType  elementType,
+    OCArrayRef    componentLabels,
+    OCIndex       size,
+    OCStringRef  *outError)
+{
     return impl_DependentVariableCreate(
-        /* type               = */ STR(kDependentVariableComponentTypeValueInternal),
-        /* name               = */ name,
-        /* description        = */ description,
-        /* unit               = */ unit,
-        /* quantityName       = */ quantityName,
-        /* quantityType       = */ quantityType,
-        /* elementType        = */ elementType,
-        /* componentLabels    = */ componentLabels,
-        /* components         = */ NULL,
-        /* copyComponents     = */ false,
-        /* explicitSize       = */ size,
-        /* sparseSampling     = */ NULL,
-        /* outError           = */ outError);
+        STR(kDependentVariableComponentTypeValueInternal),
+        name, description, unit,
+        quantityName, quantityType, elementType,
+        componentLabels, NULL,
+        false,     /* copyComponents */
+        size,      /* explicitSize */
+        NULL,
+        NULL,
+        outError);
 }
+
 DependentVariableRef DependentVariableCreateDefault(
-    OCStringRef quantityType,
-    SINumberType elementType,
-    OCIndex size,
-    OCStringRef *outError) {
+    OCStringRef   quantityType,
+    SINumberType  elementType,
+    OCIndex       size,
+    OCStringRef  *outError)
+{
     return impl_DependentVariableCreate(
-        /* type               = */ STR(kDependentVariableComponentTypeValueInternal),
-        /* name               = */ NULL,
-        /* description        = */ NULL,
-        /* unit               = */ NULL,
-        /* quantityName       = */ NULL,
-        /* quantityType       = */ quantityType,
-        /* elementType        = */ elementType,
-        /* componentLabels    = */ NULL,
-        /* components         = */ NULL,
-        /* copyComponents     = */ false,
-        /* explicitSize       = */ size,
-        /* sparseSampling     = */ NULL,
-        /* outError           = */ outError);
+        STR(kDependentVariableComponentTypeValueInternal),
+        NULL, NULL, NULL,
+        NULL, quantityType, elementType,
+        NULL, NULL,
+        false,
+        size,
+        NULL,
+        NULL,
+        outError);
 }
+
 DependentVariableRef DependentVariableCreateWithComponent(
-    OCStringRef name,
-    OCStringRef description,
-    SIUnitRef unit,
-    OCStringRef quantityName,
-    SINumberType elementType,
-    OCArrayRef componentLabels,
-    OCDataRef component,
-    OCStringRef *outError) {
+    OCStringRef   name,
+    OCStringRef   description,
+    SIUnitRef     unit,
+    OCStringRef   quantityName,
+    SINumberType  elementType,
+    OCArrayRef    componentLabels,
+    OCDataRef     component,
+    OCStringRef  *outError)
+{
     OCMutableArrayRef arr = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(arr, component);
     DependentVariableRef dv = impl_DependentVariableCreate(
-        /* type               = */ STR(kDependentVariableComponentTypeValueInternal),
-        /* name               = */ name,
-        /* description        = */ description,
-        /* unit               = */ unit,
-        /* quantityName       = */ quantityName,
-        /* quantityType       = */ STR("scalar"),
-        /* elementType        = */ elementType,
-        /* componentLabels    = */ componentLabels,
-        /* components         = */ arr,
-        /* copyComponents     = */ true,
-        /* explicitSize       = */ (OCIndex)-1,
-        /* sparseSampling     = */ NULL,
-        /* outError           = */ outError);
+        STR(kDependentVariableComponentTypeValueInternal),
+        name, description, unit,
+        quantityName, STR("scalar"), elementType,
+        componentLabels, arr,
+        true,     /* copyComponents */
+        (OCIndex)-1,
+        NULL,
+        NULL,
+        outError);
     OCRelease(arr);
     return dv;
+}
+
+DependentVariableRef DependentVariableCreateExternal(
+    OCStringRef   name,
+    OCStringRef   description,
+    SIUnitRef     unit,
+    OCStringRef   quantityName,
+    OCStringRef   quantityType,
+    SINumberType  elementType,
+    OCStringRef   componentsURL,
+    OCStringRef  *outError)
+{
+    if (componentsURL == NULL) {
+        if (outError) {
+            *outError = STR(
+                "DependentVariableCreateExternal: "
+                "must supply a non-NULL componentsURL for external variables"
+            );
+        }
+        return NULL;
+    }
+
+    return impl_DependentVariableCreate(
+        /* type               */ STR(kDependentVariableComponentTypeValueExternal),
+        /* name               */ name,
+        /* description        */ description,
+        /* unit               */ unit,
+        /* quantityName       */ quantityName,
+        /* quantityType       */ quantityType,
+        /* elementType        */ elementType,
+        /* componentLabels    */ NULL,
+        /* components         */ NULL,
+        /* copyComponents     */ false,
+        /* explicitSize       */ 0,              // ignored for external
+        /* componentsURL      */ componentsURL,
+        /* sparseSampling     */ NULL,
+        /* outError           */ outError);
 }
 DependentVariableRef DependentVariableCreateCopy(DependentVariableRef src) {
     if (!src) return NULL;
@@ -542,17 +610,13 @@ DependentVariableRef DependentVariableCreateCopy(DependentVariableRef src) {
     return copy;
 }
 DependentVariableRef DependentVariableCreateComplexCopy(DependentVariableRef src,
-                                                       OCTypeRef        owner)
-{
+                                                        OCTypeRef owner) {
     if (!src) return NULL;
-
     // 1) Make a deep copy of the source
     DependentVariableRef dv = DependentVariableCreateCopy(src);
     if (!dv) return NULL;
-
     // 2) Assign the owner (weak back-pointer)
     DependentVariableSetOwner(dv, owner);
-
     // 3) If it isn’t already a complex type, upgrade its element type
     if (!SIQuantityIsComplexType((SIQuantityRef)dv)) {
         SINumberType base = DependentVariableGetElementType(dv);
@@ -562,7 +626,6 @@ DependentVariableRef DependentVariableCreateComplexCopy(DependentVariableRef src
                  : kSINumberFloat64ComplexType);
         DependentVariableSetElementType(dv, complexType);
     }
-
     return dv;
 }
 OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
@@ -843,6 +906,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
         /* components      */ components,
         /* copyComponents  */ false,
         /* explicitSize    */ -1,
+        /* componentsURL   */ NULL,
         /* sparseSampling  */ NULL,
         /* outError        */ outError);
     OCRelease(components);
@@ -1778,13 +1842,10 @@ SparseSamplingRef DependentVariableGetSparseSampling(DependentVariableRef dv) {
     return dv ? dv->sparseSampling : NULL;
 }
 bool DependentVariableSetSparseSampling(DependentVariableRef dv,
-                                        SparseSamplingRef ss)
-{
+                                        SparseSamplingRef ss) {
     if (!dv) return false;
-
     // Release any existing sparseSampling
     OCRelease(dv->sparseSampling);
-
     if (ss) {
         // Deep-copy the provided SparseSampling
         dv->sparseSampling = (SparseSamplingRef)OCTypeDeepCopyMutable(ss);

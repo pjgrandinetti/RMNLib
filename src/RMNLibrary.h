@@ -28,6 +28,7 @@ as local modules (Datum, Dimension, Dataset).
 
 /** @cond INTERNAL */
 // Centralized Ref typedefs
+typedef struct impl_GeographicCoordinate *GeographicCoordinateRef;
 typedef struct impl_Datum *DatumRef;
 typedef struct impl_SparseSampling *SparseSamplingRef;
 typedef struct impl_DependentVariable *DependentVariableRef;
@@ -42,6 +43,7 @@ typedef struct impl_Dataset *DatasetRef;
 #define DependentVariableComponentsFileName STR("dependent_variable-%ld.data")
 
 // Local module headers
+#include "GeographicCoordinate.h"
 #include "Datum.h"
 #include "SparseSampling.h"
 #include "DependentVariable.h"

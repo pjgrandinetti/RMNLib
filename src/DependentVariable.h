@@ -133,8 +133,7 @@ DependentVariableCreateDefault(
 /**
  * @brief Single-component convenience constructor.
  */
-DependentVariableRef
-DependentVariableCreateWithComponent(
+DependentVariableRef DependentVariableCreateWithComponent(
     OCStringRef name,
     OCStringRef description,
     SIUnitRef   unit,
@@ -143,6 +142,16 @@ DependentVariableCreateWithComponent(
     OCArrayRef  componentLabels,
     OCDataRef   component,
     OCStringRef *outError);
+
+DependentVariableRef DependentVariableCreateExternal(
+    OCStringRef   name,
+    OCStringRef   description,
+    SIUnitRef     unit,
+    OCStringRef   quantityName,
+    OCStringRef   quantityType,
+    SINumberType  elementType,
+    OCStringRef   componentsURL,
+    OCStringRef  *outError);
 
 /**
  * @brief Deserialize from cJSON using internal dictionary logic.

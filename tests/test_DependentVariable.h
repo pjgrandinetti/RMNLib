@@ -4,34 +4,17 @@
 
 #include <stdbool.h>
 
-/**
- * @file test_dependent_variable.h
- * @brief Prototypes for DependentVariable unit tests.
- */
-
-/**
- * @brief Exercise basic creation, copy, dictionary round-trip and formatting.
- * @return true on success, false on failure.
- */
 bool test_DependentVariable_base(void);
-
-/**
- * @brief Exercise component insertion/removal, resizing and component-array copy.
- * @return true on success, false on failure.
- */
+bool test_DependentVariable_internal_vs_external(void);
+bool test_DependentVariable_values_and_accessors(void);
+bool test_DependentVariable_type_queries(void);
+bool test_DependentVariable_sparse_sampling(void);
+bool test_DependentVariable_copy_and_roundtrip(void);
+bool test_DependentVariable_invalid_create(void);
 bool test_DependentVariable_components(void);
-
-/**
- * @brief Exercise raw-value get/set via SIScalar APIs.
- * @return true on success, false on failure.
- */
 bool test_DependentVariable_values(void);
-
-
 bool test_DependentVariable_typeQueries(void);
 bool test_DependentVariable_complexCopy(void);
-
-
 bool test_DependentVariable_invalidCreate(void);
 
 #endif // TEST_DEPENDENT_VARIABLE_H

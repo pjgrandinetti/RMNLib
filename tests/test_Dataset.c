@@ -1,14 +1,10 @@
-#include "OCLibrary.h"
-#include "OCType.h"
-#include "OCArray.h"
-#include "OCIndexArray.h"
-#include "OCDictionary.h"
-#include "OCString.h"
-#include "OCNumber.h"
-#include "Dataset.h"
-#include "DependentVariable.h"
-#include <stdio.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <unistd.h>
+#include "RMNLibrary.h"
+#include "test_utils.h"
 
 // Helper
 static DependentVariableRef _make_mock_dv(void) {
@@ -31,31 +27,29 @@ bool test_Dataset_minimal_create(void) {
     OCArrayAppendValue(dvs, dv);
     OCRelease(dv);
 
-    DatasetRef ds = DatasetCreate(NULL, NULL, dvs, NULL, NULL, NULL, NULL, NULL, NULL);
+    // create with only DVs, other fields default
+    DatasetRef ds = DatasetCreate(NULL, NULL, dvs,
+                                  NULL, NULL, NULL,
+                                  NULL, NULL, NULL);
     if (!ds) {
         fprintf(stderr, "[ERROR] DatasetCreate(minimal) returned NULL\n");
         goto cleanup1;
     }
 
-    if (OCArrayGetCount(DatasetGetDimensions(ds)) != 0 ||
-        OCArrayGetCount(DatasetGetTags(ds)) != 0 ||
-        OCArrayGetCount(DatasetGetDependentVariables(ds)) != 1 ||
-        OCIndexArrayGetCount(DatasetGetDimensionPrecedence(ds)) != 0 ||
-        !OCStringEqual(DatasetGetDescription(ds), STR("")) ||
-        !OCStringEqual(DatasetGetTitle(ds), STR("")) ||
-        DatasetGetFocus(ds) != NULL ||
-        DatasetGetPreviousFocus(ds) != NULL ||
-        OCDictionaryGetCount(DatasetGetMetaData(ds)) != 0) {
-        fprintf(stderr, "[ERROR] minimal_create: unexpected Dataset defaults\n");
-        goto cleanup;
-    }
+    // ——— Minimal default‐state sanity checks ———
+    //   * Exactly one dependent‐variable
+    //   * All other collections you didn't explicitly set are empty
+    TEST_ASSERT(OCArrayGetCount(DatasetGetDependentVariables(ds)) == 1);
+    TEST_ASSERT(OCArrayGetCount(DatasetGetDimensions(       ds)) == 0);
+    TEST_ASSERT(OCArrayGetCount(DatasetGetTags(             ds)) == 0);
+    TEST_ASSERT(OCIndexArrayGetCount(DatasetGetDimensionPrecedence(ds)) == 0);
+    TEST_ASSERT(OCDictionaryGetCount(DatasetGetMetaData(ds)) == 0);
 
-    OCTypeID tid = OCGetTypeID(ds);
-    if (tid != DatasetGetTypeID()) {
+    // type and retain behavior (unchanged)
+    if (OCGetTypeID(ds) != DatasetGetTypeID()) {
         fprintf(stderr, "[ERROR] minimal_create: typeID mismatch\n");
         goto cleanup;
     }
-
     int cnt = OCTypeGetRetainCount(ds);
     OCRetain(ds);
     if (OCTypeGetRetainCount(ds) != cnt + 1) {

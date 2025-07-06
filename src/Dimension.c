@@ -698,8 +698,8 @@ static OCStringRef impl_SIDimensionCopyFormattingDesc(OCTypeRef cf) {
     int scaling_mode = (int)SIDimensionGetScaling(d);
     if (!qty || OCStringGetLength(qty) == 0) qty = STR("(no quantity name)");
     // Scalars: reference offset, origin offset, and (optional) period
-    SIScalarRef offset = SIDimensionGetOffset(d);
-    SIScalarRef origin = SIDimensionGetOrigin(d);
+    SIScalarRef offset = SIDimensionGetCoordinatesOffset(d);
+    SIScalarRef origin = SIDimensionGetOriginOffset(d);
     SIScalarRef period = SIDimensionGetPeriod(d);
     // Assume each SIScalar has a copy‐formatting routine
     OCStringRef refStr = offset
@@ -814,7 +814,7 @@ bool SIDimensionValidate(SIDimensionRef dim, OCStringRef *outErr) {
         return false;
     }
     // 2) offset must be non-NULL, real, same dimensionality
-    SIScalarRef off = SIDimensionGetOffset(dim);
+    SIScalarRef off = SIDimensionGetCoordinatesOffset(dim);
     if (!off) {
         if (outErr) *outErr = STR("offset scalar is NULL");
         return false;
@@ -829,7 +829,7 @@ bool SIDimensionValidate(SIDimensionRef dim, OCStringRef *outErr) {
         return false;
     }
     // 3) origin must match offset dimensionality (or be defaulted to zero)
-    SIScalarRef org = SIDimensionGetOrigin(dim);
+    SIScalarRef org = SIDimensionGetOriginOffset(dim);
     if (org) {
         if (SIQuantityIsComplexType((SIQuantityRef)org)) {
             if (outErr) *outErr = STR("origin is complex-valued");
@@ -877,9 +877,9 @@ static bool impl_InitSIDimensionFieldsFromArgs(
     success *= DimensionSetLabel(baseDim, label);
     success *= DimensionSetDescription(baseDim, description);
     success *= DimensionSetMetadata(baseDim, metadata);
-    success *= SIDimensionSetOffset(dim, offset);
+    success *= SIDimensionSetCoordinatesOffset(dim, offset);
     success *= SIDimensionSetQuantityName(dim, quantityName);
-    success *= SIDimensionSetOrigin(dim, origin);
+    success *= SIDimensionSetOriginOffset(dim, origin);
     success *= (!periodic || SIDimensionSetPeriod(dim, period));
     success *= SIDimensionSetPeriodic(dim, periodic);
     success *= SIDimensionSetScaling(dim, scaling);
@@ -1102,17 +1102,17 @@ bool SIDimensionSetQuantityName(SIDimensionRef dim, OCStringRef name) {
     }
     return true;
 }
-SIScalarRef SIDimensionGetOffset(SIDimensionRef dim) {
+SIScalarRef SIDimensionGetCoordinatesOffset(SIDimensionRef dim) {
     return dim ? dim->offset : NULL;
 }
-bool SIDimensionSetOffset(SIDimensionRef dim, SIScalarRef val) {
+bool SIDimensionSetCoordinatesOffset(SIDimensionRef dim, SIScalarRef val) {
     if (!dim || !val) {
-        fprintf(stderr, "SIDimensionSetOffset: dim and val must be non-NULL\n");
+        fprintf(stderr, "SIDimensionSetCoordinatesOffset: dim and val must be non-NULL\n");
         return false;
     }
     // 1) No complex values allowed
     if (SIQuantityIsComplexType((SIQuantityRef)val)) {
-        fprintf(stderr, "SIDimensionSetOffset: val must be real-valued\n");
+        fprintf(stderr, "SIDimensionSetCoordinatesOffset: val must be real-valued\n");
         return false;
     }
     // 2) Find dimensionality of our quantityName
@@ -1120,7 +1120,7 @@ bool SIDimensionSetOffset(SIDimensionRef dim, SIScalarRef val) {
     SIDimensionalityRef nameDim = SIDimensionalityForQuantity(dim->quantityName, &err);
     if (!nameDim) {
         fprintf(stderr,
-                "SIDimensionSetOffset: invalid quantityName \"%s\"\n",
+                "SIDimensionSetCoordinatesOffset: invalid quantityName \"%s\"\n",
                 err ? OCStringGetCString(err)
                     : OCStringGetCString(dim->quantityName));
         if (err) OCRelease(err);
@@ -1131,14 +1131,14 @@ bool SIDimensionSetOffset(SIDimensionRef dim, SIScalarRef val) {
     SIDimensionalityRef valDim = SIQuantityGetUnitDimensionality((SIQuantityRef)val);
     if (!SIDimensionalityHasSameReducedDimensionality(nameDim, valDim)) {
         fprintf(stderr,
-                "SIDimensionSetOffset: dimensionality mismatch for \"%s\"\n",
+                "SIDimensionSetCoordinatesOffset: dimensionality mismatch for \"%s\"\n",
                 OCStringGetCString(dim->quantityName));
         return false;
     }
     // 4) Deep-copy & swap in the new offset
     SIScalarRef newCoords = SIScalarCreateCopy(val);
     if (!newCoords) {
-        fprintf(stderr, "SIDimensionSetOffset: failed to copy scalar\n");
+        fprintf(stderr, "SIDimensionSetCoordinatesOffset: failed to copy scalar\n");
         return false;
     }
     OCRelease(dim->offset);
@@ -1165,24 +1165,24 @@ bool SIDimensionSetOffset(SIDimensionRef dim, SIScalarRef val) {
     }
     return true;
 }
-SIScalarRef SIDimensionGetOrigin(SIDimensionRef dim) {
+SIScalarRef SIDimensionGetOriginOffset(SIDimensionRef dim) {
     // Return NULL if dim is invalid
     return dim ? dim->origin : NULL;
 }
-bool SIDimensionSetOrigin(SIDimensionRef dim, SIScalarRef val) {
+bool SIDimensionSetOriginOffset(SIDimensionRef dim, SIScalarRef val) {
     if (!dim || !val) {
-        fprintf(stderr, "SIDimensionSetOrigin: dim and val must be non-NULL\n");
+        fprintf(stderr, "SIDimensionSetOriginOffset: dim and val must be non-NULL\n");
         return false;
     }
     // Reject complex‐valued scalars
     if (SIQuantityIsComplexType((SIQuantityRef)val)) {
-        fprintf(stderr, "SIDimensionSetOrigin: val must be real-valued\n");
+        fprintf(stderr, "SIDimensionSetOriginOffset: val must be real-valued\n");
         return false;
     }
     // Need a reference offset to validate against
     SIScalarRef coords = dim->offset;
     if (!coords) {
-        fprintf(stderr, "SIDimensionSetOrigin: cannot validate without offset\n");
+        fprintf(stderr, "SIDimensionSetOriginOffset: cannot validate without offset\n");
         return false;
     }
     // Both must share the same reduced dimensionality
@@ -1190,13 +1190,13 @@ bool SIDimensionSetOrigin(SIDimensionRef dim, SIScalarRef val) {
     SIDimensionalityRef valDim = SIQuantityGetUnitDimensionality((SIQuantityRef)val);
     if (!SIDimensionalityHasSameReducedDimensionality(refDim, valDim)) {
         fprintf(stderr,
-                "SIDimensionSetOrigin: dimensionality mismatch with offset\n");
+                "SIDimensionSetOriginOffset: dimensionality mismatch with offset\n");
         return false;
     }
     // Deep‐copy & swap in the new origin
     SIScalarRef copy = SIScalarCreateCopy(val);
     if (!copy) {
-        fprintf(stderr, "SIDimensionSetOrigin: failed to copy scalar\n");
+        fprintf(stderr, "SIDimensionSetOriginOffset: failed to copy scalar\n");
         return false;
     }
     OCRelease(dim->origin);
@@ -1419,14 +1419,14 @@ OCDictionaryRef SIDimensionCopyAsDictionary(SIDimensionRef dim) {
         OCRelease(qtyCopy);
     }
     // 4) offset → string
-    SIScalarRef off = SIDimensionGetOffset(dim);
+    SIScalarRef off = SIDimensionGetCoordinatesOffset(dim);
     if (off) {
         OCStringRef offStr = SIScalarCreateStringValue(off);
         OCDictionarySetValue(dict, STR(kSIDimensionOffsetKey), offStr);
         OCRelease(offStr);
     }
     // 5) origin → string
-    SIScalarRef orig = SIDimensionGetOrigin(dim);
+    SIScalarRef orig = SIDimensionGetOriginOffset(dim);
     if (orig) {
         OCStringRef origStr = SIScalarCreateStringValue(orig);
         OCDictionarySetValue(dict, STR(kSIDimensionOriginKey), origStr);
@@ -1672,7 +1672,7 @@ static SIMonotonicDimensionRef SIMonotonicDimensionAllocate(void) {
 static bool _SIDimensionIsReciprocalOf(SIDimensionRef src, SIDimensionRef rec) {
     if (!src || !rec) return false;
     // 1) Grab the reduced dimensionality of the source’s offset unit
-    SIScalarRef srcOffset = SIDimensionGetOffset(src);
+    SIScalarRef srcOffset = SIDimensionGetCoordinatesOffset(src);
     SIDimensionalityRef srcDim =
         SIQuantityGetUnitDimensionality((SIQuantityRef)srcOffset);
     // 2) Invert it via "power -1"
@@ -1688,7 +1688,7 @@ static bool _SIDimensionIsReciprocalOf(SIDimensionRef src, SIDimensionRef rec) {
         return false;
     }
     // 3) Grab the dimensionality of rec’s offset unit
-    SIScalarRef recOffset = SIDimensionGetOffset(rec);
+    SIScalarRef recOffset = SIDimensionGetCoordinatesOffset(rec);
     SIDimensionalityRef recDim =
         SIQuantityGetUnitDimensionality((SIQuantityRef)recOffset);
     // 4) Compare
@@ -2598,7 +2598,7 @@ OCDictionaryRef SILinearDimensionCopyAsDictionary(SILinearDimensionRef dim) {
     }
     // 6) FFT flag
     {
-        OCBooleanRef b = OCBooleanGetWithBool(SILinearDimensionIsFFT(dim));
+        OCBooleanRef b = OCBooleanGetWithBool(SILinearDimensionGetComplexFFT(dim));
         OCDictionarySetValue(dict, STR(kSILinearDimensionFFTKey), b);
         OCRelease(b);
     }
@@ -2632,7 +2632,7 @@ bool SILinearDimensionSetIncrement(SILinearDimensionRef dim, SIScalarRef inc) {
     if (!dim || !inc) return false;
     // ensure real & same dimensionality as offset/origin
     SIUnitRef offsetUnit =
-        SIQuantityGetUnit((SIQuantityRef)SIDimensionGetOffset((SIDimensionRef)dim));
+        SIQuantityGetUnit((SIQuantityRef)SIDimensionGetCoordinatesOffset((SIDimensionRef)dim));
     SIScalarRef copy = SIScalarCreateByConvertingToUnit(inc, offsetUnit, NULL);
     if (!copy) return false;
     OCRelease(dim->increment);
@@ -2649,10 +2649,10 @@ bool SILinearDimensionSetIncrement(SILinearDimensionRef dim, SIScalarRef inc) {
 SIScalarRef SILinearDimensionGetReciprocalIncrement(SILinearDimensionRef dim) {
     return dim ? dim->reciprocalIncrement : NULL;
 }
-bool SILinearDimensionIsFFT(SILinearDimensionRef dim) {
+bool SILinearDimensionGetComplexFFT(SILinearDimensionRef dim) {
     return dim ? dim->fft : false;
 }
-bool SILinearDimensionSetFFT(SILinearDimensionRef dim, bool fft) {
+bool SILinearDimensionSetComplexFFT(SILinearDimensionRef dim, bool fft) {
     if (!dim) return false;
     dim->fft = fft;
     return true;
@@ -2815,6 +2815,16 @@ SILinearDimensionRef SILinearDimensionCreateFromJSON(cJSON *json, OCStringRef *o
 }
 #pragma endregion SILinearDimension
 #pragma region Dimension Utilities
+OCStringRef DimensionGetType(DimensionRef dim) {
+    if (!dim) return NULL;
+    OCTypeID tid = OCGetTypeID(dim);
+    if      (tid == LabeledDimensionGetTypeID())     return STR("labeled");
+    else if (tid == SIMonotonicDimensionGetTypeID())  return STR("monotonic");
+    else if (tid == SILinearDimensionGetTypeID())     return STR("linear");
+    else if (tid == SIDimensionGetTypeID())           return STR("si_dimension");
+    else                                              return STR("dimension");
+}
+
 OCIndex DimensionGetCount(DimensionRef dim) {
     if (!dim) return 0;
     OCTypeID tid = OCGetTypeID(dim);
@@ -2856,7 +2866,7 @@ OCStringRef CreateLongDimensionLabel(DimensionRef dim, OCIndex index) {
     if (tid == SIDimensionGetTypeID() ||
         tid == SIMonotonicDimensionGetTypeID() ||
         tid == SILinearDimensionGetTypeID()) {
-        SIScalarRef offset = SIDimensionGetOffset((SIDimensionRef)dim);
+        SIScalarRef offset = SIDimensionGetCoordinatesOffset((SIDimensionRef)dim);
         if (offset)
             unitStr = SIScalarCreateUnitString(offset);
     }

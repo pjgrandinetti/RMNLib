@@ -9,6 +9,8 @@ AR      := ar
 LEX     := flex
 YACC    := bison
 YFLAGS  := -d
+CURL_CFLAGS := $(shell curl-config --cflags)
+CURL_LIBS   := $(shell curl-config --libs)
 
 RM      := rm -f
 MKDIR_P := mkdir -p
@@ -199,23 +201,25 @@ TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(TEST_SRC))
 
 # 1) FIRST: compile tests/*.c
 $(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs octypes sitypes
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
 
 # 2) THEN: compile src/*.c
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs octypes sitypes
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
 
 # Test binary
 $(BIN_DIR)/runTests: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMNLib -lSITypes -lOCTypes -o $@
+		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) \
+		-o $@
 
 # AddressSanitizer test binary
 $(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMNLib -lSITypes -lOCTypes -o $@
+		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) \
+		-o $@
 
 test: $(BIN_DIR)/runTests
 	$<

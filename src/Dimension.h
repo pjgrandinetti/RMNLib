@@ -219,19 +219,19 @@ bool SIDimensionSetQuantityName(SIDimensionRef dim, OCStringRef name);
 /**
  * @brief Get offset.
  */
-SIScalarRef SIDimensionGetOffset(SIDimensionRef dim);
+SIScalarRef SIDimensionGetCoordinatesOffset(SIDimensionRef dim);
 /**
  * @brief Set offset.
  */
-bool SIDimensionSetOffset(SIDimensionRef dim, SIScalarRef val);
+bool SIDimensionSetCoordinatesOffset(SIDimensionRef dim, SIScalarRef val);
 /**
  * @brief Get origin.
  */
-SIScalarRef SIDimensionGetOrigin(SIDimensionRef dim);
+SIScalarRef SIDimensionGetOriginOffset(SIDimensionRef dim);
 /**
  * @brief Set origin.
  */
-bool SIDimensionSetOrigin(SIDimensionRef dim, SIScalarRef val);
+bool SIDimensionSetOriginOffset(SIDimensionRef dim, SIScalarRef val);
 /**
  * @brief Get period.
  */
@@ -407,11 +407,11 @@ SIScalarRef SILinearDimensionGetReciprocalIncrement(SILinearDimensionRef dim);
 /**
  * @brief Check whether this is marked for FFT.
  */
-bool SILinearDimensionIsFFT(SILinearDimensionRef dim);
+bool SILinearDimensionGetComplexFFT(SILinearDimensionRef dim);
 /**
  * @brief Mark/unmark FFT usage.
  */
-bool SILinearDimensionSetFFT(SILinearDimensionRef dim, bool fft);
+bool SILinearDimensionSetComplexFFT(SILinearDimensionRef dim, bool fft);
 /**
  * @brief Get the reciprocal SIDimension.
  */
@@ -438,6 +438,9 @@ SILinearDimensionCreateFromJSON(cJSON *json, OCStringRef *outError);
 /*==============================================================================
   Utilities
 ==============================================================================*/
+
+OCStringRef DimensionGetType(DimensionRef dim);
+
 /**
  * @brief Get the number of points in any Dimension.
  * @param dim The Dimension.
