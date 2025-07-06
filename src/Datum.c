@@ -1,5 +1,12 @@
 #include "RMNLibrary.h"
 #include "cJSON.h"
+
+#define kDatumCoordinatesKey "coordinates"
+#define kDatumResponseKey "response"
+#define kDatumDependentVariableIndexKey "dependent_variable_index"
+#define kDatumComponentIndexKey "component_index"
+#define kDatumMemOffsetKey "mem_offset"
+
 static OCTypeID kDatumID = kOCNotATypeID;
 struct impl_Datum {
     OCBase base;
@@ -170,23 +177,23 @@ DatumRef DatumCreateFromDictionary(OCDictionaryRef dictionary, OCStringRef *erro
     }
     IF_NO_OBJECT_EXISTS_RETURN(dictionary, NULL);
     OCIndex dependentVariableIndex = 0;
-    if (OCDictionaryContainsKey(dictionary, STR("dependent_variable_index")))
-        OCNumberGetValue(OCDictionaryGetValue(dictionary, STR("dependent_variable_index")), kOCNumberIntType, &dependentVariableIndex);
+    if (OCDictionaryContainsKey(dictionary, STR(kDatumDependentVariableIndexKey)))
+        OCNumberTryGetOCIndex(OCDictionaryGetValue(dictionary, STR(kDatumDependentVariableIndexKey)), &dependentVariableIndex);
     else
         return NULL;
     OCIndex componentIndex = 0;
-    if (OCDictionaryContainsKey(dictionary, STR("component_index")))
-        OCNumberGetValue(OCDictionaryGetValue(dictionary, STR("component_index")), kOCNumberIntType, &componentIndex);
+    if (OCDictionaryContainsKey(dictionary, STR(kDatumComponentIndexKey)))
+        OCNumberTryGetOCIndex(OCDictionaryGetValue(dictionary, STR(kDatumComponentIndexKey)), &componentIndex);
     else
         return NULL;
     OCIndex memOffset = 0;
-    if (OCDictionaryContainsKey(dictionary, STR("mem_offset")))
-        OCNumberGetValue(OCDictionaryGetValue(dictionary, STR("mem_offset")), kOCNumberIntType, &memOffset);
+    if (OCDictionaryContainsKey(dictionary, STR(kDatumMemOffsetKey)))
+        OCNumberTryGetOCIndex(OCDictionaryGetValue(dictionary, STR(kDatumMemOffsetKey)), &memOffset);
     else
         return NULL;
     OCMutableArrayRef coordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    if (OCDictionaryContainsKey(dictionary, STR("coordinates"))) {
-        OCMutableArrayRef stringValues = (OCMutableArrayRef)OCDictionaryGetValue(dictionary, STR("coordinates"));
+    if (OCDictionaryContainsKey(dictionary, STR(kDatumCoordinatesKey))) {
+        OCMutableArrayRef stringValues = (OCMutableArrayRef)OCDictionaryGetValue(dictionary, STR(kDatumCoordinatesKey));
         OCIndex coordinatesCount = OCArrayGetCount(stringValues);
         for (OCIndex index = 0; index < coordinatesCount; index++) {
             OCStringRef stringValue = OCArrayGetValueAtIndex(stringValues, index);
@@ -196,8 +203,8 @@ DatumRef DatumCreateFromDictionary(OCDictionaryRef dictionary, OCStringRef *erro
         }
     }
     SIScalarRef response = NULL;
-    if (OCDictionaryContainsKey(dictionary, STR("response"))) {
-        response = SIScalarCreateFromExpression(OCDictionaryGetValue(dictionary, STR("response")), error);
+    if (OCDictionaryContainsKey(dictionary, STR(kDatumResponseKey))) {
+        response = SIScalarCreateFromExpression(OCDictionaryGetValue(dictionary, STR(kDatumResponseKey)), error);
     }
     DatumRef datum = DatumCreate(response, coordinates, dependentVariableIndex, componentIndex, memOffset);
     if (response) OCRelease(response);
@@ -208,17 +215,17 @@ OCDictionaryRef DatumCopyAsDictionary(DatumRef theDatum) {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
     OCMutableDictionaryRef dictionary = OCDictionaryCreateMutable(0);
     OCNumberRef number = OCNumberCreateWithOCIndex(theDatum->dependentVariableIndex);
-    OCDictionarySetValue(dictionary, STR("dependent_variable_index"), number);
+    OCDictionarySetValue(dictionary, STR(kDatumDependentVariableIndexKey), number);
     OCRelease(number);
     number = OCNumberCreateWithOCIndex(theDatum->componentIndex);
-    OCDictionarySetValue(dictionary, STR("component_index"), number);
+    OCDictionarySetValue(dictionary, STR(kDatumComponentIndexKey), number);
     OCRelease(number);
     number = OCNumberCreateWithOCIndex(theDatum->memOffset);
-    OCDictionarySetValue(dictionary, STR("mem_offset"), number);
+    OCDictionarySetValue(dictionary, STR(kDatumMemOffsetKey), number);
     OCRelease(number);
     if (theDatum->response) {
         OCStringRef stringValue = SIScalarCreateStringValue(theDatum->response);
-        OCDictionarySetValue(dictionary, STR("response"), stringValue);
+        OCDictionarySetValue(dictionary, STR(kDatumResponseKey), stringValue);
         OCRelease(stringValue);
     }
     if (theDatum->coordinates) {
@@ -229,7 +236,7 @@ OCDictionaryRef DatumCopyAsDictionary(DatumRef theDatum) {
             OCArrayAppendValue(coordinates, stringValue);
             OCRelease(stringValue);
         }
-        OCDictionarySetValue(dictionary, STR("coordinates"), coordinates);
+        OCDictionarySetValue(dictionary, STR(kDatumCoordinatesKey), coordinates);
         OCRelease(coordinates);
     }
     return dictionary;
@@ -243,44 +250,44 @@ static OCDictionaryRef DatumDictionaryCreateFromJSON(cJSON *json, OCStringRef *o
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     cJSON *item = NULL;
     // Required: dependent_variable_index
-    item = cJSON_GetObjectItemCaseSensitive(json, "dependent_variable_index");
+    item = cJSON_GetObjectItemCaseSensitive(json, kDatumDependentVariableIndexKey);
     if (!cJSON_IsNumber(item)) {
         if (outError) *outError = STR("Missing or invalid \"dependent_variable_index\"");
         OCRelease(dict);
         return NULL;
     }
     OCNumberRef dvIdx = OCNumberCreateWithOCIndex(item->valueint);
-    OCDictionarySetValue(dict, STR("dependent_variable_index"), dvIdx);
+    OCDictionarySetValue(dict, STR(kDatumDependentVariableIndexKey), dvIdx);
     OCRelease(dvIdx);
     // Required: component_index
-    item = cJSON_GetObjectItemCaseSensitive(json, "component_index");
+    item = cJSON_GetObjectItemCaseSensitive(json, kDatumComponentIndexKey);
     if (!cJSON_IsNumber(item)) {
         if (outError) *outError = STR("Missing or invalid \"component_index\"");
         OCRelease(dict);
         return NULL;
     }
     OCNumberRef compIdx = OCNumberCreateWithOCIndex(item->valueint);
-    OCDictionarySetValue(dict, STR("component_index"), compIdx);
+    OCDictionarySetValue(dict, STR(kDatumComponentIndexKey), compIdx);
     OCRelease(compIdx);
     // Required: mem_offset
-    item = cJSON_GetObjectItemCaseSensitive(json, "mem_offset");
+    item = cJSON_GetObjectItemCaseSensitive(json, kDatumMemOffsetKey);
     if (!cJSON_IsNumber(item)) {
         if (outError) *outError = STR("Missing or invalid \"mem_offset\"");
         OCRelease(dict);
         return NULL;
     }
     OCNumberRef memOffset = OCNumberCreateWithOCIndex(item->valueint);
-    OCDictionarySetValue(dict, STR("mem_offset"), memOffset);
+    OCDictionarySetValue(dict, STR(kDatumMemOffsetKey), memOffset);
     OCRelease(memOffset);
     // Optional: response
-    item = cJSON_GetObjectItemCaseSensitive(json, "response");
+    item = cJSON_GetObjectItemCaseSensitive(json, kDatumResponseKey);
     if (cJSON_IsString(item)) {
         OCStringRef response = OCStringCreateWithCString(item->valuestring);
-        OCDictionarySetValue(dict, STR("response"), response);
+        OCDictionarySetValue(dict, STR(kDatumResponseKey), response);
         OCRelease(response);
     }
     // Optional: coordinates
-    item = cJSON_GetObjectItemCaseSensitive(json, "coordinates");
+    item = cJSON_GetObjectItemCaseSensitive(json, kDatumCoordinatesKey);
     if (cJSON_IsArray(item)) {
         OCMutableArrayRef coords = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
         cJSON *coord = NULL;
@@ -291,7 +298,7 @@ static OCDictionaryRef DatumDictionaryCreateFromJSON(cJSON *json, OCStringRef *o
                 OCRelease(coordStr);
             }
         }
-        OCDictionarySetValue(dict, STR("coordinates"), coords);
+        OCDictionarySetValue(dict, STR(kDatumCoordinatesKey), coords);
         OCRelease(coords);
     }
     return dict;

@@ -21,7 +21,7 @@ cJSON *OCMetadataCopyJSON(OCDictionaryRef dict) {
 
         } else if (tid == OCNumberGetTypeID()) {
             double f = 0.0;
-            OCNumberGetValue((OCNumberRef)val, kOCNumberFloat64Type, &f);
+            OCNumberTryGetDouble((OCNumberRef)val, &f);
             cJSON_AddStringToObject(entry, "type", "float64");
             cJSON_AddNumberToObject(entry, "value", f);
 

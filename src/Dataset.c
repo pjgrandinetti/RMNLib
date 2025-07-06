@@ -21,6 +21,16 @@
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
+
+#define kDatasetTagsKey STR("tags")
+#define kDatasetDescriptionKey STR("description")
+#define kDatasetTitleKey STR("title")
+#define kDatasetDimensionsKey STR("dimensions")
+#define kDatasetDimensionPrecedenceKey STR("dimension_precedence")
+#define kDatasetDependentVariablesKey STR("dependent_variables")
+#define kDatasetFocusKey STR("focus")
+#define kDatasetPreviousFocusKey STR("previous_focus")
+#define kDatasetMetadataKey STR("metadata")
 #pragma region Type Registration
 static OCTypeID kDatasetID = kOCNotATypeID;
 struct impl_Dataset {
@@ -59,16 +69,37 @@ static void impl_DatasetFinalize(const void *ptr) {
 static bool impl_DatasetEqual(const void *a, const void *b) {
     const DatasetRef A = (const DatasetRef)a;
     const DatasetRef B = (const DatasetRef)b;
+
     if (!A || !B) return false;
-    if (!OCTypeEqual(A->dimensions, B->dimensions)) return false;
-    if (!OCTypeEqual(A->dependentVariables, B->dependentVariables)) return false;
-    if (!OCTypeEqual(A->tags, B->tags)) return false;
-    if (!OCTypeEqual(A->description, B->description)) return false;
-    if (!OCTypeEqual(A->title, B->title)) return false;
-    if (!OCTypeEqual(A->focus, B->focus)) return false;
-    if (!OCTypeEqual(A->previousFocus, B->previousFocus)) return false;
-    if (!OCTypeEqual(A->dimensionPrecedence, B->dimensionPrecedence)) return false;
-    if (!OCTypeEqual(A->metaData, B->metaData)) return false;
+    if (A == B) return true;
+
+    if (A->dimensions != B->dimensions &&
+        !OCTypeEqual(A->dimensions, B->dimensions)) return false;
+
+    if (A->dependentVariables != B->dependentVariables &&
+        !OCTypeEqual(A->dependentVariables, B->dependentVariables)) return false;
+
+    if (A->tags != B->tags &&
+        !OCTypeEqual(A->tags, B->tags)) return false;
+
+    if (A->description != B->description &&
+        !OCTypeEqual(A->description, B->description)) return false;
+
+    if (A->title != B->title &&
+        !OCTypeEqual(A->title, B->title)) return false;
+
+    if (A->focus != B->focus &&
+        !OCTypeEqual(A->focus, B->focus)) return false;
+
+    if (A->previousFocus != B->previousFocus &&
+        !OCTypeEqual(A->previousFocus, B->previousFocus)) return false;
+
+    if (A->dimensionPrecedence != B->dimensionPrecedence &&
+        !OCTypeEqual(A->dimensionPrecedence, B->dimensionPrecedence)) return false;
+
+    if (A->metaData != B->metaData &&
+        !OCTypeEqual(A->metaData, B->metaData)) return false;
+
     return true;
 }
 static OCStringRef impl_DatasetCopyFormattingDesc(OCTypeRef cf) {
@@ -228,19 +259,19 @@ OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
     if (ds->tags) {
         OCMutableArrayRef tags_copy = OCArrayCreateMutableCopy(ds->tags);
         if (tags_copy) {
-            OCDictionarySetValue(dict, STR("tags"), tags_copy);
+            OCDictionarySetValue(dict, kDatasetTagsKey, tags_copy);
             OCRelease(tags_copy);
         }
     }
     // — description & title —
     if (ds->description) {
         OCStringRef dcopy = OCStringCreateCopy(ds->description);
-        OCDictionarySetValue(dict, STR("description"), dcopy);
+        OCDictionarySetValue(dict, kDatasetDescriptionKey, dcopy);
         OCRelease(dcopy);
     }
     if (ds->title) {
         OCStringRef tcopy = OCStringCreateCopy(ds->title);
-        OCDictionarySetValue(dict, STR("title"), tcopy);
+        OCDictionarySetValue(dict, kDatasetTitleKey, tcopy);
         OCRelease(tcopy);
     }
     // — dimensions —
@@ -253,13 +284,13 @@ OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
             OCArrayAppendValue(dims_arr, d_dict);
             OCRelease(d_dict);
         }
-        OCDictionarySetValue(dict, STR("dimensions"), dims_arr);
+        OCDictionarySetValue(dict, kDatasetDimensionsKey, dims_arr);
         OCRelease(dims_arr);
     }
     // — dimension_precedence —
     if (ds->dimensionPrecedence) {
         OCIndexArrayRef prec_copy = OCIndexArrayCreateMutableCopy(ds->dimensionPrecedence);
-        OCDictionarySetValue(dict, STR("dimension_precedence"), prec_copy);
+        OCDictionarySetValue(dict, kDatasetDimensionPrecedenceKey, prec_copy);
         OCRelease(prec_copy);
     }
     // — dependent_variables —
@@ -275,25 +306,25 @@ OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
             OCRelease(dv_dict);
             OCRelease(copy);
         }
-        OCDictionarySetValue(dict, STR("dependent_variables"), dvs_arr);
+        OCDictionarySetValue(dict, kDatasetDependentVariablesKey, dvs_arr);
         OCRelease(dvs_arr);
     }
     // — focus & previous_focus —
     if (ds->focus) {
         OCDictionaryRef fdict = DatumCopyAsDictionary(ds->focus);
-        OCDictionarySetValue(dict, STR("focus"), fdict);
+        OCDictionarySetValue(dict, kDatasetFocusKey, fdict);
         OCRelease(fdict);
     }
     if (ds->previousFocus) {
         OCDictionaryRef pf = DatumCopyAsDictionary(ds->previousFocus);
-        OCDictionarySetValue(dict, STR("previous_focus"), pf);
+        OCDictionarySetValue(dict, kDatasetPreviousFocusKey, pf);
         OCRelease(pf);
     }
     // — metadata: just deep-copy the existing dictionary —
     if (ds->metaData) {
         OCDictionaryRef meta_copy = (OCDictionaryRef)OCTypeDeepCopyMutable(ds->metaData);
         if (meta_copy) {
-            OCDictionarySetValue(dict, STR("metadata"), meta_copy);
+            OCDictionarySetValue(dict, kDatasetMetadataKey, meta_copy);
             OCRelease(meta_copy);
         }
     }
@@ -316,7 +347,7 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
     OCDictionaryRef metadata = NULL;
     DatasetRef ds = NULL;
     // — dimensions —
-    OCArrayRef rawDims = (OCArrayRef)OCDictionaryGetValue(dict, STR("dimensions"));
+    OCArrayRef rawDims = (OCArrayRef)OCDictionaryGetValue(dict, kDatasetDimensionsKey);
     if (rawDims) {
         OCIndex n = OCArrayGetCount(rawDims);
         OCMutableArrayRef tmp = OCArrayCreateMutable(n, &kOCTypeArrayCallBacks);
@@ -345,12 +376,12 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
         dims = tmp;
     }
     // — dimension_precedence —
-    OCIndexArrayRef rawPrec = (OCIndexArrayRef)OCDictionaryGetValue(dict, STR("dimension_precedence"));
+    OCIndexArrayRef rawPrec = (OCIndexArrayRef)OCDictionaryGetValue(dict, kDatasetDimensionPrecedenceKey);
     if (rawPrec) {
         dimPrec = OCIndexArrayCreateMutableCopy(rawPrec);
     }
     // — dependent_variables —
-    OCArrayRef rawDVs = (OCArrayRef)OCDictionaryGetValue(dict, STR("dependent_variables"));
+    OCArrayRef rawDVs = (OCArrayRef)OCDictionaryGetValue(dict, kDatasetDependentVariablesKey);
     if (rawDVs) {
         OCIndex m = OCArrayGetCount(rawDVs);
         OCMutableArrayRef tmp = OCArrayCreateMutable(m, &kOCTypeArrayCallBacks);
@@ -379,30 +410,30 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
         dvs = tmp;
     }
     // — tags —
-    OCArrayRef rawTags = (OCArrayRef)OCDictionaryGetValue(dict, STR("tags"));
+    OCArrayRef rawTags = (OCArrayRef)OCDictionaryGetValue(dict, kDatasetTagsKey);
     if (rawTags) {
         tags = OCArrayCreateMutableCopy(rawTags);
     }
     // — description & title —
     OCStringRef s;
-    if ((s = (OCStringRef)OCDictionaryGetValue(dict, STR("description")))) {
+    if ((s = (OCStringRef)OCDictionaryGetValue(dict, kDatasetDescriptionKey))) {
         desc = OCStringCreateCopy(s);
     }
-    if ((s = (OCStringRef)OCDictionaryGetValue(dict, STR("title")))) {
+    if ((s = (OCStringRef)OCDictionaryGetValue(dict, kDatasetTitleKey))) {
         title = OCStringCreateCopy(s);
     }
     // — focus & previous_focus —
     OCDictionaryRef ddict;
-    if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("focus")))) {
+    if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, kDatasetFocusKey))) {
         focus = DatumCreateFromDictionary(ddict, outError);
         if (!focus) goto cleanup;
     }
-    if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("previous_focus")))) {
+    if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, kDatasetPreviousFocusKey))) {
         prevFocus = DatumCreateFromDictionary(ddict, outError);
         if (!prevFocus) goto cleanup;
     }
     // — metadata — deep-copy existing dictionary
-    if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("metadata")))) {
+    if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, kDatasetMetadataKey))) {
         metadata = (OCDictionaryRef)OCTypeDeepCopyMutable(ddict);
         if (!metadata) {
             *outError = STR("Failed to copy metadata");
@@ -448,20 +479,20 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
                 OCRelease(s);
             }
         }
-        OCDictionarySetValue(dict, STR("tags"), tagsArr);
+        OCDictionarySetValue(dict, kDatasetTagsKey, tagsArr);
         OCRelease(tagsArr);
     }
     // --- description & title ---
     entry = cJSON_GetObjectItem(json, "description");
     if (entry && cJSON_IsString(entry)) {
         OCStringRef desc = OCStringCreateWithCString(entry->valuestring);
-        OCDictionarySetValue(dict, STR("description"), desc);
+        OCDictionarySetValue(dict, kDatasetDescriptionKey, desc);
         OCRelease(desc);
     }
     entry = cJSON_GetObjectItem(json, "title");
     if (entry && cJSON_IsString(entry)) {
         OCStringRef title = OCStringCreateWithCString(entry->valuestring);
-        OCDictionarySetValue(dict, STR("title"), title);
+        OCDictionarySetValue(dict, kDatasetTitleKey, title);
         OCRelease(title);
     }
     // --- dimensions ---
@@ -487,7 +518,7 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
                 OCRelease(dd);
             }
         }
-        OCDictionarySetValue(dict, STR("dimensions"), dimsArr);
+        OCDictionarySetValue(dict, kDatasetDimensionsKey, dimsArr);
         OCRelease(dimsArr);
     }
     // --- dimension_precedence ---
@@ -501,7 +532,7 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
                 OCIndexArrayAppendValue(precArr, idx);
             }
         }
-        OCDictionarySetValue(dict, STR("dimension_precedence"), precArr);
+        OCDictionarySetValue(dict, kDatasetDimensionPrecedenceKey, precArr);
         OCRelease(precArr);
     }
     // --- dependent_variables ---
@@ -528,7 +559,7 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
                 OCRelease(ddv);
             }
         }
-        OCDictionarySetValue(dict, STR("dependent_variables"), dvsArr);
+        OCDictionarySetValue(dict, kDatasetDependentVariablesKey, dvsArr);
         OCRelease(dvsArr);
     }
     // --- focus & previous_focus ---
@@ -544,7 +575,7 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
         }
         OCDictionaryRef fd = DatumCopyAsDictionary(d);
         OCRelease(d);
-        OCDictionarySetValue(dict, STR("focus"), fd);
+        OCDictionarySetValue(dict, kDatasetFocusKey, fd);
         OCRelease(fd);
     }
     entry = cJSON_GetObjectItem(json, "previous_focus");
@@ -559,7 +590,7 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
         }
         OCDictionaryRef fd = DatumCopyAsDictionary(d);
         OCRelease(d);
-        OCDictionarySetValue(dict, STR("previous_focus"), fd);
+        OCDictionarySetValue(dict, kDatasetPreviousFocusKey, fd);
         OCRelease(fd);
     }
     // --- metadata ---
@@ -570,7 +601,7 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
             OCRelease(dict);
             return NULL;
         }
-        OCDictionarySetValue(dict, STR("metadata"), md);
+        OCDictionarySetValue(dict, kDatasetMetadataKey, md);
         OCRelease(md);
     }
     return dict;
