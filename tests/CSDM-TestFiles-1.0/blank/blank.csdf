@@ -1,0 +1,12 @@
+{
+    "csdm" : {
+        "timestamp" : "2019-07-01T21:03:42Z",
+        "read_only" : true,
+        "description" : "A blank file.",
+        "version" : "1.0",
+        "tags" : [
+        "empty",
+        "void"
+        ]
+    }
+}

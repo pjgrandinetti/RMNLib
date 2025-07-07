@@ -1,0 +1,29 @@
+{
+    "csdm": {
+      "version": "1.0",
+      "read_only": true,
+      "timestamp": "2011-12-16T12:24:10Z",
+      "description": "A Gas Chromatography dataset of cinnamon stick.",
+      "dependent_variables": [
+        {
+          "type": "external",
+          "components_url": "https://www.grandinetti.org/resources/CSDM/cinnamon_raw_cinnamon stick.dat",
+          "component_labels": ["monotonic"],
+          "name": "Headspace from cinnamon stick",
+          "numeric_type": "float32",
+          "quantity_type": "scalar"
+        }
+      ],
+      "dimensions": [
+        {
+          "type": "linear",
+          "count": 6001,
+          "quantity_name": "time",
+          "reciprocal": {
+            "quantity_name": "frequency"
+          },
+          "increment": "0.0034 min"
+        }
+      ]
+    }
+}

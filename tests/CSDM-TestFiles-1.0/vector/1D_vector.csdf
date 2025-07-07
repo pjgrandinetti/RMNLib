@@ -1,0 +1,30 @@
+{
+  "csdm": {
+    "version": "1.0",
+    "read_only": true,
+    "timestamp": "2019-02-12T10:00:00Z",
+    "dimensions": [
+      {
+        "type": "linear",
+        "count": 10,
+        "increment": "1.0 m",
+        "quantity_name": "length",
+        "reciprocal": {
+          "quantity_name": "wavenumber"
+        }
+      }
+    ],
+    "dependent_variables": [
+      {
+        "type": "internal",
+        "encoding": "base64",
+        "numeric_type": "float32",
+        "quantity_type": "vector_2",
+        "components": [
+          "xNcwP9c3oD4PdGU/VnV+Py5PvD71b9c+bqoiPwtc0j4Huc8+4FczPw==",
+          "tnIPP+ehjD2ImCc+zVs3P+EpHD+8Zrs++S56P5LXGz8yyfY+kmUaPg=="
+        ]
+      }
+    ]
+  }
+}

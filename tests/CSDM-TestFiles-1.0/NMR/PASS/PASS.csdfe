@@ -1,0 +1,214 @@
+{
+  "csdm" : {
+    "geographic_coordinate" : {
+      "altitude" : "222.3204040527344 m",
+      "longitude" : "-83.01828260937891 °",
+      "latitude" : "40.02285159199509 °"
+    },
+    "dimensions" : [
+      {
+        "application" : {
+          "com.physyapps.rmn" : {
+            "metaData" : {
+              "NMR" : {
+                "Tecmag" : {
+                  "reference frequency" : "0 Hz",
+                  "reference position" : "0 Hz",
+                  "spectrometer frequency" : "400.068 MHz"
+                },
+                "receiver frequency" : "400.068 MHz"
+              }
+            }
+          }
+        },
+        "increment" : "10 µs",
+        "count" : 2048,
+        "type" : "linear",
+        "quantity_name" : "time",
+        "reciprocal" : {
+          "quantity_name" : "frequency",
+          "origin_offset" : "400068000 Hz"
+        }
+      },
+      {
+        "period" : "666.6666666666665 µs",
+        "quantity_name" : "time",
+        "reciprocal" : {
+          "origin_offset" : "100.605 MHz",
+          "quantity_name" : "frequency",
+          "period" : "1.5 kHz"
+        },
+        "count" : 16,
+        "type" : "linear",
+        "application" : {
+          "com.physyapps.rmn" : {
+            "metaData" : {
+              "NMR" : {
+                "Tecmag" : {
+                  "reference frequency" : "0 Hz",
+                  "reference position" : "0 Hz",
+                  "spectrometer frequency" : "100.605 MHz"
+                },
+                "receiver frequency" : "100.605 MHz"
+              }
+            }
+          }
+        },
+        "increment" : "41.66666666666666 µs"
+      }
+    ],
+    "read_only" : true,
+    "version" : "1.0",
+    "application" : {
+      "com.physyapps.rmn" : {
+        "metaData" : {
+          "NMR" : {
+            "Tecmag" : {
+              "versionID" : "TNT1.003",
+              "tmag" : {
+                "receiver gain" : "2000",
+                "actual scans" : "512",
+                "experiment time" : "0 s",
+                "lock solvent" : "D2O\u0000",
+                "last delay" : "1 s",
+                "dummy scans" : "0",
+                "acquisition time" : "0.02048 s",
+                "transmitter gain" : "0",
+                "scans" : "512",
+                "filter" : "50000 Hz",
+                "date" : "2010/11/23 16:26:44\u0000",
+                "sequence" : "\u0000",
+                "receiver phase" : "0 rad"
+              }
+            }
+          }
+        },
+        "focus" : {
+          "mem_offset" : 0,
+          "coordinates" : [
+            "0 µs",
+            "0 µs"
+          ],
+          "dependent_variable_index" : 0,
+          "response" : "(1006040+756038•I)",
+          "component_index" : 0
+        },
+        "previous_focus" : {
+          "mem_offset" : 0,
+          "coordinates" : [
+            "0 s",
+            "0 s"
+          ],
+          "dependent_variable_index" : 0,
+          "response" : "(1006040+756038•I)",
+          "component_index" : 0
+        },
+        "dimension_precedence" : [
+          1,
+          0
+        ]
+      }
+    },
+    "timestamp" : "2019-08-04T15:11:07Z",
+    "dependent_variables" : [
+      {
+        "components_url" : "file:./dependent_variable-0.data",
+        "application" : {
+          "com.physyapps.rmn" : {
+            "plot" : {
+              "signalImage2DPlotType" : [
+                "0"
+              ],
+              "blueComponentIndex" : 0,
+              "showImagePlot" : true,
+              "argument" : false,
+              "transparent" : false,
+              "responseAxis" : {
+                "majorTicInc" : "1000000",
+                "maximum" : "1985384",
+                "index" : -1,
+                "reverse" : false,
+                "bipolar" : true,
+                "numberOfMinorTics" : 9,
+                "minimum" : "-1985384"
+              },
+              "showStackPlot" : false,
+              "plotAll" : false,
+              "imag" : true,
+              "showContourPlot" : false,
+              "magnitude" : false,
+              "numberOfContourCuts" : 10,
+              "lines" : true,
+              "xAxes" : [
+                {
+                  "majorTicInc" : "0.004 s",
+                  "maximum" : "0.02047 s",
+                  "index" : 0,
+                  "reverse" : false,
+                  "bipolar" : false,
+                  "numberOfMinorTics" : 4,
+                  "minimum" : "0 s"
+                },
+                {
+                  "majorTicInc" : "100 µs",
+                  "maximum" : "625 µs",
+                  "index" : 1,
+                  "reverse" : false,
+                  "bipolar" : false,
+                  "numberOfMinorTics" : 9,
+                  "minimum" : "0 µs"
+                }
+              ],
+              "dimensionsDisplayedCount" : 2,
+              "prevResponseAxis" : {
+                "majorTicInc" : "1000000",
+                "maximum" : "1985384",
+                "index" : -1,
+                "reverse" : false,
+                "bipolar" : true,
+                "numberOfMinorTics" : 9,
+                "minimum" : "-1985384"
+              },
+              "showGrid" : true,
+              "greenComponentIndex" : 0,
+              "contourPlotColoring" : 0,
+              "image2DCombineRGB" : false,
+              "fontSize" : 11,
+              "redComponentIndex" : 0,
+              "stackPlotColoring" : 1,
+              "prevXAxes" : [
+                {
+                  "majorTicInc" : "0.004 s",
+                  "maximum" : "0.02047 s",
+                  "index" : 0,
+                  "reverse" : false,
+                  "bipolar" : false,
+                  "numberOfMinorTics" : 4,
+                  "minimum" : "0 s"
+                },
+                {
+                  "majorTicInc" : "100 µs",
+                  "maximum" : "625 µs",
+                  "index" : 1,
+                  "reverse" : false,
+                  "bipolar" : false,
+                  "numberOfMinorTics" : 9,
+                  "minimum" : "0 µs"
+                }
+              ],
+              "real" : true,
+              "signalColors" : [
+                "Black"
+              ],
+              "hiddenStackPlot" : true
+            }
+          }
+        },
+        "quantity_name" : "dimensionless",
+        "type" : "external",
+        "quantity_type" : "scalar",
+        "numeric_type" : "complex64"
+      }
+    ]
+  }
+}

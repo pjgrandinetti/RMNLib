@@ -1,0 +1,31 @@
+{
+  "csdm": {
+    "version": "1.0",
+    "read_only": true,
+    "timestamp": "2016-03-12T16:41:00Z",
+    "description": "A time domain NMR 13C Bloch decay signal of ethanol.",
+    "dependent_variables": [
+      {
+        "type": "external",
+        "numeric_type": "complex64",
+        "quantity_type": "scalar",
+        "components_url": "https://grandinetti.org/resources/CSDM/blochDecay_raw_0.dat"
+      }
+    ],
+    "dimensions": [
+      {
+        "type": "linear",
+        "reciprocal": {
+          "coordinates_offset": "-3005.363 Hz",
+          "origin_offset": "75426328.864 Hz",
+          "quantity_name": "frequency",
+          "label": "13C frequency shift"
+        },
+        "count": 4096,
+        "increment": "0.1 ms",
+        "coordinates_offset": "-0.3 ms",
+        "quantity_name": "time"
+      }
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "csdm": {
+    "version": "1.0",
+    "read_only": true,
+    "timestamp": "2016-03-12T16:41:00Z",
+    "tags": ["magnetic resonance", "29Si", "nuclear J coupling", "computational chemistry", "silicates"],
+    "description": "The coorelation between Si-29 geminal J coupling across Si-O-Si linkage and the product of the s-characters at Si and O along the two Si-O bonds.",
+    "tags": [
+      "magnetic resonance",
+      "29Si",
+      "nuclear J coupling",
+      "computational chemistry",
+      "silicates"
+    ],
+    "dependent_variables": [
+      {
+        "type": "internal",
+        "name": "Gaussian computed J-couplings",
+        "unit": " Hz",
+        "quantity_name": "frequency",
+        "component_labels": [
+          "J-coupling"
+        ],
+        "numeric_type": "float32",
+        "quantity_type": "scalar",
+        "encoding": "base64",
+        "components": [
+          "Btjvv1/vtr/+t+a/D5z7v5Lo+b80hUJAyJgbQNUJDkA98h9AJ705QJiGDEG5qgRBW1/uQDih5kCP/PVA4/wGQSV1YEEZc19BImxYQRrAT0FPHklB4XpFQfJBRUHGbUhBqaROQVyPVkHZX11BEceUQdxokEHNu4hBlAeHQdZFjEECvJNBc1euQQ4+qUH2KKJBf/ugQSexpkFYqK1BOVazQYX8rEHSb6xBWLmyQf5DuUGFa7lBgSbKQYzbzEEAkdJB0NXUQcNkyUGFfNBBls8cwPMCGMDl1QfAD5z7v2nj8L/dXs6/1hykv7qgir9Fnrg/nUvRPxk5/z/VCQ5APWEXQMbEMEBt4k5ADvNpQKOvvEBJS8hANWPaQDih5kDWkO5AWKgAQUWNC0E9YRVBwaglQcNkL0FhVDxB8kFFQS0hS0E7cFhBDi1nQbPqckHaG2NBwFtxQWQ7gUGUB4dBJuSKQfmxk0ExiJxByXaiQfJBh0GKH5BBhjiaQX/7oEGdgKVBJtOvQX0/uUHAW75BIGOSQQ+cm0GjkqVB0m+sQaAJsUG8hbtBFmrEQaMjyEEg7xdAuhTlQGFURUGvlJZBDj6tQfOOtUGfqw9A5mgDQfJBRUEQ+pdBF1myQZYyuEFgqxRAifsAQb4wZEG1t5hBTXOxQa5HwUHG+Ve/7xuLQHlYK0FDHIVBV2ypQTJVwUHF/slBnnvRQESG5EDChu5A/N74QKG+20BEhuRAFof4QJtaAUGsHD5Bvw5CQVmGR0FokU1BxY9TQYguDMAFixlAucIBQaAaXkGlvZRBqSSrQSy43z1a8JxAU5YjQZJcdkEoD51BVn2xQS9drUEv7qVBo4GsQcbtq0ELJJFBW8KIQbADkUEBTY9BcaxTQTbNQkGVZVRBL25PQapDJEBcOOw/Pq4pQOuoFkAJirlBesezQVLJt0F/e7hBXhGkQAdfKEE4+HtBtMifQc6qs0F5QJk/4V1mQCfODEFy+V9B+bGTQaF4q0GBJspBjNvMQQCR0kHQ1dRBw2TJQYV80EE="
+        ]
+      },
+      {
+        "type": "internal",
+        "name": "product of s-characters",
+        "unit": " %",
+        "component_labels": [
+          "s-character product"
+        ],
+        "numeric_type": "float32",
+        "quantity_type": "scalar",
+        "encoding": "base64",
+        "components": [
+          "xIJYP6N5Wj+6dVM/N01aP9C+Uz9sfX4/raR7PzubeT++zHo/QDZ8PxaMkj/ZrpI/xrWRP/Z/kD9R1pA/KhKRP92Moj+dkKI/URKkP/PNoz/7cqM/I82iP6Bcoj98SqI/oFyiP0xsoj8Ma6I/Y5mwP+1nsT9y97A/rpmwP01hsD+xYLA/SuG6P74auj8szbk/x6a5P2SAuT82bbk/eqa8P3qmvD96prw/eqa8P3qmvD96prw/HdPBPx3TwT9PD8I/Tw/CP/mWwT8d08E/FD1dP5KAVD9pX1E/NNVRP3OWUj+tLVU/QrtXP6MNWj90W4A/Zc5zP6+TeD87m3k/9aN6P4PQfT+7SIA/DR+BP6hzkT9IZI8/VruPP/Z/kD8pNpE/yRKTP9mylD9qT5U/0oqgP4y5nz/8JKE/oFyiP31Eoz+pfaU/PUmnP/D3pz9okKw/e7esP6cWrz+umbA/oYmxP9kltD8fMrY/8tu2P33bsz9Rx7Q/BtK3P8emuT+lzLo/EJG9Pzm7vz8JbsA/Cs61P40Ztz/qoro/eqa8Px/lvT8Z3sA/LOrCP/qLwz89jnw/ZOePP8v2oD+fFK8/hg64Pw7yuj/yWoA/stSSP6Bcoj9Lq7A/D4G5P3qmvD85yYA/G1GTP9LOoz8iiLE/kmu6P1yVvT/n5V0/GjyEP6LSlz85eqk/FxW3PyJawD/6i8M/XESNPy8kkT/gCZI/MZWSP3BVjT+pzY8/IiqSP+y0kj8zWaU/V0+iPx2Ooj97BKM/2XqjP4l7Wj+wo3s/LT6QP3juoD8+D64/RaG2P/KHZz93HIg/kXabP5kWrD/YK7g/hYi+PxMavT9ty7s/RBm9P7nevD+1tbM/AKCyPwu4sz8gfbM/XRilP7hCpD8AMqU/uuOkP+A1fT+Oy3w/euV9P3MCfT8uPcA/Afy+P1UnwD8ePMA/0uOIP74unD+apaw/F5+4P8fZvj8mc3I/zkqDPw7clj/xKag/ZWW1P0UmvT95tMM/ebTDP/zcwz/83MM/+ovDP3m0wz8="
+        ]
+      }
+    ],
+    "dimensions": []
+  }
+}

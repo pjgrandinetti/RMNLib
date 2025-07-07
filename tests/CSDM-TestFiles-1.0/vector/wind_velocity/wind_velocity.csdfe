@@ -1,0 +1,55 @@
+{
+  "csdm": {
+    "version": "1.0",
+    "timestamp": "2018-12-12T10:00:00Z",
+    "tags": ["wind velocity", "weather forecast"],
+    "description": "Dataset from NOAA/NCEP Global Forecast System (GFS) Atmospheric Model. Latitudes and longitudes defined in geographic coordinate system.",
+    "dependent_variables": [
+      {
+        "description": "Component labels are standard attribute names used by Dataset Attribute Structure (.das). 'ugrd10m' is 'eastward wind velocity at 10 m above ground level', and 'vgrd10m' is 'northward wind velocity at 10 m above ground level'.",
+        "type": "external",
+        "components_url": "file:./NCEP_Global.dat",
+        "component_labels" : [
+          "ugrd10m - eastward_wind",
+          "vgrd10m - northward_wind"
+        ],
+        "quantity_type": "vector_2",
+        "name": "Wind velocity dataset",
+        "numeric_type": "float32",
+        "quantity_name": "speed",
+        "unit": "m/s"
+      }
+    ],
+    "dimensions": [
+      {
+        "type": "linear",
+        "label": "longitude",
+        "count": 49,
+        "coordinates_offset": "-102.5 °",
+        "increment": "0.5 °"
+      },
+      {
+        "type": "linear",
+        "description": "The latitude are defined in the geographic coordinate system.",
+        "label": "latitude",
+        "count": 49,
+        "quantity_name": "angle",
+        "coordinates_offset": "13.5 °",
+        "increment": "0.5 °"
+      },
+      {
+        "type": "labeled",
+        "description": "Forecast time for ForecastModelRunCollection. The data time stamp are defined using iso 8601 format.",
+        "label": "UTC date-time stamp",
+        "labels": [
+          "2018-12-12T12:00:00Z",
+          "2018-12-12T18:00:00Z",
+          "2018-12-13T00:00:00Z",
+          "2018-12-13T06:00:00Z",
+          "2018-12-13T12:00:00Z",
+          "2018-12-13T18:00:00Z"
+        ]
+      }
+    ]
+  }
+}

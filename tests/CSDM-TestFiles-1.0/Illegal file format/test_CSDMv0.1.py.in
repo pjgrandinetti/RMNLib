@@ -1,0 +1,100 @@
+import csdmpy as cp
+from os import walk, name
+from os.path import join
+import sys
+import codecs
+import matplotlib.pyplot as plt
+from csdmpy.helper_functions import preview
+from matplotlib.colors import LogNorm
+import numpy as np
+from colorama import Fore, Back, Style
+
+# sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+
+all_files = ()
+passed = 0
+failed = 0
+plotted = 0
+failedplotting = 0
+
+arg_verbose = ["-v", "--verbose", "-p", "--plot"]
+
+if __name__ == "__main__":
+    # arg = ["-p"]
+    # else:
+    arg = list(set(sys.argv).intersection(arg_verbose))
+    # print(arg)
+
+
+def plot(data):
+    preview(data)
+
+
+print(
+    "Testing csdfpy v{0} python package on {1} ({2}) platform".format(
+        cp.__version__, sys.platform, name
+    )
+)
+print("{0}\n".format("=" * 100))
+
+for root, dirs, files in walk("."):
+    for file_ in files:
+        if (
+            file_.endswith(".csdf")
+            or file_.endswith(".csdfe")
+            or file_.endswith(".csdm")
+        ):
+            all_files += (join(root, file_),)
+
+
+for file_ in all_files:
+    len_ = 83 - len(file_)
+    try:
+        data = cp.load(file_)
+        if "-v" in arg or "--verbose" in arg:
+            print(data.data_structure)
+            print(".................................")
+        passed += 1
+        print("Testing file '{0}'{1} ✅".format(file_[1:], "." * len_))
+
+        # try:
+        #     plot(data)
+        #     plotted += 1
+        #     print("Testing plot {0} ✅".format("." * 78))
+        # except:
+        #     failedplotting += 1
+
+    # try:
+    # if '-p' in arg or '--plot' in arg:
+    # plot(data)
+    #     plotted += 1
+    #     print(plotted)
+    #     print("Testing plot {0} ✅".format('.'*78))
+    # except Exception as e:
+    #     print("Testing plot {0} ❌".format('.' * 78))
+    #     print('\tReason:', e)
+    #     failedplotting += 1
+
+    except Exception as e:
+        print("Testing file '{0}'{1} ❌".format(file_[1:], "." * len_))
+        print("\tReason:", e)
+        failed += 1
+
+    except BaseException as e:
+        print("Testing file '{0}'{1} ❌".format(file_[1:], "." * len_))
+        print("\tReason:", e)
+        failed += 1
+
+    except:
+        print("Unknown error encountered.")
+
+
+print("Total test files scanned -- {0}".format(len(all_files)))
+print("Total successful imports -- {0}".format(passed))
+print("Total plotted data -- {0}".format(plotted))
+print("Total failed plotting  -- {0}".format(failedplotting))
+print("Total failed imports -- {0}".format(failed))
+
+if "-v" in arg or "--verbose" in arg:
+    for f in all_files:
+        print("Test file -- {0}".format(f))

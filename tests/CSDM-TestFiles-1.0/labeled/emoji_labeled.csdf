@@ -1,0 +1,39 @@
+{
+  "csdm": {
+    "version": "1.0",
+    "read_only": true,
+    "timestamp" : "2019-07-01T21:03:42Z",
+    "description": "Emoji test file",
+    "dimensions": [
+      {
+        "type": "labeled",
+        "labels": [
+          "🍈",
+          "🍉",
+          "🍋",
+          "🍌",
+          "🥑",
+          "🍍"
+        ]
+      }
+    ],
+    "dependent_variables": [
+      {
+        "type": "internal",
+        "encoding": "none",
+        "numeric_type": "float32",
+        "quantity_type": "scalar",
+        "components": [
+          [
+            0.5,
+            0.25,
+            1.0,
+            2.0,
+            1.0,
+            0.25
+          ]
+        ]
+      }
+    ]
+  }
+}

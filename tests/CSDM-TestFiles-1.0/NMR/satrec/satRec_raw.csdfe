@@ -1,0 +1,45 @@
+{
+  "csdm": {
+    "version": "1.0",
+    "read_only": true,
+    "timestamp" : "2019-07-21T16:59:10Z",
+    "description": "A $^{29}$Si NMR saturation recovery measurement of highly siliceous zeolite ZSM-12.",
+    "dependent_variables": [
+      {
+        "type": "external",
+        "components_url": "file:./satRec_raw_0.dat",
+        "numeric_type": "complex64",
+        "quantity_type": "scalar"
+      }
+    ],
+    "dimensions": [
+      {
+        "type": "linear",
+        "description": "A full echo echo acquisition along the $t_2$ dimension using a Hahn echo.",
+        "label": "$t_2$",
+        "count": 1024,
+        "quantity_name": "time",
+        "reciprocal": {
+          "origin_offset": "79578822.26202029 Hz",
+          "quantity_name": "frequency",
+          "label": "$^{29}$Si frequency shift"
+        },
+        "coordinates_offset": "-0.04104 s",
+        "increment": "8e-05 s"
+      },
+      {
+        "type": "monotonic",
+        "coordinates": [
+          "1.0 s",
+          "5.0 s",
+          "10.0 s",
+          "20.0 s",
+          "40.0 s",
+          "80.0 s"
+        ],
+        "label": "$t_1$",
+        "quantity_name": "time"
+      }
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "csdm": {
+    "version": "1.0",
+    "read_only": true,
+    "timestamp" : "2014-09-30T11:16:33Z",
+    "description": "A simulated electric field dataset from an electric dipole.",
+    "dependent_variables": [
+      {
+        "type": "external",
+        "components_url": "file:./electric_field_raw.dat",
+        "quantity_type": "vector_2",
+        "name": "Electric field lines",
+        "numeric_type": "float32",
+        "quantity_name": "electric field strength",
+        "unit": "N/C"
+      }
+    ],
+    "dimensions": [
+      {
+        "type": "linear",
+        "label": "x",
+        "count": 64,
+        "quantity_name": "length",
+        "reciprocal": {
+          "quantity_name": "wavenumber"
+        },
+        "coordinates_offset": "-2.0 cm",
+        "increment": "0.0625 cm"
+      },
+      {
+        "type": "linear",
+        "label": "y",
+        "count": 64,
+        "quantity_name": "length",
+        "reciprocal": {
+          "quantity_name": "wavenumber"
+        },
+        "coordinates_offset": "-2.0 cm",
+        "increment": "0.0625 cm"
+      }
+    ]
+  }
+}

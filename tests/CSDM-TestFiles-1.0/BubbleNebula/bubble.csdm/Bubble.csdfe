@@ -1,0 +1,35 @@
+{
+  "csdm" : {
+    "version" : "1.0",
+    "read_only": true,
+    "description": "The dataset is a new observation of the Bubble Nebula acquired by The Hubble Heritage Team, in February 2016.",
+    "timestamp" : "2019-06-25T01:29:53Z",
+    "dependent_variables" : [
+      {
+        "type" : "external",
+        "name" : "hlsp_heritage_hst_wfc3-uvis_bubble_nebula_f656n_v1_drc",
+        "numeric_type" : "float32",
+        "quantity_type" : "scalar",
+        "components_url" : "components.data"
+      }
+    ],
+    "dimensions" : [
+      {
+        "type" : "linear",
+        "count" : 1024,
+        "increment" : "-0.0002581136196 °",
+        "coordinates_offset" : "350.311874957 °",
+        "quantity_name" : "plane angle",
+        "label" : "Right Ascension"
+      },
+      {
+        "type" : "linear",
+        "count" : 1024,
+        "increment" : "0.0001219957797701109 °",
+        "coordinates_offset" : "61.12851494969163 °",
+        "quantity_name" : "plane angle",
+        "label" : "Declination"
+      }
+    ]
+  }
+}
