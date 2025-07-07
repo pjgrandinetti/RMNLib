@@ -857,7 +857,7 @@ static bool ensure_parent_dirs(const char *fullpath, OCStringRef *outError) {
         return true;
     return ensure_directory(dir, outError);
 }
-bool ExportDataset(DatasetRef ds,
+bool DatasetExport(DatasetRef ds,
                    const char *json_path,
                    const char *binary_dir,
                    OCStringRef *outError) {
@@ -1017,7 +1017,7 @@ bool ExportDataset(DatasetRef ds,
     }
     return true;
 }
-DatasetRef ImportDataset(const char *json_path, const char *binary_dir, OCStringRef *outError) {
+DatasetRef DatasetCreateWithImport(const char *json_path, const char *binary_dir, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!json_path || !binary_dir) {
         if (outError) *outError = STR("Invalid arguments");

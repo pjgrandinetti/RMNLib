@@ -148,11 +148,7 @@ bool DatasetSetMetaData(DatasetRef ds, OCDictionaryRef md);
  * @param outError   On error, set to a brief OCStringRef.
  * @return true on success, false on failure (and `*outError` set).
  */
-bool ExportDataset(
-    DatasetRef ds,
-    const char *json_path,
-    const char *binary_dir,
-    OCStringRef *outError);
+bool DatasetExport(DatasetRef ds, const char *json_path, const char *binary_dir, OCStringRef *outError);
 /**
  * @brief Read a Dataset + externals back from disk.
  *
@@ -165,11 +161,7 @@ bool ExportDataset(
  * @param outError   On error, set to a brief OCStringRef.
  * @return Newly allocated DatasetRef, or NULL on failure.
  */
-DatasetRef
-ImportDataset(
-    const char *json_path,
-    const char *binary_dir,
-    OCStringRef *outError);
+DatasetRef DatasetCreateWithImport(const char *json_path, const char *binary_dir, OCStringRef *outError);
 /** @} */
 /** @name CSDM-1.0 Fields
  * @{ */
