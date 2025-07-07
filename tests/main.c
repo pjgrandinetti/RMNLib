@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "RMNLibrary.h"
+#include "test_CSDM.h"
 #include "test_Dataset.h"
 #include "test_Datum.h"
 #include "test_DependentVariable.h"
@@ -35,6 +36,17 @@ int main(void) {
     if (!test_Dataset_mutators())             failures++;
     if (!test_Dataset_type_contract())        failures++;
     if (!test_Dataset_copy_and_roundtrip())   failures++;
+
+    fprintf(stderr, "\n=== Running CSDM Tests ===\n");
+    if(!test_Dataset_open_blank_csdf()) failures++;
+    if(!test_Dataset_open_blochDecay_base64_csdf()) failures++;
+    if(!test_Dataset_open_emoji_labeled_csdf()) failures++;
+    if(!test_Dataset_open_electric_field_base64_csdf()) failures++;
+    if(!test_Dataset_open_electric_field_none_csdf()) failures++;
+    if(!test_Dataset_open_electric_field_raw_csdfe()) failures++;
+    if(!test_Dataset_open_J_vs_s_csdf()) failures++;
+
+
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",
                 failures, failures > 1 ? "s" : "");
