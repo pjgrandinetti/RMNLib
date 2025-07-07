@@ -2,14 +2,9 @@
 
 @file RMNLibrary.h
 
-@brief Core definitions and includes for the RMN measurement library.
-
-
-
+@brief Core definitions and includes for the RMN measurement library
 This header centralizes project-wide includes and dependencies for the
-
 RMN library, wrapping both OCTypes and SITypes core headers as well
-
 as local modules (Datum, Dimension, Dataset).
 */
 #ifndef RMNLIBRARY_H
@@ -25,7 +20,6 @@ as local modules (Datum, Dimension, Dataset).
 #include <OCLibrary.h>
 // Include the core SITypes definitions and utilities
 #include <SILibrary.h>
-
 /** @cond INTERNAL */
 // Centralized Ref typedefs
 typedef struct impl_GeographicCoordinate *GeographicCoordinateRef;
@@ -39,17 +33,15 @@ typedef struct impl_SIMonotonicDimension *SIMonotonicDimensionRef;
 typedef struct impl_SILinearDimension *SILinearDimensionRef;
 typedef struct impl_Dataset *DatasetRef;
 /** @endcond */
-
 #define DependentVariableComponentsFileName STR("dependent_variable-%ld.data")
-
 // Local module headers
-#include "GeographicCoordinate.h"
+#include "Dataset.h"
 #include "Datum.h"
-#include "SparseSampling.h"
 #include "DependentVariable.h"
 #include "Dimension.h"
+#include "GeographicCoordinate.h"
 #include "RMNGridUtils.h"
-#include "Dataset.h"
+#include "SparseSampling.h"
 cJSON *OCMetadataCopyJSON(OCDictionaryRef dict);
 OCDictionaryRef OCMetadataCreateFromJSON(cJSON *json, OCStringRef *outError);
 void RMNLibTypesShutdown(void);

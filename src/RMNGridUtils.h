@@ -1,14 +1,10 @@
 // RMNGridUtils.h
-
 #ifndef RMNGRIDUTILS_H
 #define RMNGRIDUTILS_H
-
 #include "RMNLibrary.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /**
  * @brief Compute the total number of samples implied by an array of DimensionRef.
  *
@@ -21,9 +17,7 @@ extern "C" {
  * @param dimensions  An OCArrayRef of DimensionRef
  * @return            The product of all per-dimension sample counts (or 1 if NULL).
  */
-OCIndex
-RMNCalculateSizeFromDimensions(OCArrayRef dimensions);
-
+OCIndex RMNCalculateSizeFromDimensions(OCArrayRef dimensions);
 /**
  * @brief Like RMNCalculateSizeFromDimensions, but skip any dimensions
  *        whose index appears in `ignored`.
@@ -32,10 +26,7 @@ RMNCalculateSizeFromDimensions(OCArrayRef dimensions);
  * @param ignored     An OCIndexSetRef of dimension‐indices to skip
  * @return            The product of sample counts over the non-ignored dimensions.
  */
-OCIndex
-RMNCalculateSizeFromDimensionsIgnoring(OCArrayRef    dimensions,
-                                       OCIndexSetRef ignored);
-
+OCIndex RMNCalculateSizeFromDimensionsIgnoring(OCArrayRef dimensions, OCIndexSetRef ignored);
 /**
  * @brief Convert a multi‐dimensional index vector into a single memory offset.
  *
@@ -46,10 +37,7 @@ RMNCalculateSizeFromDimensionsIgnoring(OCArrayRef    dimensions,
  * @param indexes      Array of length D giving each coordinate (may be out of range)
  * @return             The flat memory offset, or (OCIndex)−1 on error.
  */
-OCIndex
-RMNGridMemOffsetFromIndexes(OCArrayRef   dimensions,
-                            const OCIndex indexes[]);
-
+OCIndex RMNGridMemOffsetFromIndexes(OCArrayRef dimensions, const OCIndex indexes[]);
 /**
  * @brief Recover a single coordinate along one dimension from a flat offset.
  *
@@ -61,10 +49,7 @@ RMNGridMemOffsetFromIndexes(OCArrayRef   dimensions,
  * @return                The wrapped coordinate, or (OCIndex)−1 on error.
  */
 OCIndex
-RMNGridCoordinateIndexFromMemOffset(OCArrayRef   dimensions,
-                                    OCIndex      memOffset,
-                                    OCIndex      dimensionIndex);
-
+RMNGridCoordinateIndexFromMemOffset(OCArrayRef dimensions, OCIndex memOffset, OCIndex dimensionIndex);
 /**
  * @brief Compute the stride (flat‐index increment) along a given dimension.
  *
@@ -76,10 +61,7 @@ RMNGridCoordinateIndexFromMemOffset(OCArrayRef   dimensions,
  * @return                  The linear stride for that dimension.
  */
 OCIndex
-strideAlongDimensionIndex(const OCIndex *npts,
-                          OCIndex        dimensionsCount,
-                          OCIndex        dimensionIndex);
-
+strideAlongDimensionIndex(const OCIndex *npts, OCIndex dimensionsCount, OCIndex dimensionIndex);
 /**
  * @brief Convert a full index‐vector into a flat offset, wrapping out‐of‐range indexes.
  *
@@ -93,10 +75,7 @@ strideAlongDimensionIndex(const OCIndex *npts,
  * @return                  The flat offset.
  */
 OCIndex
-memOffsetFromIndexes(OCIndex       *indexes,
-                     OCIndex        dimensionsCount,
-                     const OCIndex *npts);
-
+memOffsetFromIndexes(OCIndex *indexes, OCIndex dimensionsCount, const OCIndex *npts);
 /**
  * @brief Convert a flat offset into a full index‐vector.
  *
@@ -107,12 +86,7 @@ memOffsetFromIndexes(OCIndex       *indexes,
  * @param dimensionsCount   Number of dimensions (D).
  * @param npts              Per-dimension sizes (length D).
  */
-void
-setIndexesForMemOffset(OCIndex        memOffset,
-                       OCIndex        indexes[],
-                       OCIndex        dimensionsCount,
-                       const OCIndex *npts);
-
+void setIndexesForMemOffset(OCIndex memOffset, OCIndex indexes[], OCIndex dimensionsCount, const OCIndex *npts);
 /**
  * @brief Like setIndexesForMemOffset, but skip one dimension.
  *
@@ -124,13 +98,7 @@ setIndexesForMemOffset(OCIndex        memOffset,
  * @param npts                Per-dimension sizes (length D).
  * @param ignoredDimension    The one dimension index to skip.
  */
-void
-setIndexesForReducedMemOffsetIgnoringDimension(OCIndex        memOffset,
-                                               OCIndex        indexes[],
-                                               OCIndex        dimensionsCount,
-                                               const OCIndex *npts,
-                                               OCIndex        ignoredDimension);
-
+void setIndexesForReducedMemOffsetIgnoringDimension(OCIndex memOffset, OCIndex indexes[], OCIndex dimensionsCount, const OCIndex *npts, OCIndex ignoredDimension);
 /**
  * @brief Like setIndexesForMemOffset, but skip any dimensions in a set.
  *
@@ -142,15 +110,8 @@ setIndexesForReducedMemOffsetIgnoringDimension(OCIndex        memOffset,
  * @param npts                 Per-dimension sizes (length D).
  * @param dimensionIndexSet    Set of dimension‐indices to skip.
  */
-void
-setIndexesForReducedMemOffsetIgnoringDimensions(OCIndex        memOffset,
-                                                OCIndex        indexes[],
-                                                OCIndex        dimensionsCount,
-                                                const OCIndex *npts,
-                                                OCIndexSetRef  dimensionIndexSet);
-
+void setIndexesForReducedMemOffsetIgnoringDimensions(OCIndex memOffset, OCIndex indexes[], OCIndex dimensionsCount, const OCIndex *npts, OCIndexSetRef dimensionIndexSet);
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* RMNGRIDUTILS_H */

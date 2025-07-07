@@ -19,17 +19,13 @@
  */
 #ifndef SPARSE_SAMPLING_H
 #define SPARSE_SAMPLING_H
-
 #include "RMNLibrary.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /** Valid values for the encoding of the sparse_grid_vertexes array. */
-#define kSparseSamplingEncodingValueNone   "none"
+#define kSparseSamplingEncodingValueNone "none"
 #define kSparseSamplingEncodingValueBase64 "base64"
-
 /**
  * @brief Retrieve the OCTypeID for SparseSampling, registering the type on first use.
  *
@@ -37,7 +33,6 @@ extern "C" {
  */
 OCTypeID
 SparseSamplingGetTypeID(void);
-
 /**
  * @brief Validate that a SparseSampling is well-formed.
  *
@@ -52,10 +47,7 @@ SparseSamplingGetTypeID(void);
  *                  describing the first validation error (must be released).
  * @returns         true if `ss` passes all checks, false otherwise.
  */
-bool
-validateSparseSampling(SparseSamplingRef ss,
-                       OCStringRef      *outError);
-                       
+bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError);
 /**
  * @brief Create a new SparseSampling object.
  *
@@ -76,23 +68,20 @@ validateSparseSampling(SparseSamplingRef ss,
  * @returns New SparseSamplingRef on success (must be released), NULL on error.
  */
 SparseSamplingRef
-SparseSamplingCreate(OCIndexSetRef    dimensionIndexes,
-                     OCArrayRef       sparseGridVertexes,
-                     OCNumberType     unsignedIntegerType,
-                     OCStringRef      encoding,
-                     OCStringRef      description,
-                     OCDictionaryRef  metadata,
-                     OCStringRef     *outError);
-
+SparseSamplingCreate(OCIndexSetRef dimensionIndexes,
+                     OCArrayRef sparseGridVertexes,
+                     OCNumberType unsignedIntegerType,
+                     OCStringRef encoding,
+                     OCStringRef description,
+                     OCDictionaryRef metadata,
+                     OCStringRef *outError);
 /**
  * @brief Serialize a SparseSampling to an OCDictionary.
  *
  * @param ss  The SparseSamplingRef to serialize.
  * @returns   An OCDictionaryRef representing the object (caller must release).
  */
-OCDictionaryRef
-SparseSamplingCopyAsDictionary(SparseSamplingRef ss);
-
+OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss);
 /**
  * @brief Create a SparseSampling object from an OCDictionary.
  *
@@ -100,10 +89,8 @@ SparseSamplingCopyAsDictionary(SparseSamplingRef ss);
  * @param outError  Optional output pointer for error string on failure.
  * @returns         New SparseSamplingRef on success (must be released), NULL on error.
  */
-SparseSamplingRef
-SparseSamplingCreateFromDictionary(OCDictionaryRef dict,
-                                   OCStringRef    *outError);
-
+SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict,
+                                                     OCStringRef *outError);
 /**
  * @brief Deserialize a SparseSampling from a cJSON object.
  *
@@ -111,10 +98,7 @@ SparseSamplingCreateFromDictionary(OCDictionaryRef dict,
  * @param outError  Optional pointer to receive an error string on failure.
  * @returns         New SparseSamplingRef (caller must release), or NULL on error.
  */
-SparseSamplingRef
-SparseSamplingCreateFromJSON(cJSON      *json,
-                             OCStringRef *outError);
-
+SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outError);
 /**
  * @brief Validate that a SparseSampling is well-formed.
  *
@@ -124,15 +108,11 @@ SparseSamplingCreateFromJSON(cJSON      *json,
  * @param outError  Optional pointer to receive an error string on failure.
  * @returns         true if valid, false otherwise.
  */
-bool
-SparseSamplingValidate(SparseSamplingRef ss,
-                       OCStringRef      *outError);
-
+bool SparseSamplingValidate(SparseSamplingRef ss, OCStringRef *outError);
 /**
  * @name SparseSampling Accessors
  * @{
  */
-
 /**
  * @brief Get the set of fixed dimension indexes.
  *
@@ -141,7 +121,6 @@ SparseSamplingValidate(SparseSamplingRef ss,
  */
 OCIndexSetRef
 SparseSamplingGetDimensionIndexes(SparseSamplingRef ss);
-
 /**
  * @brief Set the fixed dimension indexes.
  *
@@ -149,10 +128,7 @@ SparseSamplingGetDimensionIndexes(SparseSamplingRef ss);
  * @param idxSet New OCIndexSetRef of indexes. May be NULL to clear.
  * @returns      true on success, false on NULL ss or allocation failure.
  */
-bool
-SparseSamplingSetDimensionIndexes(SparseSamplingRef ss,
-                                  OCIndexSetRef      idxSet);
-
+bool SparseSamplingSetDimensionIndexes(SparseSamplingRef ss, OCIndexSetRef idxSet);
 /**
  * @brief Get the array of sparse grid vertices.
  *
@@ -161,7 +137,6 @@ SparseSamplingSetDimensionIndexes(SparseSamplingRef ss,
  */
 OCArrayRef
 SparseSamplingGetSparseGridVertexes(SparseSamplingRef ss);
-
 /**
  * @brief Set the array of sparse grid vertices.
  *
@@ -169,19 +144,14 @@ SparseSamplingGetSparseGridVertexes(SparseSamplingRef ss);
  * @param verts New OCArrayRef of OCIndexPairSetRef. May be NULL to clear.
  * @returns     true on success, false on NULL ss or allocation failure.
  */
-bool
-SparseSamplingSetSparseGridVertexes(SparseSamplingRef ss,
-                                    OCArrayRef         verts);
-
+bool SparseSamplingSetSparseGridVertexes(SparseSamplingRef ss, OCArrayRef verts);
 /**
  * @brief Get the unsigned integer type used for indexing.
  *
  * @param ss  SparseSamplingRef object.
  * @returns   OCNumberType enumerator.
  */
-OCNumberType
-SparseSamplingGetUnsignedIntegerType(SparseSamplingRef ss);
-
+OCNumberType SparseSamplingGetUnsignedIntegerType(SparseSamplingRef ss);
 /**
  * @brief Set the unsigned integer type for indexing.
  *
@@ -191,10 +161,7 @@ SparseSamplingGetUnsignedIntegerType(SparseSamplingRef ss);
  * @param type  OCNumberType to set.
  * @returns     true on success, false on NULL ss or invalid type.
  */
-bool
-SparseSamplingSetUnsignedIntegerType(SparseSamplingRef ss,
-                                     OCNumberType       type);
-
+bool SparseSamplingSetUnsignedIntegerType(SparseSamplingRef ss, OCNumberType type);
 /**
  * @brief Get the encoding for sparse_grid_vertexes.
  *
@@ -203,7 +170,6 @@ SparseSamplingSetUnsignedIntegerType(SparseSamplingRef ss,
  */
 OCStringRef
 SparseSamplingGetEncoding(SparseSamplingRef ss);
-
 /**
  * @brief Set the encoding for sparse_grid_vertexes.
  *
@@ -213,10 +179,7 @@ SparseSamplingGetEncoding(SparseSamplingRef ss);
  * @param encoding  OCStringRef encoding to set.
  * @returns         true on success, false on NULL ss or invalid encoding.
  */
-bool
-SparseSamplingSetEncoding(SparseSamplingRef ss,
-                          OCStringRef      encoding);
-
+bool SparseSamplingSetEncoding(SparseSamplingRef ss, OCStringRef encoding);
 /**
  * @brief Get the human-readable description.
  *
@@ -225,7 +188,6 @@ SparseSamplingSetEncoding(SparseSamplingRef ss,
  */
 OCStringRef
 SparseSamplingGetDescription(SparseSamplingRef ss);
-
 /**
  * @brief Set the human-readable description.
  *
@@ -233,10 +195,7 @@ SparseSamplingGetDescription(SparseSamplingRef ss);
  * @param desc New OCStringRef description. May be NULL to clear.
  * @returns    true on success, false on NULL ss or allocation failure.
  */
-bool
-SparseSamplingSetDescription(SparseSamplingRef ss,
-                             OCStringRef      desc);
-
+bool SparseSamplingSetDescription(SparseSamplingRef ss, OCStringRef desc);
 /**
  * @brief Get the metadata dictionary.
  *
@@ -245,7 +204,6 @@ SparseSamplingSetDescription(SparseSamplingRef ss,
  */
 OCDictionaryRef
 SparseSamplingGetMetaData(SparseSamplingRef ss);
-
 /**
  * @brief Set the metadata dictionary.
  *
@@ -253,14 +211,9 @@ SparseSamplingGetMetaData(SparseSamplingRef ss);
  * @param metadata  New OCDictionaryRef metadata. May be NULL to clear.
  * @returns         true on success, false on NULL ss or allocation failure.
  */
-bool
-SparseSamplingSetMetaData(SparseSamplingRef ss,
-                          OCDictionaryRef   metadata);
-
+bool SparseSamplingSetMetaData(SparseSamplingRef ss, OCDictionaryRef metadata);
 /** @} */
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif  // SPARSE_SAMPLING_H

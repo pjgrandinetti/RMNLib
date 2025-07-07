@@ -394,26 +394,31 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
     DatumRef prevFocus = NULL;
     OCDictionaryRef metadata = NULL;
     DatasetRef ds = NULL;
+
     // — dimensions —
     OCArrayRef rawDims = (OCArrayRef)OCDictionaryGetValue(dict, STR(kDatasetDimensionsKey));
     if (rawDims) {
         OCIndex n = OCArrayGetCount(rawDims);
         OCMutableArrayRef tmp = OCArrayCreateMutable(n, &kOCTypeArrayCallBacks);
         if (!tmp) {
-            *outError = STR("Failed to allocate dimensions array");
+            if (outError) *outError = STR("Failed to allocate dimensions array");
             goto cleanup;
         }
         for (OCIndex i = 0; i < n; ++i) {
             OCDictionaryRef ddict = (OCDictionaryRef)OCArrayGetValueAtIndex(rawDims, i);
             if (OCGetTypeID(ddict) != OCDictionaryGetTypeID()) {
-                *outError = STR("Invalid dimension entry (expected dictionary)");
+                if (outError) *outError = STR("Invalid dimension entry (expected dictionary)");
                 OCRelease(tmp);
                 goto cleanup;
             }
             OCStringRef err = NULL;
             DimensionRef d = DimensionCreateFromDictionary(ddict, &err);
             if (!d) {
-                *outError = err ? OCStringCreateCopy(err) : STR("Failed to parse dimension");
+                if (outError) {
+                    *outError = err
+                        ? OCStringCreateCopy(err)
+                        : STR("Failed to parse dimension");
+                }
                 OCRelease(err);
                 OCRelease(tmp);
                 goto cleanup;
@@ -423,31 +428,37 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
         }
         dims = tmp;
     }
+
     // — dimension_precedence —
     OCIndexArrayRef rawPrec = (OCIndexArrayRef)OCDictionaryGetValue(dict, STR(kDatasetDimensionPrecedenceKey));
     if (rawPrec) {
         dimPrec = OCIndexArrayCreateMutableCopy(rawPrec);
     }
+
     // — dependent_variables —
     OCArrayRef rawDVs = (OCArrayRef)OCDictionaryGetValue(dict, STR(kDatasetDependentVariablesKey));
     if (rawDVs) {
         OCIndex m = OCArrayGetCount(rawDVs);
         OCMutableArrayRef tmp = OCArrayCreateMutable(m, &kOCTypeArrayCallBacks);
         if (!tmp) {
-            *outError = STR("Failed to allocate dependentVariables array");
+            if (outError) *outError = STR("Failed to allocate dependentVariables array");
             goto cleanup;
         }
         for (OCIndex i = 0; i < m; ++i) {
             OCDictionaryRef dd = (OCDictionaryRef)OCArrayGetValueAtIndex(rawDVs, i);
             if (OCGetTypeID(dd) != OCDictionaryGetTypeID()) {
-                *outError = STR("Invalid dependent variable entry (expected dictionary)");
+                if (outError) *outError = STR("Invalid dependent variable entry (expected dictionary)");
                 OCRelease(tmp);
                 goto cleanup;
             }
             OCStringRef err = NULL;
             DependentVariableRef dv = DependentVariableCreateFromDictionary(dd, &err);
             if (!dv) {
-                *outError = err ? OCStringCreateCopy(err) : STR("Failed to parse dependent variable");
+                if (outError) {
+                    *outError = err
+                        ? OCStringCreateCopy(err)
+                        : STR("Failed to parse dependent variable");
+                }
                 OCRelease(err);
                 OCRelease(tmp);
                 goto cleanup;
@@ -457,11 +468,13 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
         }
         dvs = tmp;
     }
+
     // — tags —
     OCArrayRef rawTags = (OCArrayRef)OCDictionaryGetValue(dict, STR(kDatasetTagsKey));
     if (rawTags) {
         tags = OCArrayCreateMutableCopy(rawTags);
     }
+
     // — description & title —
     OCStringRef s;
     if ((s = (OCStringRef)OCDictionaryGetValue(dict, STR(kDatasetDescriptionKey)))) {
@@ -470,6 +483,7 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
     if ((s = (OCStringRef)OCDictionaryGetValue(dict, STR(kDatasetTitleKey)))) {
         title = OCStringCreateCopy(s);
     }
+
     // — focus & previous_focus —
     OCDictionaryRef ddict;
     if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR(kDatasetFocusKey)))) {
@@ -480,30 +494,39 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
         prevFocus = DatumCreateFromDictionary(ddict, outError);
         if (!prevFocus) goto cleanup;
     }
-    // — metadata — deep-copy existing dictionary
+
+    // — metadata —
     if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR(kDatasetMetadataKey)))) {
         metadata = (OCDictionaryRef)OCTypeDeepCopyMutable(ddict);
         if (!metadata) {
-            *outError = STR("Failed to copy metadata");
+            if (outError) *outError = STR("Failed to copy metadata");
             goto cleanup;
         }
     }
-    OCStringRef version = OCDictionaryGetValue(dict, STR("version"));
+
+    OCStringRef version   = OCDictionaryGetValue(dict, STR("version"));
     OCStringRef timestamp = OCDictionaryGetValue(dict, STR("timestamp"));
-    OCBooleanRef roflag = OCDictionaryGetValue(dict, STR("read_only"));
-    OCDictionaryRef geoDict = OCDictionaryGetValue(dict, STR("geographic_coordinate"));
+    OCBooleanRef roflag   = OCDictionaryGetValue(dict, STR("read_only"));
+    OCDictionaryRef geoDict= OCDictionaryGetValue(dict, STR("geographic_coordinate"));
+
     // — construct the Dataset —
-    ds = DatasetCreate(dims, dimPrec, dvs, tags, desc, title, focus, prevFocus, metadata);
+    ds = DatasetCreate(dims, dimPrec, dvs, tags,
+                       desc, title, focus, prevFocus, metadata);
+
+    // overwrite the version/timestamp/readOnly/geo fields
     OCRelease(ds->version);
-    ds->version = OCStringCreateCopy(version);
+    ds->version   = OCStringCreateCopy(version);
     OCRelease(ds->timestamp);
     ds->timestamp = OCStringCreateCopy(timestamp);
-    ds->readOnly = (roflag && OCGetTypeID(roflag) == OCBooleanGetTypeID() && OCBooleanGetValue(roflag));
+    ds->readOnly  = (roflag
+                     && OCGetTypeID(roflag) == OCBooleanGetTypeID()
+                     && OCBooleanGetValue(roflag));
     if (geoDict) {
         OCStringRef err = NULL;
         ds->geographicCoordinate = GeographicCoordinateCreateFromDictionary(geoDict, &err);
         OCRelease(err);
     }
+
 cleanup:
     OCRelease(dims);
     OCRelease(dimPrec);
