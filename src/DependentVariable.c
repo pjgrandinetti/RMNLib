@@ -910,15 +910,12 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
             *outError = STR("Expected top-level JSON object for DependentVariable");
         return NULL;
     }
-
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     if (!dict) {
         if (outError) *outError = STR("Failed to allocate dictionary");
         return NULL;
     }
-
     cJSON *item = NULL;
-
     // 1) Required: type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableTypeKey);
     if (!cJSON_IsString(item)) {
@@ -931,7 +928,6 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
         OCDictionarySetValue(dict, STR(kDependentVariableTypeKey), tmp);
         OCRelease(tmp);
     }
-
     // 1a) Optional: components_url
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsURLKey);
     if (cJSON_IsString(item)) {
@@ -939,7 +935,6 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
         OCDictionarySetValue(dict, STR(kDependentVariableComponentsURLKey), tmp);
         OCRelease(tmp);
     }
-
     // 1b) Optional: encoding
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableEncodingKey);
     if (cJSON_IsString(item)) {
@@ -947,7 +942,6 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
         OCDictionarySetValue(dict, STR(kDependentVariableEncodingKey), tmp);
         OCRelease(tmp);
     }
-
     // 2) Required: components
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsKey);
     if (!cJSON_IsArray(item)) {
@@ -980,7 +974,6 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
     }
     OCDictionarySetValue(dict, STR(kDependentVariableComponentsKey), components);
     OCRelease(components);
-
     // 3) Optional: name, description
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNameKey);
     if (cJSON_IsString(item)) {
@@ -994,7 +987,6 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
         OCDictionarySetValue(dict, STR(kDependentVariableDescriptionKey), tmp);
         OCRelease(tmp);
     }
-
     // 4) Optional: quantity_name
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityNameKey);
     if (cJSON_IsString(item)) {
@@ -1002,7 +994,6 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
         OCDictionarySetValue(dict, STR(kDependentVariableQuantityNameKey), tmp);
         OCRelease(tmp);
     }
-
     // 5) Required: quantity_type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1015,7 +1006,6 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
         OCDictionarySetValue(dict, STR(kDependentVariableQuantityTypeKey), tmp);
         OCRelease(tmp);
     }
-
     // 6) Optional: unit
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableUnitKey);
     if (cJSON_IsString(item)) {
@@ -1023,20 +1013,37 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
         OCDictionarySetValue(dict, STR(kDependentVariableUnitKey), tmp);
         OCRelease(tmp);
     }
-
-    // 7) Required: numeric_type
+    // 7) Required: numeric_type (must be a string)
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNumericTypeKey);
-    if (!cJSON_IsNumber(item)) {
-        if (outError) *outError = STR("Missing or invalid \"numeric_type\"");
+    if (!cJSON_IsString(item)) {
+        if (outError) *outError = STR("Missing or invalid \"numeric_type\""); 
+        OCRelease(dict);
+        return NULL;
+    }
+    const char *typeStr = item->valuestring;
+    SINumberType code;
+    if (strcmp(typeStr, "float32") == 0)
+        code = kSINumberFloat32Type;
+    else if (strcmp(typeStr, "float64") == 0)
+        code = kSINumberFloat64Type;
+    else if (strcmp(typeStr, "complex32") == 0)
+        code = kSINumberFloat32ComplexType;
+    else if (strcmp(typeStr, "complex64") == 0)
+        code = kSINumberFloat64ComplexType;
+    else {
+        if (outError) *outError = STR(
+                          "Unrecognized \"numeric_type\"; expected one of "
+                          "\"float32\", \"float64\", \"complex32\", \"complex64\"");
         OCRelease(dict);
         return NULL;
     }
     {
-        OCNumberRef num = OCNumberCreateWithInt(item->valueint);
-        OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), num);
+        OCNumberRef num = OCNumberCreateWithInt((int)code);
+        OCDictionarySetValue(dict,
+                             STR(kDependentVariableNumericTypeKey),
+                             num);
         OCRelease(num);
     }
-
     // 8) Optional: component_labels
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentLabelsKey);
     if (cJSON_IsArray(item)) {
@@ -1053,7 +1060,6 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
         OCDictionarySetValue(dict, STR(kDependentVariableComponentLabelsKey), labels);
         OCRelease(labels);
     }
-
     // 9) Optional: sparse_sampling
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableSparseSamplingKey);
     if (cJSON_IsObject(item)) {
@@ -1071,7 +1077,6 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
         OCDictionarySetValue(dict, STR(kDependentVariableSparseSamplingKey), spDict);
         OCRelease(spDict);
     }
-
     return dict;
 }
 DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *outError) {

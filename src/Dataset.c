@@ -195,7 +195,7 @@ static bool impl_ValidateDatasetParameters(OCArrayRef dimensions, OCArrayRef dep
         OCIndex dvSize = DependentVariableGetSize(dv);
         if (dvSize != expectedSize) {
             fprintf(stderr,
-                    "RMNValidateDatasetParameters: size mismatch for DV at index %ld: got %ld, expected %ld\n",
+                    "ValidateDatasetParameters: size mismatch for DV at index %ld: got %ld, expected %ld\n",
                     (long)i, (long)dvSize, (long)expectedSize);
             return false;
         }
@@ -213,8 +213,7 @@ DatasetRef DatasetCreate(
     OCStringRef title,
     DatumRef focus,
     DatumRef previousFocus,
-    OCDictionaryRef metaData)
-{
+    OCDictionaryRef metaData) {
     // — allow blank datasets (zero DVs) —
     OCIndex dvCount = dependentVariables ? OCArrayGetCount(dependentVariables) : 0;
     if (dvCount > 0) {
@@ -222,34 +221,30 @@ DatasetRef DatasetCreate(
         if (!impl_ValidateDatasetParameters(dimensions, dependentVariables))
             return NULL;
     }
-
     DatasetRef ds = DatasetAllocate();
     if (!ds) return NULL;
     impl_InitDatasetFields(ds);
-
     // — copy dimensions —
     if (dimensions) {
         OCIndex nDims = OCArrayGetCount(dimensions);
         for (OCIndex i = 0; i < nDims; ++i) {
-            DimensionRef d      = (DimensionRef)OCArrayGetValueAtIndex(dimensions, i);
-            DimensionRef dCopy  = (DimensionRef)OCTypeDeepCopyMutable(d);
+            DimensionRef d = (DimensionRef)OCArrayGetValueAtIndex(dimensions, i);
+            DimensionRef dCopy = (DimensionRef)OCTypeDeepCopyMutable(d);
             OCArrayAppendValue(ds->dimensions, dCopy);
             OCRelease(dCopy);
         }
     }
-
     // — copy dependentVariables (may be zero) —
     if (dependentVariables) {
         OCIndex nDVs = OCArrayGetCount(dependentVariables);
         for (OCIndex i = 0; i < nDVs; ++i) {
-            DependentVariableRef dv     =
+            DependentVariableRef dv =
                 (DependentVariableRef)OCArrayGetValueAtIndex(dependentVariables, i);
             DependentVariableRef dvCopy = DependentVariableCreateCopy(dv);
             OCArrayAppendValue(ds->dependentVariables, dvCopy);
             OCRelease(dvCopy);
         }
     }
-
     // — copy tags —
     if (tags) {
         OCIndex nTags = OCArrayGetCount(tags);
@@ -258,7 +253,6 @@ DatasetRef DatasetCreate(
             OCArrayAppendValue(ds->tags, s);
         }
     }
-
     // — set dimensionPrecedence (default to 0..N-1 if missing/mismatched) —
     OCIndex dimCount = OCArrayGetCount(ds->dimensions);
     if (dimensionPrecedence && OCIndexArrayGetCount(dimensionPrecedence) == dimCount) {
@@ -271,22 +265,18 @@ DatasetRef DatasetCreate(
             OCIndexArrayAppendValue(ds->dimensionPrecedence, i);
         }
     }
-
     // — copy simple fields —
-    ds->description   = description   ? OCStringCreateCopy(description) : STR("");
-    ds->title         = title         ? OCStringCreateCopy(title)       : STR("");
-    ds->focus         = focus         ? (DatumRef)OCRetain(focus)       : NULL;
+    ds->description = description ? OCStringCreateCopy(description) : STR("");
+    ds->title = title ? OCStringCreateCopy(title) : STR("");
+    ds->focus = focus ? (DatumRef)OCRetain(focus) : NULL;
     ds->previousFocus = previousFocus ? (DatumRef)OCRetain(previousFocus) : NULL;
-
     // — copy metadata if present —
     if (metaData) {
         OCRelease(ds->metaData);
         ds->metaData = OCTypeDeepCopyMutable(metaData);
     }
-
     return ds;
 }
-
 OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
     if (!ds) return NULL;
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
@@ -403,36 +393,32 @@ OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
 DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!dict) {
-        if (outError) *outError = STR("Input dictionary is NULL");
-        fprintf(stderr, "[DEBUG] DatasetCreateFromDictionary: dict == NULL\n");
+        if (outError) *outError = STR("Dataset creation failed: input dictionary is NULL");
         return NULL;
     }
-
-    OCArrayRef           dims      = NULL;
-    OCIndexArrayRef      dimPrec   = NULL;
-    OCArrayRef           dvs       = NULL;
-    OCArrayRef           tags      = NULL;
-    OCStringRef          desc      = NULL;
-    OCStringRef          title     = NULL;
-    DatumRef             focus     = NULL;
-    DatumRef             prevFocus = NULL;
-    OCDictionaryRef      metadata  = NULL;
-    DatasetRef           ds        = NULL;
-
-    // — dimensions —
+    OCArrayRef dims = NULL;
+    OCIndexArrayRef dimPrec = NULL;
+    OCArrayRef dvs = NULL;
+    OCArrayRef tags = NULL;
+    OCStringRef desc = NULL;
+    OCStringRef title = NULL;
+    DatumRef focus = NULL;
+    DatumRef prevFocus = NULL;
+    OCDictionaryRef metadata = NULL;
+    DatasetRef ds = NULL;
+    // --- dimensions ---
     OCArrayRef rawDims = (OCArrayRef)OCDictionaryGetValue(dict, STR(kDatasetDimensionsKey));
     if (rawDims) {
         OCIndex n = OCArrayGetCount(rawDims);
-        fprintf(stderr, "[DEBUG] Parsing %u dimensions\n", (unsigned)n);
         OCMutableArrayRef tmp = OCArrayCreateMutable(n, &kOCTypeArrayCallBacks);
         if (!tmp) {
-            if (outError) *outError = STR("Failed to allocate dimensions array");
+            if (outError) *outError = STR("Dataset creation failed: cannot allocate dimensions array");
             goto cleanup;
         }
         for (OCIndex i = 0; i < n; ++i) {
             OCDictionaryRef ddict = (OCDictionaryRef)OCArrayGetValueAtIndex(rawDims, i);
             if (OCGetTypeID(ddict) != OCDictionaryGetTypeID()) {
-                if (outError) *outError = STR("Invalid dimension entry (expected dictionary)");
+                if (outError) *outError = STR("Dataset creation failed: invalid dimension entry");
                 OCRelease(tmp);
                 goto cleanup;
             }
@@ -441,8 +427,8 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
             if (!d) {
                 if (outError) {
                     *outError = err
-                        ? OCStringCreateCopy(err)
-                        : STR("Failed to parse dimension");
+                                    ? OCStringCreateCopy(err)
+                                    : STR("Dataset creation failed: error parsing dimension");
                 }
                 OCRelease(err);
                 OCRelease(tmp);
@@ -453,28 +439,24 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
         }
         dims = tmp;
     }
-
-    // — dimension_precedence —
+    // --- dimension precedence ---
     OCIndexArrayRef rawPrec = (OCIndexArrayRef)OCDictionaryGetValue(dict, STR(kDatasetDimensionPrecedenceKey));
     if (rawPrec) {
-        fprintf(stderr, "[DEBUG] Parsing dimension_precedence\n");
         dimPrec = OCIndexArrayCreateMutableCopy(rawPrec);
     }
-
-    // — dependent_variables —
+    // --- dependent variables ---
     OCArrayRef rawDVs = (OCArrayRef)OCDictionaryGetValue(dict, STR(kDatasetDependentVariablesKey));
     if (rawDVs) {
         OCIndex m = OCArrayGetCount(rawDVs);
-        fprintf(stderr, "[DEBUG] Parsing %u dependent variables\n", (unsigned)m);
         OCMutableArrayRef tmp = OCArrayCreateMutable(m, &kOCTypeArrayCallBacks);
         if (!tmp) {
-            if (outError) *outError = STR("Failed to allocate dependentVariables array");
+            if (outError) *outError = STR("Dataset creation failed: cannot allocate dependent-variables array");
             goto cleanup;
         }
         for (OCIndex i = 0; i < m; ++i) {
             OCDictionaryRef dd = (OCDictionaryRef)OCArrayGetValueAtIndex(rawDVs, i);
             if (OCGetTypeID(dd) != OCDictionaryGetTypeID()) {
-                if (outError) *outError = STR("Invalid dependent variable entry (expected dictionary)");
+                if (outError) *outError = STR("Dataset creation failed: invalid dependent-variable entry");
                 OCRelease(tmp);
                 goto cleanup;
             }
@@ -483,8 +465,8 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
             if (!dv) {
                 if (outError) {
                     *outError = err
-                        ? OCStringCreateCopy(err)
-                        : STR("Failed to parse dependent variable");
+                                    ? OCStringCreateCopy(err)
+                                    : STR("Dataset creation failed: error parsing dependent variable");
                 }
                 OCRelease(err);
                 OCRelease(tmp);
@@ -495,108 +477,70 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
         }
         dvs = tmp;
     }
-
-    // If no dependent variables in JSON, give DatasetCreate an empty array rather than NULL
+    // If no dependent variables, use an empty array
     if (!dvs) {
-        fprintf(stderr, "[DEBUG] No dependent_variables found; using empty array\n");
         dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     }
-
-    // — tags —
+    // --- tags ---
     OCArrayRef rawTags = (OCArrayRef)OCDictionaryGetValue(dict, STR(kDatasetTagsKey));
     if (rawTags) {
-        fprintf(stderr, "[DEBUG] Parsing tags\n");
         tags = OCArrayCreateMutableCopy(rawTags);
     }
-
-    // — description & title —
+    // --- description & title ---
     OCStringRef s;
     if ((s = (OCStringRef)OCDictionaryGetValue(dict, STR(kDatasetDescriptionKey)))) {
         desc = OCStringCreateCopy(s);
-        fprintf(stderr, "[DEBUG] description = \"%s\"\n", OCStringGetCString(desc));
     }
     if ((s = (OCStringRef)OCDictionaryGetValue(dict, STR(kDatasetTitleKey)))) {
         title = OCStringCreateCopy(s);
-        fprintf(stderr, "[DEBUG] title = \"%s\"\n", OCStringGetCString(title));
     }
-
-    // — focus & previous_focus —
+    // --- focus & previous_focus ---
     OCDictionaryRef ddict;
     if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR(kDatasetFocusKey)))) {
-        fprintf(stderr, "[DEBUG] Parsing focus\n");
         focus = DatumCreateFromDictionary(ddict, outError);
         if (!focus) goto cleanup;
     }
     if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR(kDatasetPreviousFocusKey)))) {
-        fprintf(stderr, "[DEBUG] Parsing previous_focus\n");
         prevFocus = DatumCreateFromDictionary(ddict, outError);
         if (!prevFocus) goto cleanup;
     }
-
-    // — metadata —
+    // --- metadata ---
     if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR(kDatasetMetadataKey)))) {
-        fprintf(stderr, "[DEBUG] Parsing metadata\n");
         metadata = (OCDictionaryRef)OCTypeDeepCopyMutable(ddict);
         if (!metadata) {
-            if (outError) *outError = STR("Failed to copy metadata");
+            if (outError) *outError = STR("Dataset creation failed: cannot copy metadata");
             goto cleanup;
         }
     }
-
-    // Envelope fields
-    OCStringRef version   = OCDictionaryGetValue(dict, STR(kDatasetVersionKey));
+    // Envelope properties
+    OCStringRef version = OCDictionaryGetValue(dict, STR(kDatasetVersionKey));
     OCStringRef timestamp = OCDictionaryGetValue(dict, STR(kDatasetTimestampKey));
-    OCBooleanRef roflag   = OCDictionaryGetValue(dict, STR(kDatasetReadOnlyKey));
-    OCDictionaryRef geoDict= OCDictionaryGetValue(dict, STR(kDatasetGeoCoordinateKey));
-
-    // --- DEBUG: show what we're about to pass to DatasetCreate ---
-    fprintf(stderr,
-            "[DEBUG] Calling DatasetCreate with dims=%p  dimPrec=%p  dvs=%p(count=%u)  tags=%p(count=%u)  desc=%s  title=%s\n",
-            (void*)dims,
-            (void*)dimPrec,
-            (void*)dvs, (unsigned)OCArrayGetCount(dvs),
-            (void*)tags, tags ? (unsigned)OCArrayGetCount(tags) : 0,
-            desc  ? OCStringGetCString(desc)  : "NULL",
-            title ? OCStringGetCString(title) : "NULL"
-    );
-
-    // — construct the Dataset —
+    OCBooleanRef roflag = OCDictionaryGetValue(dict, STR(kDatasetReadOnlyKey));
+    OCDictionaryRef geoDict = OCDictionaryGetValue(dict, STR(kDatasetGeoCoordinateKey));
+    // --- create dataset ---
     ds = DatasetCreate(dims, dimPrec, dvs, tags,
                        desc, title, focus, prevFocus, metadata);
     if (!ds) {
-        if (outError) *outError = STR("DatasetCreate failed");
-        fprintf(stderr, "[DEBUG] *** DatasetCreate returned NULL ***\n");
+        if (outError) *outError = STR("Dataset creation failed: unable to allocate dataset");
         goto cleanup;
     }
-
-    // Overwrite core envelope fields
+    // Overwrite envelope fields
     if (version && OCGetTypeID(version) == OCStringGetTypeID()) {
         OCRelease(ds->version);
         ds->version = OCStringCreateCopy(version);
-        fprintf(stderr, "[DEBUG] setting version = \"%s\"\n", OCStringGetCString(ds->version));
     }
     if (timestamp && OCGetTypeID(timestamp) == OCStringGetTypeID()) {
         OCRelease(ds->timestamp);
         ds->timestamp = OCStringCreateCopy(timestamp);
-        fprintf(stderr, "[DEBUG] setting timestamp = \"%s\"\n", OCStringGetCString(ds->timestamp));
     }
     if (roflag && OCGetTypeID(roflag) == OCBooleanGetTypeID()) {
-        bool ro = OCBooleanGetValue(roflag);
-        ds->readOnly = ro;
-        fprintf(stderr, "[DEBUG] setting readOnly = %s\n", ro ? "true" : "false");
+        ds->readOnly = OCBooleanGetValue(roflag);
     }
     if (geoDict && OCGetTypeID(geoDict) == OCDictionaryGetTypeID()) {
-        OCStringRef err = NULL;
-        ds->geographicCoordinate = GeographicCoordinateCreateFromDictionary(geoDict, &err);
-        if (!ds->geographicCoordinate) {
-            fprintf(stderr, "[DEBUG] GeographicCoordinate parse failed: %s\n",
-                    err ? OCStringGetCString(err) : "unknown error");
-        } else {
-            fprintf(stderr, "[DEBUG] geographicCoordinate set successfully\n");
-        }
-        OCRelease(err);
+        OCStringRef gcErr = NULL;
+        ds->geographicCoordinate = GeographicCoordinateCreateFromDictionary(geoDict, &gcErr);
+        OCRelease(gcErr);
     }
-
 cleanup:
     OCRelease(dims);
     OCRelease(dimPrec);
@@ -609,95 +553,70 @@ cleanup:
     OCRelease(metadata);
     return ds;
 }
-
-OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError)
-{
+OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
-    fprintf(stderr, "[DEBUG] -> DatasetDictionaryCreateFromJSON(json=%p)\n", (void*)json);
-
+    // Must be an object
     if (!json || !cJSON_IsObject(json)) {
-        fprintf(stderr, "[DEBUG] Invalid JSON: not an object\n");
-        if (outError) *outError = STR("Expected a JSON object for Dataset");
+        if (outError) *outError = STR("Dataset JSON must be an object");
         return NULL;
     }
-
-    // ↪ unwrap “csdm” envelope
-    fprintf(stderr, "[DEBUG] Looking for \"%s\" envelope…\n", kDatasetCsdmEnvelopeKey);
+    // Unwrap “csdm” envelope
     cJSON *inner = cJSON_GetObjectItemCaseSensitive(json, kDatasetCsdmEnvelopeKey);
     if (!inner || !cJSON_IsObject(inner)) {
-        fprintf(stderr, "[DEBUG] Missing or invalid \"%s\" key\n", kDatasetCsdmEnvelopeKey);
-        if (outError) *outError = STR("Missing or invalid \"csdm\" key");
+        if (outError) *outError = STR("Missing or invalid \"csdm\" envelope");
         return NULL;
     }
     json = inner;
-    fprintf(stderr, "[DEBUG] Unwrapped to inner object at %p\n", (void*)json);
-
-    fprintf(stderr, "[DEBUG] Creating mutable dictionary…\n");
+    // Create the mutable dictionary to accumulate fields
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     if (!dict) {
-        fprintf(stderr, "[DEBUG] Failed to allocate dictionary\n");
-        if (outError) *outError = STR("Failed to create dictionary");
+        if (outError) *outError = STR("Out of memory creating dataset dictionary");
         return NULL;
     }
-
     // version
-    fprintf(stderr, "[DEBUG] Parsing \"%s\"…\n", kDatasetVersionKey);
     cJSON *entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetVersionKey);
     if (cJSON_IsString(entry)) {
         OCStringRef v = OCStringCreateWithCString(entry->valuestring);
         OCDictionarySetValue(dict, STR(kDatasetVersionKey), v);
         OCRelease(v);
-        fprintf(stderr, "[DEBUG] version = \"%s\"\n", entry->valuestring);
     }
-
     // timestamp
-    fprintf(stderr, "[DEBUG] Parsing \"%s\"…\n", kDatasetTimestampKey);
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetTimestampKey);
     if (cJSON_IsString(entry)) {
         OCStringRef t = OCStringCreateWithCString(entry->valuestring);
         OCDictionarySetValue(dict, STR(kDatasetTimestampKey), t);
         OCRelease(t);
-        fprintf(stderr, "[DEBUG] timestamp = \"%s\"\n", entry->valuestring);
     }
-
     // read_only
-    fprintf(stderr, "[DEBUG] Parsing \"%s\"…\n", kDatasetReadOnlyKey);
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetReadOnlyKey);
     if (cJSON_IsBool(entry)) {
         bool ro = cJSON_IsTrue(entry);
         OCDictionarySetValue(dict,
                              STR(kDatasetReadOnlyKey),
                              OCBooleanGetWithBool(ro));
-        fprintf(stderr, "[DEBUG] read_only = %s\n", ro ? "true" : "false");
     }
-
     // geographic_coordinate
-    fprintf(stderr, "[DEBUG] Parsing \"%s\"…\n", kDatasetGeoCoordinateKey);
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetGeoCoordinateKey);
     if (entry && cJSON_IsObject(entry)) {
         OCStringRef gcErr = NULL;
         GeographicCoordinateRef gc =
             GeographicCoordinateCreateFromJSON(entry, &gcErr);
-        if (gc) {
-            OCDictionaryRef gcDict = GeographicCoordinateCopyAsDictionary(gc);
-            OCDictionarySetValue(dict,
-                                 STR(kDatasetGeoCoordinateKey),
-                                 gcDict);
-            OCRelease(gcDict);
-            OCRelease(gc);
-            fprintf(stderr, "[DEBUG] geographic_coordinate parsed successfully\n");
-        } else {
-            fprintf(stderr, "[DEBUG] geographic_coordinate parse error: %s\n",
-                    gcErr ? OCStringGetCString(gcErr) : "unknown");
-            if (outError && gcErr) *outError = OCStringCreateCopy(gcErr);
+        if (!gc) {
+            if (outError) *outError = gcErr
+                                          ? OCStringCreateCopy(gcErr)
+                                          : STR("Failed to parse geographic_coordinate");
             OCRelease(gcErr);
             OCRelease(dict);
             return NULL;
         }
+        OCDictionaryRef gcDict = GeographicCoordinateCopyAsDictionary(gc);
+        OCRelease(gc);
+        OCDictionarySetValue(dict,
+                             STR(kDatasetGeoCoordinateKey),
+                             gcDict);
+        OCRelease(gcDict);
     }
-
     // tags
-    fprintf(stderr, "[DEBUG] Parsing \"%s\"…\n", kDatasetTagsKey);
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetTagsKey);
     if (entry && cJSON_IsArray(entry)) {
         OCMutableArrayRef tagsArr = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
@@ -707,33 +626,25 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json, OCStringRef *outErr
                 OCStringRef s = OCStringCreateWithCString(e->valuestring);
                 OCArrayAppendValue(tagsArr, s);
                 OCRelease(s);
-                fprintf(stderr, "[DEBUG] tag: \"%s\"\n", e->valuestring);
             }
         }
         OCDictionarySetValue(dict, STR(kDatasetTagsKey), tagsArr);
         OCRelease(tagsArr);
     }
-
     // description & title
-    fprintf(stderr, "[DEBUG] Parsing \"%s\" and \"%s\"…\n",
-            kDatasetDescriptionKey, kDatasetTitleKey);
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDescriptionKey);
     if (entry && cJSON_IsString(entry)) {
         OCStringRef desc = OCStringCreateWithCString(entry->valuestring);
         OCDictionarySetValue(dict, STR(kDatasetDescriptionKey), desc);
         OCRelease(desc);
-        fprintf(stderr, "[DEBUG] description = \"%s\"\n", entry->valuestring);
     }
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetTitleKey);
     if (entry && cJSON_IsString(entry)) {
         OCStringRef title = OCStringCreateWithCString(entry->valuestring);
         OCDictionarySetValue(dict, STR(kDatasetTitleKey), title);
         OCRelease(title);
-        fprintf(stderr, "[DEBUG] title = \"%s\"\n", entry->valuestring);
     }
-
     // dimensions
-    fprintf(stderr, "[DEBUG] Parsing \"%s\"…\n", kDatasetDimensionsKey);
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDimensionsKey);
     if (entry && cJSON_IsArray(entry)) {
         OCMutableArrayRef dimsArr = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
@@ -743,9 +654,9 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json, OCStringRef *outErr
                 OCStringRef dimErr = NULL;
                 DimensionRef dim = DimensionCreateFromJSON(e, &dimErr);
                 if (!dim) {
-                    fprintf(stderr, "[DEBUG] dimension parse error: %s\n",
-                            dimErr ? OCStringGetCString(dimErr) : "unknown");
-                    if (outError && dimErr) *outError = OCStringCreateCopy(dimErr);
+                    if (outError) *outError = dimErr
+                                                  ? OCStringCreateCopy(dimErr)
+                                                  : STR("Failed to parse a dimension");
                     OCRelease(dimErr);
                     OCRelease(dimsArr);
                     OCRelease(dict);
@@ -759,11 +670,8 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json, OCStringRef *outErr
         }
         OCDictionarySetValue(dict, STR(kDatasetDimensionsKey), dimsArr);
         OCRelease(dimsArr);
-        fprintf(stderr, "[DEBUG] dimensions parsed\n");
     }
-
     // dimension_precedence
-    fprintf(stderr, "[DEBUG] Parsing \"%s\"…\n", kDatasetDimensionPrecedenceKey);
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDimensionPrecedenceKey);
     if (entry && cJSON_IsArray(entry)) {
         OCMutableIndexArrayRef precArr = OCIndexArrayCreateMutable(0);
@@ -772,16 +680,14 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json, OCStringRef *outErr
             if (cJSON_IsNumber(e)) {
                 OCIndex idx = (OCIndex)e->valuedouble;
                 OCIndexArrayAppendValue(precArr, idx);
-                fprintf(stderr, "[DEBUG] precedence index: %lld\n", (long long)idx);
             }
         }
-        OCDictionarySetValue(dict, STR(kDatasetDimensionPrecedenceKey), precArr);
+        OCDictionarySetValue(dict,
+                             STR(kDatasetDimensionPrecedenceKey),
+                             precArr);
         OCRelease(precArr);
-        fprintf(stderr, "[DEBUG] dimension_precedence parsed\n");
     }
-
     // dependent_variables
-    fprintf(stderr, "[DEBUG] Parsing \"%s\"…\n", kDatasetDependentVariablesKey);
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDependentVariablesKey);
     if (entry && cJSON_IsArray(entry)) {
         OCMutableArrayRef dvsArr = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
@@ -791,9 +697,9 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json, OCStringRef *outErr
                 OCStringRef dvErr = NULL;
                 DependentVariableRef dv = DependentVariableCreateFromJSON(e, &dvErr);
                 if (!dv) {
-                    fprintf(stderr, "[DEBUG] DV parse error: %s\n",
-                            dvErr ? OCStringGetCString(dvErr) : "unknown");
-                    if (outError && dvErr) *outError = OCStringCreateCopy(dvErr);
+                    if (outError) *outError = dvErr
+                                                  ? OCStringCreateCopy(dvErr)
+                                                  : STR("Failed to parse a dependent variable");
                     OCRelease(dvErr);
                     OCRelease(dvsArr);
                     OCRelease(dict);
@@ -805,22 +711,20 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json, OCStringRef *outErr
                 OCRelease(ddv);
             }
         }
-        OCDictionarySetValue(dict, STR(kDatasetDependentVariablesKey), dvsArr);
+        OCDictionarySetValue(dict,
+                             STR(kDatasetDependentVariablesKey),
+                             dvsArr);
         OCRelease(dvsArr);
-        fprintf(stderr, "[DEBUG] dependent_variables parsed\n");
     }
-
     // focus & previous_focus
-    fprintf(stderr, "[DEBUG] Parsing \"%s\" and \"%s\"…\n",
-            kDatasetFocusKey, kDatasetPreviousFocusKey);
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetFocusKey);
     if (entry && cJSON_IsObject(entry)) {
         OCStringRef fErr = NULL;
         DatumRef d = DatumCreateFromJSON(entry, &fErr);
         if (!d) {
-            fprintf(stderr, "[DEBUG] focus parse error: %s\n",
-                    fErr ? OCStringGetCString(fErr) : "unknown");
-            if (outError && fErr) *outError = OCStringCreateCopy(fErr);
+            if (outError) *outError = fErr
+                                          ? OCStringCreateCopy(fErr)
+                                          : STR("Failed to parse focus");
             OCRelease(fErr);
             OCRelease(dict);
             return NULL;
@@ -829,16 +733,15 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json, OCStringRef *outErr
         OCRelease(d);
         OCDictionarySetValue(dict, STR(kDatasetFocusKey), fd);
         OCRelease(fd);
-        fprintf(stderr, "[DEBUG] focus parsed\n");
     }
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetPreviousFocusKey);
     if (entry && cJSON_IsObject(entry)) {
         OCStringRef pfErr = NULL;
         DatumRef d = DatumCreateFromJSON(entry, &pfErr);
         if (!d) {
-            fprintf(stderr, "[DEBUG] previous_focus parse error: %s\n",
-                    pfErr ? OCStringGetCString(pfErr) : "unknown");
-            if (outError && pfErr) *outError = OCStringCreateCopy(pfErr);
+            if (outError) *outError = pfErr
+                                          ? OCStringCreateCopy(pfErr)
+                                          : STR("Failed to parse previous_focus");
             OCRelease(pfErr);
             OCRelease(dict);
             return NULL;
@@ -847,59 +750,47 @@ OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json, OCStringRef *outErr
         OCRelease(d);
         OCDictionarySetValue(dict, STR(kDatasetPreviousFocusKey), fd);
         OCRelease(fd);
-        fprintf(stderr, "[DEBUG] previous_focus parsed\n");
     }
-
     // metadata
-    fprintf(stderr, "[DEBUG] Parsing \"%s\"…\n", kDatasetMetadataKey);
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetMetadataKey);
     if (entry && cJSON_IsObject(entry)) {
         OCDictionaryRef md = OCMetadataCreateFromJSON(entry, outError);
         if (!md) {
-            fprintf(stderr, "[DEBUG] metadata parse error\n");
+            // OCMetadataCreateFromJSON already set outError
             OCRelease(dict);
             return NULL;
         }
         OCDictionarySetValue(dict, STR(kDatasetMetadataKey), md);
         OCRelease(md);
-        fprintf(stderr, "[DEBUG] metadata parsed\n");
     }
-
-    fprintf(stderr, "[DEBUG] <- DatasetDictionaryCreateFromJSON returning %p\n", (void*)dict);
     return dict;
 }
-
-
 DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
     if (outError) *outError = NULL;
-    fprintf(stderr, "[DEBUG] -> DatasetCreateFromJSON(root=%p)\n", (void*)root);
-
-    // Step 1: turn JSON into an OCDictionary
-    OCDictionaryRef dict = DatasetDictionaryCreateFromJSON(root, outError);
-    if (!dict) {
-        fprintf(stderr, "[DEBUG] DatasetDictionaryCreateFromJSON returned NULL\n");
+    // Must have valid JSON object
+    if (!root) {
+        if (outError) *outError = STR("Input JSON is NULL");
         return NULL;
     }
-    fprintf(stderr, "[DEBUG] JSON → dictionary succeeded: %p\n", (void*)dict);
-
-    // Step 2: create actual Dataset from the dictionary
-    fprintf(stderr, "[DEBUG] Calling DatasetCreateFromDictionary(dict=%p)\n", (void*)dict);
-    DatasetRef ds = DatasetCreateFromDictionary(dict, outError);
-    if (!ds) {
-        const char *msg = outError && *outError
-                        ? OCStringGetCString(*outError)
-                        : "unknown error";
-        fprintf(stderr, "[DEBUG] DatasetCreateFromDictionary failed: %s\n", msg);
-    } else {
-        fprintf(stderr, "[DEBUG] DatasetCreateFromDictionary returned ds=%p\n", (void*)ds);
+    // Step 1: Convert JSON to internal dictionary
+    OCDictionaryRef dict = DatasetDictionaryCreateFromJSON(root, outError);
+    if (!dict) {
+        // outError already set by DatasetDictionaryCreateFromJSON
+        return NULL;
     }
-
-    // release our intermediate dictionary
+    // Step 2: Build the Dataset from the dictionary
+    DatasetRef ds = DatasetCreateFromDictionary(dict, outError);
     OCRelease(dict);
-    fprintf(stderr, "[DEBUG] <- DatasetCreateFromJSON returns ds=%p\n", (void*)ds);
+    if (!ds) {
+        // If the dictionary step succeeded but DatasetCreateFromDictionary
+        // failed without setting outError, provide a fallback message.
+        if (outError && !*outError) {
+            *outError = STR("Failed to construct Dataset from dictionary");
+        }
+        return NULL;
+    }
     return ds;
 }
-
 #pragma endregion Creators
 #pragma region Export/Import
 static bool join_path(char *out, size_t size, const char *dir, char sep, const char *relpath) {
@@ -1151,148 +1042,160 @@ bool DatasetExport(DatasetRef ds,
     }
     return true;
 }
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <limits.h>
-#include "RMNLibrary.h"
-#include "cJSON.h"
-
-// assume join_path(), read_file_bytes(), etc. are declared elsewhere
-
 DatasetRef DatasetCreateWithImport(const char *json_path,
                                    const char *binary_dir,
-                                   OCStringRef *outError)
-{
+                                   OCStringRef *outError) {
     if (outError) *outError = NULL;
-    fprintf(stderr, "[DEBUG] -> DatasetCreateWithImport(json_path=\"%s\", binary_dir=\"%s\")\n",
-            json_path, binary_dir);
-
     if (!json_path || !binary_dir) {
-        fprintf(stderr, "[DEBUG] Invalid args: json_path or binary_dir is NULL\n");
-        if (outError) *outError = STR("Invalid arguments");
+        if (outError) *outError = STR("Dataset import failed: invalid arguments");
         return NULL;
     }
-
-    // 1) Open JSON file
-    fprintf(stderr, "[DEBUG] Opening JSON file '%s'…\n", json_path);
+    /* 1) Open JSON file */
     FILE *jf = fopen(json_path, "rb");
     if (!jf) {
-        fprintf(stderr, "[DEBUG] fopen failed: %s (%d)\n", strerror(errno), errno);
-        if (outError) *outError = STR("Failed to open JSON file");
+        if (outError) {
+            OCStringRef pathStr = OCStringCreateWithCString(json_path);
+            *outError = OCStringCreateWithFormat(
+                STR("Dataset import failed: cannot open JSON file '%@'"),
+                pathStr);
+            OCRelease(pathStr);
+        }
         return NULL;
     }
-
-    // 2) Determine file size
+    /* 2) Determine file size */
     if (fseek(jf, 0, SEEK_END) != 0) {
-        fprintf(stderr, "[DEBUG] fseek(SEEK_END) failed: %s\n", strerror(errno));
         fclose(jf);
-        if (outError) *outError = STR("Failed to seek JSON file");
+        if (outError) *outError = STR("Dataset import failed: cannot seek JSON file");
         return NULL;
     }
     long fsize = ftell(jf);
-    fprintf(stderr, "[DEBUG] JSON file size = %ld bytes\n", fsize);
+    if (fsize < 0) {
+        fclose(jf);
+        if (outError) *outError = STR("Dataset import failed: cannot determine JSON file size");
+        return NULL;
+    }
     rewind(jf);
-
-    // 3) Read into buffer
+    /* 3) Read entire JSON into buffer */
     char *buffer = malloc((size_t)fsize + 1);
     if (!buffer) {
-        fprintf(stderr, "[DEBUG] malloc(%ld) failed\n", fsize + 1);
         fclose(jf);
-        if (outError) *outError = STR("Memory allocation failed");
+        if (outError) *outError = STR("Dataset import failed: memory allocation error");
         return NULL;
     }
     size_t got = fread(buffer, 1, (size_t)fsize, jf);
     fclose(jf);
     if (got != (size_t)fsize) {
-        fprintf(stderr, "[DEBUG] fread expected %ld bytes, got %zu\n", fsize, got);
         free(buffer);
-        if (outError) *outError = STR("Failed to read full JSON file");
+        if (outError) *outError = STR("Dataset import failed: incomplete read of JSON file");
         return NULL;
     }
     buffer[fsize] = '\0';
-
-    // 4) Parse JSON
-    fprintf(stderr, "[DEBUG] Parsing JSON…\n");
+    /* 4) Parse JSON */
     cJSON *root = cJSON_Parse(buffer);
     free(buffer);
     if (!root) {
         const char *errptr = cJSON_GetErrorPtr();
-        fprintf(stderr, "[DEBUG] cJSON_Parse failed at: %s\n",
-                errptr ? errptr : "unknown");
-        if (outError) *outError = STR("Invalid JSON format");
+        if (outError) {
+            if (errptr) {
+                OCStringRef errStr = OCStringCreateWithCString(errptr);
+                *outError = OCStringCreateWithFormat(
+                    STR("Dataset import failed: JSON parse error at '%@'"),
+                    errStr);
+                OCRelease(errStr);
+            } else {
+                *outError = STR("Dataset import failed: invalid JSON format");
+            }
+        }
         return NULL;
     }
-
-    // 5) Create Dataset from JSON
-    fprintf(stderr, "[DEBUG] Creating Dataset from JSON…\n");
+    /* 5) Build Dataset from JSON */
     DatasetRef ds = DatasetCreateFromJSON(root, outError);
     cJSON_Delete(root);
     if (!ds) {
-        fprintf(stderr, "[DEBUG] DatasetCreateFromJSON returned NULL\n");
+        /* outError was set by DatasetCreateFromJSON */
         return NULL;
     }
-    fprintf(stderr, "[DEBUG] DatasetCreateFromJSON succeeded\n");
-
-    // 6) Load external blobs if any
+    /* 6) Load any external blobs */
     OCIndex dvCount = ds->dependentVariables
-                    ? OCArrayGetCount(ds->dependentVariables)
-                    : 0;
-    fprintf(stderr, "[DEBUG] dependentVariables count = %lld\n", (long long)dvCount);
-
+                          ? OCArrayGetCount(ds->dependentVariables)
+                          : 0;
     for (OCIndex i = 0; i < dvCount; ++i) {
         DependentVariableRef dv = (DependentVariableRef)
             OCArrayGetValueAtIndex(ds->dependentVariables, i);
-        fprintf(stderr, "[DEBUG] DV[%lld]: shouldSerializeExternally = %s\n",
-                (long long)i,
-                DependentVariableShouldSerializeExternally(dv) ? "yes" : "no");
         if (!dv || !DependentVariableShouldSerializeExternally(dv))
             continue;
-
         OCStringRef url = DependentVariableGetComponentsURL(dv);
         if (!url) {
-            fprintf(stderr, "[DEBUG] DV[%lld] missing components_url\n", (long long)i);
-            if (outError) *outError = STR("Missing components_url in external DV");
+            if (outError) *outError = STR("Dataset import failed: missing components_url for external variable");
             OCRelease(ds);
             return NULL;
         }
-
         const char *relpath = OCStringGetCString(url);
         char fullpath[PATH_MAX];
         if (!join_path(fullpath, sizeof(fullpath),
-                       binary_dir, PATH_SEPARATOR, relpath))
-        {
-            fprintf(stderr, "[DEBUG] join_path overflow: \"%s\" + \"%s\"\n",
-                    binary_dir, relpath);
-            if (outError) *outError = STR("Binary path too long");
+                       binary_dir, PATH_SEPARATOR, relpath)) {
+            if (outError) *outError = STR("Dataset import failed: binary path too long for component");
             OCRelease(ds);
             return NULL;
         }
-        fprintf(stderr, "[DEBUG] Loading external blob from '%s'\n", fullpath);
-
         size_t total_bytes = 0;
         uint8_t *bytes = read_file_bytes(fullpath, &total_bytes);
         if (!bytes) {
-            fprintf(stderr, "[DEBUG] read_file_bytes failed for '%s'\n", fullpath);
             if (outError) {
                 OCStringRef pathStr = OCStringCreateWithCString(fullpath);
                 *outError = OCStringCreateWithFormat(
-                    STR("Failed to read file %@"), pathStr);
+                    STR("Dataset import failed: cannot read binary component '%@'"),
+                    pathStr);
                 OCRelease(pathStr);
             }
             OCRelease(ds);
             return NULL;
         }
-
-        // then handle components exactly as before...
+        OCIndex ncomps = DependentVariableGetComponentCount(dv);
+        if (ncomps == 0) {
+            ncomps = DependentVariableComponentsCountFromQuantityType(
+                DependentVariableGetQuantityType(dv));
+        }
+        OCIndex npts = DependentVariableGetSize(dv);
+        size_t elemSize = SIQuantityElementSize((SIQuantityRef)dv);
+        size_t chunk = (size_t)npts * elemSize;
+        if (chunk * (size_t)ncomps != total_bytes) {
+            free(bytes);
+            if (outError) *outError = STR("Dataset import failed: binary size mismatch for component");
+            OCRelease(ds);
+            return NULL;
+        }
+        OCMutableArrayRef comps = OCArrayCreateMutable(ncomps, &kOCTypeArrayCallBacks);
+        if (!comps) {
+            free(bytes);
+            if (outError) *outError = STR("Dataset import failed: cannot allocate components array");
+            OCRelease(ds);
+            return NULL;
+        }
+        for (OCIndex ci = 0; ci < ncomps; ++ci) {
+            OCMutableDataRef buf = OCDataCreateMutable(chunk);
+            if (!buf || !OCDataAppendBytes(buf, bytes + (ci * chunk), chunk)) {
+                OCRelease(buf);
+                OCRelease(comps);
+                free(bytes);
+                if (outError) *outError = STR("Dataset import failed: cannot create component buffer");
+                OCRelease(ds);
+                return NULL;
+            }
+            OCArrayAppendValue(comps, buf);
+            OCRelease(buf);
+        }
         free(bytes);
+        if (!DependentVariableSetComponents(dv, comps)) {
+            OCRelease(comps);
+            if (outError) *outError = STR("Dataset import failed: cannot install DV components");
+            OCRelease(ds);
+            return NULL;
+        }
+        OCRelease(comps);
     }
-
-    fprintf(stderr, "[DEBUG] <- DatasetCreateWithImport succeeded\n");
     return ds;
 }
-
 #pragma endregion Export / Import
 #pragma region Getters/Setters
 OCMutableArrayRef DatasetGetDimensions(DatasetRef ds) {
