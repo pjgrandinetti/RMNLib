@@ -334,7 +334,7 @@ bool test_DependentVariable_invalid_create(void) {
     DependentVariableRef dv = DependentVariableCreate(
         STR("x"), STR("desc"),
         SIUnitDimensionlessAndUnderived(),
-        STR(""), STR("vector_2"),
+        kSIQuantityDimensionless, STR("vector_2"),
         kSINumberFloat32Type,
         NULL,
         comps,

@@ -200,29 +200,23 @@ static bool validateDependentVariableParameters(
     OCStringRef quantityType,
     OCArrayRef componentLabels,
     OCIndex componentsCount,
-    SparseSamplingRef sparseSampling)
-{
+    SparseSamplingRef sparseSampling) {
     // 0) type must be either "internal" or "external"
     if (!type ||
         (!OCStringEqual(type, STR(kDependentVariableComponentTypeValueInternal)) &&
-         !OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal))))
-    {
+         !OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal)))) {
         return false;
     }
-
     // 1) components‐vs‐labels
     if (componentLabels) {
         OCIndex labelCount = OCArrayGetCount(componentLabels);
         if (labelCount != componentsCount) return false;
         for (OCIndex i = 0; i < labelCount; ++i) {
-            if (OCGetTypeID(OCArrayGetValueAtIndex(componentLabels, i))
-                != OCStringGetTypeID())
-            {
+            if (OCGetTypeID(OCArrayGetValueAtIndex(componentLabels, i)) != OCStringGetTypeID()) {
                 return false;
             }
         }
     }
-
     // 2) quantityName vs unit dimensionality
     if (quantityName) {
         OCStringRef err = NULL;
@@ -237,7 +231,6 @@ static bool validateDependentVariableParameters(
         OCRelease(err);
         if (!match) return false;
     }
-
     // 3) quantityType semantics (“scalar”, “vector_N”, etc.)
     const char *qt = OCStringGetCString(quantityType);
     size_t len = qt ? strlen(qt) : 0;
@@ -261,7 +254,6 @@ static bool validateDependentVariableParameters(
             n * (n + 1) / 2 != componentsCount)
             return false;
     }
-
     // 4) sparse‐sampling consistency
     if (sparseSampling) {
         OCStringRef err = NULL;
@@ -270,39 +262,33 @@ static bool validateDependentVariableParameters(
             return false;
         }
     }
-
     return true;
 }
-
 #pragma endregion Type Registration
 #pragma region Creators
 #pragma mark — Core Creator
-
 static DependentVariableRef impl_DependentVariableCreate(
-    OCStringRef   type,                   // "internal" or "external"
-    OCStringRef   name,
-    OCStringRef   description,
-    SIUnitRef     unit,
-    OCStringRef   quantityName,
-    OCStringRef   quantityType,
-    SINumberType  elementType,
-    OCArrayRef    componentLabels,
-    OCArrayRef    components,
-    bool          copyComponents,
-    OCIndex       explicitSize,          // elements-per-component if components==NULL
-    OCStringRef   componentsURL,         // only for external
+    OCStringRef type,  // "internal" or "external"
+    OCStringRef name,
+    OCStringRef description,
+    SIUnitRef unit,
+    OCStringRef quantityName,
+    OCStringRef quantityType,
+    SINumberType elementType,
+    OCArrayRef componentLabels,
+    OCArrayRef components,
+    bool copyComponents,
+    OCIndex explicitSize,       // elements-per-component if components==NULL
+    OCStringRef componentsURL,  // only for external
     SparseSamplingRef sparseSampling,
-    OCStringRef  *outError)
-{
+    OCStringRef *outError) {
     bool isExternal = type && OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal));
-
     // 0) internal must have either buffers or positive explicitSize
     if (!isExternal && !components && explicitSize <= 0) {
         if (outError) *outError = STR(
-            "DependentVariableCreate: must supply either component buffers or an explicitSize > 0");
+                          "DependentVariableCreate: must supply either component buffers or an explicitSize > 0");
         return NULL;
     }
-
     // 1) determine component count
     OCIndex componentsCount;
     if (isExternal) {
@@ -312,8 +298,7 @@ static DependentVariableRef impl_DependentVariableCreate(
             if (outError) *outError = STR("DependentVariableCreate: invalid quantityType for external");
             return NULL;
         }
-    }
-    else if (components) {
+    } else if (components) {
         componentsCount = OCArrayGetCount(components);
         // validate each element is OCDataRef, and all lengths match
         for (OCIndex i = 0; i < componentsCount; ++i) {
@@ -322,16 +307,15 @@ static DependentVariableRef impl_DependentVariableCreate(
                 return NULL;
             }
         }
-        uint64_t len0 = componentsCount ? OCDataGetLength((OCDataRef)OCArrayGetValueAtIndex(components,0)) : 0;
+        uint64_t len0 = componentsCount ? OCDataGetLength((OCDataRef)OCArrayGetValueAtIndex(components, 0)) : 0;
         for (OCIndex i = 1; i < componentsCount; ++i) {
-            uint64_t leni = OCDataGetLength((OCDataRef)OCArrayGetValueAtIndex(components,i));
+            uint64_t leni = OCDataGetLength((OCDataRef)OCArrayGetValueAtIndex(components, i));
             if (leni != len0) {
                 if (outError) *outError = STR("component buffers have mismatched lengths");
                 return NULL;
             }
         }
-    }
-    else {
+    } else {
         // no buffers → build count from quantityType
         componentsCount = DependentVariableComponentsCountFromQuantityType(quantityType);
         if (componentsCount == kOCNotFound) {
@@ -343,49 +327,42 @@ static DependentVariableRef impl_DependentVariableCreate(
             return NULL;
         }
     }
-
     // 2) semantic validation
     if (!validateDependentVariableParameters(
             type, unit, quantityName, quantityType,
             componentLabels, componentsCount,
-            sparseSampling))
-    {
+            sparseSampling)) {
         return NULL;
     }
-
     // 3) allocate & init
     struct impl_DependentVariable *dv = DependentVariableAllocate();
     if (!dv) return NULL;
     impl_InitDependentVariableFields(dv);
-
     // sparseSampling
     OCRelease(dv->sparseSampling);
     dv->sparseSampling = sparseSampling
                              ? (SparseSamplingRef)OCTypeDeepCopyMutable(sparseSampling)
                              : NULL;
-
     // 4) storage‐mode and URL
     OCRelease(dv->type);
     dv->type = OCStringCreateCopy(type);
     OCRelease(dv->encoding);
     dv->encoding = isExternal
-                   ? NULL
-                   : STR(kDependentVariableEncodingValueNone);
+                       ? NULL
+                       : STR(kDependentVariableEncodingValueNone);
     OCRelease(dv->componentsURL);
     dv->componentsURL = componentsURL
                             ? OCStringCreateCopy(componentsURL)
                             : NULL;
-
     // 5) metadata
-    dv->numericType  = elementType;
-    dv->unit         = unit ? unit : SIUnitDimensionlessAndUnderived();
+    dv->numericType = elementType;
+    dv->unit = unit ? unit : SIUnitDimensionlessAndUnderived();
     dv->quantityType = quantityType ? OCRetain(quantityType) : STR("scalar");
-    dv->name         = name        ? OCStringCreateCopy(name)       : STR("");
-    dv->description  = description ? OCStringCreateCopy(description) : STR("");
+    dv->name = name ? OCStringCreateCopy(name) : STR("");
+    dv->description = description ? OCStringCreateCopy(description) : STR("");
     dv->quantityName = quantityName
-                          ? OCRetain(quantityName)
-                          : OCStringCreateCopy(SIUnitGuessQuantityName(dv->unit));
-
+                           ? OCRetain(quantityName)
+                           : OCStringCreateCopy(SIUnitGuessQuantityName(dv->unit));
     // 6) build components array
     OCRelease(dv->components);
     dv->components = OCArrayCreateMutable(componentsCount, &kOCTypeArrayCallBacks);
@@ -393,12 +370,10 @@ static DependentVariableRef impl_DependentVariableCreate(
         OCRelease(dv);
         return NULL;
     }
-
     if (isExternal) {
         // we’ll fill dv->components later when actually loading the URL…
         // for now leave it an empty array of length 0.
-    }
-    else if (components) {
+    } else if (components) {
         // copy or reference each existing buffer
         for (OCIndex i = 0; i < componentsCount; ++i) {
             OCDataRef blob = (OCDataRef)OCArrayGetValueAtIndex(components, i);
@@ -410,8 +385,7 @@ static DependentVariableRef impl_DependentVariableCreate(
                 OCArrayAppendValue(dv->components, blob);
             }
         }
-    }
-    else {
+    } else {
         // zero-initialize explicitSize elements-per-component
         size_t eltSize = OCNumberTypeSize((OCNumberType)elementType);
         size_t byteLen = (size_t)explicitSize * eltSize;
@@ -422,7 +396,6 @@ static DependentVariableRef impl_DependentVariableCreate(
             OCRelease(buf);
         }
     }
-
     // 7) build labels array
     OCRelease(dv->componentLabels);
     dv->componentLabels = OCArrayCreateMutable(componentsCount, &kOCTypeArrayCallBacks);
@@ -433,7 +406,7 @@ static DependentVariableRef impl_DependentVariableCreate(
     if (componentLabels) {
         for (OCIndex i = 0; i < componentsCount; ++i) {
             OCArrayAppendValue(dv->componentLabels,
-                                OCArrayGetValueAtIndex(componentLabels,i));
+                               OCArrayGetValueAtIndex(componentLabels, i));
         }
     } else {
         for (OCIndex i = 0; i < componentsCount; ++i) {
@@ -443,87 +416,77 @@ static DependentVariableRef impl_DependentVariableCreate(
             OCRelease(autoLbl);
         }
     }
-
     return (DependentVariableRef)dv;
 }
-
 #pragma mark — Public Factories
-
 DependentVariableRef DependentVariableCreate(
-    OCStringRef   name,
-    OCStringRef   description,
-    SIUnitRef     unit,
-    OCStringRef   quantityName,
-    OCStringRef   quantityType,
-    SINumberType  elementType,
-    OCArrayRef    componentLabels,
-    OCArrayRef    components,
-    OCStringRef  *outError)
-{
+    OCStringRef name,
+    OCStringRef description,
+    SIUnitRef unit,
+    OCStringRef quantityName,
+    OCStringRef quantityType,
+    SINumberType elementType,
+    OCArrayRef componentLabels,
+    OCArrayRef components,
+    OCStringRef *outError) {
     return impl_DependentVariableCreate(
         STR(kDependentVariableComponentTypeValueInternal),
         name, description, unit,
         quantityName, quantityType, elementType,
         componentLabels, components,
-        true,      /* copyComponents */
+        true, /* copyComponents */
         (OCIndex)-1,
-        NULL,      /* componentsURL */
-        NULL,      /* sparseSampling */
+        NULL, /* componentsURL */
+        NULL, /* sparseSampling */
         outError);
 }
-
 DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
-    OCStringRef   name,
-    OCStringRef   description,
-    SIUnitRef     unit,
-    OCStringRef   quantityName,
-    OCStringRef   quantityType,
-    SINumberType  elementType,
-    OCArrayRef    componentLabels,
-    OCArrayRef    components,
-    OCStringRef  *outError)
-{
+    OCStringRef name,
+    OCStringRef description,
+    SIUnitRef unit,
+    OCStringRef quantityName,
+    OCStringRef quantityType,
+    SINumberType elementType,
+    OCArrayRef componentLabels,
+    OCArrayRef components,
+    OCStringRef *outError) {
     return impl_DependentVariableCreate(
         STR(kDependentVariableComponentTypeValueInternal),
         name, description, unit,
         quantityName, quantityType, elementType,
         componentLabels, components,
-        false,     /* copyComponents */
+        false, /* copyComponents */
         (OCIndex)-1,
         NULL,
         NULL,
         outError);
 }
-
 DependentVariableRef DependentVariableCreateWithSize(
-    OCStringRef   name,
-    OCStringRef   description,
-    SIUnitRef     unit,
-    OCStringRef   quantityName,
-    OCStringRef   quantityType,
-    SINumberType  elementType,
-    OCArrayRef    componentLabels,
-    OCIndex       size,
-    OCStringRef  *outError)
-{
+    OCStringRef name,
+    OCStringRef description,
+    SIUnitRef unit,
+    OCStringRef quantityName,
+    OCStringRef quantityType,
+    SINumberType elementType,
+    OCArrayRef componentLabels,
+    OCIndex size,
+    OCStringRef *outError) {
     return impl_DependentVariableCreate(
         STR(kDependentVariableComponentTypeValueInternal),
         name, description, unit,
         quantityName, quantityType, elementType,
         componentLabels, NULL,
-        false,     /* copyComponents */
-        size,      /* explicitSize */
+        false, /* copyComponents */
+        size,  /* explicitSize */
         NULL,
         NULL,
         outError);
 }
-
 DependentVariableRef DependentVariableCreateDefault(
-    OCStringRef   quantityType,
-    SINumberType  elementType,
-    OCIndex       size,
-    OCStringRef  *outError)
-{
+    OCStringRef quantityType,
+    SINumberType elementType,
+    OCIndex size,
+    OCStringRef *outError) {
     return impl_DependentVariableCreate(
         STR(kDependentVariableComponentTypeValueInternal),
         NULL, NULL, NULL,
@@ -535,17 +498,15 @@ DependentVariableRef DependentVariableCreateDefault(
         NULL,
         outError);
 }
-
 DependentVariableRef DependentVariableCreateWithComponent(
-    OCStringRef   name,
-    OCStringRef   description,
-    SIUnitRef     unit,
-    OCStringRef   quantityName,
-    SINumberType  elementType,
-    OCArrayRef    componentLabels,
-    OCDataRef     component,
-    OCStringRef  *outError)
-{
+    OCStringRef name,
+    OCStringRef description,
+    SIUnitRef unit,
+    OCStringRef quantityName,
+    SINumberType elementType,
+    OCArrayRef componentLabels,
+    OCDataRef component,
+    OCStringRef *outError) {
     OCMutableArrayRef arr = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(arr, component);
     DependentVariableRef dv = impl_DependentVariableCreate(
@@ -553,7 +514,7 @@ DependentVariableRef DependentVariableCreateWithComponent(
         name, description, unit,
         quantityName, STR("scalar"), elementType,
         componentLabels, arr,
-        true,     /* copyComponents */
+        true, /* copyComponents */
         (OCIndex)-1,
         NULL,
         NULL,
@@ -561,27 +522,23 @@ DependentVariableRef DependentVariableCreateWithComponent(
     OCRelease(arr);
     return dv;
 }
-
 DependentVariableRef DependentVariableCreateExternal(
-    OCStringRef   name,
-    OCStringRef   description,
-    SIUnitRef     unit,
-    OCStringRef   quantityName,
-    OCStringRef   quantityType,
-    SINumberType  elementType,
-    OCStringRef   componentsURL,
-    OCStringRef  *outError)
-{
+    OCStringRef name,
+    OCStringRef description,
+    SIUnitRef unit,
+    OCStringRef quantityName,
+    OCStringRef quantityType,
+    SINumberType elementType,
+    OCStringRef componentsURL,
+    OCStringRef *outError) {
     if (componentsURL == NULL) {
         if (outError) {
             *outError = STR(
                 "DependentVariableCreateExternal: "
-                "must supply a non-NULL componentsURL for external variables"
-            );
+                "must supply a non-NULL componentsURL for external variables");
         }
         return NULL;
     }
-
     return impl_DependentVariableCreate(
         /* type               */ STR(kDependentVariableComponentTypeValueExternal),
         /* name               */ name,
@@ -593,7 +550,7 @@ DependentVariableRef DependentVariableCreateExternal(
         /* componentLabels    */ NULL,
         /* components         */ NULL,
         /* copyComponents     */ false,
-        /* explicitSize       */ 0,              // ignored for external
+        /* explicitSize       */ 0,  // ignored for external
         /* componentsURL      */ componentsURL,
         /* sparseSampling     */ NULL,
         /* outError           */ outError);
@@ -946,16 +903,22 @@ cJSON *DependentVariableCreateJSON(DependentVariableRef dv) {
     // 4) Return the cJSON object (caller is responsible for cJSON_Delete)
     return json;
 }
-static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json,
-                                                                 OCStringRef *outError) {
+static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!json || !cJSON_IsObject(json)) {
         if (outError)
             *outError = STR("Expected top-level JSON object for DependentVariable");
         return NULL;
     }
+
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
+    if (!dict) {
+        if (outError) *outError = STR("Failed to allocate dictionary");
+        return NULL;
+    }
+
     cJSON *item = NULL;
+
     // 1) Required: type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableTypeKey);
     if (!cJSON_IsString(item)) {
@@ -963,23 +926,28 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json,
         OCRelease(dict);
         return NULL;
     }
-    OCDictionarySetValue(dict,
-                         STR(kDependentVariableTypeKey),
-                         OCStringCreateWithCString(item->valuestring));
+    {
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kDependentVariableTypeKey), tmp);
+        OCRelease(tmp);
+    }
+
     // 1a) Optional: components_url
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsURLKey);
     if (cJSON_IsString(item)) {
-        OCDictionarySetValue(dict,
-                             STR(kDependentVariableComponentsURLKey),
-                             OCStringCreateWithCString(item->valuestring));
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kDependentVariableComponentsURLKey), tmp);
+        OCRelease(tmp);
     }
+
     // 1b) Optional: encoding
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableEncodingKey);
     if (cJSON_IsString(item)) {
-        OCDictionarySetValue(dict,
-                             STR(kDependentVariableEncodingKey),
-                             OCStringCreateWithCString(item->valuestring));
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kDependentVariableEncodingKey), tmp);
+        OCRelease(tmp);
     }
+
     // 2) Required: components
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsKey);
     if (!cJSON_IsArray(item)) {
@@ -1012,26 +980,29 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json,
     }
     OCDictionarySetValue(dict, STR(kDependentVariableComponentsKey), components);
     OCRelease(components);
+
     // 3) Optional: name, description
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNameKey);
     if (cJSON_IsString(item)) {
-        OCDictionarySetValue(dict,
-                             STR(kDependentVariableNameKey),
-                             OCStringCreateWithCString(item->valuestring));
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kDependentVariableNameKey), tmp);
+        OCRelease(tmp);
     }
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableDescriptionKey);
     if (cJSON_IsString(item)) {
-        OCDictionarySetValue(dict,
-                             STR(kDependentVariableDescriptionKey),
-                             OCStringCreateWithCString(item->valuestring));
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kDependentVariableDescriptionKey), tmp);
+        OCRelease(tmp);
     }
+
     // 4) Optional: quantity_name
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityNameKey);
     if (cJSON_IsString(item)) {
-        OCDictionarySetValue(dict,
-                             STR(kDependentVariableQuantityNameKey),
-                             OCStringCreateWithCString(item->valuestring));
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kDependentVariableQuantityNameKey), tmp);
+        OCRelease(tmp);
     }
+
     // 5) Required: quantity_type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1039,16 +1010,20 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json,
         OCRelease(dict);
         return NULL;
     }
-    OCDictionarySetValue(dict,
-                         STR(kDependentVariableQuantityTypeKey),
-                         OCStringCreateWithCString(item->valuestring));
+    {
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kDependentVariableQuantityTypeKey), tmp);
+        OCRelease(tmp);
+    }
+
     // 6) Optional: unit
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableUnitKey);
     if (cJSON_IsString(item)) {
-        OCDictionarySetValue(dict,
-                             STR(kDependentVariableUnitKey),
-                             OCStringCreateWithCString(item->valuestring));
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kDependentVariableUnitKey), tmp);
+        OCRelease(tmp);
     }
+
     // 7) Required: numeric_type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNumericTypeKey);
     if (!cJSON_IsNumber(item)) {
@@ -1061,6 +1036,7 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json,
         OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), num);
         OCRelease(num);
     }
+
     // 8) Optional: component_labels
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentLabelsKey);
     if (cJSON_IsArray(item)) {
@@ -1074,32 +1050,28 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json,
                 OCRelease(lbl);
             }
         }
-        OCDictionarySetValue(dict,
-                             STR(kDependentVariableComponentLabelsKey),
-                             labels);
+        OCDictionarySetValue(dict, STR(kDependentVariableComponentLabelsKey), labels);
         OCRelease(labels);
     }
+
     // 9) Optional: sparse_sampling
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableSparseSamplingKey);
     if (cJSON_IsObject(item)) {
-        // 9a) parse JSON → SparseSamplingRef
         SparseSamplingRef ss = SparseSamplingCreateFromJSON(item, outError);
         if (!ss) {
             OCRelease(dict);
             return NULL;
         }
-        // 9b) convert back to a dictionary for embedding
         OCDictionaryRef spDict = SparseSamplingCopyAsDictionary(ss);
         OCRelease(ss);
         if (!spDict) {
             OCRelease(dict);
             return NULL;
         }
-        OCDictionarySetValue(dict,
-                             STR(kDependentVariableSparseSamplingKey),
-                             spDict);
+        OCDictionarySetValue(dict, STR(kDependentVariableSparseSamplingKey), spDict);
         OCRelease(spDict);
     }
+
     return dict;
 }
 DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *outError) {
