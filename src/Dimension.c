@@ -251,7 +251,7 @@ static OCDictionaryRef impl_DimensionCopyAsDictionary(DimensionRef dim) {
     }
     return dict;
 }
-static OCDictionaryRef DimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
+static OCDictionaryRef impl_DimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!json || !cJSON_IsObject(json)) {
         if (outError) *outError = STR("Expected JSON object for Dimension");
@@ -286,14 +286,14 @@ static OCDictionaryRef DimensionDictionaryCreateFromJSON(cJSON *json, OCStringRe
     }
     return dict;
 }
-DimensionRef DimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
+static DimensionRef impl_DimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!json || !cJSON_IsObject(json)) {
         if (outError) *outError = STR("Expected JSON object for Dimension");
         return NULL;
     }
     // Schema-bound: interpret known fields only
-    OCDictionaryRef dict = DimensionDictionaryCreateFromJSON(json, outError);
+    OCDictionaryRef dict = impl_DimensionDictionaryCreateFromJSON(json, outError);
     if (!dict) return NULL;
     // Delegate to the type-dispatching dictionary constructor
     DimensionRef dim = DimensionCreateFromDictionary(dict, outError);
@@ -2883,45 +2883,75 @@ OCStringRef CreateLongDimensionLabel(DimensionRef dim, OCIndex index) {
 OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim) {
     if (!dim) return NULL;
     OCTypeID tid = OCGetTypeID(dim);
-    OCDictionaryRef dict = NULL;
-    if (tid == LabeledDimensionGetTypeID()) {
-        dict = LabeledDimensionCopyAsDictionary((LabeledDimensionRef)dim);
-    } else if (tid == SIMonotonicDimensionGetTypeID()) {
-        dict = SIMonotonicDimensionCopyAsDictionary((SIMonotonicDimensionRef)dim);
-    } else if (tid == SILinearDimensionGetTypeID()) {
-        dict = SILinearDimensionCopyAsDictionary((SILinearDimensionRef)dim);
-    } else {
-        // fallback to the abstract‐base serialization
-        dict = impl_DimensionCopyAsDictionary(dim);
-    }
-    return dict;  // caller takes ownership of the returned dictionary
+    if      (tid == LabeledDimensionGetTypeID())
+        return LabeledDimensionCopyAsDictionary((LabeledDimensionRef)dim);
+    else if (tid == SIMonotonicDimensionGetTypeID())
+        return SIMonotonicDimensionCopyAsDictionary((SIMonotonicDimensionRef)dim);
+    else if (tid == SILinearDimensionGetTypeID())
+        return SILinearDimensionCopyAsDictionary((SILinearDimensionRef)dim);
+    else if (tid == SIDimensionGetTypeID())
+        return SIDimensionCopyAsDictionary((SIDimensionRef)dim);
+    else
+        return impl_DimensionCopyAsDictionary(dim);  // fallback
 }
 DimensionRef DimensionCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!dict) {
-        if (outError) *outError = OCStringCreateWithCString(
-                          "DimensionCreateFromDictionary: input dictionary is NULL");
+        if (outError)
+            *outError = OCStringCreateWithCString("DimensionCreateFromDictionary: input dictionary is NULL");
         return NULL;
     }
+
     OCStringRef type = (OCStringRef)OCDictionaryGetValue(dict, STR("type"));
     if (type) {
-        // subclass dispatch
         if (OCStringEqual(type, STR("labeled"))) {
             return (DimensionRef)LabeledDimensionCreateFromDictionary(dict, outError);
         } else if (OCStringEqual(type, STR("linear"))) {
             return (DimensionRef)SILinearDimensionCreateFromDictionary(dict, outError);
         } else if (OCStringEqual(type, STR("monotonic"))) {
             return (DimensionRef)SIMonotonicDimensionCreateFromDictionary(dict, outError);
+        } else if (OCStringEqual(type, STR("si_dimension"))) {
+            return (DimensionRef)SIDimensionCreateFromDictionary(dict, outError);
         } else {
             if (outError) {
                 *outError = OCStringCreateWithFormat(
-                    STR("DimensionCreateFromDictionary: unknown type \"%@\""),
-                    type);
+                    STR("DimensionCreateFromDictionary: unknown type \"%@\""), type);
             }
             return NULL;
         }
     }
-    // no type discriminator → treat as abstract‐base Dimension
+
+    // fallback to base
     return impl_DimensionCreateFromDictionary(dict);
 }
+
+DimensionRef DimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
+    if (outError) *outError = NULL;
+    if (!json || !cJSON_IsObject(json)) {
+        if (outError)
+            *outError = STR("DimensionCreateFromJSON: expected JSON object");
+        return NULL;
+    }
+
+    cJSON *typeItem = cJSON_GetObjectItemCaseSensitive(json, "type");
+    if (typeItem && cJSON_IsString(typeItem)) {
+        const char *typeStr = typeItem->valuestring;
+        if      (strcmp(typeStr, "labeled") == 0)
+            return (DimensionRef)LabeledDimensionCreateFromJSON(json, outError);
+        else if (strcmp(typeStr, "linear") == 0)
+            return (DimensionRef)SILinearDimensionCreateFromJSON(json, outError);
+        else if (strcmp(typeStr, "monotonic") == 0)
+            return (DimensionRef)SIMonotonicDimensionCreateFromJSON(json, outError);
+        else if (strcmp(typeStr, "si_dimension") == 0)
+            return (DimensionRef)SIDimensionCreateFromJSON(json, outError);
+        else {
+            if (outError)
+                *outError = OCStringCreateWithFormat(STR("DimensionCreateFromJSON: unknown type \"%s\""), typeStr);
+            return NULL;
+        }
+    }
+
+    return impl_DimensionCreateFromJSON(json, outError);
+}
+
 #pragma endregion Dimension Utilities

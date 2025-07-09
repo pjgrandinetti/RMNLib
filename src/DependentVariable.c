@@ -579,8 +579,8 @@ DependentVariableRef DependentVariableCreateComplexCopy(DependentVariableRef src
         SINumberType base = DependentVariableGetElementType(dv);
         SINumberType complexType =
             (base == kSINumberFloat32Type
-                 ? kSINumberFloat32ComplexType
-                 : kSINumberFloat64ComplexType);
+                 ? kSINumberComplex64Type
+                 : kSINumberComplex128Type);
         DependentVariableSetElementType(dv, complexType);
     }
     return dv;
@@ -613,7 +613,7 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
     {
         SINumberType et = DependentVariableGetElementType(dv);
         bool isBase64 = dv->encoding && OCStringEqual(dv->encoding, STR(kDependentVariableEncodingValueBase64));
-        bool isComplex = (et == kSINumberFloat32ComplexType || et == kSINumberFloat64ComplexType);
+        bool isComplex = (et == kSINumberComplex64Type || et == kSINumberComplex128Type);
         OCIndex ncomps = DependentVariableGetComponentCount(dv);
         OCMutableArrayRef compsArr = OCArrayCreateMutable(ncomps, &kOCTypeArrayCallBacks);
         for (OCIndex i = 0; i < ncomps; ++i) {
@@ -646,7 +646,7 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
                         }
                     }
                 } else {
-                    if (et == kSINumberFloat32ComplexType) {
+                    if (et == kSINumberComplex64Type) {
                         float complex *arr = (float complex *)bytes;
                         for (OCIndex j = 0; j < count; ++j) {
                             OCNumberRef re = OCNumberCreateWithDouble((double)crealf(arr[j]));
@@ -813,7 +813,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
                         OCDataAppendBytes(data, (const uint8_t *)&d, sizeof(d));
                         break;
                     }
-                    case kSINumberFloat32ComplexType: {
+                    case kSINumberComplex64Type: {
                         float re = (float)v, im = 0;
                         if (j + 1 < n) {
                             OCNumberRef next = OCArrayGetValueAtIndex(numList, ++j);
@@ -824,7 +824,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
                         OCDataAppendBytes(data, (const uint8_t *)&z, sizeof(z));
                         break;
                     }
-                    case kSINumberFloat64ComplexType: {
+                    case kSINumberComplex128Type: {
                         double re = v, im = 0;
                         if (j + 1 < n) {
                             OCNumberRef next = OCArrayGetValueAtIndex(numList, ++j);
@@ -1027,9 +1027,9 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
     else if (strcmp(typeStr, "float64") == 0)
         code = kSINumberFloat64Type;
     else if (strcmp(typeStr, "complex32") == 0)
-        code = kSINumberFloat32ComplexType;
+        code = kSINumberComplex64Type;
     else if (strcmp(typeStr, "complex64") == 0)
-        code = kSINumberFloat64ComplexType;
+        code = kSINumberComplex128Type;
     else {
         if (outError) *outError = STR(
                           "Unrecognized \"numeric_type\"; expected one of "
@@ -1151,11 +1151,11 @@ DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv
                 case kSINumberFloat64Type:
                     ((double *)dstPtr)[0] = ((double *)srcPtr)[memOff];
                     break;
-                case kSINumberFloat32ComplexType:
+                case kSINumberComplex64Type:
                     ((float complex *)dstPtr)[0] =
                         ((float complex *)srcPtr)[memOff];
                     break;
-                case kSINumberFloat64ComplexType:
+                case kSINumberComplex128Type:
                     ((double complex *)dstPtr)[0] =
                         ((double complex *)srcPtr)[memOff];
                     break;
@@ -1175,11 +1175,11 @@ DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv
                     case kSINumberFloat64Type:
                         ((double *)dstPtr)[outOff] = ((double *)srcPtr)[memOff];
                         break;
-                    case kSINumberFloat32ComplexType:
+                    case kSINumberComplex64Type:
                         ((float complex *)dstPtr)[outOff] =
                             ((float complex *)srcPtr)[memOff];
                         break;
-                    case kSINumberFloat64ComplexType:
+                    case kSINumberComplex128Type:
                         ((double complex *)dstPtr)[outOff] =
                             ((double complex *)srcPtr)[memOff];
                         break;
@@ -1570,10 +1570,10 @@ bool DependentVariableSetSize(DependentVariableRef dv, OCIndex newSize) {
         case kSINumberFloat64Type:
             elemSize = sizeof(double);
             break;
-        case kSINumberFloat32ComplexType:
+        case kSINumberComplex64Type:
             elemSize = 2 * sizeof(float);
             break;
-        case kSINumberFloat64ComplexType:
+        case kSINumberComplex128Type:
             elemSize = 2 * sizeof(double);
             break;
         default:
@@ -1953,10 +1953,10 @@ bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newTy
                         case kSINumberFloat64Type:
                             ((double *)tmpBuf)[ei] = f;
                             break;
-                        case kSINumberFloat32ComplexType:
+                        case kSINumberComplex64Type:
                             ((float complex *)tmpBuf)[ei] = f;
                             break;
-                        case kSINumberFloat64ComplexType:
+                        case kSINumberComplex128Type:
                             ((double complex *)tmpBuf)[ei] = f;
                             break;
                         default:
@@ -1974,10 +1974,10 @@ bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newTy
                         case kSINumberFloat64Type:
                             ((double *)tmpBuf)[ei] = d;
                             break;
-                        case kSINumberFloat32ComplexType:
+                        case kSINumberComplex64Type:
                             ((float complex *)tmpBuf)[ei] = (float)d;
                             break;
-                        case kSINumberFloat64ComplexType:
+                        case kSINumberComplex128Type:
                             ((double complex *)tmpBuf)[ei] = d;
                             break;
                         default:
@@ -1985,7 +1985,7 @@ bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newTy
                     }
                     break;
                 }
-                case kSINumberFloat32ComplexType: {
+                case kSINumberComplex64Type: {
                     float complex *src = (float complex *)oldPtr;
                     float complex z = src[ei];
                     switch (newType) {
@@ -1995,10 +1995,10 @@ bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newTy
                         case kSINumberFloat64Type:
                             ((double *)tmpBuf)[ei] = crealf(z);
                             break;
-                        case kSINumberFloat32ComplexType:
+                        case kSINumberComplex64Type:
                             ((float complex *)tmpBuf)[ei] = z;
                             break;
-                        case kSINumberFloat64ComplexType:
+                        case kSINumberComplex128Type:
                             ((double complex *)tmpBuf)[ei] = z;
                             break;
                         default:
@@ -2006,7 +2006,7 @@ bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newTy
                     }
                     break;
                 }
-                case kSINumberFloat64ComplexType: {
+                case kSINumberComplex128Type: {
                     double complex *src = (double complex *)oldPtr;
                     double complex z = src[ei];
                     switch (newType) {
@@ -2016,10 +2016,10 @@ bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newTy
                         case kSINumberFloat64Type:
                             ((double *)tmpBuf)[ei] = creal(z);
                             break;
-                        case kSINumberFloat32ComplexType:
+                        case kSINumberComplex64Type:
                             ((float complex *)tmpBuf)[ei] = (float)creal(z) + (float)cimag(z) * I;
                             break;
-                        case kSINumberFloat64ComplexType:
+                        case kSINumberComplex128Type:
                             ((double complex *)tmpBuf)[ei] = z;
                             break;
                         default:
@@ -2087,11 +2087,11 @@ float DependentVariableGetFloatValueAtMemOffset(DependentVariableRef dv, OCIndex
             double *arr = (double *)bytes;
             return (float)arr[memOffset];
         }
-        case kSINumberFloat32ComplexType: {
+        case kSINumberComplex64Type: {
             float complex *arr = (float complex *)bytes;
             return (float)crealf(arr[memOffset]);
         }
-        case kSINumberFloat64ComplexType: {
+        case kSINumberComplex128Type: {
             double complex *arr = (double complex *)bytes;
             return (float)crealf(arr[memOffset]);
         }
@@ -2120,11 +2120,11 @@ double DependentVariableGetDoubleValueAtMemOffset(DependentVariableRef dv, OCInd
             double *arr = (double *)bytes;
             return arr[memOffset];
         }
-        case kSINumberFloat32ComplexType: {
+        case kSINumberComplex64Type: {
             float complex *arr = (float complex *)bytes;
             return (double)crealf(arr[memOffset]);
         }
-        case kSINumberFloat64ComplexType: {
+        case kSINumberComplex128Type: {
             double complex *arr = (double complex *)bytes;
             return creal(arr[memOffset]);
         }
@@ -2153,11 +2153,11 @@ float complex DependentVariableGetFloatComplexValueAtMemOffset(DependentVariable
             double *arr = (double *)bytes;
             return (float complex)arr[memOffset];
         }
-        case kSINumberFloat32ComplexType: {
+        case kSINumberComplex64Type: {
             float complex *arr = (float complex *)bytes;
             return arr[memOffset];
         }
-        case kSINumberFloat64ComplexType: {
+        case kSINumberComplex128Type: {
             double complex *arr = (double complex *)bytes;
             return (float complex)arr[memOffset];
         }
@@ -2186,11 +2186,11 @@ double complex DependentVariableGetDoubleComplexValueAtMemOffset(DependentVariab
             double *arr = (double *)bytes;
             return (double complex)arr[memOffset];
         }
-        case kSINumberFloat32ComplexType: {
+        case kSINumberComplex64Type: {
             float complex *arr = (float complex *)bytes;
             return (double complex)crealf(arr[memOffset]);
         }
-        case kSINumberFloat64ComplexType: {
+        case kSINumberComplex128Type: {
             double complex *arr = (double complex *)bytes;
             return arr[memOffset];
         }
@@ -2219,7 +2219,7 @@ double DependentVariableGetDoubleValueAtMemOffsetForPart(DependentVariableRef dv
             double *arr = (double *)bytes;
             return arr[memOffset];
         }
-        case kSINumberFloat32ComplexType: {
+        case kSINumberComplex64Type: {
             float complex *arr = (float complex *)bytes;
             float complex v = arr[memOffset];
             switch (part) {
@@ -2234,7 +2234,7 @@ double DependentVariableGetDoubleValueAtMemOffsetForPart(DependentVariableRef dv
             }
             break;
         }
-        case kSINumberFloat64ComplexType: {
+        case kSINumberComplex128Type: {
             double complex *arr = (double complex *)bytes;
             double complex v = arr[memOffset];
             switch (part) {
@@ -2275,7 +2275,7 @@ float DependentVariableGetFloatValueAtMemOffsetForPart(DependentVariableRef dv, 
             double *arr = (double *)bytes;
             return (float)arr[memOffset];
         }
-        case kSINumberFloat32ComplexType: {
+        case kSINumberComplex64Type: {
             float complex *arr = (float complex *)bytes;
             float complex v = arr[memOffset];
             switch (part) {
@@ -2290,7 +2290,7 @@ float DependentVariableGetFloatValueAtMemOffsetForPart(DependentVariableRef dv, 
             }
             break;
         }
-        case kSINumberFloat64ComplexType: {
+        case kSINumberComplex128Type: {
             double complex *arr = (double complex *)bytes;
             double complex v = arr[memOffset];
             switch (part) {
@@ -2333,11 +2333,11 @@ SIScalarRef DependentVariableCreateValueFromMemOffset(DependentVariableRef dv, O
             double v = ((double *)bytes)[memOffset];
             return SIScalarCreateWithDouble(v, dv->unit);
         }
-        case kSINumberFloat32ComplexType: {
+        case kSINumberComplex64Type: {
             float complex v = ((float complex *)bytes)[memOffset];
             return SIScalarCreateWithFloatComplex(v, dv->unit);
         }
-        case kSINumberFloat64ComplexType: {
+        case kSINumberComplex128Type: {
             double complex v = ((double complex *)bytes)[memOffset];
             return SIScalarCreateWithDoubleComplex(v, dv->unit);
         }
@@ -2380,12 +2380,12 @@ bool DependentVariableSetValueAtMemOffset(DependentVariableRef dv, OCIndex compo
             ((double *)bytes)[memOffset] = v;
             break;
         }
-        case kSINumberFloat32ComplexType: {
+        case kSINumberComplex64Type: {
             float complex v = SIScalarFloatComplexValueInUnit(value, dv->unit, NULL);
             ((float complex *)bytes)[memOffset] = v;
             break;
         }
-        case kSINumberFloat64ComplexType: {
+        case kSINumberComplex128Type: {
             double complex v = SIScalarDoubleComplexValueInUnit(value, dv->unit, NULL);
             ((double complex *)bytes)[memOffset] = v;
             break;

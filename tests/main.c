@@ -42,7 +42,7 @@ int main(void) {
     if (!getenv("CSDM_TEST_ROOT")) {
     setenv("CSDM_TEST_ROOT", "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/CSDM-TestFiles-1.0", 1);
     fprintf(stderr, "[INFO] Defaulted CSDM_TEST_ROOT to hardcoded test path.\n");
-}
+}    
     const char *root = getenv("CSDM_TEST_ROOT");
     fprintf(stderr, "[INFO] CSDM_TEST_ROOT = %s\n", root ? root : "(not set)");
 

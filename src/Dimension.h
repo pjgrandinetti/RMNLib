@@ -77,26 +77,6 @@ OCDictionaryRef DimensionGetMetadata(DimensionRef dim);
  * @return true on success.
  */
 bool DimensionSetMetadata(DimensionRef dim, OCDictionaryRef dict);
-/**
- * @brief Serialize to a dictionary for JSON-roundtrip.
- * @param dim The Dimension instance.
- * @return A new OCDictionaryRef, or NULL.
- */
-OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim);
-/**
- * @brief Reconstruct a Dimension from a dictionary.
- * @param dict     Source dictionary.
- * @param outError On error, receives an OCStringRef.
- * @return New DimensionRef, or NULL on failure.
- */
-DimensionRef DimensionCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError);
-/**
- * @brief Reconstruct a Dimension from a cJSON object.
- * @param json     cJSON object.
- * @param outError On error, receives an OCStringRef.
- * @return New DimensionRef, or NULL on failure.
- */
-DimensionRef DimensionCreateFromJSON(cJSON *json, OCStringRef *outError);
 /** @} */
 /*==============================================================================
   LabeledDimension
@@ -438,22 +418,89 @@ SILinearDimensionCreateFromJSON(cJSON *json, OCStringRef *outError);
 /*==============================================================================
   Utilities
 ==============================================================================*/
-
+/**
+ * @brief Return a short string identifier for the runtime type of the dimension.
+ *
+ * This string matches the value stored in the `"type"` key for serialization.
+ * Possible return values include: `"labeled"`, `"monotonic"`, `"linear"`, or `"si_dimension"`.
+ * If the type is unknown, returns `"dimension"`.
+ *
+ * @note The returned OCStringRef is a constant string; do not release it.
+ *
+ * @param dim The Dimension instance.
+ * @return OCStringRef type identifier, or NULL if input is NULL.
+ */
 OCStringRef DimensionGetType(DimensionRef dim);
 
 /**
- * @brief Get the number of points in any Dimension.
- * @param dim The Dimension.
- * @return Number of entries, or 0 on error.
+ * @brief Serialize a Dimension (of any subclass) to a dictionary.
+ *
+ * The returned dictionary includes all base fields and a `"type"` discriminator
+ * when needed for dispatch. It can be used with `DimensionCreateFromDictionary()`
+ * for round-trip deserialization.
+ *
+ * @param dim The Dimension instance to serialize.
+ * @return A new OCDictionaryRef, or NULL on error.
+ *         Caller is responsible for releasing the returned dictionary.
+ */
+OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim);
+
+/**
+ * @brief Reconstruct a Dimension from a dictionary representation.
+ *
+ * This function dispatches to the appropriate subclass constructor
+ * based on the `"type"` key in the dictionary. If `"type"` is missing,
+ * falls back to the abstract base `Dimension`.
+ *
+ * @param dict     Source dictionary.
+ * @param outError On failure, receives a descriptive OCStringRef (optional).
+ * @return A new DimensionRef, or NULL on failure.
+ *         Caller is responsible for releasing the returned object.
+ */
+DimensionRef DimensionCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError);
+
+/**
+ * @brief Reconstruct a Dimension from a cJSON representation.
+ *
+ * Parses a cJSON object into a dictionary and delegates to
+ * `DimensionCreateFromDictionary()`. Supports subclass dispatch via `"type"`.
+ *
+ * @param json     Input cJSON object.
+ * @param outError On failure, receives a descriptive OCStringRef (optional).
+ * @return A new DimensionRef, or NULL on failure.
+ *         Caller is responsible for releasing the returned object.
+ */
+DimensionRef DimensionCreateFromJSON(cJSON *json, OCStringRef *outError);
+
+/**
+ * @brief Get the number of coordinate entries for any Dimension.
+ *
+ * The count is defined by the dimension type:
+ * - LabeledDimension: number of labels.
+ * - SIMonotonicDimension: number of coordinates.
+ * - SILinearDimension: `count` field.
+ * - All others: returns 1.
+ *
+ * @param dim The Dimension instance.
+ * @return Non-negative count, or 0 if invalid.
  */
 OCIndex DimensionGetCount(DimensionRef dim);
+
 /**
- * @brief Generate a “long” label for a single coordinate.
+ * @brief Create a human-readable label for a specific coordinate index.
+ *
+ * For example, a labeled dimension might return: `Phase-3`,
+ * and an SI dimension might return: `Time-3/s` or `Frequency-5/Hz`.
+ *
+ * This is primarily used in UI contexts or data export tools.
+ *
  * @param dim   The Dimension instance.
- * @param index Zero-based coordinate index.
- * @return A full label string, e.g. “Time (s) [index 3]”.
+ * @param index Coordinate index (zero-based).
+ * @return A new OCStringRef with the constructed label, or NULL.
+ *         Caller is responsible for releasing the returned string.
  */
 OCStringRef CreateLongDimensionLabel(DimensionRef dim, OCIndex index);
+
 /** @} */  // end of Dimensions group
 #ifdef __cplusplus
 }

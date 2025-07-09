@@ -533,7 +533,7 @@ bool test_DependentVariable_complexCopy(void) {
 
     dst = DependentVariableCreateComplexCopy(src, NULL);
     TEST_ASSERT(dst);
-    TEST_ASSERT(DependentVariableGetElementType(dst) == kSINumberFloat64ComplexType);
+    TEST_ASSERT(DependentVariableGetElementType(dst) == kSINumberComplex128Type);
 
     ok = true;
 cleanup:
