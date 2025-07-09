@@ -4,6 +4,32 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** @cond INTERNAL */
+#ifndef DEPENDENT_VARIABLE_KEYS_H
+#define DEPENDENT_VARIABLE_KEYS_H
+
+#define kDependentVariableUnitKey                    "unit"
+#define kDependentVariableNumericTypeKey             "numeric_type"
+#define kDependentVariableNameKey                    "name"
+#define kDependentVariableDescriptionKey             "description"
+#define kDependentVariableMetaDataKey                "metadata"
+#define kDependentVariableQuantityNameKey            "quantity_name"
+#define kDependentVariableQuantityTypeKey            "quantity_type"
+#define kDependentVariableTypeKey                    "type"
+#define kDependentVariableEncodingKey                "encoding"
+#define kDependentVariableEncodingValueBase64        "base64"
+#define kDependentVariableEncodingValueNone          "none"
+#define kDependentVariableComponentsURLKey           "components_url"
+#define kDependentVariableComponentsKey              "components"
+#define kDependentVariableComponentTypeValueInternal "internal"
+#define kDependentVariableComponentTypeValueExternal "external"
+#define kDependentVariableComponentLabelsKey         "component_labels"
+#define kDependentVariableSparseSamplingKey          "sparse_sampling"
+
+#endif // DEPENDENT_VARIABLE_KEYS_H
+/** @endcond */
+
 /**
  * @file DependentVariable.h
  * @brief Public API for DependentVariable: an N-D dataset variable with
@@ -144,6 +170,17 @@ DependentVariableRef DependentVariableCreateExternal(
 DependentVariableRef
 DependentVariableCreateFromJSON(cJSON *json,
                                 OCStringRef *outError);
+/** @cond INTERNAL */
+/**
+ * @brief Internal helper: parse a cJSON object into the same
+ *        dictionary format produced by DependentVariableCopyAsDictionary().
+ * @internal
+ */
+OCDictionaryRef
+DependentVariableDictionaryCreateFromJSON(cJSON *json,
+                                         OCStringRef *outError);
+/** @endcond */
+
 /**
  * @brief Create an N-D “cross-section” slice at fixed indices.
  */
