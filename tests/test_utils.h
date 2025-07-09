@@ -61,5 +61,6 @@
     } \
 } while (0)
 
+char *resolve_test_path(const char *relative_path);
 
 #endif // TEST_UTILS_H

@@ -150,57 +150,94 @@ GeographicCoordinateRef GeographicCoordinateCreateFromDictionary(OCDictionaryRef
         if (outError) *outError = STR("GeographicCoordinateCreateFromDictionary: input dictionary is NULL");
         return NULL;
     }
+
+    SIScalarRef lat = NULL;
+    SIScalarRef lon = NULL;
+    SIScalarRef alt = NULL;
+
     // latitude
-    OCNumberRef latNum = OCDictionaryGetValue(dict, STR(kGeoCoordLatitudeKey));
-    SIScalarRef   lat = latNum ? (
-        SIScalarRef)OCTypeDeepCopy((OCTypeRef)latNum) : NULL;
+    OCStringRef latStr = OCDictionaryGetValue(dict, STR(kGeoCoordLatitudeKey));
+    if (latStr && OCGetTypeID(latStr) == OCStringGetTypeID()) {
+        lat = SIScalarCreateFromExpression(latStr, outError);
+        if (!lat) goto fail;
+    }
+
     // longitude
-    OCNumberRef lonNum = OCDictionaryGetValue(dict, STR(kGeoCoordLongitudeKey));
-    SIScalarRef   lon = lonNum ? (
-        SIScalarRef)OCTypeDeepCopy((OCTypeRef)lonNum) : NULL;
-    // altitude
-    OCNumberRef altNum = OCDictionaryGetValue(dict, STR(kGeoCoordAltitudeKey));
-    SIScalarRef   alt = altNum ? (
-        SIScalarRef)OCTypeDeepCopy((OCTypeRef)altNum) : NULL;
+    OCStringRef lonStr = OCDictionaryGetValue(dict, STR(kGeoCoordLongitudeKey));
+    if (lonStr && OCGetTypeID(lonStr) == OCStringGetTypeID()) {
+        lon = SIScalarCreateFromExpression(lonStr, outError);
+        if (!lon) goto fail;
+    }
+
+    // altitude (optional)
+    OCStringRef altStr = OCDictionaryGetValue(dict, STR(kGeoCoordAltitudeKey));
+    if (altStr && OCGetTypeID(altStr) == OCStringGetTypeID()) {
+        alt = SIScalarCreateFromExpression(altStr, outError);
+        if (!alt) goto fail;
+    }
+
     // metadata
     OCDictionaryRef md = OCDictionaryGetValue(dict, STR(kGeoCoordMetaDataKey));
 
+    // required: lat/lon
     if (!lat || !lon) {
-        if (outError) *outError = STR("GeographicCoordinateCreateFromDictionary: missing latitude or longitude");
-        OCRelease(lat);
-        OCRelease(lon);
-        OCRelease(alt);
-        return NULL;
+        if (outError && !*outError) {
+            *outError = STR("GeographicCoordinateCreateFromDictionary: missing latitude or longitude");
+        }
+        goto fail;
     }
+
     GeographicCoordinateRef gc = GeographicCoordinateCreate(lat, lon, alt, md);
     OCRelease(lat);
     OCRelease(lon);
     OCRelease(alt);
     return gc;
+
+fail:
+    OCRelease(lat);
+    OCRelease(lon);
+    OCRelease(alt);
+    return NULL;
 }
 
 OCDictionaryRef GeographicCoordinateCopyAsDictionary(GeographicCoordinateRef gc) {
     if (!gc) return NULL;
+
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
+
     // latitude
-    OCDictionarySetValue(dict, STR(kGeoCoordLatitudeKey),  gc->latitude);
-    // longitude
-    OCDictionarySetValue(dict, STR(kGeoCoordLongitudeKey), gc->longitude);
-    // altitude
-    if (gc->altitude) {
-        OCDictionarySetValue(dict, STR(kGeoCoordAltitudeKey), gc->altitude);
+    if (gc->latitude) {
+        OCStringRef s = SIScalarCreateStringValue(gc->latitude);
+        OCDictionarySetValue(dict, STR(kGeoCoordLatitudeKey), s);
+        OCRelease(s);
     }
-    // metadata
+
+    // longitude
+    if (gc->longitude) {
+        OCStringRef s = SIScalarCreateStringValue(gc->longitude);
+        OCDictionarySetValue(dict, STR(kGeoCoordLongitudeKey), s);
+        OCRelease(s);
+    }
+
+    // altitude (optional)
+    if (gc->altitude) {
+        OCStringRef s = SIScalarCreateStringValue(gc->altitude);
+        OCDictionarySetValue(dict, STR(kGeoCoordAltitudeKey), s);
+        OCRelease(s);
+    }
+
+    // metadata (optional)
     if (gc->metadata) {
         OCDictionaryRef copyMd = (OCDictionaryRef)OCTypeDeepCopyMutable(gc->metadata);
         OCDictionarySetValue(dict, STR(kGeoCoordMetaDataKey), copyMd);
         OCRelease(copyMd);
     }
+
     return dict;
 }
 
 static OCDictionaryRef GeographicCoordinateDictionaryCreateFromJSON(cJSON *json,
-                                             OCStringRef *outError)
+                                                                    OCStringRef *outError)
 {
     if (outError) *outError = NULL;
     if (!json || !cJSON_IsObject(json)) {
@@ -216,37 +253,41 @@ static OCDictionaryRef GeographicCoordinateDictionaryCreateFromJSON(cJSON *json,
 
     cJSON *entry;
 
-    // latitude (degrees)
+    // latitude
     entry = cJSON_GetObjectItemCaseSensitive(json, kGeoCoordLatitudeKey);
-    if (cJSON_IsNumber(entry)) {
-        SIScalarRef lat = SIScalarCreateWithDouble(
-            entry->valuedouble,
-            SIUnitFindWithUnderivedSymbol(STR("deg"))
-        );
-        OCDictionarySetValue(dict, STR(kGeoCoordLatitudeKey), lat);
-        OCRelease(lat);
+    if (cJSON_IsString(entry)) {
+        OCStringRef s = OCStringCreateWithCString(entry->valuestring);
+        OCDictionarySetValue(dict, STR(kGeoCoordLatitudeKey), s);
+        OCRelease(s);
+    } else if (cJSON_IsNumber(entry)) {
+        // fallback if JSON has numbers
+        OCStringRef s = OCStringCreateWithFormat(STR("%g °"), entry->valuedouble);
+        OCDictionarySetValue(dict, STR(kGeoCoordLatitudeKey), s);
+        OCRelease(s);
     }
 
-    // longitude (degrees)
+    // longitude
     entry = cJSON_GetObjectItemCaseSensitive(json, kGeoCoordLongitudeKey);
-    if (cJSON_IsNumber(entry)) {
-        SIScalarRef lon = SIScalarCreateWithDouble(
-            entry->valuedouble,
-            SIUnitFindWithUnderivedSymbol(STR("deg"))
-        );
-        OCDictionarySetValue(dict, STR(kGeoCoordLongitudeKey), lon);
-        OCRelease(lon);
+    if (cJSON_IsString(entry)) {
+        OCStringRef s = OCStringCreateWithCString(entry->valuestring);
+        OCDictionarySetValue(dict, STR(kGeoCoordLongitudeKey), s);
+        OCRelease(s);
+    } else if (cJSON_IsNumber(entry)) {
+        OCStringRef s = OCStringCreateWithFormat(STR("%g °"), entry->valuedouble);
+        OCDictionarySetValue(dict, STR(kGeoCoordLongitudeKey), s);
+        OCRelease(s);
     }
 
-    // altitude (meters, optional)
+    // altitude (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kGeoCoordAltitudeKey);
-    if (cJSON_IsNumber(entry)) {
-        SIScalarRef alt = SIScalarCreateWithDouble(
-            entry->valuedouble,
-            SIUnitFindWithUnderivedSymbol(STR("m"))
-        );
-        OCDictionarySetValue(dict, STR(kGeoCoordAltitudeKey), alt);
-        OCRelease(alt);
+    if (cJSON_IsString(entry)) {
+        OCStringRef s = OCStringCreateWithCString(entry->valuestring);
+        OCDictionarySetValue(dict, STR(kGeoCoordAltitudeKey), s);
+        OCRelease(s);
+    } else if (cJSON_IsNumber(entry)) {
+        OCStringRef s = OCStringCreateWithFormat(STR("%g m"), entry->valuedouble);
+        OCDictionarySetValue(dict, STR(kGeoCoordAltitudeKey), s);
+        OCRelease(s);
     }
 
     // nested metadata (optional)

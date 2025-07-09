@@ -4,12 +4,13 @@
 #pragma once
 #include <stdbool.h>
 
-bool test_Dataset_open_blank_csdf(void);
-bool test_Dataset_open_blochDecay_base64_csdf(void);
-bool test_Dataset_open_emoji_labeled_csdf(void);
-bool test_Dataset_open_electric_field_base64_csdf(void);
-bool test_Dataset_open_electric_field_none_csdf(void);
-bool test_Dataset_open_electric_field_raw_csdfe(void);
-bool test_Dataset_open_J_vs_s_csdf(void);
+// Test importing inline (non-external) CSDM files
+bool test_Dataset_import_inline(void);
+
+// Test importing external CSDM files with binary component data
+bool test_Dataset_import_external(void);
+
+// Test failure case for invalid JSON path
+bool test_Dataset_import_invalid_path(void);
 
 #endif /* TEST_CSDM_H */

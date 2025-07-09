@@ -9,6 +9,7 @@
 #include "test_utils.h"
 int main(void) {
     int failures = 0;
+
     printf("\n=== Running Datum Tests ===\n");
     if (!test_Datum_NULL_cases()) failures++;
     if (!test_Datum_functional()) failures++;
@@ -19,34 +20,35 @@ int main(void) {
     if (!test_SIDimension()) failures++;
     if (!test_SIMonotonic_and_SILinearDimension()) failures++;
     fprintf(stderr, "\n=== Running DependentVariable Tests ===\n");
-    if (!test_DependentVariable_base())          failures++;
-    if (!test_DependentVariable_components())    failures++;
-    if (!test_DependentVariable_values())        failures++;
-    if (!test_DependentVariable_typeQueries())   failures++;
-    if (!test_DependentVariable_complexCopy())   failures++;
+    if (!test_DependentVariable_base()) failures++;
+    if (!test_DependentVariable_components()) failures++;
+    if (!test_DependentVariable_values()) failures++;
+    if (!test_DependentVariable_typeQueries()) failures++;
+    if (!test_DependentVariable_complexCopy()) failures++;
     if (!test_DependentVariable_invalidCreate()) failures++;
     if (!test_DependentVariable_internal_vs_external()) failures++;
     if (!test_DependentVariable_values_and_accessors()) failures++;
-    if (!test_DependentVariable_type_queries())  failures++;
+    if (!test_DependentVariable_type_queries()) failures++;
     if (!test_DependentVariable_sparse_sampling()) failures++;
     if (!test_DependentVariable_copy_and_roundtrip()) failures++;
     if (!test_DependentVariable_invalid_create()) failures++;
     fprintf(stderr, "\n=== Running Dataset Tests ===\n");
-    if (!test_Dataset_minimal_create())       failures++;
-    if (!test_Dataset_mutators())             failures++;
-    if (!test_Dataset_type_contract())        failures++;
-    if (!test_Dataset_copy_and_roundtrip())   failures++;
+    if (!test_Dataset_minimal_create()) failures++;
+    if (!test_Dataset_mutators()) failures++;
+    if (!test_Dataset_type_contract()) failures++;
+    if (!test_Dataset_copy_and_roundtrip()) failures++;
 
     fprintf(stderr, "\n=== Running CSDM Tests ===\n");
-    if(!test_Dataset_open_blank_csdf()) failures++;
-    if(!test_Dataset_open_blochDecay_base64_csdf()) failures++;
-    if(!test_Dataset_open_emoji_labeled_csdf()) failures++;
-    if(!test_Dataset_open_electric_field_base64_csdf()) failures++;
-    if(!test_Dataset_open_electric_field_none_csdf()) failures++;
-    if(!test_Dataset_open_electric_field_raw_csdfe()) failures++;
-    if(!test_Dataset_open_J_vs_s_csdf()) failures++;
+    if (!getenv("CSDM_TEST_ROOT")) {
+    setenv("CSDM_TEST_ROOT", "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/CSDM-TestFiles-1.0", 1);
+    fprintf(stderr, "[INFO] Defaulted CSDM_TEST_ROOT to hardcoded test path.\n");
+}
+    const char *root = getenv("CSDM_TEST_ROOT");
+    fprintf(stderr, "[INFO] CSDM_TEST_ROOT = %s\n", root ? root : "(not set)");
 
-
+    if (!test_Dataset_import_inline()) failures++;
+    if (!test_Dataset_import_external()) failures++;
+    if (!test_Dataset_import_invalid_path()) failures++;
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",
                 failures, failures > 1 ? "s" : "");

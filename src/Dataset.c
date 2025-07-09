@@ -168,83 +168,135 @@ static void impl_InitDatasetFields(DatasetRef ds) {
     ds->readOnly = false;
     ds->metaData = OCDictionaryCreateMutable(0);
 }
-static bool impl_ValidateDatasetParameters(OCArrayRef dimensions, OCArrayRef dependentVariables) {
-    // must have at least one dependent variable
-    if (!dependentVariables || OCArrayGetCount(dependentVariables) == 0)
+static bool impl_ValidateDatasetParameters(OCArrayRef     dimensions,
+                                           OCArrayRef     dependentVariables,
+                                           OCStringRef   *outError)
+{
+    // 0) clear any previous error
+    if (outError) *outError = NULL;
+
+    // 1) must have at least one DV
+    if (!dependentVariables || OCArrayGetCount(dependentVariables) == 0) {
+        if (outError)
+            *outError = STR("Validation failed: no dependent variables provided");
         return false;
-    // compute expected length from dimensions (defaults to 1 if dimensions==NULL)
+    }
+
+    // 2) compute expected length from dimensions (defaults to 1 if dimensions==NULL)
     OCIndex expectedSize = RMNCalculateSizeFromDimensions(dimensions);
-    // if dimensions provided, check that each is a DimensionRef
+
+    // 3) if dimensions provided, ensure each is a DimensionRef
     if (dimensions) {
         OCIndex nDims = OCArrayGetCount(dimensions);
-        for (OCIndex i = 0; i < nDims; i++) {
+        for (OCIndex i = 0; i < nDims; ++i) {
             const void *obj = OCArrayGetValueAtIndex(dimensions, i);
             OCTypeID tid = OCGetTypeID(obj);
-            if (tid != DimensionGetTypeID() && tid != LabeledDimensionGetTypeID() && tid != SIMonotonicDimensionGetTypeID() && tid != SILinearDimensionGetTypeID()) {
+            if (tid != DimensionGetTypeID() &&
+                tid != LabeledDimensionGetTypeID() &&
+                tid != SIMonotonicDimensionGetTypeID() &&
+                tid != SILinearDimensionGetTypeID())
+            {
+                if (outError) {
+                    *outError = OCStringCreateWithFormat(
+                        STR("Validation failed: dimension at index %ld is not a valid Dimension"), 
+                        (long)i);
+                }
                 return false;
             }
         }
     }
-    // now validate each dependent variable
+
+    // 4) now validate each dependent variable
     OCIndex dvCount = OCArrayGetCount(dependentVariables);
-    for (OCIndex i = 0; i < dvCount; i++) {
+    for (OCIndex i = 0; i < dvCount; ++i) {
         const void *obj = OCArrayGetValueAtIndex(dependentVariables, i);
-        if (OCGetTypeID(obj) != DependentVariableGetTypeID())
+        if (OCGetTypeID(obj) != DependentVariableGetTypeID()) {
+            if (outError) {
+                *outError = OCStringCreateWithFormat(
+                    STR("Validation failed: dependent variable at index %ld is not a DependentVariable"), 
+                    (long)i);
+            }
             return false;
+        }
         DependentVariableRef dv = (DependentVariableRef)obj;
         OCIndex dvSize = DependentVariableGetSize(dv);
         if (dvSize != expectedSize) {
-            fprintf(stderr,
-                    "ValidateDatasetParameters: size mismatch for DV at index %ld: got %ld, expected %ld\n",
+            if (outError) {
+                *outError = OCStringCreateWithFormat(
+                    STR("Validation failed: size mismatch for DV[%ld]: got %ld, expected %ld"),
                     (long)i, (long)dvSize, (long)expectedSize);
+            }
             return false;
         }
     }
+
+    // all good
     return true;
 }
 #pragma endregion Type Registration
 #pragma region Creators
 DatasetRef DatasetCreate(
-    OCArrayRef dimensions,
-    OCIndexArrayRef dimensionPrecedence,
-    OCArrayRef dependentVariables,
-    OCArrayRef tags,
-    OCStringRef description,
-    OCStringRef title,
-    DatumRef focus,
-    DatumRef previousFocus,
-    OCDictionaryRef metaData) {
+    OCArrayRef        dimensions,
+    OCIndexArrayRef   dimensionPrecedence,
+    OCArrayRef        dependentVariables,
+    OCArrayRef        tags,
+    OCStringRef       description,
+    OCStringRef       title,
+    DatumRef          focus,
+    DatumRef          previousFocus,
+    OCDictionaryRef   metaData,
+    OCStringRef      *outError)    // ← new parameter
+{
+    if (outError) *outError = NULL;
+
     // — allow blank datasets (zero DVs) —
     OCIndex dvCount = dependentVariables ? OCArrayGetCount(dependentVariables) : 0;
     if (dvCount > 0) {
         // only validate when there's at least one DV
-        if (!impl_ValidateDatasetParameters(dimensions, dependentVariables))
+        OCStringRef valErr = NULL;
+        if (!impl_ValidateDatasetParameters(dimensions,
+                                           dependentVariables,
+                                          &valErr))
+        {
+            // propagate the specific validation error
+            if (outError) *outError = valErr;
             return NULL;
+        }
     }
+
+    // allocate
     DatasetRef ds = DatasetAllocate();
-    if (!ds) return NULL;
+    if (!ds) {
+        // only set generic if no other error
+        if (outError && !*outError)
+            *outError = STR("Dataset creation failed: unable to allocate dataset");
+        return NULL;
+    }
     impl_InitDatasetFields(ds);
+
     // — copy dimensions —
     if (dimensions) {
         OCIndex nDims = OCArrayGetCount(dimensions);
         for (OCIndex i = 0; i < nDims; ++i) {
-            DimensionRef d = (DimensionRef)OCArrayGetValueAtIndex(dimensions, i);
+            DimensionRef d     = (DimensionRef)OCArrayGetValueAtIndex(dimensions, i);
             DimensionRef dCopy = (DimensionRef)OCTypeDeepCopyMutable(d);
             OCArrayAppendValue(ds->dimensions, dCopy);
             OCRelease(dCopy);
         }
     }
+
     // — copy dependentVariables (may be zero) —
     if (dependentVariables) {
         OCIndex nDVs = OCArrayGetCount(dependentVariables);
         for (OCIndex i = 0; i < nDVs; ++i) {
-            DependentVariableRef dv =
+            DependentVariableRef dv     =
                 (DependentVariableRef)OCArrayGetValueAtIndex(dependentVariables, i);
             DependentVariableRef dvCopy = DependentVariableCreateCopy(dv);
             OCArrayAppendValue(ds->dependentVariables, dvCopy);
             OCRelease(dvCopy);
         }
     }
+
     // — copy tags —
     if (tags) {
         OCIndex nTags = OCArrayGetCount(tags);
@@ -253,6 +305,7 @@ DatasetRef DatasetCreate(
             OCArrayAppendValue(ds->tags, s);
         }
     }
+
     // — set dimensionPrecedence (default to 0..N-1 if missing/mismatched) —
     OCIndex dimCount = OCArrayGetCount(ds->dimensions);
     if (dimensionPrecedence && OCIndexArrayGetCount(dimensionPrecedence) == dimCount) {
@@ -265,16 +318,19 @@ DatasetRef DatasetCreate(
             OCIndexArrayAppendValue(ds->dimensionPrecedence, i);
         }
     }
+
     // — copy simple fields —
-    ds->description = description ? OCStringCreateCopy(description) : STR("");
-    ds->title = title ? OCStringCreateCopy(title) : STR("");
-    ds->focus = focus ? (DatumRef)OCRetain(focus) : NULL;
+    ds->description   = description   ? OCStringCreateCopy(description)   : STR("");
+    ds->title         = title         ? OCStringCreateCopy(title)         : STR("");
+    ds->focus         = focus         ? (DatumRef)OCRetain(focus)         : NULL;
     ds->previousFocus = previousFocus ? (DatumRef)OCRetain(previousFocus) : NULL;
+
     // — copy metadata if present —
     if (metaData) {
         OCRelease(ds->metaData);
         ds->metaData = OCTypeDeepCopyMutable(metaData);
     }
+
     return ds;
 }
 OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
@@ -519,9 +575,8 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
     OCDictionaryRef geoDict = OCDictionaryGetValue(dict, STR(kDatasetGeoCoordinateKey));
     // --- create dataset ---
     ds = DatasetCreate(dims, dimPrec, dvs, tags,
-                       desc, title, focus, prevFocus, metadata);
+                       desc, title, focus, prevFocus, metadata,outError);
     if (!ds) {
-        if (outError) *outError = STR("Dataset creation failed: unable to allocate dataset");
         goto cleanup;
     }
     // Overwrite envelope fields
@@ -1112,7 +1167,11 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
     DatasetRef ds = DatasetCreateFromJSON(root, outError);
     cJSON_Delete(root);
     if (!ds) {
-        /* outError was set by DatasetCreateFromJSON */
+        // DEBUG: what error did we actually get here?
+        if (outError && *outError) {
+            fprintf(stderr, "[DEBUG] DatasetCreateFromJSON error = '%s'\n",
+                    OCStringGetCString(*outError));
+        }
         return NULL;
     }
     /* 6) Load any external blobs */

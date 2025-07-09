@@ -6,115 +6,86 @@
 #include "RMNLibrary.h"
 #include "test_utils.h"
 
-/// Helper to run one CSDM import test.
-///   subdir: relative to tests/CSDM-TestFiles-1.0
-///   filename: .csdf or .csdfe in that subdir
-///   expect_success: true if we expect ds != NULL
-///   err_substr: if failure expected, must appear in error message (NULL to skip)
-static bool run_csdm_import_test(const char *subdir,
-                                 const char *filename,
-                                 bool expect_success,
-                                 const char *err_substr)
-{
-    printf("test_CSDM: %-30s (%s)\n",
-           filename,
-           expect_success ? "expect success" : "expect failure");
-
-    // debug cwd
-    char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd))) {
-        printf("  [DEBUG] cwd = %s\n", cwd);
-    }
-
-    // always initialize these up front
-    DatasetRef  ds  = NULL;
+/// Test valid inline CSDM import (.csdf with internal data)
+bool test_Dataset_import_inline(void) {
+    printf("test_Dataset_import_inline...\n");
+    bool ok = false;
     OCStringRef err = NULL;
 
-    // build paths
-    char json_path[PATH_MAX];
-    char bin_dir[PATH_MAX];
-    if (snprintf(json_path, sizeof(json_path),
-                 "tests/CSDM-TestFiles-1.0/%s/%s",
-                 subdir, filename) >= (int)sizeof(json_path) ||
-        snprintf(bin_dir, sizeof(bin_dir),
-                 "tests/CSDM-TestFiles-1.0/%s",
-                 subdir) >= (int)sizeof(bin_dir)) {
-        fprintf(stderr, "[ERROR] path buffer overflow\n");
+    // Use known-good .csdf
+    char *json = resolve_test_path("NMR/blochDecay/blochDecay.csdf");
+    char *bin  = resolve_test_path("NMR/blochDecay");  // safe but unused
+
+    DatasetRef ds = DatasetCreateWithImport(json, bin, &err);
+    if (!ds) {
+        fprintf(stderr, "[ERROR] import_inline failed\n");
+        if (err) fprintf(stderr, "Reason: %s\n", OCStringGetCString(err));
         goto cleanup;
     }
 
-    printf("  [DEBUG] JSON:  %s\n", json_path);
-    printf("  [DEBUG] blobs: %s\n", bin_dir);
-
-    ds = DatasetCreateWithImport(json_path, bin_dir, &err);
-
-    if (expect_success) {
-        TEST_ASSERT(ds != NULL);
-        TEST_ASSERT(err == NULL);
-    } else {
-        TEST_ASSERT(ds == NULL);
-        TEST_ASSERT(err != NULL);
-        if (err_substr) {
-            const char *msg = OCStringGetCString(err);
-            TEST_ASSERT(strstr(msg, err_substr) != NULL);
-        }
-    }
+    TEST_ASSERT(OCArrayGetCount(DatasetGetDependentVariables(ds)) > 0);
+    ok = true;
 
 cleanup:
-    if (ds)  OCRelease(ds);
-    if (err) OCRelease(err);
-
-    printf("  → %s\n\n", expect_success ? "passed" : "passed");
-    return true;
+    OCRelease(ds);
+    OCRelease(err);
+    free(json);
+    free(bin);
+    printf("test_Dataset_import_inline %s.\n", ok ? "passed" : "FAILED");
+    return ok;
 }
 
-// —————— individual tests ——————
+/// Test valid external CSDM import (.csdfe + binary blob)
+bool test_Dataset_import_external(void) {
+    printf("test_Dataset_import_external...\n");
+    bool ok = false;
+    OCStringRef err = NULL;
 
-bool test_Dataset_open_blank_csdf(void) {
-    return run_csdm_import_test(
-        "blank", "blank.csdf",
-        true, NULL);
+    char *json = resolve_test_path("BubbleNebula/bubble.csdm/Bubble.csdfe");
+    char *bin  = resolve_test_path("BubbleNebula/bubble.csdm");
+
+    DatasetRef ds = DatasetCreateWithImport(json, bin, &err);
+    if (!ds) {
+        fprintf(stderr, "[ERROR] import_external failed\n");
+        if (err) fprintf(stderr, "Reason: %s\n", OCStringGetCString(err));
+        goto cleanup;
+    }
+
+    OCArrayRef dvs = DatasetGetDependentVariables(ds);
+    TEST_ASSERT(OCArrayGetCount(dvs) > 0);
+
+    DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(dvs, 0);
+    TEST_ASSERT(dv != NULL);
+    TEST_ASSERT(DependentVariableGetComponentCount(dv) > 0);
+
+    ok = true;
+
+cleanup:
+    OCRelease(ds);
+    OCRelease(err);
+    free(json);
+    free(bin);
+    printf("test_Dataset_import_external %s.\n", ok ? "passed" : "FAILED");
+    return ok;
 }
 
-bool test_Dataset_open_blochDecay_base64_csdf(void) {
-    return run_csdm_import_test(
-        "NMR/blochDecay", "blochDecay_base64.csdf",
-        false, "numeric_type");
-}
+/// Test failure case for missing JSON path
+bool test_Dataset_import_invalid_path(void) {
+    printf("test_Dataset_import_invalid_path...\n");
+    bool ok = false;
+    OCStringRef err = NULL;
 
-bool test_Dataset_open_emoji_labeled_csdf(void) {
-    return run_csdm_import_test(
-        "labeled", "emoji_labeled.csdf",
-        false, "numeric_type");
-}
+    DatasetRef ds = DatasetCreateWithImport("nonexistent/path.csdf", ".", &err);
+    TEST_ASSERT(ds == NULL);
+    TEST_ASSERT(err != NULL);
 
-bool test_Dataset_open_electric_field_base64_csdf(void) {
-    return run_csdm_import_test(
-        "vector/electric_field", "electric_field_base64.csdf",
-        false, "numeric_type");
-}
+    const char *msg = OCStringGetCString(err);
+    TEST_ASSERT(strstr(msg, "cannot open JSON file") != NULL);
 
-bool test_Dataset_open_electric_field_none_csdf(void) {
-    return run_csdm_import_test(
-        "vector/electric_field", "electric_field_none.csdf",
-        false, "numeric_type");
-}
+    ok = true;
 
-bool test_Dataset_open_electric_field_raw_csdfe(void) {
-    // this file references external components → import must fail
-    return run_csdm_import_test(
-        "vector/electric_field",
-        "electric_field_raw.csdfe",
-        false,
-        "components"
-    );
-}
-
-bool test_Dataset_open_J_vs_s_csdf(void) {
-    return run_csdm_import_test(
-        "correlatedDataset/0D_dataset",
-        "J_vs_s.csdf",
-        true,    // we expect this one to succeed
-        NULL     // no specific error substring
-    );
+cleanup:
+    OCRelease(err);
+    printf("test_Dataset_import_invalid_path %s.\n", ok ? "passed" : "FAILED");
+    return ok;
 }

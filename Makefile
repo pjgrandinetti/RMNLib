@@ -31,6 +31,7 @@ INCLUDE_DIR     := $(THIRD_PARTY_DIR)/include
 OCT_INCLUDE     := $(INCLUDE_DIR)/OCTypes
 SIT_INCLUDE     := $(INCLUDE_DIR)/SITypes
 
+
 # Include and library paths
 OCT_LIBDIR  := $(TP_LIB_DIR)
 SIT_LIBDIR  := $(TP_LIB_DIR)
@@ -222,10 +223,12 @@ $(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
 		-o $@
 
 test: $(BIN_DIR)/runTests
-	$<
+	@echo "Running tests with CSDM_TEST_ROOT=$(TEST_DATA_ROOT)"
+	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
 test-asan: $(BIN_DIR)/runTests.asan
-	$<
+	@echo "Running ASan tests with CSDM_TEST_ROOT=$(TEST_DATA_ROOT)"
+	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
 clean:
 	$(RM) -r $(BUILD_DIR) libRMNLib.a
@@ -234,6 +237,7 @@ clean:
 # Determine repository root and Xcode build dir
 ROOT_DIR := $(shell cd $(dir $(firstword $(MAKEFILE_LIST))).. && pwd)
 XCODE_BUILD := $(CURDIR)/build-xcode
+TEST_DATA_ROOT := $(ROOT_DIR)/RMNLib/tests/CSDM-TestFiles-1.0
 
 #────────────────────────────────────────────────────────────────────────────
 # Xcode support

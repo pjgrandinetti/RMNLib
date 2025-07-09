@@ -50,19 +50,21 @@ OCTypeID DatasetGetTypeID(void);
  * @param focus               Optional DatumRef focus (may be NULL).
  * @param previousFocus       Optional previous focus (may be NULL).
  * @param metaData            Arbitrary key/value metadata (may be NULL).
- * @return Newly allocated DatasetRef on success, or NULL on validation error.
+ * @param[out] outError       If non-NULL and creation fails, set to an OCStringRef
+ *                            describing the validation or allocation error.
+ * @return Newly allocated DatasetRef on success, or NULL on failure.
  */
-DatasetRef
-DatasetCreate(
-    OCArrayRef dimensions,
-    OCIndexArrayRef dimensionPrecedence,
-    OCArrayRef dependentVariables,
-    OCArrayRef tags,
-    OCStringRef description,
-    OCStringRef title,
-    DatumRef focus,
-    DatumRef previousFocus,
-    OCDictionaryRef metaData);
+DatasetRef DatasetCreate(
+    OCArrayRef        dimensions,
+    OCIndexArrayRef   dimensionPrecedence,
+    OCArrayRef        dependentVariables,
+    OCArrayRef        tags,
+    OCStringRef       description,
+    OCStringRef       title,
+    DatumRef          focus,
+    DatumRef          previousFocus,
+    OCDictionaryRef   metaData,
+    OCStringRef      *outError);
 /**
  * @brief Rebuild a Dataset from a deep‐copied dictionary.
  * @param dict     Dictionary produced by DatasetCopyAsDictionary().

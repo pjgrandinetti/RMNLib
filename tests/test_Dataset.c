@@ -5,195 +5,208 @@
 #include <unistd.h>
 #include "RMNLibrary.h"
 #include "test_utils.h"
-// Helper
+
+// Helper to create a simple DependentVariable
 static DependentVariableRef _make_mock_dv(void) {
     return DependentVariableCreateDefault(STR("scalar"),
                                           kSINumberFloat64Type,
                                           1,
                                           NULL);
 }
+
 bool test_Dataset_minimal_create(void) {
     printf("test_Dataset_minimal_create...\n");
     bool ok = false;
     OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    DatasetRef ds = NULL;
+
     DependentVariableRef dv = _make_mock_dv();
     if (!dv) {
-        fprintf(stderr, "[ERROR] failed to create mock DV\n");
-        goto cleanup1;
+        fprintf(stderr, "[ERROR] minimal_create: mock DV failed\n");
+        goto cleanup;
     }
     OCArrayAppendValue(dvs, dv);
     OCRelease(dv);
-    // create with only DVs, other fields default
-    DatasetRef ds = DatasetCreate(NULL, NULL, dvs,
-                                  NULL, NULL, NULL,
-                                  NULL, NULL, NULL);
-    if (!ds) {
-        fprintf(stderr, "[ERROR] DatasetCreate(minimal) returned NULL\n");
-        goto cleanup1;
-    }
-    // ——— Minimal default‐state sanity checks ———
-    //   * Exactly one dependent‐variable
-    //   * All other collections you didn't explicitly set are empty
+
+    // Create with only DVs; other params default
+    ds = DatasetCreate(NULL,    // dimensions
+                       NULL,    // dimensionPrecedence
+                       dvs,     // dependentVariables
+                       NULL,    // tags
+                       NULL,    // description
+                       NULL,    // title
+                       NULL,    // focus
+                       NULL,    // previousFocus
+                       NULL,    // metaData
+                       NULL);   // outError
+    TEST_ASSERT(ds != NULL);
+
+    // Sanity checks
     TEST_ASSERT(OCArrayGetCount(DatasetGetDependentVariables(ds)) == 1);
     TEST_ASSERT(OCArrayGetCount(DatasetGetDimensions(ds)) == 0);
     TEST_ASSERT(OCArrayGetCount(DatasetGetTags(ds)) == 0);
     TEST_ASSERT(OCIndexArrayGetCount(DatasetGetDimensionPrecedence(ds)) == 0);
     TEST_ASSERT(OCDictionaryGetCount(DatasetGetMetaData(ds)) == 0);
-    // type and retain behavior (unchanged)
-    if (OCGetTypeID(ds) != DatasetGetTypeID()) {
-        fprintf(stderr, "[ERROR] minimal_create: typeID mismatch\n");
-        goto cleanup;
-    }
+
+    // Type ID and retain behavior
+    TEST_ASSERT(OCGetTypeID(ds) == DatasetGetTypeID());
     int cnt = OCTypeGetRetainCount(ds);
     OCRetain(ds);
-    if (OCTypeGetRetainCount(ds) != cnt + 1) {
-        fprintf(stderr, "[ERROR] minimal_create: retain count did not increment\n");
-        goto cleanup;
-    }
+    TEST_ASSERT(OCTypeGetRetainCount(ds) == cnt + 1);
     OCRelease(ds);
+
     ok = true;
+
 cleanup:
     OCRelease(ds);
-cleanup1:
     OCRelease(dvs);
     printf("test_Dataset_minimal_create %s.\n", ok ? "passed" : "FAILED");
     return ok;
 }
+
 bool test_Dataset_mutators(void) {
     printf("test_Dataset_mutators...\n");
     bool ok = false;
     OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    OCMutableArrayRef dims = NULL;
+    OCMutableIndexArrayRef order = NULL;
+    OCMutableArrayRef newDVs = NULL;
+    OCMutableArrayRef tags = NULL;
+    OCDictionaryRef md = NULL;
+    DatasetRef ds = NULL;
+
     DependentVariableRef dv = _make_mock_dv();
-    if (!dv) {
-        fprintf(stderr, "[ERROR] mutators: mock DV failure\n");
-        goto cleanup0;
-    }
+    TEST_ASSERT(dv != NULL);
     OCArrayAppendValue(dvs, dv);
     OCRelease(dv);
-    DatasetRef ds = DatasetCreate(NULL, NULL, dvs, NULL, NULL, NULL, NULL, NULL, NULL);
-    if (!ds) {
-        fprintf(stderr, "[ERROR] mutators: DatasetCreate failed\n");
-        goto cleanup0;
-    }
-    OCMutableArrayRef dims = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+
+    ds = DatasetCreate(NULL, NULL, dvs, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    TEST_ASSERT(ds != NULL);
+
+    // Dimensions
+    dims = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(dims, STR("D0"));
-    if (!DatasetSetDimensions(ds, dims) || OCArrayGetCount(DatasetGetDimensions(ds)) != 1) {
-        fprintf(stderr, "[ERROR] mutators: SetDimensions failed\n");
-        goto cleanup1;
-    }
-    OCMutableIndexArrayRef order = OCIndexArrayCreateMutable(0);
+    TEST_ASSERT(DatasetSetDimensions(ds, dims));
+    TEST_ASSERT(OCArrayGetCount(DatasetGetDimensions(ds)) == 1);
+
+    // Dimension precedence
+    order = OCIndexArrayCreateMutable(0);
     OCIndexArrayAppendValue(order, 0);
-    if (!DatasetSetDimensionPrecedence(ds, order) ||
-        OCIndexArrayGetCount(DatasetGetDimensionPrecedence(ds)) != 1) {
-        fprintf(stderr, "[ERROR] mutators: SetDimensionPrecedence failed\n");
-        goto cleanup1;
-    }
-    OCMutableArrayRef newDVs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    if (!DatasetSetDependentVariables(ds, newDVs) ||
-        OCArrayGetCount(DatasetGetDependentVariables(ds)) != 0) {
-        fprintf(stderr, "[ERROR] mutators: SetDependentVariables failed\n");
-        goto cleanup1;
-    }
-    OCMutableArrayRef tags = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    TEST_ASSERT(DatasetSetDimensionPrecedence(ds, order));
+    TEST_ASSERT(OCIndexArrayGetCount(DatasetGetDimensionPrecedence(ds)) == 1);
+
+    // Dependent variables → set to empty
+    newDVs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    TEST_ASSERT(DatasetSetDependentVariables(ds, newDVs));
+    TEST_ASSERT(OCArrayGetCount(DatasetGetDependentVariables(ds)) == 0);
+
+    // Tags
+    tags = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(tags, STR("foo"));
     OCArrayAppendValue(tags, STR("bar"));
-    if (!DatasetSetTags(ds, tags) || OCArrayGetCount(DatasetGetTags(ds)) != 2) {
-        fprintf(stderr, "[ERROR] mutators: SetTags failed\n");
-        goto cleanup1;
-    }
-    if (!DatasetSetDescription(ds, STR("hello")) ||
-        !OCStringEqual(DatasetGetDescription(ds), STR("hello")) ||
-        !DatasetSetTitle(ds, STR("world")) ||
-        !OCStringEqual(DatasetGetTitle(ds), STR("world"))) {
-        fprintf(stderr, "[ERROR] mutators: title/description failed\n");
-        goto cleanup1;
-    }
-    OCDictionaryRef md = OCDictionaryCreateMutable(0);
+    TEST_ASSERT(DatasetSetTags(ds, tags));
+    TEST_ASSERT(OCArrayGetCount(DatasetGetTags(ds)) == 2);
+
+    // Description & title
+    TEST_ASSERT(DatasetSetDescription(ds, STR("hello")));
+    TEST_ASSERT(OCStringEqual(DatasetGetDescription(ds), STR("hello")));
+    TEST_ASSERT(DatasetSetTitle(ds, STR("world")));
+    TEST_ASSERT(OCStringEqual(DatasetGetTitle(ds), STR("world")));
+
+    // MetaData
+    md = OCDictionaryCreateMutable(0);
     OCDictionarySetValue((OCMutableDictionaryRef)md, STR("k"), STR("v"));
-    if (!DatasetSetMetaData(ds, md) || OCDictionaryGetCount(DatasetGetMetaData(ds)) != 1) {
-        fprintf(stderr, "[ERROR] mutators: SetMetaData failed\n");
-        goto cleanup1;
-    }
-    if (!DatasetSetFocus(ds, NULL) || DatasetGetFocus(ds) != NULL ||
-        !DatasetSetPreviousFocus(ds, NULL) || DatasetGetPreviousFocus(ds) != NULL) {
-        fprintf(stderr, "[ERROR] mutators: focus handling failed\n");
-        goto cleanup1;
-    }
+    TEST_ASSERT(DatasetSetMetaData(ds, md));
+    TEST_ASSERT(OCDictionaryGetCount(DatasetGetMetaData(ds)) == 1);
+
+    // Focus
+    TEST_ASSERT(DatasetSetFocus(ds, NULL));
+    TEST_ASSERT(DatasetGetFocus(ds) == NULL);
+    TEST_ASSERT(DatasetSetPreviousFocus(ds, NULL));
+    TEST_ASSERT(DatasetGetPreviousFocus(ds) == NULL);
+
     ok = true;
-cleanup1:
+
+cleanup:
+    OCRelease(ds);
+    OCRelease(dvs);
     OCRelease(dims);
     OCRelease(order);
     OCRelease(newDVs);
     OCRelease(tags);
     OCRelease(md);
-    OCRelease(ds);
-cleanup0:
-    OCRelease(dvs);
     printf("test_Dataset_mutators %s.\n", ok ? "passed" : "FAILED");
     return ok;
 }
+
 bool test_Dataset_type_contract(void) {
     printf("test_Dataset_type_contract...\n");
     bool ok = false;
     OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    DatasetRef ds = NULL;
+
     DependentVariableRef dv = _make_mock_dv();
-    if (!dv) goto cleanup0;
+    TEST_ASSERT(dv != NULL);
     OCArrayAppendValue(dvs, dv);
     OCRelease(dv);
-    DatasetRef ds = DatasetCreate(NULL, NULL, dvs, NULL, NULL, NULL, NULL, NULL, NULL);
-    if (!ds) goto cleanup0;
-    if (OCGetTypeID(ds) != DatasetGetTypeID()) {
-        fprintf(stderr, "[ERROR] type_contract: OCGetTypeID mismatch\n");
-        goto cleanup1;
-    }
+
+    ds = DatasetCreate(NULL, NULL, dvs, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    TEST_ASSERT(ds != NULL);
+
+    // Type ID
+    TEST_ASSERT(OCGetTypeID(ds) == DatasetGetTypeID());
+
+    // Retain count
     int cnt = OCTypeGetRetainCount(ds);
     OCRetain(ds);
-    if (OCTypeGetRetainCount(ds) != cnt + 1) {
-        fprintf(stderr, "[ERROR] type_contract: retain count did not increment\n");
-        goto cleanup1;
-    }
+    TEST_ASSERT(OCTypeGetRetainCount(ds) == cnt + 1);
     OCRelease(ds);
+
     ok = true;
-cleanup1:
+
+cleanup:
     OCRelease(ds);
-cleanup0:
     OCRelease(dvs);
     printf("test_Dataset_type_contract %s.\n", ok ? "passed" : "FAILED");
     return ok;
 }
+
 bool test_Dataset_copy_and_roundtrip(void) {
     printf("test_Dataset_copy_and_roundtrip...\n");
     bool ok = false;
     OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    OCDictionaryRef dict = NULL;
+    DatasetRef ds = NULL, copy = NULL, rt = NULL;
+
     DependentVariableRef dv = _make_mock_dv();
-    if (!dv) goto cleanup0;
+    TEST_ASSERT(dv != NULL);
     OCArrayAppendValue(dvs, dv);
     OCRelease(dv);
-    DatasetRef ds = DatasetCreate(NULL, NULL, dvs, NULL, NULL, NULL, NULL, NULL, NULL);
-    if (!ds) goto cleanup0;
-    DatasetRef copy = DatasetCreateCopy(ds);
-    if (!copy || !OCTypeEqual(ds, copy)) {
-        fprintf(stderr, "[ERROR] copy_roundtrip: DatasetCreateCopy failed or unequal\n");
-        goto cleanup1;
-    }
-    OCDictionaryRef dict = DatasetCopyAsDictionary(ds);
-    if (!dict) goto cleanup2;
-    DatasetRef rt = DatasetCreateFromDictionary(dict, NULL);
-    if (!rt || !OCTypeEqual(ds, rt)) {
-        fprintf(stderr, "[ERROR] copy_roundtrip: roundtrip failed or unequal\n");
-        goto cleanup3;
-    }
+
+    ds = DatasetCreate(NULL, NULL, dvs, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    TEST_ASSERT(ds != NULL);
+
+    // Copy
+    copy = DatasetCreateCopy(ds);
+    TEST_ASSERT(copy != NULL);
+    TEST_ASSERT(OCTypeEqual(ds, copy));
+
+    // Round-trip via dictionary
+    dict = DatasetCopyAsDictionary(ds);
+    TEST_ASSERT(dict != NULL);
+
+    rt = DatasetCreateFromDictionary(dict, NULL);
+    TEST_ASSERT(rt != NULL);
+    TEST_ASSERT(OCTypeEqual(ds, rt));
+
     ok = true;
-cleanup3:
+
+cleanup:
     OCRelease(rt);
-cleanup2:
     OCRelease(dict);
-cleanup1:
     OCRelease(copy);
-cleanup0:
     OCRelease(ds);
     OCRelease(dvs);
     printf("test_Dataset_copy_and_roundtrip %s.\n", ok ? "passed" : "FAILED");
     return ok;
 }
-
