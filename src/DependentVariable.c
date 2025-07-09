@@ -1026,14 +1026,14 @@ static OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OC
         code = kSINumberFloat32Type;
     else if (strcmp(typeStr, "float64") == 0)
         code = kSINumberFloat64Type;
-    else if (strcmp(typeStr, "complex32") == 0)
-        code = kSINumberComplex64Type;
     else if (strcmp(typeStr, "complex64") == 0)
+        code = kSINumberComplex64Type;
+    else if (strcmp(typeStr, "complex128") == 0)
         code = kSINumberComplex128Type;
     else {
         if (outError) *outError = STR(
                           "Unrecognized \"numeric_type\"; expected one of "
-                          "\"float32\", \"float64\", \"complex32\", \"complex64\"");
+                          "\"float32\", \"float64\", \"complex64\", \"complex128\"");
         OCRelease(dict);
         return NULL;
     }
