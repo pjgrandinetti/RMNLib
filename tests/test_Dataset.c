@@ -9,7 +9,7 @@
 // Helper to create a simple DependentVariable
 static DependentVariableRef _make_mock_dv(void) {
     return DependentVariableCreateDefault(STR("scalar"),
-                                          kSINumberFloat64Type,
+                                          kOCNumberFloat64Type,
                                           1,
                                           NULL);
 }

@@ -6,7 +6,7 @@ struct impl_DependentVariable {
     OCBase base;
     // SIQuantity Type attributes
     SIUnitRef unit;
-    SINumberType numericType;
+    OCNumberType numericType;
     // Dependent Variable Type attributes
     OCStringRef name;
     OCStringRef description;
@@ -157,7 +157,7 @@ static struct impl_DependentVariable *DependentVariableAllocate(void) {
 static void impl_InitDependentVariableFields(DependentVariableRef dv) {
     // SIQuantity defaults
     dv->unit = SIUnitDimensionlessAndUnderived();
-    dv->numericType = kSINumberFloat64Type;
+    dv->numericType = kOCNumberFloat64Type;
     // Basic DV fields
     dv->name = STR("");
     dv->description = STR("");
@@ -257,7 +257,7 @@ static DependentVariableRef impl_DependentVariableCreate(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCArrayRef componentLabels,
     OCArrayRef components,
     bool copyComponents,
@@ -408,7 +408,7 @@ DependentVariableRef DependentVariableCreate(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCArrayRef componentLabels,
     OCArrayRef components,
     OCStringRef *outError) {
@@ -429,7 +429,7 @@ DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCArrayRef componentLabels,
     OCArrayRef components,
     OCStringRef *outError) {
@@ -450,7 +450,7 @@ DependentVariableRef DependentVariableCreateWithSize(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCArrayRef componentLabels,
     OCIndex size,
     OCStringRef *outError) {
@@ -467,7 +467,7 @@ DependentVariableRef DependentVariableCreateWithSize(
 }
 DependentVariableRef DependentVariableCreateDefault(
     OCStringRef quantityType,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCIndex size,
     OCStringRef *outError) {
     return impl_DependentVariableCreate(
@@ -486,7 +486,7 @@ DependentVariableRef DependentVariableCreateWithComponent(
     OCStringRef description,
     SIUnitRef unit,
     OCStringRef quantityName,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCArrayRef componentLabels,
     OCDataRef component,
     OCStringRef *outError) {
@@ -511,7 +511,7 @@ DependentVariableRef DependentVariableCreateExternal(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCStringRef componentsURL,
     OCStringRef *outError) {
     if (componentsURL == NULL) {
@@ -559,11 +559,11 @@ DependentVariableRef DependentVariableCreateComplexCopy(DependentVariableRef src
     DependentVariableSetOwner(dv, owner);
     // 3) If it isn’t already a complex type, upgrade its element type
     if (!SIQuantityIsComplexType((SIQuantityRef)dv)) {
-        SINumberType base = DependentVariableGetElementType(dv);
-        SINumberType complexType =
-            (base == kSINumberFloat32Type
-                 ? kSINumberComplex64Type
-                 : kSINumberComplex128Type);
+        OCNumberType base = DependentVariableGetElementType(dv);
+        OCNumberType complexType =
+            (base == kOCNumberFloat32Type
+                 ? kOCNumberComplex64Type
+                 : kOCNumberComplex128Type);
         DependentVariableSetElementType(dv, complexType);
     }
     return dv;
@@ -594,9 +594,9 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
     }
     // 3) components (always embed raw data for round-trip)
     {
-        SINumberType et = DependentVariableGetElementType(dv);
+        OCNumberType et = DependentVariableGetElementType(dv);
         bool isBase64 = dv->encoding && OCStringEqual(dv->encoding, STR(kDependentVariableEncodingValueBase64));
-        bool isComplex = (et == kSINumberComplex64Type || et == kSINumberComplex128Type);
+        bool isComplex = (et == kOCNumberComplex64Type || et == kOCNumberComplex128Type);
         OCIndex ncomps = DependentVariableGetComponentCount(dv);
         OCMutableArrayRef compsArr = OCArrayCreateMutable(ncomps, &kOCTypeArrayCallBacks);
         for (OCIndex i = 0; i < ncomps; ++i) {
@@ -613,7 +613,7 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
                     OCArrayCreateMutable(isComplex ? count * 2 : count,
                                          &kOCTypeArrayCallBacks);
                 if (!isComplex) {
-                    if (et == kSINumberFloat32Type) {
+                    if (et == kOCNumberFloat32Type) {
                         float *arr = (float *)bytes;
                         for (OCIndex j = 0; j < count; ++j) {
                             OCNumberRef num = OCNumberCreateWithDouble((double)arr[j]);
@@ -629,7 +629,7 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
                         }
                     }
                 } else {
-                    if (et == kSINumberComplex64Type) {
+                    if (et == kOCNumberComplex64Type) {
                         float complex *arr = (float complex *)bytes;
                         for (OCIndex j = 0; j < count; ++j) {
                             OCNumberRef re = OCNumberCreateWithDouble((double)crealf(arr[j]));
@@ -729,26 +729,22 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
         if (outError) *outError = STR("DependentVariableCreateFromDictionary: input dictionary is NULL");
         return NULL;
     }
-
     // 1) type (external vs. internal)
     OCStringRef type = OCDictionaryGetValue(dict, STR(kDependentVariableTypeKey));
     bool isExternal = type && OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal));
-
     // 2) Required fields (all need quantityType & numericType)
     OCStringRef quantityType = OCDictionaryGetValue(dict, STR(kDependentVariableQuantityTypeKey));
-    OCNumberRef numType       = OCDictionaryGetValue(dict, STR(kDependentVariableNumericTypeKey));
+    OCNumberRef numType = OCDictionaryGetValue(dict, STR(kDependentVariableNumericTypeKey));
     if (!type || !quantityType || !numType) {
         if (outError) *outError = STR("DependentVariableCreateFromDictionary: missing required fields");
         return NULL;
     }
-
     // 3) For internal variables, we require an inline "components" array
     OCArrayRef compArr = OCDictionaryGetValue(dict, STR(kDependentVariableComponentsKey));
     if (!isExternal && !compArr) {
         if (outError) *outError = STR("DependentVariableCreateFromDictionary: missing \"components\" for internal variable");
         return NULL;
     }
-
     // 4) For external variables, grab the URL
     OCStringRef componentsURL = NULL;
     if (isExternal) {
@@ -758,23 +754,20 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
             return NULL;
         }
     }
-
     // 5) Parse elementType
-    SINumberType elementType = kSINumberTypeInvalid;
+    OCNumberType elementType = kOCNumberTypeInvalid;
     if (!OCNumberTryGetInt(numType, (int *)&elementType)) {
         if (outError) *outError = STR("DependentVariableCreateFromDictionary: invalid numeric_type");
         return NULL;
     }
-
     // 6) Optional metadata
-    OCStringRef name         = OCDictionaryGetValue(dict, STR(kDependentVariableNameKey));
-    OCStringRef desc         = OCDictionaryGetValue(dict, STR(kDependentVariableDescriptionKey));
+    OCStringRef name = OCDictionaryGetValue(dict, STR(kDependentVariableNameKey));
+    OCStringRef desc = OCDictionaryGetValue(dict, STR(kDependentVariableDescriptionKey));
     OCStringRef quantityName = OCDictionaryGetValue(dict, STR(kDependentVariableQuantityNameKey));
-    OCStringRef unitExpr     = OCDictionaryGetValue(dict, STR(kDependentVariableUnitKey));
-    OCArrayRef  labelArr     = OCDictionaryGetValue(dict, STR(kDependentVariableComponentLabelsKey));
-    OCStringRef encoding     = OCDictionaryGetValue(dict, STR(kDependentVariableEncodingKey));
-    bool        isBase64     = encoding && OCStringEqual(encoding, STR(kDependentVariableEncodingValueBase64));
-
+    OCStringRef unitExpr = OCDictionaryGetValue(dict, STR(kDependentVariableUnitKey));
+    OCArrayRef labelArr = OCDictionaryGetValue(dict, STR(kDependentVariableComponentLabelsKey));
+    OCStringRef encoding = OCDictionaryGetValue(dict, STR(kDependentVariableEncodingKey));
+    bool isBase64 = encoding && OCStringEqual(encoding, STR(kDependentVariableEncodingValueBase64));
     // 7) Reconstruct SIUnit
     SIUnitRef unit = NULL;
     if (unitExpr) {
@@ -783,7 +776,6 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
         unit = SIUnitFromExpression(unitExpr, &mult, &uerr);
         if (uerr) OCRelease(uerr);
     }
-
     // 8) Build the components array (only for internal)
     OCIndex count = compArr ? OCArrayGetCount(compArr) : 0;
     OCMutableArrayRef components = OCArrayCreateMutable(isExternal ? 0 : count, &kOCTypeArrayCallBacks);
@@ -791,37 +783,36 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
         if (outError) *outError = STR("DependentVariableCreateFromDictionary: cannot allocate components array");
         return NULL;
     }
-
     if (!isExternal) {
         // deserialize each component
         for (OCIndex i = 0; i < count; ++i) {
             if (isBase64) {
                 OCStringRef b64 = OCArrayGetValueAtIndex(compArr, i);
-                OCDataRef   data = OCDataCreateFromBase64EncodedString(b64);
+                OCDataRef data = OCDataCreateFromBase64EncodedString(b64);
                 if (data && OCDataGetLength(data) > 0) {
                     OCArrayAppendValue(components, data);
                 }
                 if (data) OCRelease(data);
             } else {
-                OCArrayRef    numList = OCArrayGetValueAtIndex(compArr, i);
-                OCIndex       n       = OCArrayGetCount(numList);
-                OCMutableDataRef data  = OCDataCreateMutable(0);
+                OCArrayRef numList = OCArrayGetValueAtIndex(compArr, i);
+                OCIndex n = OCArrayGetCount(numList);
+                OCMutableDataRef data = OCDataCreateMutable(0);
                 for (OCIndex j = 0; j < n; ++j) {
                     OCNumberRef num = OCArrayGetValueAtIndex(numList, j);
-                    double      v   = 0;
+                    double v = 0;
                     OCNumberTryGetDouble(num, &v);
                     switch (elementType) {
-                        case kSINumberFloat32Type: {
+                        case kOCNumberFloat32Type: {
                             float f = (float)v;
                             OCDataAppendBytes(data, (const uint8_t *)&f, sizeof(f));
                             break;
                         }
-                        case kSINumberFloat64Type: {
+                        case kOCNumberFloat64Type: {
                             double d = v;
                             OCDataAppendBytes(data, (const uint8_t *)&d, sizeof(d));
                             break;
                         }
-                        case kSINumberComplex64Type: {
+                        case kOCNumberComplex64Type: {
                             float re = (float)v, im = 0;
                             if (j + 1 < n) {
                                 OCNumberRef next = OCArrayGetValueAtIndex(numList, ++j);
@@ -832,7 +823,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
                             OCDataAppendBytes(data, (const uint8_t *)&z, sizeof(z));
                             break;
                         }
-                        case kSINumberComplex128Type: {
+                        case kOCNumberComplex128Type: {
                             double re = v, im = 0;
                             if (j + 1 < n) {
                                 OCNumberRef next = OCArrayGetValueAtIndex(numList, ++j);
@@ -859,7 +850,6 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
             return NULL;
         }
     }
-
     // 9) Finally, call the core creator with the *original* type and, for external, the URL
     DependentVariableRef dv = impl_DependentVariableCreate(
         /* type               */ type,
@@ -876,18 +866,16 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
         /* componentsURL      */ componentsURL,
         /* sparseSampling     */ NULL,
         /* outError           */ outError);
-
     OCRelease(components);
     if (!dv) return NULL;
-
     // 10) Attach sparse-sampling if present
     OCDictionaryRef spDict = OCDictionaryGetValue(dict, STR(kDependentVariableSparseSamplingKey));
     if (spDict) {
         OCStringRef spErr = NULL;
         SparseSamplingRef ss = SparseSamplingCreateFromDictionary(spDict, &spErr);
         if (!ss) {
-            if (outError) *outError = spErr ? OCStringCreateCopy(spErr) 
-                                           : STR("DependentVariableCreateFromDictionary: invalid sparse_sampling");
+            if (outError) *outError = spErr ? OCStringCreateCopy(spErr)
+                                            : STR("DependentVariableCreateFromDictionary: invalid sparse_sampling");
             if (spErr) OCRelease(spErr);
             OCRelease(dv);
             return NULL;
@@ -895,10 +883,8 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
         DependentVariableSetSparseSampling(dv, ss);
         OCRelease(ss);
     }
-
     return dv;
 }
-
 cJSON *DependentVariableCreateJSON(DependentVariableRef dv) {
     if (!dv) {
         // if you prefer, return NULL here instead of cJSON null
@@ -917,21 +903,18 @@ cJSON *DependentVariableCreateJSON(DependentVariableRef dv) {
     // 4) Return the cJSON object (caller is responsible for cJSON_Delete)
     return json;
 }
-OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError)
-{
+OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!json || !cJSON_IsObject(json)) {
         if (outError)
             *outError = STR("Expected top-level JSON object for DependentVariable");
         return NULL;
     }
-
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     if (!dict) {
         if (outError) *outError = STR("Failed to allocate dictionary");
         return NULL;
     }
-
     // 1) Required: "type"
     cJSON *item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableTypeKey);
     if (!cJSON_IsString(item)) {
@@ -945,7 +928,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableTypeKey), tmp);
         OCRelease(tmp);
     }
-
     // 2) Optional: "components_url"
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsURLKey);
     if (isExternal && !cJSON_IsString(item)) {
@@ -958,7 +940,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableComponentsURLKey), tmp);
         OCRelease(tmp);
     }
-
     // 3) Optional: "encoding"
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableEncodingKey);
     if (cJSON_IsString(item)) {
@@ -966,7 +947,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableEncodingKey), tmp);
         OCRelease(tmp);
     }
-
     // 4) "components" — required for internal only
     if (!isExternal) {
         item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsKey);
@@ -999,7 +979,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableComponentsKey), components);
         OCRelease(components);
     }
-
     // 5) Optional: name, description
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNameKey);
     if (cJSON_IsString(item)) {
@@ -1013,7 +992,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableDescriptionKey), tmp);
         OCRelease(tmp);
     }
-
     // 6) Optional: quantity_name
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityNameKey);
     if (cJSON_IsString(item)) {
@@ -1021,7 +999,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableQuantityNameKey), tmp);
         OCRelease(tmp);
     }
-
     // 7) Required: quantity_type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1034,7 +1011,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableQuantityTypeKey), tmp);
         OCRelease(tmp);
     }
-
     // 8) Optional: unit
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableUnitKey);
     if (cJSON_IsString(item)) {
@@ -1042,7 +1018,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableUnitKey), tmp);
         OCRelease(tmp);
     }
-
     // 9) Required: numeric_type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNumericTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1052,15 +1027,39 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
     }
     {
         const char *ts = item->valuestring;
-        SINumberType code;
-        if      (strcmp(ts, "float32") == 0)    code = kSINumberFloat32Type;
-        else if (strcmp(ts, "float64") == 0)    code = kSINumberFloat64Type;
-        else if (strcmp(ts, "complex64") == 0)  code = kSINumberComplex64Type;
-        else if (strcmp(ts, "complex128") == 0) code = kSINumberComplex128Type;
-        else {
-            if (outError) *outError = STR(
-                "Unrecognized \"numeric_type\"; expected one of "
-                "\"float32\", \"float64\", \"complex64\", \"complex128\"");
+        OCNumberType code;
+        if (strcmp(ts, "int8") == 0) {
+            code = kOCNumberSInt8Type;
+        } else if (strcmp(ts, "int16") == 0) {
+            code = kOCNumberSInt16Type;
+        } else if (strcmp(ts, "int32") == 0) {
+            code = kOCNumberSInt32Type;
+        } else if (strcmp(ts, "int64") == 0) {
+            code = kOCNumberSInt64Type;
+        } else if (strcmp(ts, "uint8") == 0) {
+            code = kOCNumberUInt8Type;
+        } else if (strcmp(ts, "uint16") == 0) {
+            code = kOCNumberUInt16Type;
+        } else if (strcmp(ts, "uint32") == 0) {
+            code = kOCNumberUInt32Type;
+        } else if (strcmp(ts, "uint64") == 0) {
+            code = kOCNumberUInt64Type;
+        } else if (strcmp(ts, "float32") == 0) {
+            code = kOCNumberFloat32Type;
+        } else if (strcmp(ts, "float64") == 0) {
+            code = kOCNumberFloat64Type;
+        } else if (strcmp(ts, "complex64") == 0) {
+            code = kOCNumberComplex64Type;
+        } else if (strcmp(ts, "complex128") == 0) {
+            code = kOCNumberComplex128Type;
+        } else {
+            if (outError) {
+                *outError = STR(
+                    "Unrecognized \"numeric_type\"; expected one of "
+                    "\"int8\", \"int16\", \"int32\", \"int64\", "
+                    "\"uint8\", \"uint16\", \"uint32\", \"uint64\", "
+                    "\"float32\", \"float64\", \"complex64\", \"complex128\"");
+            }
             OCRelease(dict);
             return NULL;
         }
@@ -1068,7 +1067,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), num);
         OCRelease(num);
     }
-
     // 10) Optional: component_labels (or default empty labels)
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentLabelsKey);
     if (cJSON_IsArray(item)) {
@@ -1083,8 +1081,7 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         }
         OCDictionarySetValue(dict, STR(kDependentVariableComponentLabelsKey), labels);
         OCRelease(labels);
-    }
-    else {
+    } else {
         // generate N empty labels, where N = components count for this quantityType
         OCStringRef qtyType = (OCStringRef)OCDictionaryGetValue(dict, STR(kDependentVariableQuantityTypeKey));
         OCIndex nLabels = DependentVariableComponentsCountFromQuantityType(qtyType);
@@ -1095,7 +1092,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableComponentLabelsKey), labels);
         OCRelease(labels);
     }
-
     // 11) Optional: sparse_sampling
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableSparseSamplingKey);
     if (cJSON_IsObject(item)) {
@@ -1113,7 +1109,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableSparseSamplingKey), spDict);
         OCRelease(spDict);
     }
-
     return dict;
 }
 DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *outError) {
@@ -1170,7 +1165,7 @@ DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv
         npts[d] = DimensionGetCount(dim);
     }
     // 6) for each component buffer, walk the cross‐section
-    SINumberType elemType = DependentVariableGetElementType(dv);
+    OCNumberType elemType = DependentVariableGetElementType(dv);
     OCIndex nComps = DependentVariableGetComponentCount(dv);
     for (OCIndex ci = 0; ci < nComps; ci++) {
         OCDataRef srcBlob = DependentVariableGetComponentAtIndex(dv, ci);
@@ -1182,17 +1177,17 @@ DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv
             // single‐point slice
             OCIndex memOff = RMNGridMemOffsetFromIndexes(dimensions, coords);
             switch (elemType) {
-                case kSINumberFloat32Type:
+                case kOCNumberFloat32Type:
                     ((float *)dstPtr)[0] = ((float *)srcPtr)[memOff];
                     break;
-                case kSINumberFloat64Type:
+                case kOCNumberFloat64Type:
                     ((double *)dstPtr)[0] = ((double *)srcPtr)[memOff];
                     break;
-                case kSINumberComplex64Type:
+                case kOCNumberComplex64Type:
                     ((float complex *)dstPtr)[0] =
                         ((float complex *)srcPtr)[memOff];
                     break;
-                case kSINumberComplex128Type:
+                case kOCNumberComplex128Type:
                     ((double complex *)dstPtr)[0] =
                         ((double complex *)srcPtr)[memOff];
                     break;
@@ -1206,17 +1201,17 @@ DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv
                 OCIndex memOff =
                     RMNGridMemOffsetFromIndexes(dimensions, coords);
                 switch (elemType) {
-                    case kSINumberFloat32Type:
+                    case kOCNumberFloat32Type:
                         ((float *)dstPtr)[outOff] = ((float *)srcPtr)[memOff];
                         break;
-                    case kSINumberFloat64Type:
+                    case kOCNumberFloat64Type:
                         ((double *)dstPtr)[outOff] = ((double *)srcPtr)[memOff];
                         break;
-                    case kSINumberComplex64Type:
+                    case kOCNumberComplex64Type:
                         ((float complex *)dstPtr)[outOff] =
                             ((float complex *)srcPtr)[memOff];
                         break;
-                    case kSINumberComplex128Type:
+                    case kOCNumberComplex128Type:
                         ((double complex *)dstPtr)[outOff] =
                             ((double complex *)srcPtr)[memOff];
                         break;
@@ -1246,8 +1241,8 @@ bool DependentVariableAppend(DependentVariableRef dv, DependentVariableRef appen
         return false;
     }
     // 3) must have the same element type
-    SINumberType et1 = DependentVariableGetElementType(dv);
-    SINumberType et2 = DependentVariableGetElementType(appendedDV);
+    OCNumberType et1 = DependentVariableGetElementType(dv);
+    OCNumberType et2 = DependentVariableGetElementType(appendedDV);
     if (et1 != et2) {
         if (outError) {
             *outError = OCStringCreateWithFormat(
@@ -1601,20 +1596,43 @@ bool DependentVariableSetSize(DependentVariableRef dv, OCIndex newSize) {
     // pick up byte‐size per element
     size_t elemSize;
     switch (dv->numericType) {
-        case kSINumberFloat32Type:
+        // 8-bit integers
+        case kOCNumberSInt8Type:
+        case kOCNumberUInt8Type:
+            elemSize = 1;
+            break;
+        // 16-bit integers
+        case kOCNumberSInt16Type:
+        case kOCNumberUInt16Type:
+            elemSize = 2;
+            break;
+        // 32-bit integers
+        case kOCNumberSInt32Type:
+        case kOCNumberUInt32Type:
+            elemSize = 4;
+            break;
+        // 64-bit integers
+        case kOCNumberSInt64Type:
+        case kOCNumberUInt64Type:
+            elemSize = 8;
+            break;
+        // IEEE floats
+        case kOCNumberFloat32Type:
             elemSize = sizeof(float);
             break;
-        case kSINumberFloat64Type:
+        case kOCNumberFloat64Type:
             elemSize = sizeof(double);
             break;
-        case kSINumberComplex64Type:
+        // Complex (real+imaginary)
+        case kOCNumberComplex64Type:
             elemSize = 2 * sizeof(float);
             break;
-        case kSINumberComplex128Type:
+        case kOCNumberComplex128Type:
             elemSize = 2 * sizeof(double);
             break;
         default:
-            elemSize = 1;
+            // Should never happen if numericType is valid
+            elemSize = 0;
             break;
     }
     OCIndex newByteLen = newSize * elemSize;
@@ -1959,13 +1977,13 @@ bool DependentVariableSetComponentLabelAtIndex(DependentVariableRef dv, OCString
     OCArraySetValueAtIndex(labels, componentIndex, newLabel);
     return true;
 }
-SINumberType DependentVariableGetElementType(DependentVariableRef dv) {
-    if (!dv) return kSINumberTypeInvalid;
+OCNumberType DependentVariableGetElementType(DependentVariableRef dv) {
+    if (!dv) return kOCNumberTypeInvalid;
     return dv->numericType;
 }
-bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newType) {
+bool DependentVariableSetElementType(DependentVariableRef dv, OCNumberType newType) {
     if (!dv) return false;
-    SINumberType oldType = dv->numericType;
+    OCNumberType oldType = dv->numericType;
     if (oldType == newType) return true;
     OCMutableArrayRef comps = dv->components;
     if (!comps) return false;
@@ -1980,20 +1998,20 @@ bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newTy
         // copy/convert element-by-element:
         for (OCIndex ei = 0; ei < nElems; ei++) {
             switch (oldType) {
-                case kSINumberFloat32Type: {
+                case kOCNumberFloat32Type: {
                     float *src = (float *)oldPtr;
                     float f = src[ei];
                     switch (newType) {
-                        case kSINumberFloat32Type:
+                        case kOCNumberFloat32Type:
                             ((float *)tmpBuf)[ei] = f;
                             break;
-                        case kSINumberFloat64Type:
+                        case kOCNumberFloat64Type:
                             ((double *)tmpBuf)[ei] = f;
                             break;
-                        case kSINumberComplex64Type:
+                        case kOCNumberComplex64Type:
                             ((float complex *)tmpBuf)[ei] = f;
                             break;
-                        case kSINumberComplex128Type:
+                        case kOCNumberComplex128Type:
                             ((double complex *)tmpBuf)[ei] = f;
                             break;
                         default:
@@ -2001,20 +2019,20 @@ bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newTy
                     }
                     break;
                 }
-                case kSINumberFloat64Type: {
+                case kOCNumberFloat64Type: {
                     double *src = (double *)oldPtr;
                     double d = src[ei];
                     switch (newType) {
-                        case kSINumberFloat32Type:
+                        case kOCNumberFloat32Type:
                             ((float *)tmpBuf)[ei] = (float)d;
                             break;
-                        case kSINumberFloat64Type:
+                        case kOCNumberFloat64Type:
                             ((double *)tmpBuf)[ei] = d;
                             break;
-                        case kSINumberComplex64Type:
+                        case kOCNumberComplex64Type:
                             ((float complex *)tmpBuf)[ei] = (float)d;
                             break;
-                        case kSINumberComplex128Type:
+                        case kOCNumberComplex128Type:
                             ((double complex *)tmpBuf)[ei] = d;
                             break;
                         default:
@@ -2022,20 +2040,20 @@ bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newTy
                     }
                     break;
                 }
-                case kSINumberComplex64Type: {
+                case kOCNumberComplex64Type: {
                     float complex *src = (float complex *)oldPtr;
                     float complex z = src[ei];
                     switch (newType) {
-                        case kSINumberFloat32Type:
+                        case kOCNumberFloat32Type:
                             ((float *)tmpBuf)[ei] = crealf(z);
                             break;
-                        case kSINumberFloat64Type:
+                        case kOCNumberFloat64Type:
                             ((double *)tmpBuf)[ei] = crealf(z);
                             break;
-                        case kSINumberComplex64Type:
+                        case kOCNumberComplex64Type:
                             ((float complex *)tmpBuf)[ei] = z;
                             break;
-                        case kSINumberComplex128Type:
+                        case kOCNumberComplex128Type:
                             ((double complex *)tmpBuf)[ei] = z;
                             break;
                         default:
@@ -2043,20 +2061,20 @@ bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newTy
                     }
                     break;
                 }
-                case kSINumberComplex128Type: {
+                case kOCNumberComplex128Type: {
                     double complex *src = (double complex *)oldPtr;
                     double complex z = src[ei];
                     switch (newType) {
-                        case kSINumberFloat32Type:
+                        case kOCNumberFloat32Type:
                             ((float *)tmpBuf)[ei] = (float)creal(z);
                             break;
-                        case kSINumberFloat64Type:
+                        case kOCNumberFloat64Type:
                             ((double *)tmpBuf)[ei] = creal(z);
                             break;
-                        case kSINumberComplex64Type:
+                        case kOCNumberComplex64Type:
                             ((float complex *)tmpBuf)[ei] = (float)creal(z) + (float)cimag(z) * I;
                             break;
-                        case kSINumberComplex128Type:
+                        case kOCNumberComplex128Type:
                             ((double complex *)tmpBuf)[ei] = z;
                             break;
                         default:
@@ -2102,12 +2120,16 @@ bool DependentVariableSetValues(DependentVariableRef dv, OCIndex componentIndex,
     OCRelease(newValues);
     return true;
 }
-float DependentVariableGetFloatValueAtMemOffset(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset) {
+float DependentVariableGetFloatValueAtMemOffset(DependentVariableRef dv,
+                                                OCIndex componentIndex,
+                                                OCIndex memOffset) {
     if (!dv) return NAN;
     OCIndex size = DependentVariableGetSize(dv);
     OCIndex nComps = OCArrayGetCount(dv->components);
-    if (size == 0 || nComps == 0 ||
-        componentIndex < 0 || componentIndex >= nComps) {
+    if (size == 0 ||
+        nComps == 0 ||
+        componentIndex < 0 ||
+        componentIndex >= nComps) {
         return NAN;
     }
     // wrap negative or out‐of‐bounds offsets
@@ -2116,19 +2138,57 @@ float DependentVariableGetFloatValueAtMemOffset(DependentVariableRef dv, OCIndex
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
     switch (dv->numericType) {
-        case kSINumberFloat32Type: {
+        // 8-bit integers
+        case kOCNumberSInt8Type: {
+            int8_t *arr = (int8_t *)bytes;
+            return (float)arr[memOffset];
+        }
+        case kOCNumberUInt8Type: {
+            uint8_t *arr = (uint8_t *)bytes;
+            return (float)arr[memOffset];
+        }
+        // 16-bit integers
+        case kOCNumberSInt16Type: {
+            int16_t *arr = (int16_t *)bytes;
+            return (float)arr[memOffset];
+        }
+        case kOCNumberUInt16Type: {
+            uint16_t *arr = (uint16_t *)bytes;
+            return (float)arr[memOffset];
+        }
+        // 32-bit integers
+        case kOCNumberSInt32Type: {
+            int32_t *arr = (int32_t *)bytes;
+            return (float)arr[memOffset];
+        }
+        case kOCNumberUInt32Type: {
+            uint32_t *arr = (uint32_t *)bytes;
+            return (float)arr[memOffset];
+        }
+        // 64-bit integers
+        case kOCNumberSInt64Type: {
+            int64_t *arr = (int64_t *)bytes;
+            return (float)arr[memOffset];
+        }
+        case kOCNumberUInt64Type: {
+            uint64_t *arr = (uint64_t *)bytes;
+            return (float)arr[memOffset];
+        }
+        // IEEE floats
+        case kOCNumberFloat32Type: {
             float *arr = (float *)bytes;
             return arr[memOffset];
         }
-        case kSINumberFloat64Type: {
+        case kOCNumberFloat64Type: {
             double *arr = (double *)bytes;
             return (float)arr[memOffset];
         }
-        case kSINumberComplex64Type: {
+        // Complex (return the real part)
+        case kOCNumberComplex64Type: {
             float complex *arr = (float complex *)bytes;
             return (float)crealf(arr[memOffset]);
         }
-        case kSINumberComplex128Type: {
+        case kOCNumberComplex128Type: {
             double complex *arr = (double complex *)bytes;
             return (float)crealf(arr[memOffset]);
         }
@@ -2136,35 +2196,54 @@ float DependentVariableGetFloatValueAtMemOffset(DependentVariableRef dv, OCIndex
             return NAN;
     }
 }
-double DependentVariableGetDoubleValueAtMemOffset(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset) {
+double DependentVariableGetDoubleValueAtMemOffset(DependentVariableRef dv,
+                                                  OCIndex componentIndex,
+                                                  OCIndex memOffset) {
     if (!dv) return NAN;
     OCIndex size = DependentVariableGetSize(dv);
     OCIndex nComps = OCArrayGetCount(dv->components);
-    if (size == 0 || nComps == 0 ||
-        componentIndex < 0 || componentIndex >= nComps) {
+    if (size == 0 ||
+        nComps == 0 ||
+        componentIndex < 0 ||
+        componentIndex >= nComps) {
         return NAN;
     }
+    // wrap negative or out‐of‐bounds offsets
     memOffset = memOffset % size;
     if (memOffset < 0) memOffset += size;
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
     switch (dv->numericType) {
-        case kSINumberFloat32Type: {
-            float *arr = (float *)bytes;
-            return (double)arr[memOffset];
-        }
-        case kSINumberFloat64Type: {
-            double *arr = (double *)bytes;
-            return arr[memOffset];
-        }
-        case kSINumberComplex64Type: {
-            float complex *arr = (float complex *)bytes;
-            return (double)crealf(arr[memOffset]);
-        }
-        case kSINumberComplex128Type: {
-            double complex *arr = (double complex *)bytes;
-            return creal(arr[memOffset]);
-        }
+        // 8-bit integers
+        case kOCNumberSInt8Type:
+            return (double)((int8_t *)bytes)[memOffset];
+        case kOCNumberUInt8Type:
+            return (double)((uint8_t *)bytes)[memOffset];
+        // 16-bit integers
+        case kOCNumberSInt16Type:
+            return (double)((int16_t *)bytes)[memOffset];
+        case kOCNumberUInt16Type:
+            return (double)((uint16_t *)bytes)[memOffset];
+        // 32-bit integers
+        case kOCNumberSInt32Type:
+            return (double)((int32_t *)bytes)[memOffset];
+        case kOCNumberUInt32Type:
+            return (double)((uint32_t *)bytes)[memOffset];
+        // 64-bit integers
+        case kOCNumberSInt64Type:
+            return (double)((int64_t *)bytes)[memOffset];
+        case kOCNumberUInt64Type:
+            return (double)((uint64_t *)bytes)[memOffset];
+        // IEEE floats
+        case kOCNumberFloat32Type:
+            return (double)((float *)bytes)[memOffset];
+        case kOCNumberFloat64Type:
+            return ((double *)bytes)[memOffset];
+        // Complex (return the real part)
+        case kOCNumberComplex64Type:
+            return (double)crealf(((float complex *)bytes)[memOffset]);
+        case kOCNumberComplex128Type:
+            return creal(((double complex *)bytes)[memOffset]);
         default:
             return NAN;
     }
@@ -2182,19 +2261,19 @@ float complex DependentVariableGetFloatComplexValueAtMemOffset(DependentVariable
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
     switch (dv->numericType) {
-        case kSINumberFloat32Type: {
+        case kOCNumberFloat32Type: {
             float *arr = (float *)bytes;
             return (float complex)arr[memOffset];
         }
-        case kSINumberFloat64Type: {
+        case kOCNumberFloat64Type: {
             double *arr = (double *)bytes;
             return (float complex)arr[memOffset];
         }
-        case kSINumberComplex64Type: {
+        case kOCNumberComplex64Type: {
             float complex *arr = (float complex *)bytes;
             return arr[memOffset];
         }
-        case kSINumberComplex128Type: {
+        case kOCNumberComplex128Type: {
             double complex *arr = (double complex *)bytes;
             return (float complex)arr[memOffset];
         }
@@ -2215,19 +2294,19 @@ double complex DependentVariableGetDoubleComplexValueAtMemOffset(DependentVariab
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
     switch (dv->numericType) {
-        case kSINumberFloat32Type: {
+        case kOCNumberFloat32Type: {
             float *arr = (float *)bytes;
             return (double complex)arr[memOffset];
         }
-        case kSINumberFloat64Type: {
+        case kOCNumberFloat64Type: {
             double *arr = (double *)bytes;
             return (double complex)arr[memOffset];
         }
-        case kSINumberComplex64Type: {
+        case kOCNumberComplex64Type: {
             float complex *arr = (float complex *)bytes;
             return (double complex)crealf(arr[memOffset]);
         }
-        case kSINumberComplex128Type: {
+        case kOCNumberComplex128Type: {
             double complex *arr = (double complex *)bytes;
             return arr[memOffset];
         }
@@ -2235,115 +2314,177 @@ double complex DependentVariableGetDoubleComplexValueAtMemOffset(DependentVariab
             return NAN + NAN * I;
     }
 }
-double DependentVariableGetDoubleValueAtMemOffsetForPart(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset, complexPart part) {
+double DependentVariableGetDoubleValueAtMemOffsetForPart(
+    DependentVariableRef dv,
+    OCIndex componentIndex,
+    OCIndex memOffset,
+    complexPart part) {
     if (!dv) return NAN;
     OCIndex size = DependentVariableGetSize(dv);
     OCIndex nComps = OCArrayGetCount(dv->components);
-    if (size == 0 || nComps == 0 ||
-        componentIndex < 0 || componentIndex >= nComps) {
+    if (size == 0 ||
+        nComps == 0 ||
+        componentIndex < 0 ||
+        componentIndex >= nComps) {
         return NAN;
     }
-    memOffset %= size;
+    // wrap and normalize offset
+    memOffset = memOffset % size;
     if (memOffset < 0) memOffset += size;
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
+    double realv = 0.0;
+    double imagv = 0.0;
     switch (dv->numericType) {
-        case kSINumberFloat32Type: {
-            float *arr = (float *)bytes;
-            return (double)arr[memOffset];
-        }
-        case kSINumberFloat64Type: {
-            double *arr = (double *)bytes;
-            return arr[memOffset];
-        }
-        case kSINumberComplex64Type: {
+        // signed integers
+        case kOCNumberSInt8Type:
+            realv = (double)((int8_t *)bytes)[memOffset];
+            break;
+        case kOCNumberSInt16Type:
+            realv = (double)((int16_t *)bytes)[memOffset];
+            break;
+        case kOCNumberSInt32Type:
+            realv = (double)((int32_t *)bytes)[memOffset];
+            break;
+        case kOCNumberSInt64Type:
+            realv = (double)((int64_t *)bytes)[memOffset];
+            break;
+        // unsigned integers
+        case kOCNumberUInt8Type:
+            realv = (double)((uint8_t *)bytes)[memOffset];
+            break;
+        case kOCNumberUInt16Type:
+            realv = (double)((uint16_t *)bytes)[memOffset];
+            break;
+        case kOCNumberUInt32Type:
+            realv = (double)((uint32_t *)bytes)[memOffset];
+            break;
+        case kOCNumberUInt64Type:
+            realv = (double)((uint64_t *)bytes)[memOffset];
+            break;
+        // floats
+        case kOCNumberFloat32Type:
+            realv = (double)((float *)bytes)[memOffset];
+            break;
+        case kOCNumberFloat64Type:
+            realv = ((double *)bytes)[memOffset];
+            break;
+        // complex floats
+        case kOCNumberComplex64Type: {
             float complex *arr = (float complex *)bytes;
             float complex v = arr[memOffset];
-            switch (part) {
-                case kSIRealPart:
-                    return crealf(v);
-                case kSIImaginaryPart:
-                    return cimagf(v);
-                case kSIMagnitudePart:
-                    return cabsf(v);
-                case kSIArgumentPart:
-                    return cargf(v);
-            }
+            realv = crealf(v);
+            imagv = cimagf(v);
             break;
         }
-        case kSINumberComplex128Type: {
+        // complex doubles
+        case kOCNumberComplex128Type: {
             double complex *arr = (double complex *)bytes;
             double complex v = arr[memOffset];
-            switch (part) {
-                case kSIRealPart:
-                    return creal(v);
-                case kSIImaginaryPart:
-                    return cimag(v);
-                case kSIMagnitudePart:
-                    return cabs(v);
-                case kSIArgumentPart:
-                    return carg(v);
-            }
+            realv = creal(v);
+            imagv = cimag(v);
             break;
         }
         default:
-            break;
+            return NAN;
+    }
+    // now pick the requested part
+    switch (part) {
+        case kSIRealPart:
+            return realv;
+        case kSIImaginaryPart:
+            return imagv;
+        case kSIMagnitudePart:
+            return hypot(realv, imagv);
+        case kSIArgumentPart:
+            return atan2(imagv, realv);
     }
     return NAN;
 }
-float DependentVariableGetFloatValueAtMemOffsetForPart(DependentVariableRef dv, OCIndex componentIndex, OCIndex memOffset, complexPart part) {
+float DependentVariableGetFloatValueAtMemOffsetForPart(
+    DependentVariableRef dv,
+    OCIndex componentIndex,
+    OCIndex memOffset,
+    complexPart part) {
     if (!dv) return NAN;
     OCIndex size = DependentVariableGetSize(dv);
     OCIndex nComps = OCArrayGetCount(dv->components);
-    if (size == 0 || nComps == 0 ||
-        componentIndex < 0 || componentIndex >= nComps) {
+    if (size == 0 ||
+        nComps == 0 ||
+        componentIndex < 0 ||
+        componentIndex >= nComps) {
         return NAN;
     }
-    memOffset %= size;
+    // wrap and normalize offset
+    memOffset = memOffset % size;
     if (memOffset < 0) memOffset += size;
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
+    float realv = 0.0f;
+    float imagv = 0.0f;
     switch (dv->numericType) {
-        case kSINumberFloat32Type: {
-            float *arr = (float *)bytes;
-            return arr[memOffset];
-        }
-        case kSINumberFloat64Type: {
-            double *arr = (double *)bytes;
-            return (float)arr[memOffset];
-        }
-        case kSINumberComplex64Type: {
+        // signed integers
+        case kOCNumberSInt8Type:
+            realv = (float)((int8_t *)bytes)[memOffset];
+            break;
+        case kOCNumberSInt16Type:
+            realv = (float)((int16_t *)bytes)[memOffset];
+            break;
+        case kOCNumberSInt32Type:
+            realv = (float)((int32_t *)bytes)[memOffset];
+            break;
+        case kOCNumberSInt64Type:
+            realv = (float)((int64_t *)bytes)[memOffset];
+            break;
+        // unsigned integers
+        case kOCNumberUInt8Type:
+            realv = (float)((uint8_t *)bytes)[memOffset];
+            break;
+        case kOCNumberUInt16Type:
+            realv = (float)((uint16_t *)bytes)[memOffset];
+            break;
+        case kOCNumberUInt32Type:
+            realv = (float)((uint32_t *)bytes)[memOffset];
+            break;
+        case kOCNumberUInt64Type:
+            realv = (float)((uint64_t *)bytes)[memOffset];
+            break;
+        // floats
+        case kOCNumberFloat32Type:
+            realv = ((float *)bytes)[memOffset];
+            break;
+        case kOCNumberFloat64Type:
+            realv = (float)((double *)bytes)[memOffset];
+            break;
+        // complex floats
+        case kOCNumberComplex64Type: {
             float complex *arr = (float complex *)bytes;
             float complex v = arr[memOffset];
-            switch (part) {
-                case kSIRealPart:
-                    return crealf(v);
-                case kSIImaginaryPart:
-                    return cimagf(v);
-                case kSIMagnitudePart:
-                    return cabsf(v);
-                case kSIArgumentPart:
-                    return cargf(v);
-            }
+            realv = crealf(v);
+            imagv = cimagf(v);
             break;
         }
-        case kSINumberComplex128Type: {
+        // complex doubles
+        case kOCNumberComplex128Type: {
             double complex *arr = (double complex *)bytes;
             double complex v = arr[memOffset];
-            switch (part) {
-                case kSIRealPart:
-                    return (float)creal(v);
-                case kSIImaginaryPart:
-                    return (float)cimag(v);
-                case kSIMagnitudePart:
-                    return (float)cabs(v);
-                case kSIArgumentPart:
-                    return (float)carg(v);
-            }
+            realv = (float)creal(v);
+            imagv = (float)cimag(v);
             break;
         }
         default:
-            break;
+            return NAN;
+    }
+    // now pick and return the requested part as a float
+    switch (part) {
+        case kSIRealPart:
+            return realv;
+        case kSIImaginaryPart:
+            return imagv;
+        case kSIMagnitudePart:
+            return hypotf(realv, imagv);
+        case kSIArgumentPart:
+            return atan2f(imagv, realv);
     }
     return NAN;
 }
@@ -2362,19 +2503,19 @@ SIScalarRef DependentVariableCreateValueFromMemOffset(DependentVariableRef dv, O
     OCDataRef data = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     const void *bytes = OCDataGetBytesPtr(data);
     switch (dv->numericType) {
-        case kSINumberFloat32Type: {
+        case kOCNumberFloat32Type: {
             float v = ((float *)bytes)[memOffset];
             return SIScalarCreateWithFloat(v, dv->unit);
         }
-        case kSINumberFloat64Type: {
+        case kOCNumberFloat64Type: {
             double v = ((double *)bytes)[memOffset];
             return SIScalarCreateWithDouble(v, dv->unit);
         }
-        case kSINumberComplex64Type: {
+        case kOCNumberComplex64Type: {
             float complex v = ((float complex *)bytes)[memOffset];
             return SIScalarCreateWithFloatComplex(v, dv->unit);
         }
-        case kSINumberComplex128Type: {
+        case kOCNumberComplex128Type: {
             double complex v = ((double complex *)bytes)[memOffset];
             return SIScalarCreateWithDoubleComplex(v, dv->unit);
         }
@@ -2407,22 +2548,22 @@ bool DependentVariableSetValueAtMemOffset(DependentVariableRef dv, OCIndex compo
     OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     void *bytes = OCDataGetMutableBytes(data);
     switch (dv->numericType) {
-        case kSINumberFloat32Type: {
+        case kOCNumberFloat32Type: {
             float v = SIScalarFloatValueInUnit(value, dv->unit, NULL);
             ((float *)bytes)[memOffset] = v;
             break;
         }
-        case kSINumberFloat64Type: {
+        case kOCNumberFloat64Type: {
             double v = SIScalarDoubleValueInUnit(value, dv->unit, NULL);
             ((double *)bytes)[memOffset] = v;
             break;
         }
-        case kSINumberComplex64Type: {
+        case kOCNumberComplex64Type: {
             float complex v = SIScalarFloatComplexValueInUnit(value, dv->unit, NULL);
             ((float complex *)bytes)[memOffset] = v;
             break;
         }
-        case kSINumberComplex128Type: {
+        case kOCNumberComplex128Type: {
             double complex v = SIScalarDoubleComplexValueInUnit(value, dv->unit, NULL);
             ((double complex *)bytes)[memOffset] = v;
             break;

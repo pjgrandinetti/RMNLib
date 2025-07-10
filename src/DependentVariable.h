@@ -88,7 +88,7 @@ DependentVariableCreateComplexCopy(DependentVariableRef src,
  * @param unit            SI unit (NULL→dimensionless).
  * @param quantityName    Logical quantity name (e.g. “temperature”).
  * @param quantityType    Semantic type (“scalar”, “vector_N”, etc.).
- * @param elementType     Numeric storage type (kSINumberFloat64Type, etc.).
+ * @param elementType     Numeric storage type (kOCNumberFloat64Type, etc.).
  * @param componentLabels Optional array of OCStringRef labels.
  * @param components      Array of OCDataRef buffers.
  * @param outError        Optional pointer for error message.
@@ -101,7 +101,7 @@ DependentVariableCreate(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCArrayRef componentLabels,
     OCArrayRef components,
     OCStringRef *outError);
@@ -115,7 +115,7 @@ DependentVariableCreateWithComponentsNoCopy(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCArrayRef componentLabels,
     OCArrayRef components,
     OCStringRef *outError);
@@ -130,7 +130,7 @@ DependentVariableCreateWithSize(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCArrayRef componentLabels,
     OCIndex size,
     OCStringRef *outError);
@@ -140,7 +140,7 @@ DependentVariableCreateWithSize(
 DependentVariableRef
 DependentVariableCreateDefault(
     OCStringRef quantityType,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCIndex size,
     OCStringRef *outError);
 /**
@@ -151,7 +151,7 @@ DependentVariableRef DependentVariableCreateWithComponent(
     OCStringRef description,
     SIUnitRef unit,
     OCStringRef quantityName,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCArrayRef componentLabels,
     OCDataRef component,
     OCStringRef *outError);
@@ -161,7 +161,7 @@ DependentVariableRef DependentVariableCreateExternal(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    SINumberType elementType,
+    OCNumberType elementType,
     OCStringRef componentsURL,
     OCStringRef *outError);
 /**
@@ -261,8 +261,8 @@ bool DependentVariableSetQuantityName(DependentVariableRef dv, OCStringRef quant
 OCStringRef DependentVariableGetQuantityType(DependentVariableRef dv);
 bool DependentVariableSetQuantityType(DependentVariableRef dv, OCStringRef quantityType);
 OCStringRef DependentVariableGetUnitSymbol(DependentVariableRef dv);
-SINumberType DependentVariableGetElementType(DependentVariableRef dv);
-bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newType);
+OCNumberType DependentVariableGetElementType(DependentVariableRef dv);
+bool DependentVariableSetElementType(DependentVariableRef dv, OCNumberType newType);
 /**
  * @name Sparse-sampling Accessors
  * @{
@@ -307,8 +307,8 @@ bool DependentVariableRemoveComponentAtIndex(DependentVariableRef dv, OCIndex id
  */
 OCIndex DependentVariableGetSize(DependentVariableRef dv);
 bool DependentVariableSetSize(DependentVariableRef dv, OCIndex newSize);
-SINumberType DependentVariableGetElementType(DependentVariableRef dv);
-bool DependentVariableSetElementType(DependentVariableRef dv, SINumberType newType);
+OCNumberType DependentVariableGetElementType(DependentVariableRef dv);
+bool DependentVariableSetElementType(DependentVariableRef dv, OCNumberType newType);
 /** @} end of Size & Element Type */
 /**
  * @name Per-component Labels

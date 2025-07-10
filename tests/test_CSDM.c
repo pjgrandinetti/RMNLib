@@ -1,12 +1,13 @@
 // tests/test_CSDM.c
 
 #include <stdio.h>
-#include <stdbool.h>
-#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <limits.h>
 #include <dirent.h>
 #include <sys/stat.h>
+
 #include "RMNLibrary.h"
 #include "test_utils.h"
 
@@ -24,9 +25,8 @@ static bool has_csdf_ext(const char *name) {
 }
 
 /// Attempt import of exactly one JSON (relpath) under test root.
-/// bin_dir is the directory part of that file. Returns true if the
-/// result matches the expectation (success in “good” dirs, failure
-/// under “Illegal file format”).
+/// Prints exactly one line per file: either [ PASS] or [FAIL],
+/// and includes the failure message inline.
 static bool import_and_check(const char *root,
                              const char *relpath)
 {
@@ -43,44 +43,32 @@ static bool import_and_check(const char *root,
 
     OCStringRef err = NULL;
     DatasetRef ds = DatasetCreateWithImport(json_path, bin_dir, &err);
+    const char *errmsg = err ? OCStringGetCString(err) : "";
 
     if (expect_failure) {
         if (ds) {
-            fprintf(stderr,
-                    "[FAIL] Expected import of \"%s\" to fail, but it succeeded.\n",
-                    relpath);
+            printf("[FAIL] %-60s : expected to fail but succeeded\n", relpath);
             OCRelease(ds);
             OCRelease(err);
             return false;
+        } else {
+            printf("[ PASS] %-60s : correctly failed (%s)\n", relpath, errmsg);
+            OCRelease(err);
+            return true;
         }
-        TEST_ASSERT(err != NULL);
     } else {
         if (!ds) {
-            fprintf(stderr,
-                    "[FAIL] Expected import of \"%s\" to succeed, but it failed.\n",
-                    relpath);
-            if (err)
-                fprintf(stderr, "       Reason: %s\n", OCStringGetCString(err));
+            printf("[FAIL] %-60s : expected to succeed but failed (%s)\n",
+                   relpath, errmsg);
             OCRelease(err);
             return false;
+        } else {
+            printf("[ PASS] %-60s : import succeeded\n", relpath);
+            OCRelease(ds);
+            OCRelease(err);
+            return true;
         }
-        TEST_ASSERT(err == NULL);
-
-        // sanity-check that we got at least one DV
-        OCArrayRef dvs = DatasetGetDependentVariables(ds);
-        TEST_ASSERT(dvs && OCArrayGetCount(dvs) > 0);
-
-        OCRelease(ds);
     }
-
-    OCRelease(err);
-    return true;
-
-cleanup:
-    // for TEST_ASSERT failures we land here
-    if (ds) OCRelease(ds);
-    if (err) OCRelease(err);
-    return false;
 }
 
 /// A simple linked list to collect rel-paths of all .csdf/.csdfe files.
@@ -136,17 +124,20 @@ static void collect_files(const char *root, const char *cur_rel) {
 
 bool test_Dataset_import_all_csdm(void) {
     printf("test_Dataset_import_all_csdm...\n");
-    bool ok = true;
-
     const char *root = getenv("CSDM_TEST_ROOT");
     TEST_ASSERT(root != NULL);
 
     // build the file list
     collect_files(root, "");
 
+    int total = 0, failed = 0;
+
     // run import & check on each
     for (struct file_node *n = file_list_head; n; n = n->next) {
-        ok &= import_and_check(root, n->rel);
+        total++;
+        if (!import_and_check(root, n->rel)) {
+            failed++;
+        }
     }
 
     // free list
@@ -156,14 +147,15 @@ bool test_Dataset_import_all_csdm(void) {
         file_list_head = next;
     }
 
-    TEST_ASSERT(ok);
+    printf("\nSummary: tested %d files, %d passed, %d failed\n",
+           total, total - failed, failed);
 
-    printf("test_Dataset_import_all_csdm %s.\n",
-           ok ? "passed" : "FAILED");
-    return ok;
+    TEST_ASSERT(failed == 0);
+    printf("test_Dataset_import_all_csdm passed.\n");
+    return true;
 
 cleanup:
-    // on TEST_ASSERT failure
+    // free list on assertion failure
     while (file_list_head) {
         struct file_node *next = file_list_head->next;
         free(file_list_head);

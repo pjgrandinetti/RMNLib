@@ -20,7 +20,7 @@ static DependentVariableRef _make_internal_scalar(OCIndex length) {
         SIUnitDimensionlessAndUnderived(),
         kSIQuantityDimensionless,   // quantity_name
         STR("scalar"),              // quantity_type
-        kSINumberFloat64Type,       // numeric_type
+        kOCNumberFloat64Type,       // numeric_type
         NULL,                       // componentLabels
         comps,                      // components
         &err                        // outError
@@ -45,7 +45,7 @@ bool test_DependentVariable_base(void) {
     TEST_ASSERT(OCStringGetLength(DependentVariableGetName(dv)) == 0);
     TEST_ASSERT(OCStringGetLength(DependentVariableGetDescription(dv)) == 0);
     TEST_ASSERT(OCStringEqual(DependentVariableGetQuantityType(dv), STR("scalar")));
-    TEST_ASSERT(DependentVariableGetElementType(dv) == kSINumberFloat64Type);
+    TEST_ASSERT(DependentVariableGetElementType(dv) == kOCNumberFloat64Type);
     TEST_ASSERT(OCTypeEqual(
         SIQuantityGetUnit((SIQuantityRef)dv),
         SIUnitDimensionlessAndUnderived()));
@@ -97,7 +97,7 @@ bool test_DependentVariable_internal_vs_external(void) {
         SIUnitDimensionlessAndUnderived(),
         kSIQuantityDimensionless,     // quantityName
         STR("scalar"),                // quantityType
-        kSINumberFloat32Type,         // elementType
+        kOCNumberFloat32Type,         // elementType
         STR("file:./data.bin"),       // componentsURL (no longer allowed to pass NULL)
         &err                          // outError
     );
@@ -146,7 +146,7 @@ bool test_DependentVariable_values_and_accessors(void) {
         SIUnitDimensionlessAndUnderived(),
         /* quantityName */ NULL,      // must be NULL (not empty string) so the impl skips the name/dimensionality check
         STR("scalar"),
-        kSINumberFloat64Type,
+        kOCNumberFloat64Type,
         NULL,           // componentLabels
         4,              // explicitSize
         &err            // outError
@@ -200,7 +200,7 @@ bool test_DependentVariable_type_queries(void) {
     // vector_3
     err = NULL;
     DependentVariableRef dv2 = DependentVariableCreateDefault(
-        STR("vector_3"), kSINumberFloat32Type, 3, &err);
+        STR("vector_3"), kOCNumberFloat32Type, 3, &err);
     if (!dv2 && err) {
         printf("DependentVariableCreateDefault(vector_3) failed: %s\n", OCStringGetCString(err));
     }
@@ -212,7 +212,7 @@ bool test_DependentVariable_type_queries(void) {
     // pixel_2
     err = NULL;
     DependentVariableRef dv3 = DependentVariableCreateDefault(
-        STR("pixel_2"), kSINumberFloat32Type, 2, &err);
+        STR("pixel_2"), kOCNumberFloat32Type, 2, &err);
     if (!dv3 && err) {
         printf("DependentVariableCreateDefault(pixel_2) failed: %s\n", OCStringGetCString(err));
     }
@@ -223,7 +223,7 @@ bool test_DependentVariable_type_queries(void) {
     // matrix_2_2
     err = NULL;
     DependentVariableRef dv4 = DependentVariableCreateDefault(
-        STR("matrix_2_2"), kSINumberFloat64Type, 4, &err);
+        STR("matrix_2_2"), kOCNumberFloat64Type, 4, &err);
     if (!dv4 && err) {
         printf("DependentVariableCreateDefault(matrix_2_2) failed: %s\n", OCStringGetCString(err));
     }
@@ -335,7 +335,7 @@ bool test_DependentVariable_invalid_create(void) {
         STR("x"), STR("desc"),
         SIUnitDimensionlessAndUnderived(),
         kSIQuantityDimensionless, STR("vector_2"),
-        kSINumberFloat32Type,
+        kOCNumberFloat32Type,
         NULL,
         comps,
         &err
@@ -374,7 +374,7 @@ bool test_DependentVariable_components(void) {
         SIUnitFindWithUnderivedSymbol(STR("m/s")),
         STR("velocity"),
         STR("vector_1"),
-        kSINumberFloat32Type,
+        kOCNumberFloat32Type,
         NULL,
         comps,
         &err
@@ -425,7 +425,7 @@ bool test_DependentVariable_values(void) {
     dv = DependentVariableCreateWithSize(
         NULL, NULL, NULL, NULL,
         STR("scalar"),
-        kSINumberFloat64Type,
+        kOCNumberFloat64Type,
         NULL,
         4,
         &err
@@ -460,7 +460,7 @@ bool test_DependentVariable_typeQueries(void) {
     OCStringRef err = NULL;
 
     err = NULL;
-    DependentVariableRef dv1 = DependentVariableCreateDefault(STR("scalar"), kSINumberFloat64Type, 1, &err);
+    DependentVariableRef dv1 = DependentVariableCreateDefault(STR("scalar"), kOCNumberFloat64Type, 1, &err);
     if (!dv1 && err) {
         printf("DVCreateDefault(scalar) failed: %s\n", OCStringGetCString(err));
     }
@@ -472,7 +472,7 @@ bool test_DependentVariable_typeQueries(void) {
     OCRelease(dv1);
 
     err = NULL;
-    DependentVariableRef dv2 = DependentVariableCreateDefault(STR("vector_3"), kSINumberFloat32Type, 3, &err);
+    DependentVariableRef dv2 = DependentVariableCreateDefault(STR("vector_3"), kOCNumberFloat32Type, 3, &err);
     if (!dv2 && err) {
         printf("DVCreateDefault(vector_3) failed: %s\n", OCStringGetCString(err));
     }
@@ -483,7 +483,7 @@ bool test_DependentVariable_typeQueries(void) {
     OCRelease(dv2);
 
     err = NULL;
-    DependentVariableRef dv3 = DependentVariableCreateDefault(STR("pixel_2"), kSINumberFloat32Type, 2, &err);
+    DependentVariableRef dv3 = DependentVariableCreateDefault(STR("pixel_2"), kOCNumberFloat32Type, 2, &err);
     if (!dv3 && err) {
         printf("DVCreateDefault(pixel_2) failed: %s\n", OCStringGetCString(err));
     }
@@ -492,7 +492,7 @@ bool test_DependentVariable_typeQueries(void) {
     OCRelease(dv3);
 
     err = NULL;
-    DependentVariableRef dv4 = DependentVariableCreateDefault(STR("matrix_2_2"), kSINumberFloat32Type, 4, &err);
+    DependentVariableRef dv4 = DependentVariableCreateDefault(STR("matrix_2_2"), kOCNumberFloat32Type, 4, &err);
     if (!dv4 && err) {
         printf("DVCreateDefault(matrix_2_2) failed: %s\n", OCStringGetCString(err));
     }
@@ -522,7 +522,7 @@ bool test_DependentVariable_complexCopy(void) {
         STR("dv"), STR("desc"),
         SIUnitDimensionlessAndUnderived(),
         STR("dimensionless"), STR("scalar"),
-        kSINumberFloat64Type,
+        kOCNumberFloat64Type,
         NULL, comps,
         &err
     );
@@ -533,7 +533,7 @@ bool test_DependentVariable_complexCopy(void) {
 
     dst = DependentVariableCreateComplexCopy(src, NULL);
     TEST_ASSERT(dst);
-    TEST_ASSERT(DependentVariableGetElementType(dst) == kSINumberComplex128Type);
+    TEST_ASSERT(DependentVariableGetElementType(dst) == kOCNumberComplex128Type);
 
     ok = true;
 cleanup:
@@ -561,7 +561,7 @@ bool test_DependentVariable_invalidCreate(void) {
         SIUnitDimensionlessAndUnderived(),
         STR("dimensionless"),
         STR("vector_2"),
-        kSINumberFloat32Type,
+        kOCNumberFloat32Type,
         NULL,
         oneBuf,
         &err

@@ -1113,7 +1113,8 @@ bool DatasetExport(DatasetRef ds,
 // ————— DatasetCreateWithImport —————
 DatasetRef DatasetCreateWithImport(const char *json_path,
                                    const char *binary_dir,
-                                   OCStringRef *outError) {
+                                   OCStringRef *outError)
+{
     if (outError) *outError = NULL;
     if (!json_path || !binary_dir) {
         if (outError)
@@ -1181,11 +1182,7 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
     DatasetRef ds = DatasetCreateFromJSON(root, outError);
     cJSON_Delete(root);
     if (!ds) {
-        if (outError && *outError) {
-            fprintf(stderr,
-                    "[DEBUG] DatasetCreateFromJSON error = '%s'\n",
-                    OCStringGetCString(*outError));
-        }
+        // *outError is already set by DatasetCreateFromJSON
         return NULL;
     }
 
@@ -1295,7 +1292,7 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         OCRelease(comps);
 
         // flip to internal
-        DependentVariableSetType(dv,    keyInternal);
+        DependentVariableSetType(dv,     keyInternal);
         DependentVariableSetEncoding(dv, keyNone);
         DependentVariableSetComponentsURL(dv, NULL);
     }
