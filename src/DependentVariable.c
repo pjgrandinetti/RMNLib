@@ -237,6 +237,10 @@ static bool validateDependentVariableParameters(
             n * (n + 1) / 2 != componentsCount)
             return false;
     }
+    else {
+        // unknown quantityType
+        return false;
+    }
     // 4) sparse‐sampling consistency
     if (sparseSampling) {
         OCStringRef err = NULL;
