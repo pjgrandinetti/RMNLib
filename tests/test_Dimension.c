@@ -352,10 +352,8 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
     coords = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     TEST_ASSERT(coords);
 
-    s0 = SIScalarCreateWithDouble(0.0,
-            SIUnitFindWithUnderivedSymbol(STR("m")));
-    s1 = SIScalarCreateWithDouble(1.0,
-            SIUnitFindWithUnderivedSymbol(STR("m")));
+    s0 = SIScalarCreateWithDouble(0.0,SIUnitFindWithUnderivedSymbol(STR("s")));
+    s1 = SIScalarCreateWithDouble(1.0,SIUnitFindWithUnderivedSymbol(STR("s")));
     TEST_ASSERT(s0 && s1);
 
     OCArrayAppendValue(coords, s0);
@@ -367,7 +365,7 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
         STR("mono"),            // label
         STR("desc"),            // description
         NULL,                   // metadata
-        STR("length"),          // quantity
+        kSIQuantityTime,          // quantity
         s0,                     // offset
         NULL,                   // origin
         NULL,                   // period
@@ -393,7 +391,7 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
         STR("lin"),             // label
         STR("desc"),            // description
         NULL,                   // metadata
-        STR("length"),          // quantity
+    kSIQuantityTime,          // quantity
         s0,                     // offset
         NULL,                   // origin
         NULL,                   // period
@@ -425,7 +423,7 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
             STR("rlabel"),         // label
             NULL,                  // description
             NULL,                  // metadata
-            STR("frequency"),      // quantityName
+            kSIQuantityFrequency,      // quantityName
             recOff,                // offset
             NULL,                  // origin
             NULL,                  // period
