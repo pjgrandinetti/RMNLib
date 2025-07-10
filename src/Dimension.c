@@ -1545,30 +1545,38 @@ static OCDictionaryRef SIDimensionDictionaryCreateFromJSON(cJSON *json, OCString
         OCDictionarySetValue(dict, STR(kDimensionMetadataKey), metadata);
         OCRelease(metadata);
     }
-    // Required: quantity_name
+
+    // quantity_name (optional – default to “dimensionless”)
     item = cJSON_GetObjectItemCaseSensitive(json, kSIDimensionQuantityNameKey);
-    if (!cJSON_IsString(item)) {
-        if (outError) *outError = STR("SIDimension: missing or invalid \"quantity_name\"");
-        OCRelease(dict);
-        return NULL;
+    OCStringRef qname;
+    if (cJSON_IsString(item) && item->valuestring[0] != '\0') {
+        qname = OCStringCreateWithCString(item->valuestring);
+    } else {
+        qname = STR("dimensionless");
     }
-    OCStringRef qname = OCStringCreateWithCString(item->valuestring);
     OCDictionarySetValue(dict, STR(kSIDimensionQuantityNameKey), qname);
-    // Validate quantity_name
+
+    // Validate quantity_name dimensionality
     OCStringRef dimErr = NULL;
     SIDimensionalityRef nameDim = SIDimensionalityForQuantity(qname, &dimErr);
-    OCRelease(qname);
+    // only release our copy if we created it
+    if (!cJSON_IsString(item) || item->valuestring[0] == '\0') {
+        OCRelease(qname);
+    }
     if (!nameDim) {
         if (outError) {
             *outError = dimErr
-                            ? OCStringCreateWithFormat(STR("SIDimension: invalid quantity_name dimensionality: %@"), dimErr)
-                            : STR("SIDimension: invalid quantity_name dimensionality");
+                ? OCStringCreateWithFormat(
+                      STR("SIDimension: invalid quantity_name dimensionality: %@"),
+                      dimErr)
+                : STR("SIDimension: invalid quantity_name dimensionality");
         }
         OCRelease(dimErr);
         OCRelease(dict);
         return NULL;
     }
     OCRelease(dimErr);
+
     // Required/or defaulted: offset
     item = cJSON_GetObjectItemCaseSensitive(json, kSIDimensionOffsetKey);
     if (cJSON_IsString(item)) {
@@ -2185,27 +2193,29 @@ static OCDictionaryRef SIMonotonicDimensionDictionaryCreateFromJSON(cJSON *json,
         OCDictionarySetValue(dict, STR(kDimensionMetadataKey), md);
         OCRelease(md);
     }
-    // --- quantity_name (required) ---
+    // --- quantity_name (optional, default to "dimensionless") ---
     item = cJSON_GetObjectItemCaseSensitive(json, kSIDimensionQuantityNameKey);
-    if (!cJSON_IsString(item)) {
-        if (outError) *outError = STR("MonotonicDimension: missing or invalid \"quantity_name\"");
-        OCRelease(dict);
-        return NULL;
+    OCStringRef qn;
+    if (cJSON_IsString(item) && item->valuestring[0] != '\0') {
+        qn = OCStringCreateWithCString(item->valuestring);
+    } else {
+        qn = STR("dimensionless");
     }
-    OCStringRef qn = OCStringCreateWithCString(item->valuestring);
     OCDictionarySetValue(dict, STR(kSIDimensionQuantityNameKey), qn);
-    // look up dimensionality for fallback offset
+    // validate dimensionality
     {
         OCStringRef derr = NULL;
         SIDimensionalityRef nameDim = SIDimensionalityForQuantity(qn, &derr);
         OCRelease(derr);
         OCRelease(qn);
         if (!nameDim) {
-            if (outError) *outError = STR("MonotonicDimension: unknown quantity_name");
+            if (outError)
+                *outError = STR("MonotonicDimension: invalid quantity_name dimensionality");
             OCRelease(dict);
             return NULL;
         }
     }
+        
     // --- offset / coordinates_offset (required or defaulted) ---
     item = cJSON_GetObjectItemCaseSensitive(json, kSIDimensionOffsetKey);
     if (cJSON_IsString(item)) {
@@ -2928,27 +2938,28 @@ static OCDictionaryRef SILinearDimensionDictionaryCreateFromJSON(cJSON *json,
         OCDictionarySetValue(dict, STR(kDimensionMetadataKey), md);
         OCRelease(md);
     }
-    // --- quantity_name (required) ---
+    // --- quantity_name (optional – default to “dimensionless”) ---
     item = cJSON_GetObjectItemCaseSensitive(json, kSIDimensionQuantityNameKey);
-    if (!cJSON_IsString(item)) {
-        if (outError) *outError = STR("LinearDimension: missing or invalid \"quantity_name\"");
-        OCRelease(dict);
-        return NULL;
+    OCStringRef qn;
+    if (cJSON_IsString(item) && item->valuestring[0] != '\0') {
+        qn = OCStringCreateWithCString(item->valuestring);
+    } else {
+        qn = STR("dimensionless");
     }
-    OCStringRef qn = OCStringCreateWithCString(item->valuestring);
     OCDictionarySetValue(dict, STR(kSIDimensionQuantityNameKey), qn);
-    // look up dimensionality for fallback offset
+    // validate dimensionality
     {
         OCStringRef derr = NULL;
         SIDimensionalityRef nameDim = SIDimensionalityForQuantity(qn, &derr);
         OCRelease(derr);
         if (!nameDim) {
-            if (outError) *outError = STR("LinearDimension: unknown quantity_name");
-            OCRelease(qn);
+            if (outError)
+                *outError = STR("LinearDimension: invalid quantity_name dimensionality");
             OCRelease(dict);
             return NULL;
         }
     }
+    
     // --- offset / coordinates_offset (required or defaulted) ---
     item = cJSON_GetObjectItemCaseSensitive(json, kSIDimensionOffsetKey);
     if (cJSON_IsString(item)) {

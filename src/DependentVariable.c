@@ -992,13 +992,17 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableDescriptionKey), tmp);
         OCRelease(tmp);
     }
-    // 6) Optional: quantity_name
+    // 6) Optional: quantity_name (default to "dimensionless")
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityNameKey);
-    if (cJSON_IsString(item)) {
-        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
-        OCDictionarySetValue(dict, STR(kDependentVariableQuantityNameKey), tmp);
-        OCRelease(tmp);
+    OCStringRef qname;
+    if (cJSON_IsString(item) && item->valuestring[0] != '\0') {
+        qname = OCStringCreateWithCString(item->valuestring);
+    } else {
+        qname = kSIQuantityDimensionless;
     }
+    OCDictionarySetValue(dict, STR(kDependentVariableQuantityNameKey), qname);
+    OCRelease(qname);
+
     // 7) Required: quantity_type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1011,13 +1015,23 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableQuantityTypeKey), tmp);
         OCRelease(tmp);
     }
-    // 8) Optional: unit
+
+    // 8) Optional: unit (default to dimensionless if quantity_name == kSIQuantityDimensionless)
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableUnitKey);
     if (cJSON_IsString(item)) {
         OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
         OCDictionarySetValue(dict, STR(kDependentVariableUnitKey), tmp);
         OCRelease(tmp);
-    }
+    } else {
+        // see if quantity_name was set tokSIQuantityDimensionless
+        OCStringRef qname = (OCStringRef)OCDictionaryGetValue(dict, STR(kDependentVariableQuantityNameKey));
+        if (qname && OCStringEqual(qname, kSIQuantityDimensionless)) {
+            SIUnitRef u = SIUnitDimensionlessAndUnderived();
+            OCStringRef sym = SIUnitCreateSymbol(u);
+            OCDictionarySetValue(dict, STR(kDependentVariableUnitKey), sym);
+            OCRelease(sym);
+        }
+    }    
     // 9) Required: numeric_type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNumericTypeKey);
     if (!cJSON_IsString(item)) {

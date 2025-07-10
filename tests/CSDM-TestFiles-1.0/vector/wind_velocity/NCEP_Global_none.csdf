@@ -10,7 +10,7 @@
         "count": 49,
         "increment": "0.5 °",
         "coordinates_offset": "257.5 °",
-        "quantity_name": "angle",
+        "quantity_name": "plane angle",
         "label": "longitude"
       },
       {
@@ -19,7 +19,7 @@
         "count": 49,
         "increment": "0.5 °",
         "coordinates_offset": "13.5 °",
-        "quantity_name": "angle",
+        "quantity_name": "plane angle",
         "label": "latitude"
       },
       {

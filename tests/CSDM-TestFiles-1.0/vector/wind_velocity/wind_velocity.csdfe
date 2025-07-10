@@ -33,7 +33,7 @@
         "description": "The latitude are defined in the geographic coordinate system.",
         "label": "latitude",
         "count": 49,
-        "quantity_name": "angle",
+        "quantity_name": "plane angle",
         "coordinates_offset": "13.5 °",
         "increment": "0.5 °"
       },

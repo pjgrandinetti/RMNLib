@@ -850,6 +850,22 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
 }
 #pragma endregion Creators
 #pragma region Export/Import
+
+/// Helper: parse a components_url and extract the relative path
+/// For URLs like "file:./path/to/file", returns "./path/to/file"
+/// For non-file URLs or plain paths, returns the input unchanged
+static const char *parse_components_url_path(const char *url) {
+    if (!url) return NULL;
+    
+    // Check if it starts with "file:"
+    if (strncmp(url, "file:", 5) == 0) {
+        return url + 5;  // Skip the "file:" prefix
+    }
+    
+    // For any other scheme or plain paths, return as-is
+    return url;
+}
+
 static bool join_path(char *out, size_t size, const char *dir, char sep, const char *relpath) {
     if (!out || !dir || !relpath) return false;
     int len = snprintf(out, size, "%s%c%s", dir, sep, relpath);
@@ -1077,7 +1093,11 @@ bool DatasetExport(DatasetRef ds,
             if (outError) *outError = STR("External DV missing components_url");
             return false;
         }
-        const char *rel = OCStringGetCString(url);
+        const char *rel = parse_components_url_path(OCStringGetCString(url));
+        if (!rel) {
+            if (outError) *outError = STR("Invalid components_url");
+            return false;
+        }
         char fullpath[PATH_MAX];
         if (!join_path(fullpath, sizeof(fullpath),
                        binary_dir, PATH_SEPARATOR, rel)) {
@@ -1215,7 +1235,13 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
             OCRelease(ds);
             return NULL;
         }
-        const char *rel = OCStringGetCString(url);
+        const char *rel = parse_components_url_path(OCStringGetCString(url));
+        if (!rel) {
+            if (outError)
+                *outError = STR("Dataset import failed: invalid components_url");
+            OCRelease(ds);
+            return NULL;
+        }
         char fullpath[PATH_MAX];
         if (!join_path(fullpath, sizeof(fullpath),
                        binary_dir, PATH_SEPARATOR, rel)) {
