@@ -1,21 +1,55 @@
 /**
- * @file SparseSampling.h
- * @brief OCType for representing sparse sampling of multi-dimensional grids.
+ * @typedef SparseSamplingRef
+ * @brief Defines a sparse sampling pattern over selected dimensions in a multidimensional grid.
  *
- * The SparseSampling OCType encapsulates:
- *   - A set of fixed dimension indexes.
- *   - A list of sparse grid vertices (each an OCIndexPairSetRef).
- *   - Underlying unsigned integer type for indexing.
- *   - Encoding of the sparse_grid_vertexes array ("none" or "base64").
- *   - Optional description and metadata.
+ * The SparseSampling type is used to represent non-uniform, non-Cartesian sampling layouts,
+ * where data values are only recorded at explicitly listed vertexes on a subgrid. This is
+ * essential in applications like NMR, tomography, and any domain involving compressed or
+ * selective acquisition.
  *
- * This type supports:
- *   - Serialization to/from OCDictionary.
- *   - JSON serialization.
- *   - Deep-copy, equality.
+ * The core fields include:
  *
- * .. seealso::
- *    :c:func:`DependentVariable`
+ * - dimensionIndexes:
+ *     An OCIndexSetRef listing the dimensions that are sparsely sampled.
+ *     Each entry refers to a dimension index in the parent coordinate system.
+ *     Must not be NULL if sparseGridVertexes is non-NULL.
+ *
+ * - sparseGridVertexes:
+ *     An OCArrayRef of OCIndexPairSetRef entries.
+ *     Each entry corresponds to a single sampled vertex, with the coordinates given as
+ *     an OCIndexPairSet of (i, value) pairs, where:
+ *     i = index into the ordered dimensionIndexes array (i.e., local sparse dimension index),
+ *         not the index into the full multidimensional coordinate system.
+ *         value = coordinate index along that dimension.
+ *     This indirection allows generality across arbitrary sparse subspaces.
+ *
+ * - unsignedIntegerType:
+ *     An OCNumberType specifying the integer width used when encoding sparseGridVertexes
+ *     (e.g., for base64 encoding). Must be one of the UInt8/16/32/64 types.
+ *
+ * - encoding:
+ *     An OCStringRef, must be either "none" (explicit vertex representation) or "base64"
+ *     (compact binary encoding).
+ *
+ * - description:
+ *     An optional human-readable description of the sampling layout.
+ *
+ * - metaData:
+ *     An optional OCDictionaryRef for application-specific or provenance annotations.
+ *
+ * Semantics:
+ *   - If dimensionIndexes and sparseGridVertexes are both NULL, the SparseSampling object
+ *     is considered empty.
+ *   - If one is NULL and the other is not, the object is invalid and should be rejected
+ *     by validation.
+ *   - The number of entries in each OCIndexPairSet must equal the number of sparse dimensions.
+ *
+ * Equality:
+ *   SparseSampling instances are considered equal if:
+ *     - unsignedIntegerType matches exactly,
+ *     - encoding, description, dimensionIndexes, and metaData are equal (via OCTypeEqual),
+ *     - sparseGridVertexes arrays are of equal length and each corresponding pair of
+ *       OCIndexPairSetRef entries is equal (via OCTypeEqual).
  */
 #ifndef SPARSE_SAMPLING_H
 #define SPARSE_SAMPLING_H
@@ -53,8 +87,9 @@ bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError);
  *
  * @param dimensionIndexes    An OCIndexSetRef of fixed dimension indexes.
  *                            If NULL, initializes to empty set.
- * @param sparseGridVertexes  An OCArrayRef of OCIndexPairSetRef vertices.
- *                            If NULL, initializes to empty array.
+ * @param sparseGridVertexes  An OCArrayRef of OCIndexPairSetRef entries,
+ *                             each of which must have exactly one entry for
+ *                             each sparse dimension (from dimensionIndexes).
  * @param unsignedIntegerType The numeric type used for indexing. Must be one of:
  *                            kOCNumberUInt8Type, kOCNumberUInt16Type,
  *                            kOCNumberUInt32Type, or kOCNumberUInt64Type.

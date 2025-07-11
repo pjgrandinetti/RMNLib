@@ -22,7 +22,7 @@ OCTypeID SparseSamplingGetTypeID(void) {
 struct impl_SparseSampling {
     OCBase base;
     OCIndexSetRef dimensionIndexes;
-    OCMutableArrayRef sparseGridVertexes;  // flat array of CFNumber indices
+    OCMutableArrayRef sparseGridVertexes;  // Array of Index Pairs
     OCNumberType unsignedIntegerType;      // UInt8/16/32/64 only
     OCStringRef encoding;                  // "none" or "base64"
     OCStringRef description;
@@ -40,20 +40,39 @@ static void impl_SparseSamplingFinalize(const void *ptr) {
     OCRelease(ss->metaData);
 }
 static bool impl_SparseSamplingEqual(const void *a, const void *b) {
-    const struct impl_SparseSampling *A = a, *B = b;
+    const struct impl_SparseSampling *A = (const struct impl_SparseSampling *)a;
+    const struct impl_SparseSampling *B = (const struct impl_SparseSampling *)b;
     if (!A || !B) return false;
     if (A == B) return true;
-    if (A->unsignedIntegerType != B->unsignedIntegerType) return false;
-    if (A->encoding != B->encoding &&
-        !OCTypeEqual(A->encoding, B->encoding)) return false;
-    if (A->dimensionIndexes != B->dimensionIndexes &&
-        !OCTypeEqual(A->dimensionIndexes, B->dimensionIndexes)) return false;
-    if (A->sparseGridVertexes != B->sparseGridVertexes &&
-        !OCTypeEqual(A->sparseGridVertexes, B->sparseGridVertexes)) return false;
-    if (A->description != B->description &&
-        !OCTypeEqual(A->description, B->description)) return false;
-    if (A->metaData != B->metaData &&
-        !OCTypeEqual(A->metaData, B->metaData)) return false;
+    // Compare primitive field directly
+    if (A->unsignedIntegerType != B->unsignedIntegerType)
+        return false;
+    // Compare OCTypeRefs using OCTypeEqual (handles NULL cases)
+    if (!OCTypeEqual(A->encoding, B->encoding))
+        return false;
+    if (!OCTypeEqual(A->description, B->description))
+        return false;
+    if (!OCTypeEqual(A->dimensionIndexes, B->dimensionIndexes))
+        return false;
+    if (!OCTypeEqual(A->metaData, B->metaData))
+        return false;
+    // Handle NULL sparseGridVertexes explicitly
+    if (!A->sparseGridVertexes && !B->sparseGridVertexes)
+        return true;
+    if (!A->sparseGridVertexes || !B->sparseGridVertexes)
+        return false;
+    // Compare lengths
+    OCIndex count1 = OCArrayGetCount(A->sparseGridVertexes);
+    OCIndex count2 = OCArrayGetCount(B->sparseGridVertexes);
+    if (count1 != count2)
+        return false;
+    // Compare each OCIndexPairSetRef
+    for (OCIndex i = 0; i < count1; ++i) {
+        OCTypeRef p1 = OCArrayGetValueAtIndex(A->sparseGridVertexes, i);
+        OCTypeRef p2 = OCArrayGetValueAtIndex(B->sparseGridVertexes, i);
+        if (!OCTypeEqual(p1, p2))
+            return false;
+    }
     return true;
 }
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
@@ -112,8 +131,9 @@ static void impl_InitSparseSamplingFields(SparseSamplingRef ss) {
     ss->metaData = OCDictionaryCreateMutable(0);
 }
 bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError) {
-    if (!ss) return true;  // nothing to validate
-    // 1) unsignedIntegerType must be one of the four unsigned types
+    if (outError) *outError = NULL;
+    if (!ss) return true;  // Allow null object as trivially valid
+    // 1) Check unsignedIntegerType is one of the allowed unsigned types
     switch (ss->unsignedIntegerType) {
         case kOCNumberUInt8Type:
         case kOCNumberUInt16Type:
@@ -122,62 +142,56 @@ bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError) {
             break;
         default:
             if (outError)
-                *outError = STR(
-                    "SparseSampling validation error: "
-                    "unsignedIntegerType must be UInt8/16/32/64");
+                *outError = STR("SparseSampling validation error: unsignedIntegerType must be one of UInt8, UInt16, UInt32, or UInt64");
             return false;
     }
-    // 2) encoding must be "none" or "base64"
+    // 2) encoding must be either "none" or "base64"
     if (!ss->encoding ||
+        OCGetTypeID(ss->encoding) != OCStringGetTypeID() ||
         (!OCStringEqual(ss->encoding, STR(kSparseSamplingEncodingValueNone)) &&
          !OCStringEqual(ss->encoding, STR(kSparseSamplingEncodingValueBase64)))) {
         if (outError)
-            *outError = STR(
-                "SparseSampling validation error: "
-                "encoding must be \"none\" or \"base64\"");
+            *outError = STR("SparseSampling validation error: encoding must be \"none\" or \"base64\"");
         return false;
     }
-    // 3) dimensionIndexes must exist
-    if (!ss->dimensionIndexes) {
+    // 3) dimensionIndexes must be a valid OCIndexSet with at least one entry
+    if (!ss->dimensionIndexes || OCGetTypeID(ss->dimensionIndexes) != OCIndexSetGetTypeID()) {
         if (outError)
-            *outError = STR(
-                "SparseSampling validation error: missing dimensionIndexes");
-        return false;
-    }
-    // 4) sparseGridVertexes must exist and be a flat array of integers
-    if (!ss->sparseGridVertexes) {
-        if (outError)
-            *outError = STR(
-                "SparseSampling validation error: missing sparseGridVertexes");
+            *outError = STR("SparseSampling validation error: dimensionIndexes must be a valid OCIndexSet");
         return false;
     }
     OCIndex ndim = OCIndexSetGetCount(ss->dimensionIndexes);
     if (ndim == 0) {
         if (outError)
-            *outError = STR(
-                "SparseSampling validation error: dimensionIndexes must contain at least one index");
+            *outError = STR("SparseSampling validation error: dimensionIndexes must contain at least one index");
         return false;
     }
-    OCIndex total = OCArrayGetCount(ss->sparseGridVertexes);
-    if (total % ndim != 0) {
+    // 4) sparseGridVertexes must be a valid OCArray of OCIndexPairSetRef
+    if (!ss->sparseGridVertexes || OCGetTypeID(ss->sparseGridVertexes) != OCArrayGetTypeID()) {
         if (outError)
-            *outError = OCStringCreateWithFormat(
-                STR("SparseSampling validation error: "
-                    "sparseGridVertexes length (%ld) is not divisible by number of sparse dimensions (%ld)"),
-                (long)total, (long)ndim);
+            *outError = STR("SparseSampling validation error: sparseGridVertexes must be a valid OCArray of OCIndexPairSet");
         return false;
     }
-    for (OCIndex i = 0; i < total; ++i) {
-        OCTypeRef v = OCArrayGetValueAtIndex(ss->sparseGridVertexes, i);
-        if (OCGetTypeID(v) != OCNumberGetTypeID()) {
-            if (outError)
-                *outError = STR(
-                    "SparseSampling validation error: "
-                    "sparseGridVertexes must contain only integer numbers");
+    OCIndex count = OCArrayGetCount(ss->sparseGridVertexes);
+    for (OCIndex i = 0; i < count; ++i) {
+        OCTypeRef entry = OCArrayGetValueAtIndex(ss->sparseGridVertexes, i);
+        if (!entry || OCGetTypeID(entry) != OCIndexPairSetGetTypeID()) {
+            if (outError) {
+                *outError = OCStringCreateWithFormat(
+                    STR("SparseSampling validation error: sparseGridVertexes[%ld] is not a valid OCIndexPairSetRef"),
+                    (long)i);
+            }
+            return false;
+        }
+        if (OCIndexPairSetGetCount((OCIndexPairSetRef)entry) != ndim) {
+            if (outError) {
+                *outError = OCStringCreateWithFormat(
+                    STR("SparseSampling validation error: sparseGridVertexes[%ld] must contain %ld (i,value) pairs"),
+                    (long)i, (long)ndim);
+            }
             return false;
         }
     }
-    // All checks passed
     return true;
 }
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
@@ -191,7 +205,7 @@ SparseSamplingRef SparseSamplingCreate(
     OCDictionaryRef metadata,
     OCStringRef *outError) {
     if (outError) *outError = NULL;
-    // 1) Validate unsignedIntegerType
+    // 1. Validate unsignedIntegerType
     switch (unsignedIntegerType) {
         case kOCNumberUInt8Type:
         case kOCNumberUInt16Type:
@@ -200,32 +214,27 @@ SparseSamplingRef SparseSamplingCreate(
             break;
         default:
             if (outError) {
-                *outError = STR(
-                    "Invalid unsigned_integer_type: must be one of "
-                    "kOCNumberUInt8Type, kOCNumberUInt16Type, "
-                    "kOCNumberUInt32Type or kOCNumberUInt64Type");
+                *outError = STR("SparseSamplingCreate: invalid unsignedIntegerType (must be UInt8/16/32/64)");
             }
             return NULL;
     }
-    // 2) Validate encoding
+    // 2. Validate encoding string
     if (!encoding ||
         (!OCStringEqual(encoding, STR(kSparseSamplingEncodingValueNone)) &&
          !OCStringEqual(encoding, STR(kSparseSamplingEncodingValueBase64)))) {
         if (outError) {
-            *outError = STR(
-                "Invalid encoding: must be \"" kSparseSamplingEncodingValueNone
-                "\" or \"" kSparseSamplingEncodingValueBase64 "\"");
+            *outError = STR("SparseSamplingCreate: encoding must be \"none\" or \"base64\"");
         }
         return NULL;
     }
-    // 3) Allocate & initialize default fields
+    // 3. Allocate and initialize default values
     struct impl_SparseSampling *ss = SparseSamplingAllocate();
     if (!ss) {
-        if (outError) *outError = STR("Allocation failed");
+        if (outError) *outError = STR("SparseSamplingCreate: allocation failed");
         return NULL;
     }
     impl_InitSparseSamplingFields((SparseSamplingRef)ss);
-    // 4) Swap in provided values
+    // 4. Assign provided values
     if (dimensionIndexes) {
         OCRelease(ss->dimensionIndexes);
         ss->dimensionIndexes = OCIndexSetCreateMutableCopy(dimensionIndexes);
@@ -245,6 +254,7 @@ SparseSamplingRef SparseSamplingCreate(
     ss->metaData = metadata
                        ? (OCDictionaryRef)OCTypeDeepCopyMutable(metadata)
                        : OCDictionaryCreateMutable(0);
+    // 5. Final structural validation
     if (!validateSparseSampling((SparseSamplingRef)ss, outError)) {
         OCRelease(ss);
         return NULL;
@@ -252,99 +262,212 @@ SparseSamplingRef SparseSamplingCreate(
     return (SparseSamplingRef)ss;
 }
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
+// Dictionary serialization
+OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
+    if (!ss) return NULL;
+    OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
+    // 1. dimension_indexes → OCArray of OCNumber from OCIndexSet
+    OCArrayRef dimIdxNumbers = OCIndexSetCreateOCNumberArray(ss->dimensionIndexes);
+    if (dimIdxNumbers) {
+        OCDictionarySetValue(dict, STR(kSparseSamplingDimensionIndexesKey), dimIdxNumbers);
+        OCRelease(dimIdxNumbers);
+    }
+    // 2. sparse_grid_vertexes: flatten OCArray of OCIndexPairSet into OCNumber array
+    OCIndex ndim = OCIndexSetGetCount(ss->dimensionIndexes);
+    OCIndex nVerts = OCArrayGetCount(ss->sparseGridVertexes);
+    OCMutableArrayRef flatVerts = OCArrayCreateMutable(nVerts * ndim, &kOCTypeArrayCallBacks);
+    for (OCIndex i = 0; i < nVerts; ++i) {
+        OCIndexPairSetRef vertex = (OCIndexPairSetRef)OCArrayGetValueAtIndex(ss->sparseGridVertexes, i);
+        if (!vertex || OCIndexPairSetGetCount(vertex) != ndim) continue;
+        OCIndexPair *pairs = OCIndexPairSetGetBytesPtr(vertex);
+        for (OCIndex j = 0; j < ndim; ++j) {
+            OCNumberRef num = OCNumberCreateWithOCIndex(pairs[j].value);  // Only values define vertex
+            OCArrayAppendValue(flatVerts, num);
+            OCRelease(num);
+        }
+    }
+    if (OCStringEqual(ss->encoding, STR(kSparseSamplingEncodingValueBase64))) {
+        // Encode flatVerts into Base64 binary form
+        OCIndex flatCount = OCArrayGetCount(flatVerts);
+        int itemSize = OCNumberTypeSize(ss->unsignedIntegerType);
+        OCMutableDataRef bin = OCDataCreateMutable(flatCount * itemSize);
+        uint8_t *bytes = OCDataGetMutableBytes(bin);
+        for (OCIndex i = 0; i < flatCount; ++i) {
+            OCNumberRef num = (OCNumberRef)OCArrayGetValueAtIndex(flatVerts, i);
+            switch (ss->unsignedIntegerType) {
+                case kOCNumberUInt8Type: {
+                    uint8_t v = 0;
+                    OCNumberGetValue(num, kOCNumberUInt8Type, &v);
+                    bytes[i] = v;
+                    break;
+                }
+                case kOCNumberUInt16Type: {
+                    uint16_t v = 0;
+                    OCNumberGetValue(num, kOCNumberUInt16Type, &v);
+                    ((uint16_t *)bytes)[i] = v;
+                    break;
+                }
+                case kOCNumberUInt32Type: {
+                    uint32_t v = 0;
+                    OCNumberGetValue(num, kOCNumberUInt32Type, &v);
+                    ((uint32_t *)bytes)[i] = v;
+                    break;
+                }
+                case kOCNumberUInt64Type: {
+                    uint64_t v = 0;
+                    OCNumberGetValue(num, kOCNumberUInt64Type, &v);
+                    ((uint64_t *)bytes)[i] = v;
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+        OCStringRef b64 = OCDataCreateBase64EncodedString(bin, 0);
+        OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), b64);
+        OCRelease(b64);
+        OCRelease(bin);
+    } else {
+        // Store flatVerts directly as OCArray of OCNumber
+        OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), flatVerts);
+    }
+    OCRelease(flatVerts);
+    // 3. unsigned_integer_type
+    OCNumberRef numType = OCNumberCreateWithInt(ss->unsignedIntegerType);
+    OCDictionarySetValue(dict, STR(kSparseSamplingUnsignedIntegerTypeKey), numType);
+    OCRelease(numType);
+    // 4. encoding
+    OCDictionarySetValue(dict, STR(kSparseSamplingEncodingKey), ss->encoding);
+    // 5. description
+    if (ss->description) {
+        OCStringRef descCopy = OCStringCreateCopy(ss->description);
+        OCDictionarySetValue(dict, STR(kSparseSamplingDescriptionKey), descCopy);
+        OCRelease(descCopy);
+    }
+    // 6. metadata
+    if (ss->metaData) {
+        OCDictionaryRef mdCopy = (OCDictionaryRef)OCTypeDeepCopyMutable(ss->metaData);
+        OCDictionarySetValue(dict, STR(kSparseSamplingMetaDataKey), mdCopy);
+        OCRelease(mdCopy);
+    }
+    return dict;
+}
 // Dictionary → object
-SparseSamplingRef SparseSamplingCreateFromDictionary(
-    OCDictionaryRef dict,
-    OCStringRef *outError) {
+SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!dict) {
         if (outError) *outError = STR("input dictionary is NULL");
         return NULL;
     }
-    // 1) Pull out each field from the dictionary
+    // 1. Parse dimension_indexes (OCArray of OCNumber → OCIndexSet)
+    OCIndexSetRef dimSet = NULL;
     OCArrayRef idxArr = OCDictionaryGetValue(dict, STR(kSparseSamplingDimensionIndexesKey));
-    OCIndexSetRef dims = NULL;
     if (idxArr && OCGetTypeID(idxArr) == OCArrayGetTypeID()) {
-        dims = OCIndexSetCreateMutable();
-        OCIndex n = OCArrayGetCount(idxArr);
-        for (OCIndex i = 0; i < n; ++i) {
+        dimSet = OCIndexSetCreateMutable();
+        for (OCIndex i = 0; i < OCArrayGetCount(idxArr); ++i) {
             OCNumberRef num = OCArrayGetValueAtIndex(idxArr, i);
             long v = 0;
-            OCNumberTryGetLong(num, &v);
-            OCIndexSetAddIndex((OCMutableIndexSetRef)dims, (OCIndex)v);
+            if (OCNumberTryGetLong(num, &v)) {
+                OCIndexSetAddIndex((OCMutableIndexSetRef)dimSet, (OCIndex)v);
+            }
         }
     }
-    OCArrayRef verts = OCDictionaryGetValue(dict, STR(kSparseSamplingSparseGridVertexesKey));
+    OCIndex ndim = dimSet ? OCIndexSetGetCount(dimSet) : 0;
+    // 2. Parse unsigned_integer_type
+    OCNumberType utype = kOCNumberUInt64Type;
     OCNumberRef numType = OCDictionaryGetValue(dict, STR(kSparseSamplingUnsignedIntegerTypeKey));
-    OCNumberType uintType = kOCNumberUInt64Type;
     if (numType) {
         int tmp = 0;
-        OCNumberTryGetInt(numType, &tmp);
-        uintType = (OCNumberType)tmp;
+        if (OCNumberTryGetInt(numType, &tmp)) {
+            utype = (OCNumberType)tmp;
+        }
     }
+    // 3. Parse encoding
     OCStringRef enc = OCDictionaryGetValue(dict, STR(kSparseSamplingEncodingKey));
+    if (!enc) enc = STR(kSparseSamplingEncodingValueNone);
+    // 4. Parse sparse_grid_vertexes (OCArray or OCString → OCArray of OCIndexPairSet)
+    OCArrayRef flat = NULL;
+    OCTypeRef raw = OCDictionaryGetValue(dict, STR(kSparseSamplingSparseGridVertexesKey));
+    OCMutableArrayRef gridVerts = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    if (OCGetTypeID(raw) == OCStringGetTypeID() &&
+        OCStringEqual(enc, STR(kSparseSamplingEncodingValueBase64))) {
+        OCDataRef bin = OCDataCreateFromBase64EncodedString((OCStringRef)raw);
+        if (!bin) {
+            if (outError) *outError = STR("Base64 decoding failed");
+            OCRelease(dimSet);
+            OCRelease(gridVerts);
+            return NULL;
+        }
+        OCIndex totalItems = OCDataGetLength(bin) / OCNumberTypeSize(utype);
+        const uint8_t *bytes = OCDataGetBytesPtr(bin);
+        for (OCIndex i = 0; i < totalItems / ndim; ++i) {
+            OCMutableIndexPairSetRef ps = OCIndexPairSetCreateMutable();
+            for (OCIndex j = 0; j < ndim; ++j) {
+                OCIndex flatIdx = i * ndim + j;
+                OCIndex value = 0;
+                switch (utype) {
+                    case kOCNumberUInt8Type:
+                        value = ((uint8_t *)bytes)[flatIdx];
+                        break;
+                    case kOCNumberUInt16Type:
+                        value = ((uint16_t *)bytes)[flatIdx];
+                        break;
+                    case kOCNumberUInt32Type:
+                        value = ((uint32_t *)bytes)[flatIdx];
+                        break;
+                    case kOCNumberUInt64Type:
+                        value = (OCIndex)((uint64_t *)bytes)[flatIdx];
+                        break;
+                    default:
+                        break;
+                }
+                OCIndexPairSetAddIndexPair(ps, j, value);
+            }
+            OCArrayAppendValue(gridVerts, ps);
+            OCRelease(ps);
+        }
+        OCRelease(bin);
+    } else if (OCGetTypeID(raw) == OCArrayGetTypeID()) {
+        flat = (OCArrayRef)raw;
+        OCIndex total = OCArrayGetCount(flat);
+        if (ndim > 0 && total % ndim == 0) {
+            OCIndex vertexCount = total / ndim;
+            for (OCIndex i = 0; i < vertexCount; ++i) {
+                OCMutableIndexPairSetRef ps = OCIndexPairSetCreateMutable();
+                for (OCIndex j = 0; j < ndim; ++j) {
+                    OCIndex flatIdx = i * ndim + j;
+                    OCNumberRef n = OCArrayGetValueAtIndex(flat, flatIdx);
+                    long v = 0;
+                    if (OCNumberTryGetLong(n, &v)) {
+                        OCIndexPairSetAddIndexPair(ps, j, (OCIndex)v);
+                    }
+                }
+                OCArrayAppendValue(gridVerts, ps);
+                OCRelease(ps);
+            }
+        } else if (outError && ndim > 0) {
+            *outError = OCStringCreateWithFormat(
+                STR("sparse_grid_vertexes size (%ld) is not divisible by number of dimensions (%ld)"),
+                (long)total, (long)ndim);
+        }
+    }
+    // 5. Parse optional fields
     OCStringRef desc = OCDictionaryGetValue(dict, STR(kSparseSamplingDescriptionKey));
     OCDictionaryRef md = OCDictionaryGetValue(dict, STR(kSparseSamplingMetaDataKey));
-    // 2) Create the SparseSampling object
+    // 6. Construct and validate
     OCStringRef createErr = NULL;
-    SparseSamplingRef ss =
-        SparseSamplingCreate(
-            dims,   // may be NULL
-            verts,  // may be NULL
-            uintType,
-            enc ?: STR(kSparseSamplingEncodingValueNone),
-            desc,
-            md,
-            &createErr);
-    if (dims) OCRelease(dims);
+    SparseSamplingRef ss = SparseSamplingCreate(dimSet, gridVerts, utype, enc, desc, md, &createErr);
+    OCRelease(dimSet);
+    OCRelease(gridVerts);
     if (!ss) {
-        printf("[DEBUG] SparseSamplingCreateFromDictionary failed: %s\n",
-               createErr ? OCStringGetCString(createErr) : "(null)");
         if (outError) *outError = createErr;
         return NULL;
     }
-    // 3) Validate before returning
     if (!validateSparseSampling(ss, outError)) {
         OCRelease(ss);
         return NULL;
     }
     return ss;
-}
-/*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
-// Dictionary serialization
-OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
-    if (!ss) return NULL;
-    OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
-    // dimension_indexes
-    OCArrayRef idxArr = OCIndexSetCreateOCNumberArray(ss->dimensionIndexes);
-    if (idxArr) {
-        OCDictionarySetValue(dict, STR(kSparseSamplingDimensionIndexesKey), idxArr);
-        OCRelease(idxArr);
-    }
-    printf("[DEBUG] Parsed dimension_indexes count = %llu\n",
-       (unsigned long long)OCArrayGetCount(idxArr));
-
-    // sparse_grid_vertexes
-    OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), ss->sparseGridVertexes);
-    // unsigned_integer_type
-    OCNumberRef num = OCNumberCreateWithInt(ss->unsignedIntegerType);
-    OCDictionarySetValue(dict, STR(kSparseSamplingUnsignedIntegerTypeKey), num);
-    OCRelease(num);
-    // encoding
-    OCDictionarySetValue(dict, STR(kSparseSamplingEncodingKey), ss->encoding);
-    // description
-    if (ss->description) {
-        OCStringRef d = OCStringCreateCopy(ss->description);
-        OCDictionarySetValue(dict, STR(kSparseSamplingDescriptionKey), d);
-        OCRelease(d);
-    }
-    // metadata
-    if (ss->metaData) {
-        OCDictionaryRef mdc = (OCDictionaryRef)OCTypeDeepCopyMutable(ss->metaData);
-        OCDictionarySetValue(dict, STR(kSparseSamplingMetaDataKey), mdc);
-        OCRelease(mdc);
-    }
-    return dict;
 }
 /**
  * Parse a cJSON tree into an OCDictionary suitable for
@@ -362,107 +485,114 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     cJSON *item;
 
-    // --- dimension_indexes → array of integers
+    // --- dimension_indexes → OCArray of OCNumber
     item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingDimensionIndexesKey);
+    OCMutableArrayRef dimIndexes = NULL;
     if (cJSON_IsArray(item)) {
-        OCMutableArrayRef idxArr = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
+        dimIndexes = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
         cJSON *elem;
         cJSON_ArrayForEach(elem, item) {
             if (cJSON_IsNumber(elem)) {
                 OCNumberRef n = OCNumberCreateWithLong((long)elem->valuedouble);
-                OCArrayAppendValue(idxArr, n);
+                OCArrayAppendValue(dimIndexes, n);
                 OCRelease(n);
             }
         }
-        OCDictionarySetValue(dict, STR(kSparseSamplingDimensionIndexesKey), idxArr);
-        OCRelease(idxArr);
+        if (OCArrayGetCount(dimIndexes) > 0) {
+            OCDictionarySetValue(dict, STR(kSparseSamplingDimensionIndexesKey), dimIndexes);
+        }
+        OCRelease(dimIndexes);
     }
 
+    OCIndex ndim = dimIndexes ? OCArrayGetCount(dimIndexes) : 0;
+
     // --- encoding
-    OCStringRef encodingValue = STR(kSparseSamplingEncodingValueNone);  // default
+    OCStringRef encodingValue = STR(kSparseSamplingEncodingValueNone);
     item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingEncodingKey);
     if (cJSON_IsString(item)) {
         encodingValue = OCStringCreateWithCString(item->valuestring);
         OCDictionarySetValue(dict, STR(kSparseSamplingEncodingKey), encodingValue);
-        OCRelease(encodingValue);  // safe since dictionary retains
+        OCRelease(encodingValue);  // retained by dictionary
     }
 
-    // --- unsigned_integer_type
-    OCNumberType utype = kOCNumberUInt64Type;
+    // --- required: unsigned_integer_type
     item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingUnsignedIntegerTypeKey);
-    if (cJSON_IsString(item)) {
-        const char *ts = item->valuestring;
-        if (strcmp(ts, "uint8") == 0)       utype = kOCNumberUInt8Type;
-        else if (strcmp(ts, "uint16") == 0) utype = kOCNumberUInt16Type;
-        else if (strcmp(ts, "uint32") == 0) utype = kOCNumberUInt32Type;
-        else if (strcmp(ts, "uint64") == 0) utype = kOCNumberUInt64Type;
+    if (!cJSON_IsString(item)) {
+        if (outError) {
+            *outError = STR("Missing required field: 'unsigned_integer_type' must be a string.");
+        }
+        OCRelease(dict);
+        return NULL;
     }
+
+    const char *ts = item->valuestring;
+    OCNumberType utype = kOCNumberUInt64Type;
+    bool valid = true;
+    if (strcmp(ts, "uint8") == 0)       utype = kOCNumberUInt8Type;
+    else if (strcmp(ts, "uint16") == 0) utype = kOCNumberUInt16Type;
+    else if (strcmp(ts, "uint32") == 0) utype = kOCNumberUInt32Type;
+    else if (strcmp(ts, "uint64") == 0) utype = kOCNumberUInt64Type;
+    else valid = false;
+
+    if (!valid) {
+        if (outError) {
+            *outError = OCStringCreateWithFormat(
+                STR("Invalid 'unsigned_integer_type' value: \"%s\". Must be one of: uint8, uint16, uint32, uint64."),
+                ts);
+        }
+        OCRelease(dict);
+        return NULL;
+    }
+
     OCNumberRef ntype = OCNumberCreateWithInt((int)utype);
     OCDictionarySetValue(dict, STR(kSparseSamplingUnsignedIntegerTypeKey), ntype);
     OCRelease(ntype);
 
     // --- sparse_grid_vertexes
     item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingSparseGridVertexesKey);
-    if (cJSON_IsArray(item)) {
-        // plain array of integers
-        OCMutableArrayRef verts = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
+    if (cJSON_IsString(item) &&
+        OCStringEqual(encodingValue, STR(kSparseSamplingEncodingValueBase64))) {
+        if (strlen(item->valuestring) == 0) {
+            if (outError)
+                *outError = STR("Base64 sparse_grid_vertexes is an empty string.");
+            OCRelease(dict);
+            return NULL;
+        }
+        OCStringRef b64 = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), b64);
+        OCRelease(b64);
+    } else if (cJSON_IsArray(item)) {
+        OCMutableArrayRef flatVerts = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
         cJSON *elem;
         cJSON_ArrayForEach(elem, item) {
             if (cJSON_IsNumber(elem)) {
                 OCNumberRef n = OCNumberCreateWithLong((long)elem->valuedouble);
-                OCArrayAppendValue(verts, n);
+                OCArrayAppendValue(flatVerts, n);
                 OCRelease(n);
             }
         }
-        printf("[DEBUG] Decoded sparse vertexes: count = %lu\n", (unsigned long)OCArrayGetCount(verts));
-        OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), verts);
-        OCRelease(verts);
-    } else if (cJSON_IsString(item) &&
-               OCStringEqual(encodingValue, STR(kSparseSamplingEncodingValueBase64))) {
-        OCStringRef b64 = OCStringCreateWithCString(item->valuestring);
-        OCDataRef decoded = OCDataCreateFromBase64EncodedString(b64);
-        OCRelease(b64);
 
-        if (decoded) {
-            int itemSize = OCNumberTypeSize(utype);
-            printf("[DEBUG] Using itemSize = %d bytes for OCNumberType = %d\n", itemSize, utype);
-            uint64_t count = OCDataGetLength(decoded) / itemSize;
-            printf("[DEBUG] Decoded sparse vertex data size = %llu bytes (count = %llu)\n",
-                   (unsigned long long)OCDataGetLength(decoded),
-                   (unsigned long long)count);
-
-            const uint8_t *bytes = OCDataGetBytesPtr(decoded);
-            OCMutableArrayRef verts = OCArrayCreateMutable((OCIndex)count, &kOCTypeArrayCallBacks);
-            for (uint64_t i = 0; i < count; ++i) {
-                OCNumberRef n = NULL;
-                switch (utype) {
-                    case kOCNumberUInt8Type:
-                        n = OCNumberCreateWithUInt8(*(uint8_t *)(bytes + i));
-                        break;
-                    case kOCNumberUInt16Type:
-                        n = OCNumberCreateWithUInt16(*(uint16_t *)(bytes + i * 2));
-                        break;
-                    case kOCNumberUInt32Type:
-                        n = OCNumberCreateWithUInt32(*(uint32_t *)(bytes + i * 4));
-                        break;
-                    case kOCNumberUInt64Type:
-                        n = OCNumberCreateWithUInt64(*(uint64_t *)(bytes + i * 8));
-                        break;
-                    default:
-                        break;
-                }
-                if (n) {
-                    OCArrayAppendValue(verts, n);
-                    OCRelease(n);
-                }
-            }
-            printf("[DEBUG] Parsed sparse vertex count = %llu\n", (unsigned long long)OCArrayGetCount(verts));
-            OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), verts);
-            OCRelease(verts);
-            OCRelease(decoded);
-        } else {
-            printf("[ERROR] Base64 decoding of sparse vertexes failed\n");
+        OCIndex total = OCArrayGetCount(flatVerts);
+        if (total == 0) {
+            if (outError)
+                *outError = STR("sparse_grid_vertexes must not be empty.");
+            OCRelease(flatVerts);
+            OCRelease(dict);
+            return NULL;
         }
+
+        if (ndim == 0 || total % ndim != 0) {
+            if (outError)
+                *outError = OCStringCreateWithFormat(
+                    STR("Expected sparse_grid_vertexes length (%ld) to be divisible by number of dimensions (%ld)"),
+                    (long)total, (long)ndim);
+            OCRelease(flatVerts);
+            OCRelease(dict);
+            return NULL;
+        }
+
+        OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), flatVerts);
+        OCRelease(flatVerts);
     }
 
     // --- description
@@ -524,6 +654,21 @@ OCArrayRef SparseSamplingGetSparseGridVertexes(SparseSamplingRef ss) {
 }
 bool SparseSamplingSetSparseGridVertexes(SparseSamplingRef ss, OCArrayRef verts) {
     if (!ss) return false;
+    OCIndex ndim = ss->dimensionIndexes ? OCIndexSetGetCount(ss->dimensionIndexes) : 0;
+    if (verts) {
+        OCIndex count = OCArrayGetCount(verts);
+        for (OCIndex i = 0; i < count; ++i) {
+            OCTypeRef entry = OCArrayGetValueAtIndex(verts, i);
+            if (!entry || OCGetTypeID(entry) != OCIndexPairSetGetTypeID()) {
+                fprintf(stderr, "[SparseSampling] ERROR: Element at index %ld is not a valid OCIndexPairSet\n", (long)i);
+                return false;
+            }
+            if (ndim > 0 && OCIndexPairSetGetCount((OCIndexPairSetRef)entry) != ndim) {
+                fprintf(stderr, "[SparseSampling] ERROR: OCIndexPairSet at index %ld has incorrect size (expected %ld)\n", (long)i, (long)ndim);
+                return false;
+            }
+        }
+    }
     OCRelease(ss->sparseGridVertexes);
     ss->sparseGridVertexes = verts
                                  ? OCArrayCreateMutableCopy(verts)

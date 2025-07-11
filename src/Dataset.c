@@ -185,44 +185,36 @@ static bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
     // 2) compute expected length from dimensions (defaults to 1 if dimensions==NULL)
     OCIndex expectedSize = RMNCalculateSizeFromDimensions(dimensions);
     // Check for SparseSampling override
-OCIndex sparseSize = -1;
-for (OCIndex i = 0; i < dvCount; ++i) {
-    DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(dependentVariables, i);
-    if (!dv) continue;
-
-    SparseSamplingRef ss = DependentVariableGetSparseSampling(dv);
-    if (!ss) continue;
-
-    OCIndex fullDimCount = OCArrayGetCount(dimensions);
-    OCIndex sparseDimCount = OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(ss));
-
-    if (sparseDimCount == 0) {
-        printf("[DEBUG] sparseDimCount is zero; skipping sparse size override\n");
-        continue;
-    }
-
-    OCIndex fullGridSize = 1;
-    for (OCIndex j = 0; j < fullDimCount; ++j) {
-        if (!OCIndexSetContainsIndex(SparseSamplingGetDimensionIndexes(ss), j)) {
-            DimensionRef d = (DimensionRef)OCArrayGetValueAtIndex(dimensions, j);
-            fullGridSize *= DimensionGetCount(d);
+    OCIndex sparseSize = -1;
+    for (OCIndex i = 0; i < dvCount; ++i) {
+        DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(dependentVariables, i);
+        if (!dv) continue;
+        SparseSamplingRef ss = DependentVariableGetSparseSampling(dv);
+        if (!ss) continue;
+        OCIndex fullDimCount = OCArrayGetCount(dimensions);
+        OCIndex sparseDimCount = OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(ss));
+        if (sparseDimCount == 0) {
+            printf("[DEBUG] sparseDimCount is zero; skipping sparse size override\n");
+            continue;
         }
+        OCIndex fullGridSize = 1;
+        for (OCIndex j = 0; j < fullDimCount; ++j) {
+            if (!OCIndexSetContainsIndex(SparseSamplingGetDimensionIndexes(ss), j)) {
+                DimensionRef d = (DimensionRef)OCArrayGetValueAtIndex(dimensions, j);
+                fullGridSize *= DimensionGetCount(d);
+            }
+        }
+        OCIndex flatCount = OCArrayGetCount(SparseSamplingGetSparseGridVertexes(ss));
+        OCIndex nVerts = flatCount / sparseDimCount;
+        sparseSize = nVerts * fullGridSize;
+        printf("[DEBUG] sparse vertex count = %ld, fullGridSize = %ld, sparseSize = %ld\n",
+               (long)nVerts, (long)fullGridSize, (long)sparseSize);
+        break;
     }
-
-    OCIndex flatCount = OCArrayGetCount(SparseSamplingGetSparseGridVertexes(ss));
-    OCIndex nVerts = flatCount / sparseDimCount;
-    sparseSize = nVerts * fullGridSize;
-
-    printf("[DEBUG] sparse vertex count = %ld, fullGridSize = %ld, sparseSize = %ld\n",
-           (long)nVerts, (long)fullGridSize, (long)sparseSize);
-
-    break;
-}
-
-if (sparseSize > 0) {
-    printf("[DEBUG] overriding expectedSize: %ld → %ld\n", (long)expectedSize, (long)sparseSize);
-    expectedSize = sparseSize;
-}
+    if (sparseSize > 0) {
+        printf("[DEBUG] overriding expectedSize: %ld → %ld\n", (long)expectedSize, (long)sparseSize);
+        expectedSize = sparseSize;
+    }
     // 3) validate each dependent variable
     for (OCIndex i = 0; i < dvCount; ++i) {
         const void *obj = OCArrayGetValueAtIndex(dependentVariables, i);
