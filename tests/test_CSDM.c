@@ -169,10 +169,10 @@ bool test_Dataset_import_single_csdm(void) {
     const char *root = getenv("CSDM_TEST_ROOT");
     TEST_ASSERT(root != NULL);
 
-    // Test a specific file - change this to test different files
-    const char *test_file = "image/raccoon_image.csdf";
+    // Test one of the failing files for debugging
+    const char *test_file = "sparse/iglu_2d.csdf";
     
-    printf("Testing single file: %s\n", test_file);
+    printf("Testing single failing file: %s\n", test_file);
     
     bool success = import_and_check(root, test_file);
     

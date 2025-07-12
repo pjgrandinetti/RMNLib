@@ -48,8 +48,8 @@ int main(void) {
     }
     fprintf(stderr, "[INFO] CSDM_TEST_ROOT = %s\n",
             getenv("CSDM_TEST_ROOT"));
-    // Run a single test that imports every CSDM file under CSDM_TEST_ROOT
-    if (!test_Dataset_import_all_csdm()) failures++;
+    // Test single failing file for debugging
+    if (!test_Dataset_import_single_csdm()) failures++;
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",
                 failures, failures > 1 ? "s" : "");

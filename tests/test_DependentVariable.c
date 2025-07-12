@@ -91,6 +91,7 @@ bool test_DependentVariable_internal_vs_external(void) {
 
     // ── external: must supply a non-NULL URL now ──
     err = NULL;
+    printf("Creating external DV...\n");
     extdv = DependentVariableCreateExternal(
         STR("ext"),                   // name
         STR("external test"),         // description
@@ -105,6 +106,7 @@ bool test_DependentVariable_internal_vs_external(void) {
         printf("DependentVariableCreateExternal failed: %s\n",
                err ? OCStringGetCString(err) : "unknown error");
     }
+    printf("External DV created successfully\n");
     TEST_ASSERT(extdv);
 
     // no in-memory buffers
@@ -116,11 +118,12 @@ bool test_DependentVariable_internal_vs_external(void) {
         TEST_ASSERT(url && OCStringEqual(url, STR("file:./data.bin")));
     }
 
-    // encoding is undefined/empty for externals
-    TEST_ASSERT(
-        DependentVariableGetEncoding(extdv) == NULL ||
-        OCStringGetLength(DependentVariableGetEncoding(extdv)) == 0
-    );
+    // encoding should be "base64" for externals too (new default)
+    {
+        OCStringRef enc = DependentVariableGetEncoding(extdv);
+        printf("External DV encoding: %s\n", enc ? OCStringGetCString(enc) : "NULL");
+        TEST_ASSERT(enc && OCStringEqual(enc, STR("base64")));
+    }
 
     ok = true;
 cleanup:

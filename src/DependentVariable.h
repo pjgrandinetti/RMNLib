@@ -251,7 +251,21 @@ DependentVariableRef
 DependentVariableCreateFromDictionary(
     OCDictionaryRef dict,
     OCStringRef *outError);
-/** @} end of Serialization */
+
+/**
+ * @brief Create a dictionary from cJSON for DependentVariable deserialization.
+ */
+OCDictionaryRef 
+DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError);
+
+/**
+ * @brief Create a packed binary data blob for CSDM serialization.
+ */
+OCDataRef 
+DependentVariableCreateCSDMComponentsData(DependentVariableRef dv,
+                                          OCArrayRef dimensions);
+
+    /** @} end of Serialization */
 
 
 /**
