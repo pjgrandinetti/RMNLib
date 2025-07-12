@@ -49,7 +49,7 @@ int main(void) {
     fprintf(stderr, "[INFO] CSDM_TEST_ROOT = %s\n",
             getenv("CSDM_TEST_ROOT"));
     // Test single failing file for debugging
-    // if (!test_Dataset_import_all_csdm()) failures++;
+    //  if (!test_Dataset_import_all_csdm()) failures++;
     if (!test_Dataset_import_single_csdm()) failures++;
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",
