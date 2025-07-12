@@ -184,6 +184,14 @@ static bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
     }
     // 2) compute expected length from dimensions (defaults to 1 if dimensions==NULL)
     OCIndex expectedSize = RMNCalculateSizeFromDimensions(dimensions);
+    
+    // For 0D datasets (no dimensions), use the size of the first dependent variable
+    if (expectedSize == 1 && (!dimensions || OCArrayGetCount(dimensions) == 0)) {
+        DependentVariableRef firstDV = (DependentVariableRef)OCArrayGetValueAtIndex(dependentVariables, 0);
+        if (firstDV && OCGetTypeID(firstDV) == DependentVariableGetTypeID()) {
+            expectedSize = DependentVariableGetSize(firstDV);
+        }
+    }
     // Check for SparseSampling override
     OCIndex sparseSize = -1;
     for (OCIndex i = 0; i < dvCount; ++i) {
@@ -194,7 +202,11 @@ static bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
         OCIndex fullDimCount = OCArrayGetCount(dimensions);
         OCIndex sparseDimCount = OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(ss));
         if (sparseDimCount == 0) {
-            continue;
+            // 0-dimensional sparse sampling: all dimensions are dense
+            // Expected size should be the number of sparse grid vertices
+            OCIndex flatCount = OCArrayGetCount(SparseSamplingGetSparseGridVertexes(ss));
+            sparseSize = flatCount;  // Each vertex represents one data point
+            break;
         }
         OCIndex fullGridSize = 1;
         for (OCIndex j = 0; j < fullDimCount; ++j) {

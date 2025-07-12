@@ -2518,7 +2518,6 @@ SILinearDimensionRef SILinearDimensionCreate(
     SIDimensionRef reciprocal,
     OCStringRef *outError)
 {
-    printf("DEBUG: SILinearDimensionCreate called\n");
     if (outError) *outError = NULL;
     OCStringRef err = NULL;
 
@@ -2526,9 +2525,6 @@ SILinearDimensionRef SILinearDimensionCreate(
     bool offset_was_null = (offset == NULL);
     bool origin_was_null = (origin == NULL);
     bool period_was_null = (period == NULL);
-    
-    printf("DEBUG SILinearDimensionCreate: offset_was_null=%d, origin_was_null=%d, period_was_null=%d\n", 
-           offset_was_null, origin_was_null, period_was_null);
 
     // 1) Validate count & increment
     if (count < 2) {
@@ -2652,15 +2648,12 @@ SILinearDimensionRef SILinearDimensionCreate(
     // These were created by impl_validateOrDefaultScalar and need to be released
     // since we copied them into the dimension structure
     if (offset_was_null && offset) {
-        printf("DEBUG: Releasing temporary offset SIScalar\n");
         OCRelease(offset);  // Release the temporary one created by validation
     }
     if (origin_was_null && origin) {
-        printf("DEBUG: Releasing temporary origin SIScalar\n");
         OCRelease(origin);  // Release the temporary one created by validation
     }
     if (period && period_was_null) {
-        printf("DEBUG: Releasing temporary period SIScalar\n");
         OCRelease(period);  // Release the temporary one created by validation
     }
 
