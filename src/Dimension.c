@@ -1032,6 +1032,12 @@ SIDimensionRef SIDimensionCreate(
     OCStringRef *outError) {
     if (outError) *outError = NULL;
     OCStringRef err = NULL;
+    
+    // Track which parameters were originally NULL for cleanup
+    bool offset_was_null = (offset == NULL);
+    bool origin_was_null = (origin == NULL);
+    bool period_was_null = (period == NULL);
+    
     // In this function all parameters are optional.
     // 1) Determine baseUnit & baseDim (priority: offset → origin → period → quantityName → dimensionless)
     SIUnitRef baseUnit = NULL;
@@ -1126,6 +1132,18 @@ SIDimensionRef SIDimensionCreate(
     // 11) Flags
     dim->periodic = periodic;
     dim->scaling = scaling;
+    
+    // 12) Release temporary SIScalar objects created by validation if they were NULL inputs
+    if (offset_was_null && offset) {
+        OCRelease(offset);
+    }
+    if (origin_was_null && origin) {
+        OCRelease(origin);
+    }
+    if (period_was_null && period) {
+        OCRelease(period);
+    }
+    
     return dim;
 Fail:
     if (outError)
@@ -1828,6 +1846,11 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
     if (outError) *outError = NULL;
     OCStringRef err = NULL;
 
+    // Track which parameters were originally NULL for cleanup
+    bool offset_was_null = (offset == NULL);
+    bool origin_was_null = (origin == NULL);
+    bool period_was_null = (period == NULL);
+
     // 1) Validate coordinates (≥2)
     OCIndex count = coordinates ? OCArrayGetCount(coordinates) : 0;
     if (count < 2) {
@@ -1934,6 +1957,17 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
     } else {
         // build default reciprocal here (if needed)
         dim->reciprocal = NULL;
+    }
+
+    // Release temporary SIScalar objects created by validation if they were NULL inputs
+    if (offset_was_null && offset) {
+        OCRelease(offset);
+    }
+    if (origin_was_null && origin) {
+        OCRelease(origin);
+    }
+    if (period_was_null && period) {
+        OCRelease(period);
     }
 
     return dim;
@@ -2484,8 +2518,17 @@ SILinearDimensionRef SILinearDimensionCreate(
     SIDimensionRef reciprocal,
     OCStringRef *outError)
 {
+    printf("DEBUG: SILinearDimensionCreate called\n");
     if (outError) *outError = NULL;
     OCStringRef err = NULL;
+
+    // Track which parameters were originally NULL for cleanup
+    bool offset_was_null = (offset == NULL);
+    bool origin_was_null = (origin == NULL);
+    bool period_was_null = (period == NULL);
+    
+    printf("DEBUG SILinearDimensionCreate: offset_was_null=%d, origin_was_null=%d, period_was_null=%d\n", 
+           offset_was_null, origin_was_null, period_was_null);
 
     // 1) Validate count & increment
     if (count < 2) {
@@ -2604,6 +2647,22 @@ SILinearDimensionRef SILinearDimensionCreate(
 
     // 9) Compute reciprocalIncrement
     // [Reciprocal increment logic not shown]
+
+    // 10) Release temporary SIScalar objects created by validation if they were NULL inputs
+    // These were created by impl_validateOrDefaultScalar and need to be released
+    // since we copied them into the dimension structure
+    if (offset_was_null && offset) {
+        printf("DEBUG: Releasing temporary offset SIScalar\n");
+        OCRelease(offset);  // Release the temporary one created by validation
+    }
+    if (origin_was_null && origin) {
+        printf("DEBUG: Releasing temporary origin SIScalar\n");
+        OCRelease(origin);  // Release the temporary one created by validation
+    }
+    if (period && period_was_null) {
+        printf("DEBUG: Releasing temporary period SIScalar\n");
+        OCRelease(period);  // Release the temporary one created by validation
+    }
 
     return dim;
 

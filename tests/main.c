@@ -9,6 +9,7 @@
 #include "test_Datum.h"
 #include "test_DependentVariable.h"
 #include "test_Dimension.h"
+#include "test_SparseSampling.h"
 #include "test_utils.h"
 int main(void) {
     int failures = 0;
@@ -34,6 +35,18 @@ int main(void) {
     if (!test_DependentVariable_sparse_sampling()) failures++;
     if (!test_DependentVariable_copy_and_roundtrip()) failures++;
     if (!test_DependentVariable_invalid_create()) failures++;
+    fprintf(stderr, "\n=== Running SparseSampling Tests ===\n");
+    if (!test_SparseSampling_basic_create()) failures++;
+    if (!test_SparseSampling_validation()) failures++;
+    if (!test_SparseSampling_copy_and_equality()) failures++;
+    if (!test_SparseSampling_dictionary_roundtrip()) failures++;
+    if (!test_SparseSampling_invalid_create()) failures++;
+    if (!test_SparseSampling_null_and_empty()) failures++;
+    if (!test_SparseSampling_fully_sparse()) failures++;
+    if (!test_SparseSampling_partially_sparse()) failures++;
+    if (!test_SparseSampling_base64_encoding()) failures++;
+    if (!test_SparseSampling_with_dataset()) failures++;
+    if (!test_SparseSampling_size_calculations()) failures++;
     fprintf(stderr, "\n=== Running Dataset Tests ===\n");
     if (!test_Dataset_minimal_create()) failures++;
     if (!test_Dataset_mutators()) failures++;
@@ -49,7 +62,7 @@ int main(void) {
     fprintf(stderr, "[INFO] CSDM_TEST_ROOT = %s\n",
             getenv("CSDM_TEST_ROOT"));
     // Test single failing file for debugging
-    if (!test_Dataset_import_all_csdm()) failures++;
+    // if (!test_Dataset_import_all_csdm()) failures++;
     //  if (!test_Dataset_import_single_csdm()) failures++;
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",

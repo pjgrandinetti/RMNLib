@@ -154,18 +154,14 @@ bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError) {
             *outError = STR("SparseSampling validation error: encoding must be \"none\" or \"base64\"");
         return false;
     }
-    // 3) dimensionIndexes must be a valid OCIndexSet with at least one entry
+    // 3) dimensionIndexes must be a valid OCIndexSet (empty is allowed)
     if (!ss->dimensionIndexes || OCGetTypeID(ss->dimensionIndexes) != OCIndexSetGetTypeID()) {
         if (outError)
             *outError = STR("SparseSampling validation error: dimensionIndexes must be a valid OCIndexSet");
         return false;
     }
     OCIndex ndim = OCIndexSetGetCount(ss->dimensionIndexes);
-    if (ndim == 0) {
-        if (outError)
-            *outError = STR("SparseSampling validation error: dimensionIndexes must contain at least one index");
-        return false;
-    }
+    // Note: Empty dimension indexes (ndim == 0) are allowed
     // 4) sparseGridVertexes must be a valid OCArray of OCIndexPairSetRef
     if (!ss->sparseGridVertexes || OCGetTypeID(ss->sparseGridVertexes) != OCArrayGetTypeID()) {
         if (outError)
@@ -237,7 +233,13 @@ SparseSamplingRef SparseSamplingCreate(
     // 4. Assign provided values
     if (dimensionIndexes) {
         OCRelease(ss->dimensionIndexes);
-        ss->dimensionIndexes = OCIndexSetCreateMutableCopy(dimensionIndexes);
+        
+        // Handle empty index sets specially since OCIndexSetCreateMutableCopy returns NULL for empty sets
+        if (OCIndexSetGetCount(dimensionIndexes) == 0) {
+            ss->dimensionIndexes = OCIndexSetCreateMutable(); // Create new empty mutable set
+        } else {
+            ss->dimensionIndexes = OCIndexSetCreateMutableCopy(dimensionIndexes);
+        }
     }
     if (sparseGridVertexes) {
         OCRelease(ss->sparseGridVertexes);
@@ -265,20 +267,31 @@ SparseSamplingRef SparseSamplingCreate(
 // Dictionary serialization
 OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
     if (!ss) return NULL;
+    
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     // 1. dimension_indexes → OCArray of OCNumber from OCIndexSet
     OCArrayRef dimIdxNumbers = OCIndexSetCreateOCNumberArray(ss->dimensionIndexes);
+    // Always add the dimension_indexes key, even if empty
     if (dimIdxNumbers) {
         OCDictionarySetValue(dict, STR(kSparseSamplingDimensionIndexesKey), dimIdxNumbers);
         OCRelease(dimIdxNumbers);
+    } else {
+        // Create empty array if OCIndexSetCreateOCNumberArray returned NULL
+        OCMutableArrayRef emptyArray = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+        OCDictionarySetValue(dict, STR(kSparseSamplingDimensionIndexesKey), emptyArray);
+        OCRelease(emptyArray);
     }
     // 2. sparse_grid_vertexes: flatten OCArray of OCIndexPairSet into OCNumber array
     OCIndex ndim = OCIndexSetGetCount(ss->dimensionIndexes);
     OCIndex nVerts = OCArrayGetCount(ss->sparseGridVertexes);
+    
     OCMutableArrayRef flatVerts = OCArrayCreateMutable(nVerts * ndim, &kOCTypeArrayCallBacks);
     for (OCIndex i = 0; i < nVerts; ++i) {
         OCIndexPairSetRef vertex = (OCIndexPairSetRef)OCArrayGetValueAtIndex(ss->sparseGridVertexes, i);
-        if (!vertex || OCIndexPairSetGetCount(vertex) != ndim) continue;
+        if (!vertex) continue;
+        OCIndex pairCount = OCIndexPairSetGetCount(vertex);
+        
+        if (pairCount != ndim) continue;
         OCIndexPair *pairs = OCIndexPairSetGetBytesPtr(vertex);
         for (OCIndex j = 0; j < ndim; ++j) {
             OCNumberRef num = OCNumberCreateWithOCIndex(pairs[j].value);  // Only values define vertex
@@ -291,6 +304,14 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
         OCIndex flatCount = OCArrayGetCount(flatVerts);
         int itemSize = OCNumberTypeSize(ss->unsignedIntegerType);
         OCMutableDataRef bin = OCDataCreateMutable(flatCount * itemSize);
+        if (!bin) {
+            OCRelease(flatVerts);
+            OCRelease(dict);
+            return NULL;
+        } else {
+            // Set the length to the expected size
+            OCDataSetLength(bin, flatCount * itemSize);
+        }
         uint8_t *bytes = OCDataGetMutableBytes(bin);
         for (OCIndex i = 0; i < flatCount; ++i) {
             OCNumberRef num = (OCNumberRef)OCArrayGetValueAtIndex(flatVerts, i);
@@ -324,8 +345,10 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
             }
         }
         OCStringRef b64 = OCDataCreateBase64EncodedString(bin, 0);
-        OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), b64);
-        OCRelease(b64);
+        if (b64) {
+            OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), b64);
+            OCRelease(b64);
+        }
         OCRelease(bin);
     } else {
         // Store flatVerts directly as OCArray of OCNumber
@@ -360,15 +383,15 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
         return NULL;
     }
     // 1. Parse dimension_indexes (OCArray of OCNumber → OCIndexSet)
-    OCIndexSetRef dimSet = NULL;
+    OCMutableIndexSetRef dimSet = OCIndexSetCreateMutable(); // Create mutable like SparseSamplingCreate does
+    
     OCArrayRef idxArr = OCDictionaryGetValue(dict, STR(kSparseSamplingDimensionIndexesKey));
     if (idxArr && OCGetTypeID(idxArr) == OCArrayGetTypeID()) {
-        dimSet = OCIndexSetCreateMutable();
         for (OCIndex i = 0; i < OCArrayGetCount(idxArr); ++i) {
             OCNumberRef num = OCArrayGetValueAtIndex(idxArr, i);
             long v = 0;
             if (OCNumberTryGetLong(num, &v)) {
-                OCIndexSetAddIndex((OCMutableIndexSetRef)dimSet, (OCIndex)v);
+                OCIndexSetAddIndex(dimSet, (OCIndex)v);
             }
         }
     }
@@ -400,6 +423,10 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
         }
         OCIndex totalItems = OCDataGetLength(bin) / OCNumberTypeSize(utype);
         const uint8_t *bytes = OCDataGetBytesPtr(bin);
+        
+        // Get the dimension indexes in order
+        OCArrayRef dimArray = OCIndexSetCreateOCNumberArray(dimSet);
+        
         for (OCIndex i = 0; i < totalItems / ndim; ++i) {
             OCMutableIndexPairSetRef ps = OCIndexPairSetCreateMutable();
             for (OCIndex j = 0; j < ndim; ++j) {
@@ -421,17 +448,26 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
                     default:
                         break;
                 }
-                OCIndexPairSetAddIndexPair(ps, j, value);
+                // Use the actual dimension index, not j
+                OCNumberRef dimNum = (OCNumberRef)OCArrayGetValueAtIndex(dimArray, j);
+                long dimIndex = 0;
+                OCNumberTryGetLong(dimNum, &dimIndex);
+                OCIndexPairSetAddIndexPair(ps, (OCIndex)dimIndex, value);
             }
             OCArrayAppendValue(gridVerts, ps);
             OCRelease(ps);
         }
+        OCRelease(dimArray);
         OCRelease(bin);
     } else if (OCGetTypeID(raw) == OCArrayGetTypeID()) {
         flat = (OCArrayRef)raw;
         OCIndex total = OCArrayGetCount(flat);
         if (ndim > 0 && total % ndim == 0) {
             OCIndex vertexCount = total / ndim;
+            
+            // Get the dimension indexes in order
+            OCArrayRef dimArray = OCIndexSetCreateOCNumberArray(dimSet);
+            
             for (OCIndex i = 0; i < vertexCount; ++i) {
                 OCMutableIndexPairSetRef ps = OCIndexPairSetCreateMutable();
                 for (OCIndex j = 0; j < ndim; ++j) {
@@ -439,12 +475,17 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
                     OCNumberRef n = OCArrayGetValueAtIndex(flat, flatIdx);
                     long v = 0;
                     if (OCNumberTryGetLong(n, &v)) {
-                        OCIndexPairSetAddIndexPair(ps, j, (OCIndex)v);
+                        // Use the actual dimension index, not j
+                        OCNumberRef dimNum = (OCNumberRef)OCArrayGetValueAtIndex(dimArray, j);
+                        long dimIndex = 0;
+                        OCNumberTryGetLong(dimNum, &dimIndex);
+                        OCIndexPairSetAddIndexPair(ps, (OCIndex)dimIndex, (OCIndex)v);
                     }
                 }
                 OCArrayAppendValue(gridVerts, ps);
                 OCRelease(ps);
             }
+            OCRelease(dimArray);
         } else if (outError && ndim > 0) {
             *outError = OCStringCreateWithFormat(
                 STR("sparse_grid_vertexes size (%ld) is not divisible by number of dimensions (%ld)"),
