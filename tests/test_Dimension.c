@@ -57,7 +57,7 @@ bool test_CreateLongDimensionLabel(void) {
         STR("foo"),            // label
         STR("desc"),           // description
         NULL,                  // metadata
-        STR("length"),         // quantityName
+        kSIQuantityLength,     // quantityName
         offset,                // offset
         NULL,                  // origin
         NULL,                  // period
@@ -276,7 +276,7 @@ bool test_SIDimension(void) {
         STR("sidim"),          // label
         STR("desc"),           // description
         NULL,                  // metadata
-        STR("length"),         // quantityName
+        kSIQuantityLength,         // quantityName
         offset,                // coordinatesOffset
         NULL,                  // originOffset
         NULL,                  // period

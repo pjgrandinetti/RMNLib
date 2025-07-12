@@ -170,7 +170,12 @@ bool test_Dataset_import_single_csdm(void) {
     TEST_ASSERT(root != NULL);
 
     // Test one of the failing files for debugging
-    const char *test_file = "sparse/iglu_2d.csdf";
+    // sparse/iglu_2d.csdf
+    // correlatedDataset/0D_dataset/J_vs_s.csdf
+    // TEM/TEM.csdf
+
+
+    const char *test_file = "TEM/TEM.csdf";
     
     printf("Testing single failing file: %s\n", test_file);
     
