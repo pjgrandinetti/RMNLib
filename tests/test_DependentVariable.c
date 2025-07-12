@@ -52,7 +52,7 @@ bool test_DependentVariable_base(void) {
     TEST_ASSERT(OCStringEqual(
         DependentVariableGetQuantityName(dv),
         kSIQuantityDimensionless));
-    TEST_ASSERT(OCStringEqual(DependentVariableGetEncoding(dv), STR("none")));
+    TEST_ASSERT(OCStringEqual(DependentVariableGetEncoding(dv), STR("base64")));
     TEST_ASSERT(DependentVariableGetComponentCount(dv) == 1);
     TEST_ASSERT(DependentVariableGetSize(dv) == 4);
 
@@ -87,7 +87,7 @@ bool test_DependentVariable_internal_vs_external(void) {
     TEST_ASSERT(intdv);
     TEST_ASSERT(DependentVariableGetComponentCount(intdv) == 1);
     TEST_ASSERT(DependentVariableGetComponentsURL(intdv) == NULL);
-    TEST_ASSERT(OCStringEqual(DependentVariableGetEncoding(intdv), STR("none")));
+    TEST_ASSERT(OCStringEqual(DependentVariableGetEncoding(intdv), STR("base64")));
 
     // ── external: must supply a non-NULL URL now ──
     err = NULL;

@@ -163,3 +163,27 @@ cleanup:
     }
     return false;
 }
+
+bool test_Dataset_import_single_csdm(void) {
+    printf("test_Dataset_import_single_csdm...\n");
+    const char *root = getenv("CSDM_TEST_ROOT");
+    TEST_ASSERT(root != NULL);
+
+    // Test a specific file - change this to test different files
+    const char *test_file = "image/raccoon_image.csdf";
+    
+    printf("Testing single file: %s\n", test_file);
+    
+    bool success = import_and_check(root, test_file);
+    
+    if (success) {
+        printf("test_Dataset_import_single_csdm passed.\n");
+        return true;
+    } else {
+        printf("test_Dataset_import_single_csdm failed.\n");
+        return false;
+    }
+
+cleanup:
+    return false;
+}
