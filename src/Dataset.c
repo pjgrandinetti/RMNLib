@@ -194,7 +194,6 @@ static bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
         OCIndex fullDimCount = OCArrayGetCount(dimensions);
         OCIndex sparseDimCount = OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(ss));
         if (sparseDimCount == 0) {
-            printf("[DEBUG] sparseDimCount is zero; skipping sparse size override\n");
             continue;
         }
         OCIndex fullGridSize = 1;
@@ -207,12 +206,9 @@ static bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
         OCIndex flatCount = OCArrayGetCount(SparseSamplingGetSparseGridVertexes(ss));
         OCIndex nVerts = flatCount / sparseDimCount;
         sparseSize = nVerts * fullGridSize;
-        printf("[DEBUG] sparse vertex count = %ld, fullGridSize = %ld, sparseSize = %ld\n",
-               (long)nVerts, (long)fullGridSize, (long)sparseSize);
         break;
     }
     if (sparseSize > 0) {
-        printf("[DEBUG] overriding expectedSize: %ld → %ld\n", (long)expectedSize, (long)sparseSize);
         expectedSize = sparseSize;
     }
     // 3) validate each dependent variable
@@ -729,6 +725,13 @@ static OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
                     return NULL;
                 }
                 OCDictionaryRef dd = DimensionCopyAsDictionary(dim);
+                if (!dd) {
+                    OCRelease(dim);
+                    OCRelease(dimsArr);
+                    OCRelease(dict);
+                    if (outError) *outError = STR("Failed to convert dimension to dictionary");
+                    return NULL;
+                }
                 OCRelease(dim);
                 OCArrayAppendValue(dimsArr, dd);
                 OCRelease(dd);

@@ -285,9 +285,13 @@ static inline bool CopyNumField(OCMutableDictionaryRef dict,
     return true;
 }
 static OCDictionaryRef impl_DimensionCopyAsDictionary(DimensionRef dim) {
-    if (!dim) return NULL;
+    if (!dim) {
+        return NULL;
+    }
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
-    if (!dict) return NULL;
+    if (!dict) {
+        return NULL;
+    }
     // Copy label
     if (!CopyStringField(dict, STR(kDimensionLabelKey), DimensionGetLabel(dim))) {
         OCRelease(dict);
@@ -1533,13 +1537,16 @@ OCDictionaryRef SIDimensionCopyAsDictionary(SIDimensionRef dim) {
     }
     // 5) period → string
     {
-        OCStringRef tmp = SIScalarCreateStringValue(SIDimensionGetPeriod(dim));
-        if (!tmp || !CopyStringField(dict, STR(kSIDimensionPeriodKey), tmp)) {
-            if (tmp) OCRelease(tmp);
-            OCRelease(dict);
-            return NULL;
+        SIScalarRef periodScalar = SIDimensionGetPeriod(dim);
+        if (periodScalar) {
+            OCStringRef tmp = SIScalarCreateStringValue(periodScalar);
+            if (!tmp || !CopyStringField(dict, STR(kSIDimensionPeriodKey), tmp)) {
+                if (tmp) OCRelease(tmp);
+                OCRelease(dict);
+                return NULL;
+            }
+            OCRelease(tmp);
         }
-        OCRelease(tmp);
     }
     // 6) periodic flag
     if (!CopyBoolField(dict, STR(kSIDimensionPeriodicKey), SIDimensionIsPeriodic(dim))) {
@@ -2115,12 +2122,16 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreateFromDictionary(
     return dim;
 }
 OCDictionaryRef SIMonotonicDimensionCopyAsDictionary(SIMonotonicDimensionRef dim) {
-    if (!dim) return NULL;
+    if (!dim) {
+        return NULL;
+    }
 
     // 1) Base + SI fields
     OCMutableDictionaryRef dict =
         (OCMutableDictionaryRef)SIDimensionCopyAsDictionary((SIDimensionRef)dim);
-    if (!dict) return NULL;
+    if (!dict) {
+        return NULL;
+    }
 
     // 2) Type discriminator
     if (!CopyStringField(dict, STR("type"), STR("monotonic"))) {
