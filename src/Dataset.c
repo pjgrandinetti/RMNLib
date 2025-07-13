@@ -208,6 +208,14 @@ static bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
             sparseSize = flatCount;  // Each vertex represents one data point
             break;
         }
+        
+        // For fully sparse datasets (all dimensions are sparse), 
+        // the expected size equals the actual data size
+        if (sparseDimCount == fullDimCount) {
+            sparseSize = DependentVariableGetSize(dv);
+            break;
+        }
+        
         OCIndex fullGridSize = 1;
         for (OCIndex j = 0; j < fullDimCount; ++j) {
             if (!OCIndexSetContainsIndex(SparseSamplingGetDimensionIndexes(ss), j)) {

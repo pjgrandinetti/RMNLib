@@ -126,7 +126,7 @@ static void impl_InitSparseSamplingFields(SparseSamplingRef ss) {
     ss->dimensionIndexes = OCIndexSetCreateMutable();
     ss->sparseGridVertexes = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     ss->unsignedIntegerType = kOCNumberUInt64Type;
-    ss->encoding = STR(kSparseSamplingEncodingValueNone);
+    ss->encoding = STR(kSparseSamplingEncodingValueBase64);
     ss->description = STR("");
     ss->metaData = OCDictionaryCreateMutable(0);
 }
@@ -251,7 +251,7 @@ SparseSamplingRef SparseSamplingCreate(
     OCRelease(ss->description);
     ss->description = description
                           ? OCStringCreateCopy(description)
-                          : STR("");
+                          : OCStringCreateCopy(STR(""));
     OCRelease(ss->metaData);
     ss->metaData = metadata
                        ? (OCDictionaryRef)OCTypeDeepCopyMutable(metadata)
@@ -407,7 +407,7 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
     }
     // 3. Parse encoding
     OCStringRef enc = OCDictionaryGetValue(dict, STR(kSparseSamplingEncodingKey));
-    if (!enc) enc = STR(kSparseSamplingEncodingValueNone);
+    if (!enc) enc = STR(kSparseSamplingEncodingValueBase64);
     // 4. Parse sparse_grid_vertexes (OCArray or OCString → OCArray of OCIndexPairSet)
     OCArrayRef flat = NULL;
     OCTypeRef raw = OCDictionaryGetValue(dict, STR(kSparseSamplingSparseGridVertexesKey));
@@ -548,7 +548,7 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
     OCIndex ndim = dimIndexes ? OCArrayGetCount(dimIndexes) : 0;
 
     // --- encoding
-    OCStringRef encodingValue = STR(kSparseSamplingEncodingValueNone);
+    OCStringRef encodingValue = STR(kSparseSamplingEncodingValueBase64);
     item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingEncodingKey);
     if (cJSON_IsString(item)) {
         encodingValue = OCStringCreateWithCString(item->valuestring);
@@ -750,7 +750,7 @@ OCStringRef SparseSamplingGetDescription(SparseSamplingRef ss) {
 }
 bool SparseSamplingSetDescription(SparseSamplingRef ss, OCStringRef d) {
     if (!ss) return false;
-    OCStringRef copy = d ? OCStringCreateCopy(d) : STR("");
+    OCStringRef copy = d ? OCStringCreateCopy(d) : OCStringCreateCopy(STR(""));
     if (!copy) return false;
     OCRelease(ss->description);
     ss->description = copy;

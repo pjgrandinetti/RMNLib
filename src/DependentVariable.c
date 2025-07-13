@@ -134,19 +134,40 @@ cJSON *impl_DependentVariableCreateJSON(const void *obj) {
 }
 static void *impl_DependentVariableDeepCopy(const void *ptr) {
     if (!ptr) return NULL;
-    // 1) Serialize the original into a dictionary
+
     DependentVariableRef dv = (DependentVariableRef)ptr;
-    OCStringRef encoding = OCStringCreateCopy(DependentVariableGetEncoding(dv));
-    DependentVariableSetEncoding(dv, STR(kDependentVariableEncodingValueRaw));
+
+    // Preserve the current encoding (may affect how components are serialized)
+    OCStringRef originalEncoding = OCStringCreateCopy(DependentVariableGetEncoding(dv));
+    if (!originalEncoding) return NULL;
+
+    // Temporarily override the encoding to "raw" for a complete in-memory deep copy
+    if (!DependentVariableSetEncoding(dv, STR(kDependentVariableEncodingValueRaw))) {
+        OCRelease(originalEncoding);
+        return NULL;
+    }
+
+    // Attempt to serialize to dictionary
     OCDictionaryRef dict = DependentVariableCopyAsDictionary(dv);
-    DependentVariableSetEncoding(dv, encoding);
-    if (!dict) return NULL;
-    // 2) Create a fresh object from that dictionary
+
+    // Restore the original encoding
+    DependentVariableSetEncoding(dv, originalEncoding);
+
+    if (!dict) {
+        OCRelease(originalEncoding);
+        return NULL;
+    }
+
+    // Create a new instance from the dictionary
     DependentVariableRef copy = DependentVariableCreateFromDictionary(dict, NULL);
-    DependentVariableSetEncoding(copy, encoding);
-    // 3) Clean up
     OCRelease(dict);
-    OCRelease(encoding);
+
+    // Restore the encoding on the new object (even if creation succeeded partially)
+    if (copy) {
+        DependentVariableSetEncoding(copy, originalEncoding);
+    }
+
+    OCRelease(originalEncoding);
     return copy;
 }
 static struct impl_DependentVariable *DependentVariableAllocate(void) {
@@ -196,6 +217,7 @@ static bool validateDependentVariableParameters(
          !OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal)))) {
         return false;
     }
+
     // 1) components‐vs‐labels
     if (componentLabels) {
         OCIndex labelCount = OCArrayGetCount(componentLabels);
@@ -206,6 +228,7 @@ static bool validateDependentVariableParameters(
             }
         }
     }
+
     // 2) quantityName vs unit dimensionality
     if (quantityName) {
         OCStringRef err = NULL;
@@ -220,6 +243,7 @@ static bool validateDependentVariableParameters(
         OCRelease(err);
         if (!match) return false;
     }
+
     // 3) quantityType semantics (“scalar”, “vector_N”, etc.)
     const char *qt = OCStringGetCString(quantityType);
     size_t len = qt ? strlen(qt) : 0;
@@ -246,14 +270,18 @@ static bool validateDependentVariableParameters(
         // unknown quantityType
         return false;
     }
+
     // 4) sparse‐sampling consistency
     if (sparseSampling) {
         OCStringRef err = NULL;
-        if (!validateSparseSampling(sparseSampling, &err)) {
+        bool valid = validateSparseSampling(sparseSampling, &err);
+        if (!valid) {
             OCRelease(err);
             return false;
         }
+        if (err) OCRelease(err);  // ✅ release even on success
     }
+
     return true;
 }
 #pragma endregion Type Registration
@@ -1085,11 +1113,13 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
             *outError = STR("Expected top-level JSON object for DependentVariable");
         return NULL;
     }
+
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     if (!dict) {
         if (outError) *outError = STR("Failed to allocate dictionary");
         return NULL;
     }
+
     // 1) Required: "type"
     cJSON *item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1097,12 +1127,14 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCRelease(dict);
         return NULL;
     }
+
     bool isExternal = (strcmp(item->valuestring, kDependentVariableComponentTypeValueExternal) == 0);
     {
         OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
         OCDictionarySetValue(dict, STR(kDependentVariableTypeKey), tmp);
         OCRelease(tmp);
     }
+
     // 2) Optional: "components_url"
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsURLKey);
     if (isExternal && !cJSON_IsString(item)) {
@@ -1115,6 +1147,7 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableComponentsURLKey), tmp);
         OCRelease(tmp);
     }
+
     // 3) Optional: "encoding"
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableEncodingKey);
     if (cJSON_IsString(item)) {
@@ -1122,6 +1155,7 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableEncodingKey), tmp);
         OCRelease(tmp);
     }
+
     // 4) "components" — required for internal only
     if (!isExternal) {
         item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsKey);
@@ -1154,6 +1188,7 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableComponentsKey), components);
         OCRelease(components);
     }
+
     // 5) Optional: name, description
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNameKey);
     if (cJSON_IsString(item)) {
@@ -1167,16 +1202,15 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableDescriptionKey), tmp);
         OCRelease(tmp);
     }
-    // 6) Optional: quantity_name (default to "dimensionless")
+
+    // 6) Optional: quantity_name
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityNameKey);
-    OCStringRef qname;
     if (cJSON_IsString(item) && item->valuestring[0] != '\0') {
-        qname = OCStringCreateWithCString(item->valuestring);
-    } else {
-        qname = kSIQuantityDimensionless;
-    }
-    OCDictionarySetValue(dict, STR(kDependentVariableQuantityNameKey), qname);
-    OCRelease(qname);
+        OCStringRef qname = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kDependentVariableQuantityNameKey), qname);
+        OCRelease(qname);
+    } 
+
     // 7) Required: quantity_type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1189,14 +1223,14 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableQuantityTypeKey), tmp);
         OCRelease(tmp);
     }
-    // 8) Optional: unit (default to dimensionless if quantity_name == kSIQuantityDimensionless)
+
+    // 8) Optional: unit
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableUnitKey);
     if (cJSON_IsString(item)) {
         OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
         OCDictionarySetValue(dict, STR(kDependentVariableUnitKey), tmp);
         OCRelease(tmp);
     } else {
-        // see if quantity_name was set tokSIQuantityDimensionless
         OCStringRef qname = (OCStringRef)OCDictionaryGetValue(dict, STR(kDependentVariableQuantityNameKey));
         if (qname && OCStringEqual(qname, kSIQuantityDimensionless)) {
             SIUnitRef u = SIUnitDimensionlessAndUnderived();
@@ -1205,6 +1239,7 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
             OCRelease(sym);
         }
     }
+
     // 9) Required: numeric_type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNumericTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1215,46 +1250,31 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
     {
         const char *ts = item->valuestring;
         OCNumberType code;
-        if (strcmp(ts, "int8") == 0) {
-            code = kOCNumberSInt8Type;
-        } else if (strcmp(ts, "int16") == 0) {
-            code = kOCNumberSInt16Type;
-        } else if (strcmp(ts, "int32") == 0) {
-            code = kOCNumberSInt32Type;
-        } else if (strcmp(ts, "int64") == 0) {
-            code = kOCNumberSInt64Type;
-        } else if (strcmp(ts, "uint8") == 0) {
-            code = kOCNumberUInt8Type;
-        } else if (strcmp(ts, "uint16") == 0) {
-            code = kOCNumberUInt16Type;
-        } else if (strcmp(ts, "uint32") == 0) {
-            code = kOCNumberUInt32Type;
-        } else if (strcmp(ts, "uint64") == 0) {
-            code = kOCNumberUInt64Type;
-        } else if (strcmp(ts, "float32") == 0) {
-            code = kOCNumberFloat32Type;
-        } else if (strcmp(ts, "float64") == 0) {
-            code = kOCNumberFloat64Type;
-        } else if (strcmp(ts, "complex64") == 0) {
-            code = kOCNumberComplex64Type;
-        } else if (strcmp(ts, "complex128") == 0) {
-            code = kOCNumberComplex128Type;
-        } else {
-            if (outError) {
-                *outError = STR(
-                    "Unrecognized \"numeric_type\"; expected one of "
-                    "\"int8\", \"int16\", \"int32\", \"int64\", "
-                    "\"uint8\", \"uint16\", \"uint32\", \"uint64\", "
-                    "\"float32\", \"float64\", \"complex64\", \"complex128\"");
-            }
+        if (strcmp(ts, "int8") == 0) code = kOCNumberSInt8Type;
+        else if (strcmp(ts, "int16") == 0) code = kOCNumberSInt16Type;
+        else if (strcmp(ts, "int32") == 0) code = kOCNumberSInt32Type;
+        else if (strcmp(ts, "int64") == 0) code = kOCNumberSInt64Type;
+        else if (strcmp(ts, "uint8") == 0) code = kOCNumberUInt8Type;
+        else if (strcmp(ts, "uint16") == 0) code = kOCNumberUInt16Type;
+        else if (strcmp(ts, "uint32") == 0) code = kOCNumberUInt32Type;
+        else if (strcmp(ts, "uint64") == 0) code = kOCNumberUInt64Type;
+        else if (strcmp(ts, "float32") == 0) code = kOCNumberFloat32Type;
+        else if (strcmp(ts, "float64") == 0) code = kOCNumberFloat64Type;
+        else if (strcmp(ts, "complex64") == 0) code = kOCNumberComplex64Type;
+        else if (strcmp(ts, "complex128") == 0) code = kOCNumberComplex128Type;
+        else {
+            if (outError)
+                *outError = STR("Unrecognized \"numeric_type\"");
             OCRelease(dict);
             return NULL;
         }
+
         OCNumberRef num = OCNumberCreateWithInt((int)code);
         OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), num);
         OCRelease(num);
     }
-    // 10) Optional: component_labels (or default empty labels)
+
+    // 10) Optional: component_labels
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentLabelsKey);
     if (cJSON_IsArray(item)) {
         OCMutableArrayRef labels = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
@@ -1269,16 +1289,17 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableComponentLabelsKey), labels);
         OCRelease(labels);
     } else {
-        // generate N empty labels, where N = components count for this quantityType
-        OCStringRef qtyType = (OCStringRef)OCDictionaryGetValue(dict, STR(kDependentVariableQuantityTypeKey));
-        OCIndex nLabels = DependentVariableComponentsCountFromQuantityType(qtyType);
-        OCMutableArrayRef labels = OCArrayCreateMutable(nLabels, &kOCTypeArrayCallBacks);
-        for (OCIndex i = 0; i < nLabels; ++i) {
-            OCArrayAppendValue(labels, STR(""));  // empty string label
+        // default: N empty labels based on quantity type
+        OCStringRef qt = (OCStringRef)OCDictionaryGetValue(dict, STR(kDependentVariableQuantityTypeKey));
+        OCIndex n = DependentVariableComponentsCountFromQuantityType(qt);
+        OCMutableArrayRef labels = OCArrayCreateMutable(n, &kOCTypeArrayCallBacks);
+        for (OCIndex i = 0; i < n; ++i) {
+            OCArrayAppendValue(labels, STR(""));
         }
         OCDictionarySetValue(dict, STR(kDependentVariableComponentLabelsKey), labels);
         OCRelease(labels);
     }
+
     // 11) Optional: sparse_sampling
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableSparseSamplingKey);
     if (cJSON_IsObject(item)) {
@@ -1296,6 +1317,7 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableSparseSamplingKey), spDict);
         OCRelease(spDict);
     }
+
     return dict;
 }
 DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *outError) {

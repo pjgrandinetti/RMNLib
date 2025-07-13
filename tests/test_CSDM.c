@@ -175,7 +175,7 @@ bool test_Dataset_import_single_csdm(void) {
     // TEM/TEM.csdf
 
 
-    const char *test_file = "NMR/satrec/satRec.csdf";
+    const char *test_file = "TEM/TEM.csdf";
     
     printf("Testing single failing file: %s\n", test_file);
     
