@@ -78,6 +78,9 @@ xcuserdata/
 doxygen/xml/.*
 doxygen/html/.*
 
+# ReadTheDocs testing output
+/test_rtd_output/
+
 # === Third-party Dependencies ===
 /third_party/
 /third_party/OCTypes/
