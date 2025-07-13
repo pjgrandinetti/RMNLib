@@ -43,6 +43,7 @@ impl_DependentVariableCreate(
     OCIndex explicitSize,
     OCArrayRef componentLabels,
     SparseSamplingRef sparseSampling,
+    bool copySparseSampling,
     OCDictionaryRef metaData,
     OCStringRef *outError);
 #endif  // DEPENDENT_VARIABLE_KEYS_H

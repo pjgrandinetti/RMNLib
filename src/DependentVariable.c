@@ -302,6 +302,7 @@ static DependentVariableRef impl_DependentVariableCreate(
     OCIndex explicitSize,        // elements-per-component if components==NULL
     OCArrayRef componentLabels,  // array of OCStringRef
     SparseSamplingRef sparseSampling,
+    bool copySparseSampling,     // NEW: whether to deep-copy SparseSampling
     OCDictionaryRef metaData,  // application‐specific annotations
     OCStringRef *outError) {
     bool isExternal = type && OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal));
@@ -431,11 +432,17 @@ static DependentVariableRef impl_DependentVariableCreate(
             OCRelease(autoLbl);
         }
     }
-    // 7) deep‐copy sparseSampling
+    // 7) SparseSampling: deep‐copy only if requested, otherwise retain reference
     OCRelease(dv->sparseSampling);
-    dv->sparseSampling = sparseSampling
-                             ? (SparseSamplingRef)OCTypeDeepCopyMutable(sparseSampling)
-                             : NULL;
+    if (sparseSampling) {
+        if (copySparseSampling) {
+            dv->sparseSampling = (SparseSamplingRef)OCTypeDeepCopyMutable(sparseSampling);
+        } else {
+            dv->sparseSampling = (SparseSamplingRef)OCRetain(sparseSampling);
+        }
+    } else {
+        dv->sparseSampling = NULL;
+    }
     return (DependentVariableRef)dv;
 }
 #pragma mark — Public Factories
@@ -464,6 +471,7 @@ DependentVariableRef DependentVariableCreate(
         /* explicitSize    */ (OCIndex)-1,  // ignored when components != NULL
         /* componentLabels */ componentLabels,
         /* sparseSampling  */ NULL,  // no sparse‐sampling by default
+        /* copySparseSampling */ true,     // deep-copy if present
         /* metaData        */ NULL,  // no extra metadata by default
         /* outError        */ outError);
 }
@@ -492,6 +500,7 @@ DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
         /* explicitSize    */ (OCIndex)-1,  // ignored when components != NULL
         /* componentLabels */ componentLabels,
         /* sparseSampling  */ NULL,  // none by default
+        /* copySparseSampling */ true,     // deep-copy if present
         /* metaData        */ NULL,  // none by default
         /* outError        */ outError);
 }
@@ -520,6 +529,7 @@ DependentVariableRef DependentVariableCreateWithSize(
         /* explicitSize    */ size,   // allocate this many elements
         /* componentLabels */ componentLabels,
         /* sparseSampling  */ NULL,  // none by default
+        /* copySparseSampling */ true,     // deep-copy if present
         /* metaData        */ NULL,  // none by default
         /* outError        */ outError);
 }
@@ -543,6 +553,7 @@ DependentVariableRef DependentVariableCreateDefault(
         /* explicitSize       */ size,
         /* componentLabels    */ NULL,  // default labels
         /* sparseSampling     */ NULL,  // none
+        /* copySparseSampling */ true,     // deep-copy if present
         /* metaData           */ NULL,  // none
         /* outError           */ outError);
 }
@@ -572,6 +583,7 @@ DependentVariableRef DependentVariableCreateWithComponent(
         /* explicitSize       */ (OCIndex)-1,
         /* componentLabels    */ componentLabels,
         /* sparseSampling     */ NULL,  // none
+        /* copySparseSampling */ true,     // deep-copy if present
         /* metaData           */ NULL,  // none
         /* outError           */ outError);
     OCRelease(arr);
@@ -609,6 +621,7 @@ DependentVariableRef DependentVariableCreateExternal(
         /* explicitSize       */ 0,     // ignored for external
         /* componentLabels    */ NULL,  // not used for external
         /* sparseSampling     */ NULL,  // no sparse-sampling by default
+        /* copySparseSampling */ true,     // deep-copy if present
         /* metaData           */ NULL,  // no extra metadata
         /* outError           */ outError);
 }
@@ -1082,6 +1095,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
         /* explicitSize    */ isExternal ? 0 : -1,
         /* componentLabels */ labelArr,
         /* sparseSampling  */ sparseSampling,
+        /* copySparseSampling */ false,     // OPTIMIZATION: Don't deep copy during initial creation!
         /* metaData        */ metaData,
         /* outError        */ outError);
     OCRelease(components);

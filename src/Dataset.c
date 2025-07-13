@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include "RMNLibrary.h"
 #if defined(_WIN32)
 #include <direct.h>
@@ -317,8 +318,31 @@ DatasetRef DatasetCreate(
                 // leave the external DV as‐is (we’ll import its blob later)
                 toInsert = (DependentVariableRef)OCRetain(dv);
             } else {
-                // deep copy the internal DV
+                // deep copy the internal DV - but optimize SparseSampling encoding
+                SparseSamplingRef sparseSampling = DependentVariableGetSparseSampling(dv);
+                OCStringRef originalEncoding = NULL;
+                
+                // Temporarily switch to base64 encoding to avoid OCNumber creation during deep copy
+                if (sparseSampling) {
+                    originalEncoding = SparseSamplingGetEncoding(sparseSampling);
+                    if (originalEncoding) OCRetain(originalEncoding);  // Keep reference to original
+                    SparseSamplingSetEncoding(sparseSampling, STR("base64"));
+                }
+                
+                // Perform the deep copy with optimized encoding
                 toInsert = DependentVariableCreateCopy(dv);
+                
+                // Also ensure the copied DV uses base64 encoding to avoid future OCNumber creation
+                SparseSamplingRef copiedSparseSampling = DependentVariableGetSparseSampling(toInsert);
+                if (copiedSparseSampling) {
+                    SparseSamplingSetEncoding(copiedSparseSampling, STR("base64"));
+                }
+                
+                // Restore original encoding on source object
+                if (sparseSampling && originalEncoding) {
+                    SparseSamplingSetEncoding(sparseSampling, originalEncoding);
+                    OCRelease(originalEncoding);
+                }
             }
             OCArrayAppendValue(ds->dependentVariables, toInsert);
             OCRelease(toInsert);
@@ -354,6 +378,7 @@ DatasetRef DatasetCreate(
         OCRelease(ds->metaData);
         ds->metaData = OCTypeDeepCopyMutable(metaData);
     }
+    
     return ds;
 }
 OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
@@ -857,20 +882,24 @@ static OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
 // ————— DatasetCreateFromJSON —————
 DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
     if (outError) *outError = NULL;
+    
     // Must have valid JSON object
     if (!root) {
         if (outError) *outError = STR("Input JSON is NULL");
         return NULL;
     }
+    
     // Step 1: Convert JSON to internal dictionary
     OCDictionaryRef dict = DatasetDictionaryCreateFromJSON(root, outError);
     if (!dict) {
         // outError already set by DatasetDictionaryCreateFromJSON
         return NULL;
     }
+    
     // Step 2: Build the Dataset from the dictionary
     DatasetRef ds = DatasetCreateFromDictionary(dict, outError);
     OCRelease(dict);
+    
     if (!ds) {
         // If the dictionary step succeeded but DatasetCreateFromDictionary
         // failed without setting outError, provide a fallback message.
@@ -879,6 +908,7 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         }
         return NULL;
     }
+    
     return ds;
 }
 #pragma endregion Creators
@@ -1176,6 +1206,7 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
             *outError = STR("Dataset import failed: invalid arguments");
         return NULL;
     }
+    
     // 1) read + parse JSON
     FILE *jf = fopen(json_path, "rb");
     if (!jf) {
@@ -1229,9 +1260,11 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         }
         return NULL;
     }
+    
     // 2) JSON → dictionary → Dataset
     DatasetRef ds = DatasetCreateFromJSON(root, outError);
     cJSON_Delete(root);
+    
     if (!ds) return NULL;
     // 3) compute expected number of points from the dataset’s dimensions
     OCArrayRef dims = DatasetGetDimensions(ds);
@@ -1335,6 +1368,7 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         DependentVariableSetEncoding(dv, keyNone);
         DependentVariableSetComponentsURL(dv, NULL);
     }
+    
     return ds;
 }
 #pragma endregion Export / Import
