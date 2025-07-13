@@ -2233,17 +2233,23 @@ static OCDictionaryRef SIMonotonicDimensionDictionaryCreateFromJSON(cJSON *json,
         OCRelease(dict);
         return NULL;
     }
-    OCDictionarySetValue(dict, STR("type"), OCStringCreateWithCString(item->valuestring));
+    {
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR("type"), tmp);
+        OCRelease(tmp);
+    }
     // --- label / description / metadata (optional) ---
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionLabelKey);
     if (cJSON_IsString(item)) {
-        OCDictionarySetValue(dict, STR(kDimensionLabelKey),
-                             OCStringCreateWithCString(item->valuestring));
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kDimensionLabelKey), tmp);
+        OCRelease(tmp);
     }
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionDescriptionKey);
     if (cJSON_IsString(item)) {
-        OCDictionarySetValue(dict, STR(kDimensionDescriptionKey),
-                             OCStringCreateWithCString(item->valuestring));
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kDimensionDescriptionKey), tmp);
+        OCRelease(tmp);
     }
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionMetadataKey);
     if (cJSON_IsObject(item)) {
@@ -2287,8 +2293,9 @@ static OCDictionaryRef SIMonotonicDimensionDictionaryCreateFromJSON(cJSON *json,
     // --- offset / coordinates_offset (required or defaulted) ---
     item = cJSON_GetObjectItemCaseSensitive(json, kSIDimensionOffsetKey);
     if (cJSON_IsString(item)) {
-        OCDictionarySetValue(dict, STR(kSIDimensionOffsetKey),
-                             OCStringCreateWithCString(item->valuestring));
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kSIDimensionOffsetKey), tmp);
+        OCRelease(tmp);
     } else {
         // fallback → zero scalar in first available unit
         OCStringRef berr = NULL;
@@ -2323,13 +2330,15 @@ static OCDictionaryRef SIMonotonicDimensionDictionaryCreateFromJSON(cJSON *json,
     // --- origin / period / periodic / scaling (optional) ---
     item = cJSON_GetObjectItemCaseSensitive(json, kSIDimensionOriginKey);
     if (cJSON_IsString(item)) {
-        OCDictionarySetValue(dict, STR(kSIDimensionOriginKey),
-                             OCStringCreateWithCString(item->valuestring));
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kSIDimensionOriginKey), tmp);
+        OCRelease(tmp);
     }
     item = cJSON_GetObjectItemCaseSensitive(json, kSIDimensionPeriodKey);
     if (cJSON_IsString(item)) {
-        OCDictionarySetValue(dict, STR(kSIDimensionPeriodKey),
-                             OCStringCreateWithCString(item->valuestring));
+        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        OCDictionarySetValue(dict, STR(kSIDimensionPeriodKey), tmp);
+        OCRelease(tmp);
     }
     item = cJSON_GetObjectItemCaseSensitive(json, kSIDimensionPeriodicKey);
     if (cJSON_IsBool(item)) {
@@ -2913,17 +2922,17 @@ static OCDictionaryRef SILinearDimensionDictionaryCreateFromJSON(
 #define COPY_STR_FIELD(key)                                                                 \
     do {                                                                                    \
         if ((item = cJSON_GetObjectItemCaseSensitive(json, key)) && cJSON_IsString(item)) { \
-            OCDictionarySetValue(dict,                                                      \
-                                 STR(key),                                                  \
-                                 OCStringCreateWithCString(item->valuestring));             \
+            OCStringRef tmp = OCStringCreateWithCString(item->valuestring);                \
+            OCDictionarySetValue(dict, STR(key), tmp);                                      \
+            OCRelease(tmp);                                                                 \
         }                                                                                   \
     } while (0)
 #define COPY_NUM_FIELD(key)                                                                 \
     do {                                                                                    \
         if ((item = cJSON_GetObjectItemCaseSensitive(json, key)) && cJSON_IsNumber(item)) { \
-            OCDictionarySetValue(dict,                                                      \
-                                 STR(key),                                                  \
-                                 OCNumberCreateWithInt(item->valueint));                    \
+            OCNumberRef tmp = OCNumberCreateWithInt(item->valueint);                       \
+            OCDictionarySetValue(dict, STR(key), tmp);                                      \
+            OCRelease(tmp);                                                                 \
         }                                                                                   \
     } while (0)
 #define COPY_BOOL_FIELD(key)                                                              \
