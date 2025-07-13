@@ -72,7 +72,7 @@ OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
 SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
 SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
-.PHONY: all dirs clean prepare octypes sitypes test test-asan docs synclib fetchlibs
+.PHONY: all dirs clean prepare octypes sitypes test test-asan docs doxygen html synclib fetchlibs
 
 fetchlibs: octypes sitypes
 	@echo "Both OCTypes and SITypes libraries are up to date."
@@ -266,12 +266,18 @@ xcode-run: xcode
 #────────────────────────────────────────────────────────────────────────────
 # Documentation
 #────────────────────────────────────────────────────────────────────────────
-.PHONY: docs
-docs:
+.PHONY: doxygen
+doxygen:
 	@echo "Generating Doxygen XML..."
 	@cd docs && doxygen Doxyfile
+
+.PHONY: html
+html: doxygen
 	@echo "Building Sphinx HTML..."
 	@cd docs && sphinx-build -b html . _build/html
+
+.PHONY: docs
+docs: html
 
 .PHONY: synclib
 synclib:
