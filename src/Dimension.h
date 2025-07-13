@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 /**
- * @file Dimensions.h
+ * @file Dimension.h
  * @brief Public interface for all Dimension types.
  *
  * This module defines the abstract base Dimension, plus

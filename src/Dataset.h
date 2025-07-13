@@ -25,7 +25,7 @@ extern "C" {
  * or round‐trip), and read/write full CSDF/CSDFE files with Export/Import.
  */
 /**
- * @ingroup CoreTypes
+ * @ingroup IO
  * @brief Opaque handle for a Dataset object.
  */
 typedef struct impl_Dataset *DatasetRef;
