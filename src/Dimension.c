@@ -2274,7 +2274,7 @@ static OCDictionaryRef SIMonotonicDimensionDictionaryCreateFromJSON(cJSON *json,
     OCStringRef derr = NULL;
     SIDimensionalityRef nameDim = SIDimensionalityForQuantity(qn, &derr);
     // only release our copy if we created it
-    if (!cJSON_IsString(item) || item->valuestring[0] == '\0') {
+    if (cJSON_IsString(item) && item->valuestring[0] != '\0') {
         OCRelease(qn);
     }
     if (!nameDim) {
