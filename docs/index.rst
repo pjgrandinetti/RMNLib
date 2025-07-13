@@ -29,7 +29,7 @@ This produces ``libRMNLib.a``.
    :caption: API Reference
 
    api/Dataset
-   api/Dimensions
+   api/Dimension
    api/DependentVariable
    api/Datum
    api/SparseSampling

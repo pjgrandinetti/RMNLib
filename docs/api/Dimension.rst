@@ -1,9 +1,9 @@
-Dimensions
-==========
+Dimension
+=========
 
 .. toctree::
    :maxdepth: 1
 
-.. doxygengroup:: Dimensions
+.. doxygengroup:: Dimension
    :project: RMNLib
    :members:

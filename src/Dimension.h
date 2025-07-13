@@ -1,6 +1,6 @@
 #pragma once
-#ifndef DIMENSIONS_H
-#define DIMENSIONS_H
+#ifndef DIMENSION_H
+#define DIMENSION_H
 
 #include "RMNLibrary.h"
 #include "cJSON.h"
@@ -20,7 +20,7 @@ extern "C" {
  */
 
 /**
- * @defgroup Dimensions Dimensions
+ * @defgroup Dimension Dimension
  * @brief Core types for axes and coordinate spaces.
  * @{
  */
@@ -657,4 +657,4 @@ OCStringRef CreateLongDimensionLabel(DimensionRef dim, OCIndex index);
 }
 #endif
 
-#endif /* DIMENSIONS_H */
+#endif /* DIMENSION_H */
