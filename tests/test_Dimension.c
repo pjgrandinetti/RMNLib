@@ -4,9 +4,9 @@
 #include "test_utils.h"
 
 // ----------------------------------------------------------------------------
-// test_CreateLongDimensionLabel
+// test_CreateDimensionLongLabel
 // ----------------------------------------------------------------------------
-bool test_CreateLongDimensionLabel(void) {
+bool test_CreateDimensionLongLabel(void) {
     bool ok = false;
     OCMutableArrayRef labels = NULL;
     LabeledDimensionRef ld = NULL;
@@ -34,9 +34,9 @@ bool test_CreateLongDimensionLabel(void) {
     TEST_ASSERT(ld != NULL);
     TEST_ASSERT(err == NULL);
 
-    longLabel = CreateLongDimensionLabel(
+    longLabel = CreateDimensionLongLabel(
         (DimensionRef)ld,
-        1           // no outError for CreateLongDimensionLabel
+        1           // no outError for CreateDimensionLongLabel
     );
     TEST_ASSERT(longLabel != NULL);
 
@@ -68,7 +68,7 @@ bool test_CreateLongDimensionLabel(void) {
     TEST_ASSERT(sidim != NULL);
     TEST_ASSERT(err == NULL);
 
-    OCStringRef longLabelSI = CreateLongDimensionLabel(
+    OCStringRef longLabelSI = CreateDimensionLongLabel(
         (DimensionRef)sidim,
         5
     );
@@ -88,7 +88,7 @@ cleanup:
     if (labels) OCRelease(labels);
     if (err) OCRelease(err);
 
-    printf("CreateLongDimensionLabel test %s\n", ok ? "passed." : "FAILED!");
+    printf("CreateDimensionLongLabel test %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 

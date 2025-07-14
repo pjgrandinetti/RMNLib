@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-bool test_CreateLongDimensionLabel(void);
+bool test_CreateDimensionLongLabel(void);
 bool test_Dimension_base(void);
 bool test_LabeledDimension(void);
 bool test_SIDimension(void);

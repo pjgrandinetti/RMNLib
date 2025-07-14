@@ -3024,7 +3024,7 @@ OCIndex DimensionGetCount(DimensionRef dim) {
     // abstract base and any other subclasses default to a single point
     return 1;
 }
-OCStringRef CreateLongDimensionLabel(DimensionRef dim, OCIndex index) {
+OCStringRef CreateDimensionLongLabel(DimensionRef dim, OCIndex index) {
     if (!dim)
         return NULL;
     OCTypeID tid = OCGetTypeID(dim);
