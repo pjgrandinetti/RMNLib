@@ -12,30 +12,60 @@ on:
 
 jobs:
   build:
-    name: Build & Test (${{ matrix.os }})
+    name: Build & Test (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            arch: x64
+            label: ubuntu-latest.x64
+          - os: ubuntu-latest
+            arch: arm64
+            label: ubuntu-latest.arm64
+          - os: macos-latest
+            arch: x64
+            label: macos-latest.x64
+          - os: windows-latest
+            arch: x64
+            label: windows-latest.x64
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # On Linux & macOS
+      # ARM64 builds via QEMU + Docker
+      - name: Set up QEMU emulation
+        if: matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: linux/arm64
+      - name: Install QEMU binfmt handlers
+        if: matrix.arch == 'arm64'
+        run: docker run --rm --privileged tonistiigi/binfmt --install all
+      - name: Build & test in ARM64 container
+        if: matrix.arch == 'arm64'
+        run: |
+          docker run --rm --platform=linux/arm64 \
+            -v ${{ github.workspace }}:/src -w /src ubuntu:22.04 bash -lc "\
+              apt-get update && apt-get install -y curl clang make flex bison unzip libcurl4-openssl-dev && \
+              make clean && make all && make test && \
+              cp build/lib/libRMNLib.a libRMNLib.a"
+
+      # On Linux & macOS (x64)
       - name: Install dependencies on Ubuntu
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
         run: |
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev
 
       - name: Build & test on Linux/macOS
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && matrix.arch == 'x64'
         run: |
           make clean
           make all
           make test-asan
-          cp build/lib/libRMNLib.a libRMNLib-${{ matrix.os }}.a
+          cp build/lib/libRMNLib.a libRMNLib.a
 
       # Windows
       - name: Set up MSYS2 & MinGW (Windows)
@@ -61,23 +91,23 @@ jobs:
                        -Wno-sign-compare -Wno-unused-parameter \
                        -Wno-missing-field-initializers" \
                LEX=flex YACC="bison -y"
-          cp build/lib/libRMNLib.a libRMNLib-${{ matrix.os }}.a
+          cp build/lib/libRMNLib.a libRMNLib.a
 
       - name: Upload library artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libRMNLib-${{ matrix.os }}
-          path: libRMNLib-${{ matrix.os }}.a
+          name: libRMNLib-${{ matrix.label }}
+          path: libRMNLib.a
 
       - name: Package public headers
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
         run: |
           mkdir -p header-pkg/include
           cp src/*.h header-pkg/include/
           zip -j header-pkg/libRMNLib-headers.zip header-pkg/include/*.h
 
       - name: Upload headers artifact
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
         uses: actions/upload-artifact@v4
         with:
           name: libRMNLib-headers
@@ -103,7 +133,7 @@ jobs:
         run: |
           mkdir -p packages
           for osdir in artifacts/*; do
-            lib="${osdir}/libRMNLib-$(basename $osdir).a"
+            lib="${osdir}/libRMNLib.a"
             if [ ! -f "$lib" ]; then
               echo "Skipping $osdir (no library to package)"
               continue
@@ -111,7 +141,7 @@ jobs:
             os=$(basename "$osdir")
             zipfile="packages/libRMNLib-${os}.zip"
 
-            if [[ "$os" == windows-latest ]]; then
+            if [[ "$os" == *"windows"* ]]; then
               pwsh -Command "Compress-Archive -Path '$lib' -DestinationPath '$zipfile'"
             else
               zip -j "$zipfile" "$lib"
