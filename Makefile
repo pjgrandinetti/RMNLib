@@ -51,19 +51,19 @@ CFLAGS_DEBUG := -O0 -g -Wall -Wextra -Werror -MMD -MP
 UNAME_S := $(shell uname -s)
 ARCH    := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
-  OCT_LIB_BIN := libOCTypes-libOCTypes-macos-latest.zip
-  SIT_LIB_BIN := libSITypes-libSITypes-macos-latest.zip
+  OCT_LIB_BIN := libOCTypes-macos-latest.zip
+  SIT_LIB_BIN := libSITypes-macos-latest.zip
 else ifeq ($(UNAME_S),Linux)
   ifeq ($(ARCH),aarch64)
-    OCT_LIB_BIN := libOCTypes-libOCTypes-ubuntu-latest.arm64.zip
-    SIT_LIB_BIN := libSITypes-libSITypes-linux-arm64.zip
+    OCT_LIB_BIN := libOCTypes-ubuntu-latest.arm64.zip
+    SIT_LIB_BIN := libSITypes-ubuntu-latest.arm64.zip
   else
-    OCT_LIB_BIN := libOCTypes-libOCTypes-ubuntu-latest.x64.zip
-    SIT_LIB_BIN := libSITypes-libSITypes-ubuntu-latest.zip
+    OCT_LIB_BIN := libOCTypes-ubuntu-latest.x64.zip
+    SIT_LIB_BIN := libSITypes-ubuntu-latest.x64.zip
   endif
 else ifneq ($(findstring MINGW,$(UNAME_S)),)
-  OCT_LIB_BIN := libOCTypes-libOCTypes-windows-latest.zip
-  SIT_LIB_BIN := libSITypes-libSITypes-windows-latest.zip
+  OCT_LIB_BIN := libOCTypes-windows-latest.zip
+  SIT_LIB_BIN := libSITypes-windows-latest.zip
 endif
 
 # Archives
@@ -151,11 +151,11 @@ sitypes: $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SILibrary.h
 
 $(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/$(SIT_LIB_BIN) -o $@
+	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.1/$(SIT_LIB_BIN) -o $@
 
 $(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes headers"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
+	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.1/libSITypes-headers.zip -o $@
 
 # ──────────────── SITypes library ─────────────────
 $(TP_LIB_DIR)/libSITypes.a: $(SIT_LIB_ARCHIVE) | $(TP_LIB_DIR)
