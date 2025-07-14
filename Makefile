@@ -212,14 +212,14 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs octypes sitypes
 $(BIN_DIR)/runTests: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) \
+		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) -lm \
 		-o $@
 
 # AddressSanitizer test binary
 $(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) \
+		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) -lm \
 		-o $@
 
 test: $(BIN_DIR)/runTests
