@@ -1,7 +1,7 @@
 # RMNLib
 
 ![CI Status](https://github.com/pjgrandinetti/RMNLib/actions/workflows/ci.yml/badge.svg)
-[![Documentation Status](https://readthedocs.org/projects/RMNLib/badge/?version=latest)](https://RMNLib.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/RMNLib/badge/?version=latest)](https://RMN.readthedocs.io/en/latest/?badge=latest)
 
 > **⚠️ Development Status**: RMNLib is currently under active development and is not ready for production use. APIs may change without notice and functionality may be incomplete.
 
@@ -38,7 +38,7 @@ The HTML output appears in `docs/_build/html`.
 
 ### Online Documentation
 
-The latest documentation is hosted on Read the Docs: https://RMNLib.readthedocs.io/en/latest/
+The latest documentation is hosted on Read the Docs: https://RMN.readthedocs.io/en/latest/
 
 A Read the Docs configuration file (`.readthedocs.yml`) is included at the project root to automate the documentation build.
 
