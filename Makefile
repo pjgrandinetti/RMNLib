@@ -151,11 +151,11 @@ sitypes: $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SILibrary.h
 
 $(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.1/$(SIT_LIB_BIN) -o $@
+	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/$(SIT_LIB_BIN) -o $@
 
 $(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes headers"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.1/libSITypes-headers.zip -o $@
+	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
 
 # ──────────────── SITypes library ─────────────────
 $(TP_LIB_DIR)/libSITypes.a: $(SIT_LIB_ARCHIVE) | $(TP_LIB_DIR)

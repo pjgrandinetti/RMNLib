@@ -139,9 +139,11 @@ jobs:
               continue
             fi
             os=$(basename "$osdir")
-            zipfile="packages/libRMNLib-${os}.zip"
+            # Strip the libRMNLib- prefix to get clean platform name
+            platform=${os#libRMNLib-}
+            zipfile="packages/libRMNLib-${platform}.zip"
 
-            if [[ "$os" == *"windows"* ]]; then
+            if [[ "$platform" == *"windows"* ]]; then
               pwsh -Command "Compress-Archive -Path '$lib' -DestinationPath '$zipfile'"
             else
               zip -j "$zipfile" "$lib"
