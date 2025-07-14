@@ -151,9 +151,7 @@ OCDictionaryRef OCMetadataCreateFromJSON(cJSON *json, OCStringRef *outError) {
     return dict;
 }
 void RMNLibTypesShutdown(void) {
-    fprintf(stderr, "Cleaning up SITypes...\n");
     SITypesShutdown();
-    fprintf(stderr, "Cleaning up OCTypes...\n");
     OCTypesShutdown();
 }
 // If you want automatic teardown when the library is unloaded:
