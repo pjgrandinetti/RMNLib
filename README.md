@@ -1,7 +1,7 @@
 # RMNLib
 
 ![CI Status](https://github.com/pjgrandinetti/RMNLib/actions/workflows/ci.yml/badge.svg)
-[![Documentation Status](https://readthedocs.org/projects/RMNLib/badge/?version=latest)](https://RMN.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/RMN/badge/?version=latest)](https://RMN.readthedocs.io/en/latest/?badge=latest)
 
 > **⚠️ Development Status**: RMNLib is currently under active development and is not ready for production use. APIs may change without notice and functionality may be incomplete.
 
