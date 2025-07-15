@@ -1154,7 +1154,7 @@ bool DatasetExport(DatasetRef ds,
         if (outError) *outError = STR("Failed to convert dictionary to JSON");
         return false;
     }
-    char *json_text = cJSON_PrintUnformatted(json);
+    char *json_text = cJSON_Print(json);
     cJSON_Delete(json);
     if (!json_text) {
         if (outError) *outError = STR("Failed to generate JSON string");

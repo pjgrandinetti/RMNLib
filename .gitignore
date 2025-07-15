@@ -89,3 +89,6 @@ doxygen/html/.*
 /third_party/SITypes/.DS_Store
 /third_party/libOCTypes*.zip
 /third_party/libSITypes*.zip
+
+# === Miscellaneous ===
+/tmp

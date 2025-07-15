@@ -897,9 +897,12 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
         OCRelease(s);
     }
     {
-        OCNumberRef num = OCNumberCreateWithInt((int)DependentVariableGetElementType(dv));
-        OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), num);
-        OCRelease(num);
+        const char *typeName = OCNumberGetTypeName(DependentVariableGetElementType(dv));
+        if (typeName) {
+            OCStringRef typeStr = OCStringCreateWithCString(typeName);
+            OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), typeStr);
+            OCRelease(typeStr);
+        }
     }
     // 6) component_labels
     {
@@ -940,7 +943,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
     bool isExternal = type && OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal));
     // 2) required quantityType & numericType
     OCStringRef quantityType = OCDictionaryGetValue(dict, STR(kDependentVariableQuantityTypeKey));
-    OCNumberRef numType = OCDictionaryGetValue(dict, STR(kDependentVariableNumericTypeKey));
+    OCStringRef numType = OCDictionaryGetValue(dict, STR(kDependentVariableNumericTypeKey));
     if (!type || !quantityType || !numType) {
         if (outError) *outError = STR("DependentVariableCreateFromDictionary: missing required fields");
         return NULL;
@@ -964,9 +967,15 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
     }
     // 5) parse numeric_type → elementType
     OCNumberType elementType = kOCNumberTypeInvalid;
-    if (!OCNumberTryGetInt(numType, (int *)&elementType)) {
-        if (outError) *outError = STR(
-                          "DependentVariableCreateFromDictionary: invalid numeric_type");
+    if (OCGetTypeID(numType) == OCStringGetTypeID()) {
+        const char *typeName = OCStringGetCString(numType);
+        elementType = OCNumberTypeFromName(typeName);
+        if (elementType == kOCNumberTypeInvalid) {
+            if (outError) *outError = STR("DependentVariableCreateFromDictionary: invalid numeric_type string");
+            return NULL;
+        }
+    } else {
+        if (outError) *outError = STR("DependentVariableCreateFromDictionary: numeric_type must be a string or number");
         return NULL;
     }
     // 6) optional fields
@@ -1312,29 +1321,16 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
     }
     {
         const char *ts = item->valuestring;
-        OCNumberType code;
-        if (strcmp(ts, "int8") == 0) code = kOCNumberSInt8Type;
-        else if (strcmp(ts, "int16") == 0) code = kOCNumberSInt16Type;
-        else if (strcmp(ts, "int32") == 0) code = kOCNumberSInt32Type;
-        else if (strcmp(ts, "int64") == 0) code = kOCNumberSInt64Type;
-        else if (strcmp(ts, "uint8") == 0) code = kOCNumberUInt8Type;
-        else if (strcmp(ts, "uint16") == 0) code = kOCNumberUInt16Type;
-        else if (strcmp(ts, "uint32") == 0) code = kOCNumberUInt32Type;
-        else if (strcmp(ts, "uint64") == 0) code = kOCNumberUInt64Type;
-        else if (strcmp(ts, "float32") == 0) code = kOCNumberFloat32Type;
-        else if (strcmp(ts, "float64") == 0) code = kOCNumberFloat64Type;
-        else if (strcmp(ts, "complex64") == 0) code = kOCNumberComplex64Type;
-        else if (strcmp(ts, "complex128") == 0) code = kOCNumberComplex128Type;
-        else {
+        OCNumberType code = OCNumberTypeFromName(ts);
+        if (code == -1) {
             if (outError)
                 *outError = STR("Unrecognized \"numeric_type\"");
             OCRelease(dict);
             return NULL;
         }
-
-        OCNumberRef num = OCNumberCreateWithInt((int)code);
-        OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), num);
-        OCRelease(num);
+        OCStringRef typeStr = OCStringCreateWithCString(ts);
+        OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), typeStr);
+        OCRelease(typeStr);
     }
 
     // 10) Optional: component_labels

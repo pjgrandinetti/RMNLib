@@ -203,15 +203,47 @@ bool test_Dataset_roundtrip_export_import(void) {
 
     int total = 0, failed = 0;
 
-    char tmpdir_template[] = "/tmp/rmnpy_roundtrip_XXXXXX";
-    char *tmpdir = mkdtemp(tmpdir_template);
-    TEST_ASSERT(tmpdir != NULL);
+    // Use project-local tmp directory for easier inspection
+    const char *local_tmp = "tmp/rmnpy_roundtrip";
+    int mkdir_ret = mkdir("tmp", 0777); // create tmp if needed
+    (void)mkdir_ret;
+    mkdir_ret = mkdir(local_tmp, 0777); // create subdir if needed
+    (void)mkdir_ret;
+    char tmpdir[PATH_MAX];
+    snprintf(tmpdir, sizeof(tmpdir), "%s", local_tmp);
+    printf("Export dir: %s\n", tmpdir);
+    // Optionally, could add timestamp or randomization for parallel runs
+    // but for now, just overwrite each run.
 
     for (struct file_node *n = file_list_head; n; n = n->next) {
         total++;
         char orig_json[PATH_MAX], export_json[PATH_MAX];
         snprintf(orig_json, sizeof(orig_json), "%s/%s", root, n->rel);
-        snprintf(export_json, sizeof(export_json), "%s/exported_%d.csdf", tmpdir, total);
+
+        if (is_illegal(n->rel)) {
+            // Only attempt import, expect failure
+            OCStringRef err = NULL;
+            DatasetRef ds = DatasetCreateWithImport(orig_json, root, &err);
+            if (ds) {
+                printf("[FAIL] %-60s : expected to fail but succeeded\n", n->rel);
+                OCRelease(ds);
+                OCRelease(err);
+                failed++;
+            } else {
+                printf("[ PASS] %-60s : correctly failed (%s)\n", n->rel, err ? OCStringGetCString(err) : "");
+                OCRelease(err);
+            }
+            continue;
+        }
+
+        // Use the input file's relpath for the output filename, replacing '/' with '_'
+        char safe_name[PATH_MAX];
+        strncpy(safe_name, n->rel, sizeof(safe_name));
+        safe_name[sizeof(safe_name)-1] = '\0';
+        for (char *p = safe_name; *p; ++p) {
+            if (*p == '/') *p = '_';
+        }
+        snprintf(export_json, sizeof(export_json), "%s/%s", tmpdir, safe_name);
 
         // Import original
         OCStringRef err = NULL;

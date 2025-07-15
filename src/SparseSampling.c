@@ -385,9 +385,12 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
         OCRelease(flatVerts);
     }
     // 3. unsigned_integer_type
-    OCNumberRef numType = OCNumberCreateWithInt(ss->unsignedIntegerType);
-    OCDictionarySetValue(dict, STR(kSparseSamplingUnsignedIntegerTypeKey), numType);
-    OCRelease(numType);
+    const char *typeName = OCNumberGetTypeName(ss->unsignedIntegerType);
+    if (typeName) {
+        OCStringRef typeStr = OCStringCreateWithCString(typeName);
+        OCDictionarySetValue(dict, STR(kSparseSamplingUnsignedIntegerTypeKey), typeStr);
+        OCRelease(typeStr);
+    }
     // 4. encoding
     OCDictionarySetValue(dict, STR(kSparseSamplingEncodingKey), ss->encoding);
     // 5. description
@@ -427,11 +430,12 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
     OCIndex ndim = dimSet ? OCIndexSetGetCount(dimSet) : 0;
     // 2. Parse unsigned_integer_type
     OCNumberType utype = kOCNumberUInt64Type;
-    OCNumberRef numType = OCDictionaryGetValue(dict, STR(kSparseSamplingUnsignedIntegerTypeKey));
-    if (numType) {
-        int tmp = 0;
-        if (OCNumberTryGetInt(numType, &tmp)) {
-            utype = (OCNumberType)tmp;
+    OCStringRef typeStr = OCDictionaryGetValue(dict, STR(kSparseSamplingUnsignedIntegerTypeKey));
+    if (typeStr && OCGetTypeID(typeStr) == OCStringGetTypeID()) {
+        const char *typeName = OCStringGetCString(typeStr);
+        OCNumberType parsed = OCNumberTypeFromName(typeName);
+        if (parsed != -1) {
+            utype = parsed;
         }
     }
     // 3. Parse encoding
@@ -633,15 +637,8 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
     }
 
     const char *ts = item->valuestring;
-    OCNumberType utype = kOCNumberUInt64Type;
-    bool valid = true;
-    if (strcmp(ts, "uint8") == 0)       utype = kOCNumberUInt8Type;
-    else if (strcmp(ts, "uint16") == 0) utype = kOCNumberUInt16Type;
-    else if (strcmp(ts, "uint32") == 0) utype = kOCNumberUInt32Type;
-    else if (strcmp(ts, "uint64") == 0) utype = kOCNumberUInt64Type;
-    else valid = false;
-
-    if (!valid) {
+    OCNumberType utype = OCNumberTypeFromName(ts);
+    if (utype == kOCNumberTypeInvalid) {
         if (outError) {
             *outError = OCStringCreateWithFormat(
                 STR("Invalid 'unsigned_integer_type' value: \"%s\". Must be one of: uint8, uint16, uint32, uint64."),
@@ -651,9 +648,10 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
         return NULL;
     }
 
-    OCNumberRef ntype = OCNumberCreateWithInt((int)utype);
-    OCDictionarySetValue(dict, STR(kSparseSamplingUnsignedIntegerTypeKey), ntype);
-    OCRelease(ntype);
+    // Store as OCString for round-trip consistency
+    OCStringRef typeStr = OCStringCreateWithCString(ts);
+    OCDictionarySetValue(dict, STR(kSparseSamplingUnsignedIntegerTypeKey), typeStr);
+    OCRelease(typeStr);
 
     // --- sparse_grid_vertexes - optimized parsing
     item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingSparseGridVertexesKey);
