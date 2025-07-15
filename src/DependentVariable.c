@@ -17,8 +17,8 @@ struct impl_DependentVariable {
     OCStringRef type;           // "internal" / "external"
     OCStringRef encoding;       // "base64" / "none"
     OCStringRef componentsURL;  // for external‐only
-    OCMutableArrayRef components;
-    OCMutableArrayRef componentLabels;
+    OCMutableArrayRef components;  // And OCArray of OCDataRef types
+    OCMutableArrayRef componentLabels; // And OCArray of OCStringRef types
     // sparse‐sampling metadata
     SparseSamplingRef sparseSampling;
     // weak back‐pointer
@@ -132,44 +132,93 @@ cJSON *impl_DependentVariableCreateJSON(const void *obj) {
     OCRelease(dict);
     return json;
 }
-static void *impl_DependentVariableDeepCopy(const void *ptr) {
+static void *impl_DependentVariableDeepCopy(const void *ptr)
+{
     if (!ptr) return NULL;
 
-    DependentVariableRef dv = (DependentVariableRef)ptr;
+    const struct impl_DependentVariable *src = (const struct impl_DependentVariable *)ptr;
+    struct impl_DependentVariable *dst = calloc(1, sizeof(*dst));
+    if (!dst) return NULL;
 
-    // Preserve the current encoding (may affect how components are serialized)
-    OCStringRef originalEncoding = OCStringCreateCopy(DependentVariableGetEncoding(dv));
-    if (!originalEncoding) return NULL;
+    // 1) Copy base
+    memcpy(&dst->base, &src->base, sizeof(OCBase));
 
-    // Temporarily override the encoding to "raw" for a complete in-memory deep copy
-    if (!DependentVariableSetEncoding(dv, STR(kDependentVariableEncodingValueRaw))) {
-        OCRelease(originalEncoding);
-        return NULL;
+    // 2) SIQuantity Type attributes
+    dst->unit        = src->unit ? OCRetain(src->unit) : NULL;
+    dst->numericType = src->numericType;
+
+    // 3) Dependent Variable Type attributes
+    dst->name         = src->name         ? OCStringCreateCopy(src->name)         : NULL;
+    dst->description  = src->description  ? OCStringCreateCopy(src->description)  : NULL;
+    dst->metaData     = src->metaData     ? OCDictionaryCreateMutableCopy(src->metaData) : NULL;
+    dst->quantityName = src->quantityName ? OCStringCreateCopy(src->quantityName) : NULL;
+    dst->quantityType = src->quantityType ? OCStringCreateCopy(src->quantityType) : NULL;
+
+    // 4) Components metadata
+    dst->type          = src->type          ? OCStringCreateCopy(src->type)          : NULL;
+    dst->encoding      = src->encoding      ? OCStringCreateCopy(src->encoding)      : NULL;
+    dst->componentsURL = src->componentsURL ? OCStringCreateCopy(src->componentsURL) : NULL;
+
+    // 5) Deep‐copy the components array using OCTypeDeepCopy
+    if (src->components) {
+        OCIndex count = OCArrayGetCount(src->components);
+        dst->components = OCArrayCreateMutable(count, &kOCTypeArrayCallBacks);
+        if (!dst->components) goto fail;
+        for (OCIndex i = 0; i < count; ++i) {
+            OCTypeRef elem = OCArrayGetValueAtIndex(src->components, i);
+            OCTypeRef elemCopy = OCTypeDeepCopy(elem);
+            if (!elemCopy) goto fail;
+            OCArrayAppendValue(dst->components, elemCopy);
+            OCRelease(elemCopy);
+        }
+    } else {
+        dst->components = NULL;
     }
 
-    // Attempt to serialize to dictionary
-    OCDictionaryRef dict = DependentVariableCopyAsDictionary(dv);
-
-    // Restore the original encoding
-    DependentVariableSetEncoding(dv, originalEncoding);
-
-    if (!dict) {
-        OCRelease(originalEncoding);
-        return NULL;
+    // 6) Copy component labels
+    if (src->componentLabels) {
+        OCIndex count = OCArrayGetCount(src->componentLabels);
+        dst->componentLabels = OCArrayCreateMutable(count, &kOCTypeArrayCallBacks);
+        if (!dst->componentLabels) goto fail;
+        for (OCIndex i = 0; i < count; ++i) {
+            OCStringRef lbl = (OCStringRef)OCArrayGetValueAtIndex(src->componentLabels, i);
+            OCStringRef lblCopy = OCStringCreateCopy(lbl);
+            if (!lblCopy) goto fail;
+            OCArrayAppendValue(dst->componentLabels, lblCopy);
+            OCRelease(lblCopy);
+        }
+    } else {
+        dst->componentLabels = NULL;
     }
 
-    // Create a new instance from the dictionary
-    DependentVariableRef copy = DependentVariableCreateFromDictionary(dict, NULL);
-    OCRelease(dict);
+    // 7) Sparse‐sampling metadata
+    dst->sparseSampling = src->sparseSampling
+                          ? OCTypeDeepCopy(src->sparseSampling)
+                          : NULL;
 
-    // Restore the encoding on the new object (even if creation succeeded partially)
-    if (copy) {
-        DependentVariableSetEncoding(copy, originalEncoding);
-    }
+    // 8) Weak back‐pointer
+    dst->owner = src->owner;
 
-    OCRelease(originalEncoding);
-    return copy;
+    return dst;
+
+fail:
+    // Clean up any allocated fields if a failure occurs
+    OCRelease(dst->unit);
+    OCRelease(dst->name);
+    OCRelease(dst->description);
+    OCRelease(dst->metaData);
+    OCRelease(dst->quantityName);
+    OCRelease(dst->quantityType);
+    OCRelease(dst->type);
+    OCRelease(dst->encoding);
+    OCRelease(dst->componentsURL);
+    OCRelease(dst->components);
+    OCRelease(dst->componentLabels);
+    OCRelease(dst->sparseSampling);
+    free(dst);
+    return NULL;
 }
+
 static struct impl_DependentVariable *DependentVariableAllocate(void) {
     return OCTypeAlloc(
         struct impl_DependentVariable,

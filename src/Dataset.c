@@ -132,16 +132,61 @@ static cJSON *impl_DatasetCreateJSON(const void *obj) {
     OCRelease(core);
     return root;
 }
-static void *impl_DatasetDeepCopy(const void *ptr) {
-    if (!ptr) return NULL;
-    DatasetRef src = (DatasetRef)ptr;
-    OCDictionaryRef dict = DatasetCopyAsDictionary(src);
-    if (!dict) return NULL;
-    OCStringRef err = NULL;
-    DatasetRef copy = DatasetCreateFromDictionary(dict, &err);
-    OCRelease(dict);
-    OCRelease(err);  // Discard error, since deep copy failure isn't recoverable here
-    return copy;
+static void *
+impl_DatasetDeepCopy(const void *ptr) {
+    if (ptr == NULL) {
+        return NULL;
+    }
+    const struct impl_Dataset *src = (const struct impl_Dataset *)ptr;
+    // 1) Allocate and zero the destination
+    struct impl_Dataset *dst = calloc(1, sizeof(*dst));
+    if (dst == NULL) {
+        return NULL;
+    }
+    // 2) Copy the OCBase header (type tag + refcount, etc.)
+    memcpy(&dst->base, &src->base, sizeof(OCBase));
+    // 3) Deep-copy all OCTypeRef fields via OCTypeDeepCopy:
+    dst->version = src->version
+                       ? (OCStringRef)OCTypeDeepCopy(src->version)
+                       : NULL;
+    dst->timestamp = src->timestamp
+                         ? (OCStringRef)OCTypeDeepCopy(src->timestamp)
+                         : NULL;
+    dst->geographicCoordinate = src->geographicCoordinate
+                                    ? (GeographicCoordinateRef)OCTypeDeepCopy(src->geographicCoordinate)
+                                    : NULL;
+    // 4) Primitive field
+    dst->readOnly = src->readOnly;
+    // 5) Mutable arrays
+    dst->dimensions = src->dimensions
+                          ? (OCMutableArrayRef)OCTypeDeepCopy(src->dimensions)
+                          : NULL;
+    dst->dependentVariables = src->dependentVariables
+                                  ? (OCMutableArrayRef)OCTypeDeepCopy(src->dependentVariables)
+                                  : NULL;
+    dst->tags = src->tags
+                    ? (OCMutableArrayRef)OCTypeDeepCopy(src->tags)
+                    : NULL;
+    // 6) More OCTypeRef fields
+    dst->description = src->description
+                           ? (OCStringRef)OCTypeDeepCopy(src->description)
+                           : NULL;
+    dst->title = src->title
+                     ? (OCStringRef)OCTypeDeepCopy(src->title)
+                     : NULL;
+    dst->focus = src->focus
+                     ? (DatumRef)OCTypeDeepCopy(src->focus)
+                     : NULL;
+    dst->previousFocus = src->previousFocus
+                             ? (DatumRef)OCTypeDeepCopy(src->previousFocus)
+                             : NULL;
+    dst->dimensionPrecedence = src->dimensionPrecedence
+                                   ? (OCMutableIndexArrayRef)OCTypeDeepCopy(src->dimensionPrecedence)
+                                   : NULL;
+    dst->metaData = src->metaData
+                        ? (OCDictionaryRef)OCTypeDeepCopy(src->metaData)
+                        : NULL;
+    return dst;
 }
 static struct impl_Dataset *DatasetAllocate(void) {
     return OCTypeAlloc(
@@ -185,7 +230,6 @@ static bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
     }
     // 2) compute expected length from dimensions (defaults to 1 if dimensions==NULL)
     OCIndex expectedSize = RMNCalculateSizeFromDimensions(dimensions);
-    
     // For 0D datasets (no dimensions), use the size of the first dependent variable
     if (expectedSize == 1 && (!dimensions || OCArrayGetCount(dimensions) == 0)) {
         DependentVariableRef firstDV = (DependentVariableRef)OCArrayGetValueAtIndex(dependentVariables, 0);
@@ -209,14 +253,12 @@ static bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
             sparseSize = flatCount;  // Each vertex represents one data point
             break;
         }
-        
-        // For fully sparse datasets (all dimensions are sparse), 
+        // For fully sparse datasets (all dimensions are sparse),
         // the expected size equals the actual data size
         if (sparseDimCount == fullDimCount) {
             sparseSize = DependentVariableGetSize(dv);
             break;
         }
-        
         OCIndex fullGridSize = 1;
         for (OCIndex j = 0; j < fullDimCount; ++j) {
             if (!OCIndexSetContainsIndex(SparseSamplingGetDimensionIndexes(ss), j)) {
@@ -321,23 +363,19 @@ DatasetRef DatasetCreate(
                 // deep copy the internal DV - but optimize SparseSampling encoding
                 SparseSamplingRef sparseSampling = DependentVariableGetSparseSampling(dv);
                 OCStringRef originalEncoding = NULL;
-                
                 // Temporarily switch to base64 encoding to avoid OCNumber creation during deep copy
                 if (sparseSampling) {
                     originalEncoding = SparseSamplingGetEncoding(sparseSampling);
                     if (originalEncoding) OCRetain(originalEncoding);  // Keep reference to original
                     SparseSamplingSetEncoding(sparseSampling, STR("base64"));
                 }
-                
                 // Perform the deep copy with optimized encoding
                 toInsert = DependentVariableCreateCopy(dv);
-                
                 // Also ensure the copied DV uses base64 encoding to avoid future OCNumber creation
                 SparseSamplingRef copiedSparseSampling = DependentVariableGetSparseSampling(toInsert);
                 if (copiedSparseSampling) {
                     SparseSamplingSetEncoding(copiedSparseSampling, STR("base64"));
                 }
-                
                 // Restore original encoding on source object
                 if (sparseSampling && originalEncoding) {
                     SparseSamplingSetEncoding(sparseSampling, originalEncoding);
@@ -378,7 +416,6 @@ DatasetRef DatasetCreate(
         OCRelease(ds->metaData);
         ds->metaData = OCTypeDeepCopyMutable(metaData);
     }
-    
     return ds;
 }
 OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
@@ -882,24 +919,20 @@ static OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
 // ————— DatasetCreateFromJSON —————
 DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
     if (outError) *outError = NULL;
-    
     // Must have valid JSON object
     if (!root) {
         if (outError) *outError = STR("Input JSON is NULL");
         return NULL;
     }
-    
     // Step 1: Convert JSON to internal dictionary
     OCDictionaryRef dict = DatasetDictionaryCreateFromJSON(root, outError);
     if (!dict) {
         // outError already set by DatasetDictionaryCreateFromJSON
         return NULL;
     }
-    
     // Step 2: Build the Dataset from the dictionary
     DatasetRef ds = DatasetCreateFromDictionary(dict, outError);
     OCRelease(dict);
-    
     if (!ds) {
         // If the dictionary step succeeded but DatasetCreateFromDictionary
         // failed without setting outError, provide a fallback message.
@@ -908,7 +941,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         }
         return NULL;
     }
-    
     return ds;
 }
 #pragma endregion Creators
@@ -1206,7 +1238,6 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
             *outError = STR("Dataset import failed: invalid arguments");
         return NULL;
     }
-    
     // 1) read + parse JSON
     FILE *jf = fopen(json_path, "rb");
     if (!jf) {
@@ -1260,11 +1291,9 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         }
         return NULL;
     }
-    
     // 2) JSON → dictionary → Dataset
     DatasetRef ds = DatasetCreateFromJSON(root, outError);
     cJSON_Delete(root);
-    
     if (!ds) return NULL;
     // 3) compute expected number of points from the dataset’s dimensions
     OCArrayRef dims = DatasetGetDimensions(ds);
@@ -1368,7 +1397,6 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         DependentVariableSetEncoding(dv, keyNone);
         DependentVariableSetComponentsURL(dv, NULL);
     }
-    
     return ds;
 }
 #pragma endregion Export / Import

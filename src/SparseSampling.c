@@ -99,15 +99,50 @@ static cJSON *impl_SparseSamplingCreateJSON(const void *obj) {
 }
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // Deep‐copy
-static void *impl_SparseSamplingDeepCopy(const void *ptr) {
-    if (!ptr) return NULL;
-    SparseSamplingRef src = (SparseSamplingRef)ptr;
-    OCDictionaryRef dict = SparseSamplingCopyAsDictionary(src);
-    if (!dict) return NULL;
-    OCStringRef err = NULL;
-    SparseSamplingRef copy = SparseSamplingCreateFromDictionary(dict, &err);
-    OCRelease(dict);
-    return copy;
+
+static void *
+impl_SparseSamplingDeepCopy(const void *ptr)
+{
+    if (ptr == NULL) {
+        return NULL;
+    }
+
+    const struct impl_SparseSampling *src =
+        (const struct impl_SparseSampling *)ptr;
+
+    // Allocate a zeroed struct so we can bail early without uninitialized fields
+    struct impl_SparseSampling *dst =
+        calloc(1, sizeof(*dst));
+    if (dst == NULL) {
+        return NULL;
+    }
+
+    // Copy the OCBase header (type tag & ref-count)
+    memcpy(&dst->base, &src->base, sizeof(OCBase));
+
+    // Deep-copy each OCTypeRef field via OCTypeDeepCopy:
+    dst->dimensionIndexes    = src->dimensionIndexes
+                               ? (OCIndexSetRef)OCTypeDeepCopy(src->dimensionIndexes)
+                               : NULL;
+    dst->sparseGridVertexes  = src->sparseGridVertexes
+                               ? (OCMutableArrayRef)OCTypeDeepCopy(src->sparseGridVertexes)
+                               : NULL;
+
+    // Primitive field
+    dst->unsignedIntegerType = src->unsignedIntegerType;
+
+    // Strings and dictionaries
+    dst->encoding            = src->encoding
+                               ? (OCStringRef)OCTypeDeepCopy(src->encoding)
+                               : NULL;
+    dst->description         = src->description
+                               ? (OCStringRef)OCTypeDeepCopy(src->description)
+                               : NULL;
+    dst->metaData            = src->metaData
+                               ? (OCDictionaryRef)OCTypeDeepCopy(src->metaData)
+                               : NULL;
+
+    return dst;
 }
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // Allocator + init
