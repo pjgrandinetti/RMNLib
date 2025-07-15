@@ -10,6 +10,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  packages: read
+
 jobs:
   build:
     name: Build & Test (${{ matrix.label }})
@@ -50,7 +54,7 @@ jobs:
             -v ${{ github.workspace }}:/src -w /src ubuntu:22.04 bash -lc "\
               apt-get update && apt-get install -y curl clang make flex bison unzip libcurl4-openssl-dev && \
               make clean && make all && make test && \
-              cp build/lib/libRMNLib.a libRMNLib.a"
+              cp build/lib/libRMNLib.a libRMN.a"
 
       # On Linux & macOS (x64)
       - name: Install dependencies on Ubuntu
@@ -65,7 +69,7 @@ jobs:
           make clean
           make all
           make test-asan
-          cp build/lib/libRMNLib.a libRMNLib.a
+          cp build/lib/libRMNLib.a libRMN.a
 
       # Windows
       - name: Set up MSYS2 & MinGW (Windows)
@@ -91,33 +95,35 @@ jobs:
                        -Wno-sign-compare -Wno-unused-parameter \
                        -Wno-missing-field-initializers" \
                LEX=flex YACC="bison -y"
-          cp build/lib/libRMNLib.a libRMNLib.a
+          cp build/lib/libRMNLib.a libRMN.a
 
       - name: Upload library artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libRMNLib-${{ matrix.label }}
-          path: libRMNLib.a
+          name: libRMN-${{ matrix.label }}
+          path: libRMN.a
 
       - name: Package public headers
         if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
         run: |
           mkdir -p header-pkg/include
           cp src/*.h header-pkg/include/
-          zip -j header-pkg/libRMNLib-headers.zip header-pkg/include/*.h
+          zip -j header-pkg/libRMN-headers.zip header-pkg/include/*.h
 
       - name: Upload headers artifact
         if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
         uses: actions/upload-artifact@v4
         with:
-          name: libRMNLib-headers
-          path: header-pkg/libRMNLib-headers.zip
+          name: libRMN-headers
+          path: header-pkg/libRMN-headers.zip
 
   release:
     name: Package & Release
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -127,21 +133,21 @@ jobs:
       - name: Copy header bundle
         run: |
           mkdir -p packages
-          cp artifacts/libRMNLib-headers/libRMNLib-headers.zip packages/
+          cp artifacts/libRMN-headers/libRMN-headers.zip packages/
 
       - name: Package libraries into ZIPs
         run: |
           mkdir -p packages
           for osdir in artifacts/*; do
-            lib="${osdir}/libRMNLib.a"
+            lib="${osdir}/libRMN.a"
             if [ ! -f "$lib" ]; then
               echo "Skipping $osdir (no library to package)"
               continue
             fi
             os=$(basename "$osdir")
-            # Strip the libRMNLib- prefix to get clean platform name
-            platform=${os#libRMNLib-}
-            zipfile="packages/libRMNLib-${platform}.zip"
+            # Strip the libRMN- prefix to get clean platform name
+            platform=${os#libRMN-}
+            zipfile="packages/libRMN-${platform}.zip"
 
             if [[ "$platform" == *"windows"* ]]; then
               pwsh -Command "Compress-Archive -Path '$lib' -DestinationPath '$zipfile'"
@@ -151,6 +157,7 @@ jobs:
           done
 
       - name: Create or update GitHub Release and upload assets
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}

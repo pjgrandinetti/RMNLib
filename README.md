@@ -38,7 +38,7 @@ The HTML output appears in `docs/_build/html`.
 
 ### Online Documentation
 
-The latest documentation is hosted on Read the Docs: https://RMNLib.readthedocs.io/en/latest/
+The latest documentation is hosted on Read the Docs: https://RMN.readthedocs.io/en/latest/
 
 A Read the Docs configuration file (`.readthedocs.yml`) is included at the project root to automate the documentation build.
 

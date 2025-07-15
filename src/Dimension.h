@@ -649,7 +649,7 @@ OCIndex DimensionGetCount(DimensionRef dim);
  * @param index Zero-based coordinate index.
  * @return New OCStringRef (caller must release), or NULL.
  */
-OCStringRef CreateLongDimensionLabel(DimensionRef dim, OCIndex index);
+OCStringRef CreateDimensionLongLabel(DimensionRef dim, OCIndex index);
 
 /** @} */
 
