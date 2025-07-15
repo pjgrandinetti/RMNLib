@@ -1953,10 +1953,16 @@ bool DependentVariableShouldSerializeExternally(DependentVariableRef dv) {
 }
 bool DependentVariableSetType(DependentVariableRef dv, OCStringRef newType) {
     if (!dv || !newType) return false;
-    // Copy the incoming string
+
+    // Validate newType against allowed values
+    if (!OCStringEqual(newType, STR(kDependentVariableComponentTypeValueInternal)) &&
+        !OCStringEqual(newType, STR(kDependentVariableComponentTypeValueExternal))) {
+        return false;
+    }
+
     OCStringRef copy = OCStringCreateCopy(newType);
     if (!copy) return false;
-    // Swap out the old value
+
     OCRelease(dv->type);
     dv->type = copy;
     return true;
