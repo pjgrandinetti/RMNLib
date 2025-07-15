@@ -63,6 +63,9 @@ int main(void) {
             getenv("CSDM_TEST_ROOT"));
     // Test single failing file for debugging
      if (!test_Dataset_import_all_csdm()) failures++;
+     if (!test_Dataset_roundtrip_export_import()) failures++;
+
+
     //  if (!test_Dataset_import_single_csdm()) failures++;
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",

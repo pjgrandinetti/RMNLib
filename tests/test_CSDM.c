@@ -7,7 +7,7 @@
 #include <limits.h>
 #include <dirent.h>
 #include <sys/stat.h>
-
+#include <unistd.h>
 #include "RMNLibrary.h"
 #include "test_utils.h"
 
@@ -190,5 +190,86 @@ bool test_Dataset_import_single_csdm(void) {
     }
 
 cleanup:
+    return false;
+}
+
+
+bool test_Dataset_roundtrip_export_import(void) {
+    printf("test_Dataset_roundtrip_export_import...\n");
+    const char *root = getenv("CSDM_TEST_ROOT");
+    TEST_ASSERT(root != NULL);
+
+    collect_files(root, "");
+
+    int total = 0, failed = 0;
+
+    char tmpdir_template[] = "/tmp/rmnpy_roundtrip_XXXXXX";
+    char *tmpdir = mkdtemp(tmpdir_template);
+    TEST_ASSERT(tmpdir != NULL);
+
+    for (struct file_node *n = file_list_head; n; n = n->next) {
+        total++;
+        char orig_json[PATH_MAX], export_json[PATH_MAX];
+        snprintf(orig_json, sizeof(orig_json), "%s/%s", root, n->rel);
+        snprintf(export_json, sizeof(export_json), "%s/exported_%d.csdf", tmpdir, total);
+
+        // Import original
+        OCStringRef err = NULL;
+        DatasetRef ds = DatasetCreateWithImport(orig_json, root, &err);
+        if (!ds) {
+            printf("[FAIL] %-60s : import failed (%s)\n", n->rel, err ? OCStringGetCString(err) : "");
+            OCRelease(err);
+            failed++;
+            continue;
+        }
+        OCRelease(err);
+
+        // Export to new file
+        err = NULL;
+        bool export_ok = DatasetExport(ds, export_json, tmpdir, &err);
+        if (!export_ok) {
+            printf("[FAIL] %-60s : export failed (%s)\n", n->rel, err ? OCStringGetCString(err) : "");
+            OCRelease(ds);
+            OCRelease(err);
+            failed++;
+            continue;
+        }
+        OCRelease(err);
+
+        // Re-import exported file
+        err = NULL;
+        DatasetRef ds2 = DatasetCreateWithImport(export_json, tmpdir, &err);
+        if (!ds2) {
+            printf("[FAIL] %-60s : re-import failed (%s)\n", n->rel, err ? OCStringGetCString(err) : "");
+            OCRelease(ds);
+            OCRelease(err);
+            failed++;
+            continue;
+        }
+        OCRelease(err);
+
+        // Optionally: compare ds and ds2 for equality here
+
+        printf("[ PASS] %-60s : roundtrip succeeded\n", n->rel);
+        OCRelease(ds);
+        OCRelease(ds2);
+    }
+
+    // Clean up temp files and directory if desired
+
+    printf("\nSummary: roundtrip tested %d files, %d passed, %d failed\n",
+           total, total - failed, failed);
+
+    TEST_ASSERT(failed == 0);
+    printf("test_Dataset_roundtrip_export_import passed.\n");
+    return true;
+
+cleanup:
+    // free list on assertion failure
+    while (file_list_head) {
+        struct file_node *next = file_list_head->next;
+        free(file_list_head);
+        file_list_head = next;
+    }
     return false;
 }
