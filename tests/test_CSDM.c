@@ -193,111 +193,149 @@ cleanup:
     return false;
 }
 
-
-bool test_Dataset_roundtrip_export_import(void) {
-    printf("test_Dataset_roundtrip_export_import...\n");
+bool test_Dataset_import_and_roundtrip(void) {
+    printf("test_Dataset_import_and_roundtrip...\n");
     const char *root = getenv("CSDM_TEST_ROOT");
     TEST_ASSERT(root != NULL);
 
     collect_files(root, "");
 
-    int total = 0, failed = 0;
+    int total = 0, import_failed = 0, roundtrip_failed = 0;
 
-    // Use project-local tmp directory for easier inspection
+    // Create temporary export directory
     const char *local_tmp = "tmp/rmnpy_roundtrip";
-    int mkdir_ret = mkdir("tmp", 0777); // create tmp if needed
-    (void)mkdir_ret;
-    mkdir_ret = mkdir(local_tmp, 0777); // create subdir if needed
-    (void)mkdir_ret;
+    mkdir("tmp", 0777);
+    mkdir(local_tmp, 0777);
     char tmpdir[PATH_MAX];
     snprintf(tmpdir, sizeof(tmpdir), "%s", local_tmp);
     printf("Export dir: %s\n", tmpdir);
-    // Optionally, could add timestamp or randomization for parallel runs
-    // but for now, just overwrite each run.
 
     for (struct file_node *n = file_list_head; n; n = n->next) {
         total++;
-        char orig_json[PATH_MAX], export_json[PATH_MAX];
+
+        // Construct full path to original JSON
+        char orig_json[PATH_MAX];
         snprintf(orig_json, sizeof(orig_json), "%s/%s", root, n->rel);
 
+        // Extract binary directory
+        char orig_bin_dir[PATH_MAX];
+        strncpy(orig_bin_dir, orig_json, sizeof(orig_bin_dir));
+        orig_bin_dir[sizeof(orig_bin_dir) - 1] = '\0';
+        char *slash = strrchr(orig_bin_dir, '/');
+        if (slash) *slash = '\0';
+        else strncpy(orig_bin_dir, root, sizeof(orig_bin_dir));
+
+        // Skip illegal files for roundtrip; only test import
         if (is_illegal(n->rel)) {
-            // Only attempt import, expect failure
             OCStringRef err = NULL;
-            DatasetRef ds = DatasetCreateWithImport(orig_json, root, &err);
+            DatasetRef ds = DatasetCreateWithImport(orig_json, orig_bin_dir, &err);
             if (ds) {
-                printf("[FAIL] %-60s : expected to fail but succeeded\n", n->rel);
+                printf("[FAIL] %-60s : illegal file imported unexpectedly\n", n->rel);
                 OCRelease(ds);
                 OCRelease(err);
-                failed++;
+                import_failed++;
             } else {
-                printf("[ PASS] %-60s : correctly failed (%s)\n", n->rel, err ? OCStringGetCString(err) : "");
+                printf("[ PASS] %-60s : correctly failed to import illegal file (%s)\n",
+                       n->rel, err ? OCStringGetCString(err) : "");
                 OCRelease(err);
             }
             continue;
         }
 
-        // Use the input file's relpath for the output filename, replacing '/' with '_'
-        char safe_name[PATH_MAX];
-        strncpy(safe_name, n->rel, sizeof(safe_name));
-        safe_name[sizeof(safe_name)-1] = '\0';
-        for (char *p = safe_name; *p; ++p) {
-            if (*p == '/') *p = '_';
-        }
-        snprintf(export_json, sizeof(export_json), "%s/%s", tmpdir, safe_name);
-
-        // Import original
+        // Import test (part of original function 1)
         OCStringRef err = NULL;
-        DatasetRef ds = DatasetCreateWithImport(orig_json, root, &err);
+        DatasetRef ds = DatasetCreateWithImport(orig_json, orig_bin_dir, &err);
         if (!ds) {
             printf("[FAIL] %-60s : import failed (%s)\n", n->rel, err ? OCStringGetCString(err) : "");
             OCRelease(err);
-            failed++;
+            import_failed++;
             continue;
         }
         OCRelease(err);
 
-        // Export to new file
+        // Determine export extension (.csdf vs .csdfe)
+        bool hasExternal = false;
+        OCArrayRef dvs = DatasetGetDependentVariables(ds);
+        OCIndex dvCount = dvs ? OCArrayGetCount(dvs) : 0;
+        for (OCIndex i = 0; i < dvCount; ++i) {
+            DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(dvs, i);
+            if (dv && DependentVariableShouldSerializeExternally(dv)) {
+                hasExternal = true;
+                break;
+            }
+        }
+
+        // Create safe output filename
+        char safe_name[PATH_MAX];
+        strncpy(safe_name, n->rel, sizeof(safe_name));
+        safe_name[sizeof(safe_name) - 1] = '\0';
+        for (char *p = safe_name; *p; ++p) {
+            if (*p == '/') *p = '_';
+        }
+
+        char export_name[PATH_MAX];
+        strncpy(export_name, safe_name, sizeof(export_name));
+        export_name[sizeof(export_name) - 1] = '\0';
+        char *dot = strrchr(export_name, '.');
+        if (dot) {
+            strcpy(dot, hasExternal ? ".csdfe" : ".csdf");
+        } else {
+            strcat(export_name, hasExternal ? ".csdfe" : ".csdf");
+        }
+
+        char export_json[PATH_MAX];
+        snprintf(export_json, sizeof(export_json), "%s/%s", tmpdir, export_name);
+
+        // Export
         err = NULL;
         bool export_ok = DatasetExport(ds, export_json, tmpdir, &err);
         if (!export_ok) {
             printf("[FAIL] %-60s : export failed (%s)\n", n->rel, err ? OCStringGetCString(err) : "");
             OCRelease(ds);
             OCRelease(err);
-            failed++;
+            roundtrip_failed++;
             continue;
         }
         OCRelease(err);
 
-        // Re-import exported file
+        // Re-import
         err = NULL;
         DatasetRef ds2 = DatasetCreateWithImport(export_json, tmpdir, &err);
         if (!ds2) {
             printf("[FAIL] %-60s : re-import failed (%s)\n", n->rel, err ? OCStringGetCString(err) : "");
             OCRelease(ds);
             OCRelease(err);
-            failed++;
+            roundtrip_failed++;
             continue;
         }
         OCRelease(err);
 
-        // Optionally: compare ds and ds2 for equality here
+        // (Optional) Compare ds and ds2 here
 
-        printf("[ PASS] %-60s : roundtrip succeeded\n", n->rel);
+        printf("[ PASS] %-60s : import + roundtrip succeeded\n", n->rel);
         OCRelease(ds);
         OCRelease(ds2);
     }
 
-    // Clean up temp files and directory if desired
+    // Summary
+    printf("\nSummary:\n");
+    printf("  Total files tested     : %d\n", total);
+    printf("  Import failures        : %d\n", import_failed);
+    printf("  Roundtrip failures     : %d\n", roundtrip_failed);
+    printf("  Total successful cases : %d\n", total - import_failed - roundtrip_failed);
 
-    printf("\nSummary: roundtrip tested %d files, %d passed, %d failed\n",
-           total, total - failed, failed);
+    // Clean up file list
+    while (file_list_head) {
+        struct file_node *next = file_list_head->next;
+        free(file_list_head);
+        file_list_head = next;
+    }
 
-    TEST_ASSERT(failed == 0);
-    printf("test_Dataset_roundtrip_export_import passed.\n");
+    TEST_ASSERT(import_failed == 0 && roundtrip_failed == 0);
+    printf("test_Dataset_import_and_roundtrip passed.\n");
     return true;
 
 cleanup:
-    // free list on assertion failure
     while (file_list_head) {
         struct file_node *next = file_list_head->next;
         free(file_list_head);

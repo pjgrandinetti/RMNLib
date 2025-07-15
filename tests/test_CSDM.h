@@ -6,6 +6,6 @@
 
 bool test_Dataset_import_all_csdm(void);
 bool test_Dataset_import_single_csdm(void);
-bool test_Dataset_roundtrip_export_import(void);
+bool test_Dataset_import_and_roundtrip(void);
 
 #endif /* TEST_CSDM_H */

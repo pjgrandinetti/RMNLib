@@ -1302,7 +1302,7 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
     OCArrayRef dvsArray = DatasetGetDependentVariables(ds);
     OCIndex dvCount = dvsArray ? OCArrayGetCount(dvsArray) : 0;
     OCStringRef keyInternal = STR(kDependentVariableComponentTypeValueInternal);
-    OCStringRef keyNone = STR(kDependentVariableEncodingValueNone);
+    OCStringRef keyBase64 = STR(kDependentVariableEncodingValueBase64);
     for (OCIndex i = 0; i < dvCount; ++i) {
         DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(dvsArray, i);
         if (!dv || !DependentVariableShouldSerializeExternally(dv))
@@ -1392,9 +1392,9 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
             return NULL;
         }
         OCRelease(comps);
-        // flip to internal
+        // flip to internal, base64, and NULL components URL
         DependentVariableSetType(dv, keyInternal);
-        DependentVariableSetEncoding(dv, keyNone);
+        DependentVariableSetEncoding(dv, keyBase64);
         DependentVariableSetComponentsURL(dv, NULL);
     }
     return ds;
