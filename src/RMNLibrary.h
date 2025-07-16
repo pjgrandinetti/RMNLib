@@ -70,4 +70,7 @@ typedef struct impl_Dataset *DatasetRef;
 cJSON *OCMetadataCopyJSON(OCDictionaryRef dict);
 OCDictionaryRef OCMetadataCreateFromJSON(cJSON *json, OCStringRef *outError);
 void RMNLibTypesShutdown(void);
+
+// Specialized Fields
+#include "NMRSpectroscopy.h"
 #endif /* RMNLIBRARY_H */

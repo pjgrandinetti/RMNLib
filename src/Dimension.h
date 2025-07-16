@@ -76,7 +76,7 @@ bool DimensionSetDescription(DimensionRef dim,
  * @param dim The Dimension instance.
  * @return A shallow-deep‐copied OCDictionaryRef.
  */
-OCDictionaryRef DimensionGetMetadata(DimensionRef dim);
+OCMutableDictionaryRef DimensionGetMetadata(DimensionRef dim);
 /**
  * @brief Replace this dimension’s metadata.
  * @param dim      The Dimension instance.
@@ -479,8 +479,8 @@ static inline SILinearDimensionRef SILinearDimensionCreateMinimal(
     OCIndex count,
     SIScalarRef increment,
     SIDimensionRef reciprocal,
-    OCStringRef *outError
-) {
+    OCStringRef *outError) 
+    {
     return SILinearDimensionCreate(
         NULL,         // label
         NULL,         // description

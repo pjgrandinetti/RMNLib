@@ -18,14 +18,14 @@
 // ============================================================================
 #define kDimensionLabelKey "label"
 #define kDimensionDescriptionKey "description"
-#define kDimensionMetadataKey "metadata"
+#define kDimensionMetadataKey "application"
 static OCTypeID kDimensionID = kOCNotATypeID;
 struct impl_Dimension {
     //  Dimension
     OCBase base;
     OCStringRef label;
     OCStringRef description;
-    OCDictionaryRef metadata;
+    OCMutableDictionaryRef metadata;
 };
 static void impl_InitBaseDimensionFields(DimensionRef dim) {
     dim->label = STR("");
@@ -186,7 +186,7 @@ bool DimensionSetDescription(DimensionRef dim,
     dim->description = descCopy;
     return true;
 }
-OCDictionaryRef DimensionGetMetadata(DimensionRef dim) {
+OCMutableDictionaryRef DimensionGetMetadata(DimensionRef dim) {
     return dim ? dim->metadata : NULL;
 }
 bool DimensionSetMetadata(DimensionRef dim,
@@ -198,9 +198,9 @@ bool DimensionSetMetadata(DimensionRef dim,
             *outError = STR("DimensionSetMetadata: dim is NULL");
         return false;
     }
-    OCDictionaryRef dictCopy = NULL;
+    OCMutableDictionaryRef dictCopy = NULL;
     if (dict) {
-        dictCopy = (OCDictionaryRef)OCTypeDeepCopy(dict);
+        dictCopy = (OCMutableDictionaryRef)OCTypeDeepCopy(dict);
         if (!dictCopy) {
             if (outError)
                 *outError = STR("DimensionSetMetadata: failed to copy metadata dictionary");

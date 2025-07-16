@@ -65,6 +65,26 @@ DatasetRef DatasetCreate(
     DatumRef          previousFocus,
     OCDictionaryRef   metaData,
     OCStringRef      *outError);
+
+/**
+ * @brief Helper: Create an empty Dataset (all fields NULL except outError).
+ * @param[out] outError If non-NULL and creation fails, set to error string.
+ * @return Newly allocated DatasetRef on success, or NULL on failure.
+ */
+static inline DatasetRef DatasetCreateEmpty(OCStringRef *outError) {
+    return DatasetCreate(
+        NULL, // dimensions
+        NULL, // dimensionPrecedence
+        NULL, // dependentVariables
+        NULL, // tags
+        NULL, // description
+        NULL, // title
+        NULL, // focus
+        NULL, // previousFocus
+        NULL, // metaData
+        outError
+    );
+}
 /**
  * @brief Rebuild a Dataset from a deep‐copied dictionary.
  * @param dict     Dictionary produced by DatasetCopyAsDictionary().
@@ -185,7 +205,7 @@ bool DatasetGetReadOnly(DatasetRef ds);
 bool DatasetSetReadOnly(DatasetRef ds, bool readOnly);
 /** @} */
 
-DependentVariableRef DatasetAddDefaultDependentVariable(DatasetRef theDataset,
+DependentVariableRef DatasetAddEmptyDependentVariable(DatasetRef theDataset,
                                                             OCStringRef quantityType,
                                                             OCNumberType elementType,
                                                             OCIndex size);

@@ -35,7 +35,7 @@
 #define kDatasetDependentVariablesKey "dependent_variables"
 #define kDatasetFocusKey "focus"
 #define kDatasetPreviousFocusKey "previous_focus"
-#define kDatasetMetadataKey "metadata"
+#define kDatasetMetadataKey "application"
 #pragma region Type Registration
 static OCTypeID kDatasetID = kOCNotATypeID;
 struct impl_Dataset {
@@ -1526,7 +1526,7 @@ bool DatasetSetReadOnly(DatasetRef ds, bool readOnly) {
     return true;
 }
 
-DependentVariableRef DatasetAddDefaultDependentVariable(DatasetRef theDataset,
+DependentVariableRef DatasetAddEmptyDependentVariable(DatasetRef theDataset,
                                                             OCStringRef quantityType,
                                                             OCNumberType elementType,
                                                             OCIndex size)
@@ -1550,7 +1550,5 @@ DependentVariableRef DatasetAddDefaultDependentVariable(DatasetRef theDataset,
     OCRelease(theDependentVariable);
     return theDependentVariable;
 }
-
-
 
 #pragma endregion

@@ -11,7 +11,7 @@ extern "C" {
 #define kDependentVariableNumericTypeKey "numeric_type"
 #define kDependentVariableNameKey "name"
 #define kDependentVariableDescriptionKey "description"
-#define kDependentVariableMetaDataKey "metadata"
+#define kDependentVariableMetaDataKey "application"
 #define kDependentVariableQuantityNameKey "quantity_name"
 #define kDependentVariableQuantityTypeKey "quantity_type"
 #define kDependentVariableTypeKey "type"

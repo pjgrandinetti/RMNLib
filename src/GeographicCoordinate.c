@@ -4,7 +4,7 @@
 #define kGeoCoordLatitudeKey        "latitude"
 #define kGeoCoordLongitudeKey       "longitude"
 #define kGeoCoordAltitudeKey        "altitude"
-#define kGeoCoordMetaDataKey        "metadata"
+#define kGeoCoordMetaDataKey        "application"
 
 // Type registration
 static OCTypeID kGeographicCoordinateID = kOCNotATypeID;

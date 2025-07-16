@@ -7,7 +7,7 @@
 #define kSparseSamplingUnsignedIntegerTypeKey "unsigned_integer_type"
 #define kSparseSamplingEncodingKey "encoding"
 #define kSparseSamplingDescriptionKey "description"
-#define kSparseSamplingMetaDataKey "metadata"
+#define kSparseSamplingMetaDataKey "application"
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // Type registration
 static OCTypeID kSparseSamplingID = kOCNotATypeID;
