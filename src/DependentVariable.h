@@ -428,6 +428,33 @@ DependentVariableTakeComplexPart(DependentVariableRef dv,
                                  OCIndex componentIndex,
                                  complexPart part);
 
+                                 /**
+ * @brief Conjugates the complex values of one or all components in a DependentVariable.
+ *
+ * For each complex element in the specified component (or all components if
+ * componentIndex is negative), this function replaces z = x + i·y with its
+ * complex conjugate \f$\bar{z} = x - i·y\f$ by negating the imaginary part in-place.
+ * Real-valued components are left unchanged.
+ *
+ * @param dv  
+ *   A valid DependentVariableRef whose data you wish to conjugate.  
+ *   Must not be NULL.
+ *
+ * @param componentIndex  
+ *   Index of the component to conjugate.  
+ *   - If \c componentIndex is in \f$[0,\,n-1)\f$, only that component is processed.  
+ *   - If \c componentIndex is negative, all components are processed.  
+ *   - If \c componentIndex ≥ number of components, the function returns \c false.
+ *
+ * @return  
+ *   \c true on success (even if there was nothing to do for real-only data),  
+ *   \c false if \c dv is NULL, \c componentIndex is out of range, or
+ *   the data type is not supported.
+ */
+bool
+DependentVariableConjugate(DependentVariableRef dv,
+                           OCIndex            componentIndex);
+                           
 /** @} end of DependentVariable group */
 #ifdef __cplusplus
 }

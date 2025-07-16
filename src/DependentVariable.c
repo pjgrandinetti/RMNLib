@@ -2958,7 +2958,7 @@ bool DependentVariableZeroPartInRange(DependentVariableRef dv,
 
     for (OCIndex ci = startComp; ci < endComp; ++ci) {
         OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, ci);
-        u_int8_t *ptr = OCDataGetMutableBytes(data);
+        uint8_t *ptr = OCDataGetMutableBytes(data);
         OCNumberType etype = DependentVariableGetElementType(dv);
 
         switch (etype) {
@@ -3363,6 +3363,57 @@ DependentVariableTakeComplexPart(DependentVariableRef dv,
         }
         else if (dv->numericType == kOCNumberComplex128Type) {
             DependentVariableSetElementType(dv, kOCNumberFloat64Type);
+        }
+    }
+
+    return true;
+}
+
+bool
+DependentVariableConjugate(DependentVariableRef dv,
+                           OCIndex            componentIndex)
+{
+    if (!dv) return false;
+
+    OCArrayRef comps   = dv->components;
+    OCIndex   nComps   = comps ? OCArrayGetCount(comps) : 0;
+    if (nComps == 0 || componentIndex >= nComps) {
+        return false;
+    }
+
+    size_t totalSize = DependentVariableGetSize(dv);
+
+    OCIndex lo = componentIndex >= 0 ? componentIndex : 0;
+    OCIndex hi = componentIndex >= 0 ? componentIndex + 1  : nComps;
+
+    for (OCIndex ci = lo; ci < hi; ++ci) {
+        OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, ci);
+
+        switch (dv->numericType) {
+            case kOCNumberFloat32Type:
+            case kOCNumberFloat64Type:
+                // real‐only, nothing to do
+                break;
+
+            case kOCNumberComplex64Type: {
+                // interleaved [r0,i0, r1,i1, …]
+                float complex *buf = (float complex*)CFDataGetMutableByte(data);
+                float *imag = ((float*)buf) + 1;
+                // negate each imaginary entry:
+                //      imag[j] = -imag[j],  j=0..totalSize-1, stride=2
+                cblas_sscal((int)totalSize, -1.0f, imag, 2);
+                break;
+            }
+
+            case kOCNumberComplex128Type: {
+                double complex *buf = (double complex*)CFDataGetMutableByte(data);
+                double *imag = ((double*)buf) + 1;
+                cblas_dscal((int)totalSize, -1.0, imag, 2);
+                break;
+            }
+
+            default:
+                return false;  // integers & others not supported
         }
     }
 
