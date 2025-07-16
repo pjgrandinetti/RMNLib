@@ -14,11 +14,11 @@ struct impl_DependentVariable {
     OCStringRef quantityName;
     OCStringRef quantityType;
     // components...
-    OCStringRef type;           // "internal" / "external"
-    OCStringRef encoding;       // "base64" / "none"
-    OCStringRef componentsURL;  // for external‐only
-    OCMutableArrayRef components;  // And OCArray of OCDataRef types
-    OCMutableArrayRef componentLabels; // And OCArray of OCStringRef types
+    OCStringRef type;                   // "internal" / "external"
+    OCStringRef encoding;               // "base64" / "none"
+    OCStringRef componentsURL;          // for external‐only
+    OCMutableArrayRef components;       // And OCArray of OCDataRef types
+    OCMutableArrayRef componentLabels;  // And OCArray of OCStringRef types
     // sparse‐sampling metadata
     SparseSamplingRef sparseSampling;
     // weak back‐pointer
@@ -132,33 +132,26 @@ cJSON *impl_DependentVariableCreateJSON(const void *obj) {
     OCRelease(dict);
     return json;
 }
-static void *impl_DependentVariableDeepCopy(const void *ptr)
-{
+static void *impl_DependentVariableDeepCopy(const void *ptr) {
     if (!ptr) return NULL;
-
     const struct impl_DependentVariable *src = (const struct impl_DependentVariable *)ptr;
     struct impl_DependentVariable *dst = calloc(1, sizeof(*dst));
     if (!dst) return NULL;
-
     // 1) Copy base
     memcpy(&dst->base, &src->base, sizeof(OCBase));
-
     // 2) SIQuantity Type attributes
-    dst->unit        = src->unit ? OCRetain(src->unit) : NULL;
+    dst->unit = src->unit ? OCRetain(src->unit) : NULL;
     dst->numericType = src->numericType;
-
     // 3) Dependent Variable Type attributes
-    dst->name         = src->name         ? OCStringCreateCopy(src->name)         : NULL;
-    dst->description  = src->description  ? OCStringCreateCopy(src->description)  : NULL;
-    dst->metaData     = src->metaData     ? OCDictionaryCreateMutableCopy(src->metaData) : NULL;
+    dst->name = src->name ? OCStringCreateCopy(src->name) : NULL;
+    dst->description = src->description ? OCStringCreateCopy(src->description) : NULL;
+    dst->metaData = src->metaData ? OCDictionaryCreateMutableCopy(src->metaData) : NULL;
     dst->quantityName = src->quantityName ? OCStringCreateCopy(src->quantityName) : NULL;
     dst->quantityType = src->quantityType ? OCStringCreateCopy(src->quantityType) : NULL;
-
     // 4) Components metadata
-    dst->type          = src->type          ? OCStringCreateCopy(src->type)          : NULL;
-    dst->encoding      = src->encoding      ? OCStringCreateCopy(src->encoding)      : NULL;
+    dst->type = src->type ? OCStringCreateCopy(src->type) : NULL;
+    dst->encoding = src->encoding ? OCStringCreateCopy(src->encoding) : NULL;
     dst->componentsURL = src->componentsURL ? OCStringCreateCopy(src->componentsURL) : NULL;
-
     // 5) Deep‐copy the components array using OCTypeDeepCopy
     if (src->components) {
         OCIndex count = OCArrayGetCount(src->components);
@@ -174,7 +167,6 @@ static void *impl_DependentVariableDeepCopy(const void *ptr)
     } else {
         dst->components = NULL;
     }
-
     // 6) Copy component labels
     if (src->componentLabels) {
         OCIndex count = OCArrayGetCount(src->componentLabels);
@@ -190,17 +182,13 @@ static void *impl_DependentVariableDeepCopy(const void *ptr)
     } else {
         dst->componentLabels = NULL;
     }
-
     // 7) Sparse‐sampling metadata
     dst->sparseSampling = src->sparseSampling
-                          ? OCTypeDeepCopy(src->sparseSampling)
-                          : NULL;
-
+                              ? OCTypeDeepCopy(src->sparseSampling)
+                              : NULL;
     // 8) Weak back‐pointer
     dst->owner = src->owner;
-
     return dst;
-
 fail:
     // Clean up any allocated fields if a failure occurs
     OCRelease(dst->unit);
@@ -218,7 +206,6 @@ fail:
     free(dst);
     return NULL;
 }
-
 static struct impl_DependentVariable *DependentVariableAllocate(void) {
     return OCTypeAlloc(
         struct impl_DependentVariable,
@@ -266,7 +253,6 @@ static bool validateDependentVariableParameters(
          !OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal)))) {
         return false;
     }
-
     // 1) components‐vs‐labels
     if (componentLabels) {
         OCIndex labelCount = OCArrayGetCount(componentLabels);
@@ -277,7 +263,6 @@ static bool validateDependentVariableParameters(
             }
         }
     }
-
     // 2) quantityName vs unit dimensionality
     if (quantityName) {
         OCStringRef err = NULL;
@@ -292,7 +277,6 @@ static bool validateDependentVariableParameters(
         OCRelease(err);
         if (!match) return false;
     }
-
     // 3) quantityType semantics (“scalar”, “vector_N”, etc.)
     const char *qt = OCStringGetCString(quantityType);
     size_t len = qt ? strlen(qt) : 0;
@@ -319,7 +303,6 @@ static bool validateDependentVariableParameters(
         // unknown quantityType
         return false;
     }
-
     // 4) sparse‐sampling consistency
     if (sparseSampling) {
         OCStringRef err = NULL;
@@ -330,7 +313,6 @@ static bool validateDependentVariableParameters(
         }
         if (err) OCRelease(err);  // ✅ release even on success
     }
-
     return true;
 }
 #pragma endregion Type Registration
@@ -351,7 +333,7 @@ static DependentVariableRef impl_DependentVariableCreate(
     OCIndex explicitSize,        // elements-per-component if components==NULL
     OCArrayRef componentLabels,  // array of OCStringRef
     SparseSamplingRef sparseSampling,
-    bool copySparseSampling,     // NEW: whether to deep-copy SparseSampling
+    bool copySparseSampling,   // NEW: whether to deep-copy SparseSampling
     OCDictionaryRef metaData,  // application‐specific annotations
     OCStringRef *outError) {
     bool isExternal = type && OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal));
@@ -519,9 +501,9 @@ DependentVariableRef DependentVariableCreate(
         /* copyComponents  */ true,         // deep‐copy blobs
         /* explicitSize    */ (OCIndex)-1,  // ignored when components != NULL
         /* componentLabels */ componentLabels,
-        /* sparseSampling  */ NULL,  // no sparse‐sampling by default
-        /* copySparseSampling */ true,     // deep-copy if present
-        /* metaData        */ NULL,  // no extra metadata by default
+        /* sparseSampling  */ NULL,     // no sparse‐sampling by default
+        /* copySparseSampling */ true,  // deep-copy if present
+        /* metaData        */ NULL,     // no extra metadata by default
         /* outError        */ outError);
 }
 DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
@@ -548,9 +530,9 @@ DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
         /* copyComponents  */ false,        // no copy
         /* explicitSize    */ (OCIndex)-1,  // ignored when components != NULL
         /* componentLabels */ componentLabels,
-        /* sparseSampling  */ NULL,  // none by default
-        /* copySparseSampling */ true,     // deep-copy if present
-        /* metaData        */ NULL,  // none by default
+        /* sparseSampling  */ NULL,     // none by default
+        /* copySparseSampling */ true,  // deep-copy if present
+        /* metaData        */ NULL,     // none by default
         /* outError        */ outError);
 }
 DependentVariableRef DependentVariableCreateWithSize(
@@ -577,9 +559,9 @@ DependentVariableRef DependentVariableCreateWithSize(
         /* copyComponents  */ false,  // irrelevant when components==NULL
         /* explicitSize    */ size,   // allocate this many elements
         /* componentLabels */ componentLabels,
-        /* sparseSampling  */ NULL,  // none by default
-        /* copySparseSampling */ true,     // deep-copy if present
-        /* metaData        */ NULL,  // none by default
+        /* sparseSampling  */ NULL,     // none by default
+        /* copySparseSampling */ true,  // deep-copy if present
+        /* metaData        */ NULL,     // none by default
         /* outError        */ outError);
 }
 DependentVariableRef DependentVariableCreateDefault(
@@ -602,7 +584,7 @@ DependentVariableRef DependentVariableCreateDefault(
         /* explicitSize       */ size,
         /* componentLabels    */ NULL,  // default labels
         /* sparseSampling     */ NULL,  // none
-        /* copySparseSampling */ true,     // deep-copy if present
+        /* copySparseSampling */ true,  // deep-copy if present
         /* metaData           */ NULL,  // none
         /* outError           */ outError);
 }
@@ -632,7 +614,7 @@ DependentVariableRef DependentVariableCreateWithComponent(
         /* explicitSize       */ (OCIndex)-1,
         /* componentLabels    */ componentLabels,
         /* sparseSampling     */ NULL,  // none
-        /* copySparseSampling */ true,     // deep-copy if present
+        /* copySparseSampling */ true,  // deep-copy if present
         /* metaData           */ NULL,  // none
         /* outError           */ outError);
     OCRelease(arr);
@@ -670,7 +652,7 @@ DependentVariableRef DependentVariableCreateExternal(
         /* explicitSize       */ 0,     // ignored for external
         /* componentLabels    */ NULL,  // not used for external
         /* sparseSampling     */ NULL,  // no sparse-sampling by default
-        /* copySparseSampling */ true,     // deep-copy if present
+        /* copySparseSampling */ true,  // deep-copy if present
         /* metaData           */ NULL,  // no extra metadata
         /* outError           */ outError);
 }
@@ -1153,7 +1135,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
         /* explicitSize    */ isExternal ? 0 : -1,
         /* componentLabels */ labelArr,
         /* sparseSampling  */ sparseSampling,
-        /* copySparseSampling */ false,     // OPTIMIZATION: Don't deep copy during initial creation!
+        /* copySparseSampling */ false,  // OPTIMIZATION: Don't deep copy during initial creation!
         /* metaData        */ metaData,
         /* outError        */ outError);
     OCRelease(components);
@@ -1185,13 +1167,11 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
             *outError = STR("Expected top-level JSON object for DependentVariable");
         return NULL;
     }
-
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     if (!dict) {
         if (outError) *outError = STR("Failed to allocate dictionary");
         return NULL;
     }
-
     // 1) Required: "type"
     cJSON *item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1199,14 +1179,12 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCRelease(dict);
         return NULL;
     }
-
     bool isExternal = (strcmp(item->valuestring, kDependentVariableComponentTypeValueExternal) == 0);
     {
         OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
         OCDictionarySetValue(dict, STR(kDependentVariableTypeKey), tmp);
         OCRelease(tmp);
     }
-
     // 2) Optional: "components_url"
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsURLKey);
     if (isExternal && !cJSON_IsString(item)) {
@@ -1219,7 +1197,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableComponentsURLKey), tmp);
         OCRelease(tmp);
     }
-
     // 3) Optional: "encoding"
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableEncodingKey);
     if (cJSON_IsString(item)) {
@@ -1227,7 +1204,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableEncodingKey), tmp);
         OCRelease(tmp);
     }
-
     // 4) "components" — required for internal only
     if (!isExternal) {
         item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsKey);
@@ -1260,7 +1236,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableComponentsKey), components);
         OCRelease(components);
     }
-
     // 5) Optional: name, description
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNameKey);
     if (cJSON_IsString(item)) {
@@ -1274,15 +1249,13 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableDescriptionKey), tmp);
         OCRelease(tmp);
     }
-
     // 6) Optional: quantity_name
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityNameKey);
     if (cJSON_IsString(item) && item->valuestring[0] != '\0') {
         OCStringRef qname = OCStringCreateWithCString(item->valuestring);
         OCDictionarySetValue(dict, STR(kDependentVariableQuantityNameKey), qname);
         OCRelease(qname);
-    } 
-
+    }
     // 7) Required: quantity_type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1295,7 +1268,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableQuantityTypeKey), tmp);
         OCRelease(tmp);
     }
-
     // 8) Optional: unit
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableUnitKey);
     if (cJSON_IsString(item)) {
@@ -1311,7 +1283,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
             OCRelease(sym);
         }
     }
-
     // 9) Required: numeric_type
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNumericTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1332,7 +1303,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), typeStr);
         OCRelease(typeStr);
     }
-
     // 10) Optional: component_labels
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentLabelsKey);
     if (cJSON_IsArray(item)) {
@@ -1358,7 +1328,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableComponentLabelsKey), labels);
         OCRelease(labels);
     }
-
     // 11) Optional: sparse_sampling
     item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableSparseSamplingKey);
     if (cJSON_IsObject(item)) {
@@ -1376,7 +1345,6 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableSparseSamplingKey), spDict);
         OCRelease(spDict);
     }
-
     return dict;
 }
 DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *outError) {
@@ -1953,16 +1921,13 @@ bool DependentVariableShouldSerializeExternally(DependentVariableRef dv) {
 }
 bool DependentVariableSetType(DependentVariableRef dv, OCStringRef newType) {
     if (!dv || !newType) return false;
-
     // Validate newType against allowed values
     if (!OCStringEqual(newType, STR(kDependentVariableComponentTypeValueInternal)) &&
         !OCStringEqual(newType, STR(kDependentVariableComponentTypeValueExternal))) {
         return false;
     }
-
     OCStringRef copy = OCStringCreateCopy(newType);
     if (!copy) return false;
-
     OCRelease(dv->type);
     dv->type = copy;
     return true;
@@ -2848,3 +2813,319 @@ bool DependentVariableSetValueAtMemOffset(DependentVariableRef dv, OCIndex compo
     return true;
 }
 #pragma endregion Tests, Getters &Setters
+#pragma region Conversion and Manipulation
+/**
+ * @brief Convert all component data in a dependent variable to a new unit.
+ *        Integer‐typed dependent variables cannot be converted and will error.
+ * @param dv      The dependent variable to convert.
+ * @param unit    The target unit (must have the same reduced dimensionality).
+ * @param error   On failure, receives an OCStringRef describing the problem; may be NULL.
+ *                   Caller should release *error if non-NULL.
+ * @return true on success, false on error.
+ * @ingroup RMNLib
+ */
+bool DependentVariableConvertToUnit(DependentVariableRef dv,
+                                    SIUnitRef unit,
+                                    OCStringRef *error) {
+    /* Bail if caller passed in an existing error string */
+    if (error && *error) return false;
+    IF_NO_OBJECT_EXISTS_RETURN(dv, false);
+    /* Retrieve components and ensure there is data to convert */
+    OCArrayRef comps = DependentVariableGetComponents(dv);
+    uint64_t count = OCArrayGetCount(comps);
+    if (count == 0) {
+        if (error) {
+            *error = STR("Convert to Unit failed: no data components present.");
+        }
+        return false;
+    }
+    /* Determine element type and reject integer types */
+    OCNumberType etype = DependentVariableGetElementType(dv);
+    switch (etype) {
+        case kOCNumberSInt8Type:
+        case kOCNumberSInt16Type:
+        case kOCNumberSInt32Type:
+        case kOCNumberSInt64Type:
+        case kOCNumberUInt8Type:
+        case kOCNumberUInt16Type:
+        case kOCNumberUInt32Type:
+        case kOCNumberUInt64Type:
+            if (error) {
+                *error = STR("Invalid operation: cannot convert integer-typed dependent variable to another unit.");
+            }
+            return false;
+        default:
+            break;
+    }
+    /* Check dimensionality compatibility */
+    SIUnitRef oldUnit = SIQuantityGetUnit((SIQuantityRef) dv);
+    SIDimensionalityRef oldDim = SIUnitGetDimensionality(oldUnit);
+    SIDimensionalityRef newDim = SIUnitGetDimensionality(unit);
+    if (!SIDimensionalityHasSameReducedDimensionality(oldDim, newDim)) {
+        if (error) {
+            *error = STR("Convert to Unit failed: incompatible dimensionalities.");
+        }
+        return false;
+    }
+    /* Compute conversion factor and update stored unit */
+    double factor = SIUnitConversion(oldUnit, unit);
+    SIQuantitySetUnit((SIMutableQuantityRef) dv, unit);
+    /* Scale each component in a simple loop */
+    uint64_t size = DependentVariableGetSize(dv);
+    for (uint64_t ci = 0; ci < count; ++ci) {
+        OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, ci);
+        uint8_t *bytes = OCDataGetMutableBytes(data);
+        switch (etype) {
+            case kOCNumberFloat32Type: {
+                float *arr = (float *)bytes;
+                for (uint64_t i = 0; i < size; ++i) {
+                    arr[i] *= (float)factor;
+                }
+                break;
+            }
+            case kOCNumberFloat64Type: {
+                double *arr = (double *)bytes;
+                for (uint64_t i = 0; i < size; ++i) {
+                    arr[i] *= factor;
+                }
+                break;
+            }
+            case kOCNumberComplex64Type: {
+                float complex *arr = (float complex *)bytes;
+                for (uint64_t i = 0; i < size; ++i) {
+                    arr[i] *= (float)factor;
+                }
+                break;
+            }
+            case kOCNumberComplex128Type: {
+                double complex *arr = (double complex *)bytes;
+                for (uint64_t i = 0; i < size; ++i) {
+                    arr[i] *= factor;
+                }
+                break;
+            }
+            default:
+                /* All integer types handled above; no action here */
+                break;
+        }
+    }
+    return true;
+}
+bool DependentVariableSetValuesToZero(DependentVariableRef dv, int64_t componentIndex) {
+    IF_NO_OBJECT_EXISTS_RETURN(dv, false);
+    OCArrayRef comps = DependentVariableGetComponents(dv);
+    uint64_t nComps = OCArrayGetCount(comps);
+    if (nComps == 0) return false;
+    // Determine the range of components to clear
+    uint64_t lower = 0, upper = nComps;
+    if (componentIndex >= 0) {
+        if ((uint64_t)componentIndex >= nComps) return false;
+        lower = (uint64_t)componentIndex;
+        upper = lower + 1;
+    }
+    // For each selected component, just memset its entire byte buffer to zero
+    for (uint64_t ci = lower; ci < upper; ++ci) {
+        OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, ci);
+        uint8_t *bytes = OCDataGetMutableBytes(data);
+        uint64_t byteCount = OCDataGetLength(data);
+        memset(bytes, 0, byteCount);
+    }
+    return true;
+}
+/**
+ * @brief Replace each value in a dependent variable (or a single component) by its absolute value.
+ *        Signed integers become their magnitude; floats use fabs/fabsf; complex values
+ *        are replaced by their magnitude (imaginary part dropped) and the elementType is
+ *        updated to the corresponding real type.
+ * @param dv             The dependent variable to process.
+ * @param componentIndex Index of the component to process; use –1 to process all components.
+ * @return true on success, false on error (e.g. no components or index out of range).
+ * @ingroup RMNLib
+ */
+bool DependentVariableTakeAbsoluteValue(DependentVariableRef dv,
+                                        int64_t componentIndex) {
+    IF_NO_OBJECT_EXISTS_RETURN(dv, false);
+    OCArrayRef comps = DependentVariableGetComponents(dv);
+    uint64_t nComps = OCArrayGetCount(comps);
+    if (nComps == 0 ||
+        (componentIndex >= 0 && (uint64_t)componentIndex >= nComps)) {
+        return false;
+    }
+    uint64_t lower = 0, upper = nComps;
+    if (componentIndex >= 0) {
+        lower = (uint64_t)componentIndex;
+        upper = lower + 1;
+    }
+    uint64_t size = DependentVariableGetSize(dv);
+    OCNumberType origEtype = DependentVariableGetElementType(dv);
+    OCNumberType newEtype = origEtype;
+    for (uint64_t ci = lower; ci < upper; ++ci) {
+        OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, ci);
+        uint8_t *bytes = OCDataGetMutableBytes(data);
+        switch (origEtype) {
+            case kOCNumberSInt8Type: {
+                int8_t *arr = (int8_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = arr[i] < 0 ? -arr[i] : arr[i];
+                break;
+            }
+            case kOCNumberSInt16Type: {
+                int16_t *arr = (int16_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = arr[i] < 0 ? -arr[i] : arr[i];
+                break;
+            }
+            case kOCNumberSInt32Type: {
+                int32_t *arr = (int32_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = arr[i] < 0 ? -arr[i] : arr[i];
+                break;
+            }
+            case kOCNumberSInt64Type: {
+                int64_t *arr = (int64_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = arr[i] < 0 ? -arr[i] : arr[i];
+                break;
+            }
+            case kOCNumberUInt8Type:
+            case kOCNumberUInt16Type:
+            case kOCNumberUInt32Type:
+            case kOCNumberUInt64Type:
+                /* Unsigned types are already non-negative */
+                break;
+            case kOCNumberFloat32Type: {
+                float *arr = (float *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = fabsf(arr[i]);
+                break;
+            }
+            case kOCNumberFloat64Type: {
+                double *arr = (double *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = fabs(arr[i]);
+                break;
+            }
+            case kOCNumberComplex64Type: {
+                float complex *arr = (float complex *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = cabsf(arr[i]); /* real=|z|, imag=0 */
+                newEtype = kOCNumberFloat32Type;
+                break;
+            }
+            case kOCNumberComplex128Type: {
+                double complex *arr = (double complex *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = cabs(arr[i]); /* real=|z|, imag=0 */
+                newEtype = kOCNumberFloat64Type;
+                break;
+            }
+            default:
+                return false;
+        }
+    }
+    if (newEtype != origEtype) {
+        DependentVariableSetElementType(dv, newEtype);
+    }
+    return true;
+}
+bool DependentVariableMultiplyValuesByDimensionlessComplexConstant(DependentVariableRef dv,
+                                                                   int64_t componentIndex,
+                                                                   double complex constant) {
+    IF_NO_OBJECT_EXISTS_RETURN(dv, false);
+    OCArrayRef comps = DependentVariableGetComponents(dv);
+    uint64_t nComps = OCArrayGetCount(comps);
+    if (nComps == 0 ||
+        (componentIndex >= 0 && (uint64_t)componentIndex >= nComps)) {
+        return false;
+    }
+    uint64_t lower = 0, upper = nComps;
+    if (componentIndex >= 0) {
+        lower = (uint64_t)componentIndex;
+        upper = lower + 1;
+    }
+    uint64_t size = DependentVariableGetSize(dv);
+    OCNumberType etype = DependentVariableGetElementType(dv);
+    /* Prepare BLAS scalars */
+    float scalar_f32 = (float)creal(constant);
+    double scalar_f64 = creal(constant);
+    float scalar_c32[2] = {(float)creal(constant), (float)cimag(constant)};
+    double scalar_c64[2] = {creal(constant), cimag(constant)};
+    for (uint64_t ci = lower; ci < upper; ++ci) {
+        OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, ci);
+        uint8_t *bytes = OCDataGetMutableBytes(data);
+        switch (etype) {
+            case kOCNumberSInt8Type: {
+                int8_t *arr = (int8_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (int8_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberSInt16Type: {
+                int16_t *arr = (int16_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (int16_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberSInt32Type: {
+                int32_t *arr = (int32_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (int32_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberSInt64Type: {
+                int64_t *arr = (int64_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (int64_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberUInt8Type: {
+                uint8_t *arr = (uint8_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (uint8_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberUInt16Type: {
+                uint16_t *arr = (uint16_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (uint16_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberUInt32Type: {
+                uint32_t *arr = (uint32_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (uint32_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberUInt64Type: {
+                uint64_t *arr = (uint64_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (uint64_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberFloat32Type:
+                cblas_sscal((int)size, scalar_f32, (float *)bytes, 1);
+                break;
+            case kOCNumberFloat64Type:
+                cblas_dscal((int)size, scalar_f64, (double *)bytes, 1);
+                break;
+            case kOCNumberComplex64Type:
+                cblas_cscal((int)size,
+                            (const void *)scalar_c32,
+                            (float _Complex *)bytes,
+                            1);
+                break;
+            case kOCNumberComplex128Type:
+                cblas_zscal((int)size,
+                            (const void *)scalar_c64,
+                            (double _Complex *)bytes,
+                            1);
+                break;
+            default:
+                /* Unsupported element type */
+                return false;
+        }
+    }
+    return true;
+}
+
+#pragma endregion Conversion and Manipulation

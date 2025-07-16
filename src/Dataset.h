@@ -184,6 +184,13 @@ bool DatasetGetReadOnly(DatasetRef ds);
 /** @brief Set or clear read-only. */
 bool DatasetSetReadOnly(DatasetRef ds, bool readOnly);
 /** @} */
+
+DependentVariableRef DatasetAddDefaultDependentVariable(DatasetRef theDataset,
+                                                            OCStringRef quantityType,
+                                                            OCNumberType elementType,
+                                                            OCIndex size);
+
+
 #ifdef __cplusplus
 }
 #endif

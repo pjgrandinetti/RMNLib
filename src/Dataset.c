@@ -1426,6 +1426,12 @@ bool DatasetSetDependentVariables(DatasetRef ds, OCMutableArrayRef dvs) {
     if (!ds || !dvs) return false;
     OCRelease(ds->dependentVariables);
     ds->dependentVariables = (OCMutableArrayRef)OCRetain(dvs);
+    for(OCIndex i = 0; i < OCArrayGetCount(dvs); ++i) {
+        DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(dvs, i);
+        if (dv) {
+            DependentVariableSetOwner(dv, (OCTypeRef) ds);
+        }
+    }
     return true;
 }
 OCMutableArrayRef DatasetGetTags(DatasetRef ds) {
@@ -1519,4 +1525,32 @@ bool DatasetSetReadOnly(DatasetRef ds, bool readOnly) {
     ds->readOnly = readOnly;
     return true;
 }
+
+DependentVariableRef DatasetAddDefaultDependentVariable(DatasetRef theDataset,
+                                                            OCStringRef quantityType,
+                                                            OCNumberType elementType,
+                                                            OCIndex size)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(theDataset,NULL);
+    IF_NO_OBJECT_EXISTS_RETURN(quantityType,NULL);
+    
+    if(NULL==theDataset->dimensions && size<0) return NULL;
+    
+    if(theDataset->dimensions) {
+        OCIndex sizeFromDimensions = RMNCalculateSizeFromDimensions(theDataset->dimensions);
+        if(size==-1) size = sizeFromDimensions;
+        if(size!= sizeFromDimensions) return NULL;
+    }
+    
+    DependentVariableRef theDependentVariable = DependentVariableCreateDefault(quantityType,
+                                                                                   elementType,
+                                                                                   size,
+                                                                                   NULL);
+    OCArrayAppendValue(theDataset->dependentVariables, theDependentVariable);
+    OCRelease(theDependentVariable);
+    return theDependentVariable;
+}
+
+
+
 #pragma endregion

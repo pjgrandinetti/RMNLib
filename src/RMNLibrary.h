@@ -16,6 +16,31 @@ as local modules (Datum, Dimension, Dataset).
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+/* 
+ -------------------------------------------------------------
+ BLAS & LAPACK — pick the right include for each platform
+ -------------------------------------------------------------
+ macOS      : use Apple’s Accelerate.framework, which bundles CBLAS + LAPACK
+ Linux      : assume a system-installed CBLAS + LAPACKE (e.g. OpenBLAS, Netlib)
+ Windows    : assume user has installed OpenBLAS or Intel MKL with CBLAS + LAPACKE
+ -------------------------------------------------------------
+ Linker flags you will typically need:
+   macOS    : -framework Accelerate
+   Linux    : -lcblas -llapacke  (or -lopenblas -llapacke)
+   Windows  : link against OpenBLAS (e.g. openblas.lib) or MKL import libs
+ -------------------------------------------------------------
+*/
+#if defined(__APPLE__)
+  /* All BLAS & LAPACK lives in Accelerate.framework on macOS */
+  #include <Accelerate/Accelerate.h>
+#else
+  /* CBLAS interface */
+  #include <cblas.h>
+  /* LAPACKE C interface to LAPACK */
+  #include <lapacke.h>
+#endif
+
 // Include the core OCTypes definitions and utilities
 #include <OCLibrary.h>
 // Include the core SITypes definitions and utilities

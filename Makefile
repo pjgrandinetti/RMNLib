@@ -31,7 +31,6 @@ INCLUDE_DIR     := $(THIRD_PARTY_DIR)/include
 OCT_INCLUDE     := $(INCLUDE_DIR)/OCTypes
 SIT_INCLUDE     := $(INCLUDE_DIR)/SITypes
 
-
 # Include and library paths
 OCT_LIBDIR  := $(TP_LIB_DIR)
 SIT_LIBDIR  := $(TP_LIB_DIR)
@@ -47,8 +46,18 @@ CFLAGS   := -O3 -Wall -Wextra \
              -MMD -MP
 CFLAGS_DEBUG := -O0 -g -Wall -Wextra -Werror -MMD -MP
 
-# OS-specific library ZIP selection (must come before Archives definitions)
+# Detect OS for BLAS/LAPACK and macOS deprecation silence
 UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  CFLAGS       += -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64
+  BLAS_LDFLAGS := -framework Accelerate
+else ifeq ($(UNAME_S),Linux)
+  BLAS_LDFLAGS := -lopenblas -llapacke
+else ifneq ($(findstring MINGW,$(UNAME_S)),)
+  BLAS_LDFLAGS := -lopenblas -llapacke
+endif
+
+# OS-specific library ZIP selection (must come before Archives definitions)
 ARCH    := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
   OCT_LIB_BIN := libOCTypes-macos-latest.zip
@@ -97,7 +106,7 @@ STATIC_SRC := $(wildcard $(SRC_DIR)/*.c)
 OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(STATIC_SRC))
 
 # Download and extract OCTypes
-octypes: $(OCT_LIBDIR)/libOCTypes.a $(OCT_INCLUDE)/OCLibrary.h
+octypes: $(TP_LIB_DIR)/libOCTypes.a $(OCT_INCLUDE)/OCLibrary.h
 
 $(OCT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
@@ -147,7 +156,7 @@ else
 endif
 
 # Download and extract SITypes
-sitypes: $(SIT_LIBDIR)/libSITypes.a $(SIT_INCLUDE)/SILibrary.h
+sitypes: $(TP_LIB_DIR)/libSITypes.a $(SIT_INCLUDE)/SILibrary.h
 
 $(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
@@ -212,14 +221,16 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs octypes sitypes
 $(BIN_DIR)/runTests: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) -lm \
+		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) \
+		$(BLAS_LDFLAGS) -lm \
 		-o $@
 
 # AddressSanitizer test binary
 $(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) -lm \
+		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) \
+		$(BLAS_LDFLAGS) -lm \
 		-o $@
 
 test: $(BIN_DIR)/runTests
@@ -247,7 +258,6 @@ TEST_DATA_ROOT := $(ROOT_DIR)/RMNLib/tests/CSDM-TestFiles-1.0
 xcode: clean dirs
 	@echo "Generating combined Xcode workspace for OCTypes, SITypes & RMNLib in $(XCODE_BUILD)"
 	@mkdir -p $(XCODE_BUILD)
-	# Invoke CMake at the repository root so all subprojects are included
 	@cmake -G "Xcode" -S $(ROOT_DIR) -B $(XCODE_BUILD)
 	@echo "✅ Xcode workspace created: $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj"
 
@@ -291,3 +301,4 @@ synclib:
 	@cp ../SITypes/install/include/SITypes/*.h     $(THIRD_PARTY_DIR)/include/SITypes/
 	@# Create dummy archives to satisfy fetch prerequisites and prevent re-fetch
 	@touch $(OCT_LIB_ARCHIVE) $(OCT_HEADERS_ARCHIVE) $(SIT_LIB_ARCHIVE) $(SIT_HEADERS_ARCHIVE)
+	

@@ -321,6 +321,55 @@ float DependentVariableGetFloatValueAtMemOffsetForPart(DependentVariableRef dv, 
 SIScalarRef DependentVariableCreateValueFromMemOffset(DependentVariableRef dv, OCIndex compIdx, OCIndex memOffset);
 bool DependentVariableSetValueAtMemOffset(DependentVariableRef dv, OCIndex compIdx, OCIndex memOffset, SIScalarRef value, OCStringRef *error);
 /** @} end of Low-level Value Accessors */
+/**
+ * @brief Convert all component data in a dependent variable to a new unit.
+ *        Integer‐typed dependent variables cannot be converted and will error.
+ * @param dv      The dependent variable to convert.
+ * @param unit    The target unit (must have the same reduced dimensionality).
+ * @param error   On failure, receives an OCStringRef describing the problem; may be NULL.
+ *                   Caller should release *error if non-NULL.
+ * @return true on success, false on error.
+ * @ingroup RMNLib
+ */
+bool DependentVariableConvertToUnit(DependentVariableRef dv,
+                                    SIUnitRef unit,
+                                    OCStringRef *error);
+/**
+ * @brief Efficiently set all data values in a dependent variable (or a single component) to zero.
+ *        Uses a single memset per component for maximum performance.
+ * @param dv             The dependent variable whose data will be zeroed.
+ * @param componentIndex Index of the component to zero; use -1 to zero all components.
+ * @return true on success, false on error (e.g. no components or index out of range).
+ * @ingroup RMNLib
+ */
+bool DependentVariableSetValuesToZero(DependentVariableRef dv,
+                                      int64_t componentIndex);
+/**
+ * @brief Replace each value in a dependent variable (or a single component) by its absolute value.
+ *        Signed integers become their magnitude; floats use fabs/fabsf; complex values
+ *        are replaced by their magnitude (imaginary part dropped) and the elementType is
+ *        updated to the corresponding real type.
+ * @param dv             The dependent variable to process.
+ * @param componentIndex Index of the component to process; use –1 to process all components.
+ * @return true on success, false on error (e.g. no components or index out of range).
+ * @ingroup RMNLib
+ */
+bool DependentVariableTakeAbsoluteValue(DependentVariableRef dv,
+                                        int64_t componentIndex);
+
+                                        /**
+ * @brief Multiply each value in a dependent variable (or a single component) by a dimensionless complex constant.
+ *        Uses BLAS level-1 routines for optimized real and complex scaling; falls back to simple loops for integer types.
+ * @param dv             The dependent variable whose data will be modified.
+ * @param componentIndex Index of the component to process; use -1 to process all components.
+ * @param constant       The dimensionless complex constant to multiply each element by.
+ * @return true on success, false on error (e.g. no components or index out of range).
+ * @ingroup RMNLib
+ */
+bool DependentVariableMultiplyValuesByDimensionlessComplexConstant(DependentVariableRef dv,
+                                                                   int64_t componentIndex,
+                                                                   double complex constant);
+
 /** @} end of DependentVariable group */
 #ifdef __cplusplus
 }
