@@ -55,6 +55,8 @@ else ifeq ($(UNAME_S),Linux)
   BLAS_LDFLAGS := -lopenblas -llapacke
 else ifneq ($(findstring MINGW,$(UNAME_S)),)
   BLAS_LDFLAGS := -lopenblas -llapacke
+  # OpenBLAS headers on MSYS2 live under /mingw64/include/openblas
+  CPPFLAGS     += -I/mingw64/include/openblas
 endif
 
 # OS-specific library ZIP selection (must come before Archives definitions)
@@ -301,4 +303,3 @@ synclib:
 	@cp ../SITypes/install/include/SITypes/*.h     $(THIRD_PARTY_DIR)/include/SITypes/
 	@# Create dummy archives to satisfy fetch prerequisites and prevent re-fetch
 	@touch $(OCT_LIB_ARCHIVE) $(OCT_HEADERS_ARCHIVE) $(SIT_LIB_ARCHIVE) $(SIT_HEADERS_ARCHIVE)
-	

@@ -2932,16 +2932,133 @@ bool DependentVariableSetValuesToZero(DependentVariableRef dv, int64_t component
     }
     return true;
 }
-/**
- * @brief Replace each value in a dependent variable (or a single component) by its absolute value.
- *        Signed integers become their magnitude; floats use fabs/fabsf; complex values
- *        are replaced by their magnitude (imaginary part dropped) and the elementType is
- *        updated to the corresponding real type.
- * @param dv             The dependent variable to process.
- * @param componentIndex Index of the component to process; use –1 to process all components.
- * @return true on success, false on error (e.g. no components or index out of range).
- * @ingroup RMNLib
- */
+
+bool DependentVariableZeroPartInRange(DependentVariableRef dv,
+                                 OCIndex componentIndex,
+                                 OCRange range,
+                                 complexPart part)
+{
+    if (!dv) return false;
+
+    OCArrayRef comps = dv->components;
+    OCIndex nComps = comps ? OCArrayGetCount(comps) : 0;
+    if (nComps == 0 || componentIndex < 0 || componentIndex >= nComps) {
+        return false;
+    }
+
+    OCIndex totalSize = DependentVariableGetSize(dv);
+    if (range.location < 0
+     || range.length  < 0
+     || range.location + range.length > totalSize) {
+        return false;
+    }
+
+    OCIndex startComp = componentIndex;
+    OCIndex endComp   = componentIndex + 1;
+
+    for (OCIndex ci = startComp; ci < endComp; ++ci) {
+        OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, ci);
+        u_int8_t *ptr = OCDataGetMutableBytes(data);
+        OCNumberType etype = DependentVariableGetElementType(dv);
+
+        switch (etype) {
+
+          case kOCNumberFloat32Type:
+            if (part == kSIRealPart || part == kSIMagnitudePart) {
+                /* scale the subvector at &ptr[range.location] by 0.0f */
+                cblas_sscal((int)range.length,
+                            0.0f,
+                            (float*)ptr + range.location,
+                            1);
+            }
+            break;
+
+          case kOCNumberFloat64Type:
+            if (part == kSIRealPart || part == kSIMagnitudePart) {
+                cblas_dscal((int)range.length,
+                            0.0,
+                            (double*)ptr + range.location,
+                            1);
+            }
+            break;
+
+          case kOCNumberComplex64Type: {
+            float complex *cptr = (float complex*)ptr;
+            switch (part) {
+              case kSIRealPart:
+                /* zero real entries, keep imag: real at stride=2 offset 0 */
+                cblas_sscal((int)range.length,
+                            0.0f,
+                            (float*)cptr + 2*range.location,
+                            2);
+                break;
+              case kSIImaginaryPart:
+                /* zero imag entries: offset 1, stride=2 */
+                cblas_sscal((int)range.length,
+                            0.0f,
+                            (float*)cptr + 2*range.location + 1,
+                            2);
+                break;
+              case kSIMagnitudePart:
+                /* zero both real & imag: treat as 2*length contiguous */
+                cblas_sscal((int)(2*range.length),
+                            0.0f,
+                            (float*)cptr + 2*range.location,
+                            1);
+                break;
+              case kSIArgumentPart:
+                /* must compute abs and zero imag by hand */
+                for (OCIndex i = range.location; i < range.location + range.length; ++i) {
+                  float complex v = cptr[i];
+                  float m = cabsf(v);
+                  cptr[i] = m + 0.0f * I;
+                }
+                break;
+            }
+            break;
+          }
+
+          case kOCNumberComplex128Type: {
+            double complex *cptr = (double complex*)ptr;
+            switch (part) {
+              case kSIRealPart:
+                cblas_dscal((int)range.length,
+                            0.0,
+                            (double*)cptr + 2*range.location,
+                            2);
+                break;
+              case kSIImaginaryPart:
+                cblas_dscal((int)range.length,
+                            0.0,
+                            (double*)cptr + 2*range.location + 1,
+                            2);
+                break;
+              case kSIMagnitudePart:
+                cblas_dscal((int)(2*range.length),
+                            0.0,
+                            (double*)cptr + 2*range.location,
+                            1);
+                break;
+              case kSIArgumentPart:
+                for (OCIndex i = range.location; i < range.location + range.length; ++i) {
+                  double complex v = cptr[i];
+                  double m = cabs(v);
+                  cptr[i] = m + 0.0 * I;
+                }
+                break;
+            }
+            break;
+          }
+
+          default:
+            /* integer types or unsupported */
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool DependentVariableTakeAbsoluteValue(DependentVariableRef dv,
                                         int64_t componentIndex) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, false);
@@ -3125,6 +3242,130 @@ bool DependentVariableMultiplyValuesByDimensionlessComplexConstant(DependentVari
                 return false;
         }
     }
+    return true;
+}
+
+/**
+ * @brief Extracts a specific complex component (real, imaginary, magnitude, or argument)
+ *        from a DependentVariable’s data, replacing each value accordingly.
+ *
+ * @param dv               The DependentVariable to modify.
+ * @param componentIndex   Index of the component to operate on (0-based).  
+ *                         If negative, the operation applies to all components in sequence.
+ * @param part             Which part of each element to retain:
+ *                         - kSIRealPart      : keep real part, zero imaginary  
+ *                         - kSIImaginaryPart : keep imaginary part, zero real  
+ *                         - kSIMagnitudePart : replace with magnitude (abs)  
+ *                         - kSIArgumentPart  : replace with argument (phase)  
+ *
+ * @return true if the data was successfully transformed; false if inputs are invalid
+ *         or the variable’s numeric type does not support the requested component.
+ *
+ * @ingroup DependentVariable
+ *
+ * @code
+ * // Convert component 1 of myDV to its magnitude values:
+ * bool ok = DependentVariableTakeComplexPart(myDV, 1, kSIMagnitudePart);
+ * @endcode
+ */
+bool
+DependentVariableTakeComplexPart(DependentVariableRef dv,
+                                 OCIndex componentIndex,
+                                 complexPart part)
+{
+    if (!dv) return false;
+
+    OCArrayRef comps = dv->components;
+    OCIndex nComps = comps ? OCArrayGetCount(comps) : 0;
+    if (nComps == 0 ||
+        componentIndex < 0 ||
+        componentIndex >= nComps)
+    {
+        return false;
+    }
+
+    OCIndex size = DependentVariableGetSize(dv);
+    OCRange fullRange = { .location = 0, .length = size };
+
+    switch (dv->numericType) {
+
+      case kOCNumberFloat32Type:
+      case kOCNumberFloat64Type:
+        switch (part) {
+          case kSIRealPart:
+            return true;
+          case kSIImaginaryPart:
+            DependentVariableZeroPartInRange(dv, componentIndex, fullRange, kSIRealPart);
+            break;
+          case kSIMagnitudePart:
+            DependentVariableTakeAbsoluteValue(dv, componentIndex);
+            break;
+          case kSIArgumentPart:
+            DependentVariableZeroPartInRange(dv, componentIndex, fullRange, kSIRealPart);
+            break;
+        }
+        break;
+
+      case kOCNumberComplex64Type:
+        switch (part) {
+          case kSIRealPart:
+            DependentVariableZeroPartInRange(dv, componentIndex, fullRange, kSIImaginaryPart);
+            break;
+          case kSIImaginaryPart:
+            DependentVariableMultiplyValuesByDimensionlessComplexConstant(dv, componentIndex, -I);
+            DependentVariableZeroPartInRange(dv, componentIndex, fullRange, kSIImaginaryPart);
+            break;
+          case kSIMagnitudePart:
+            DependentVariableTakeAbsoluteValue(dv, componentIndex);
+            break;
+          case kSIArgumentPart: {
+            OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, componentIndex);
+            float complex *buf = (float complex*)OCDataGetMutableBytes(data);
+            for (OCIndex i = 0; i < size; ++i) {
+                buf[i] = cargf(buf[i]);
+            }
+            break;
+          }
+        }
+        break;
+
+      case kOCNumberComplex128Type:
+        switch (part) {
+          case kSIRealPart:
+            DependentVariableZeroPartInRange(dv, componentIndex, fullRange, kSIImaginaryPart);
+            break;
+          case kSIImaginaryPart:
+            DependentVariableMultiplyValuesByDimensionlessComplexConstant(dv, componentIndex, -I);
+            DependentVariableZeroPartInRange(dv, componentIndex, fullRange, kSIImaginaryPart);
+            break;
+          case kSIMagnitudePart:
+            DependentVariableTakeAbsoluteValue(dv, componentIndex);
+            break;
+          case kSIArgumentPart: {
+            OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, componentIndex);
+            double complex *buf = (double complex*)OCDataGetMutableBytes(data);
+            for (OCIndex i = 0; i < size; ++i) {
+                buf[i] = carg(buf[i]);
+            }
+            break;
+          }
+        }
+        break;
+
+      default:
+        // integer or unsupported types
+        return false;
+    }
+
+    if (componentIndex < 0) {
+        if (dv->numericType == kOCNumberComplex64Type) {
+            DependentVariableSetElementType(dv, kOCNumberFloat32Type);
+        }
+        else if (dv->numericType == kOCNumberComplex128Type) {
+            DependentVariableSetElementType(dv, kOCNumberFloat64Type);
+        }
+    }
+
     return true;
 }
 

@@ -354,6 +354,36 @@ bool DependentVariableSetValuesToZero(DependentVariableRef dv,
  * @return true on success, false on error (e.g. no components or index out of range).
  * @ingroup RMNLib
  */
+/**
+ * @brief Zeroes out a specific component (real, imaginary, magnitude, or argument) 
+ *        of a DependentVariable’s data over a given index range.
+ *
+ * @param dv               The DependentVariable to modify.
+ * @param componentIndex   Index of the component to operate on (0-based). 
+ *                         If negative, all components are processed.
+ * @param range            The code-point range [location, location+length) 
+ *                         within each component to zero.
+ * @param part             Which part of the value to zero:
+ *                         - kRealPart       : zero the real part  
+ *                         - kImaginaryPart  : zero the imaginary part  
+ *                         - kMagnitudePart  : zero both parts  
+ *                         - kArgumentPart   : replace with magnitude only  
+ *
+ * @return true if the operation succeeded on the specified component(s) and range;
+ *         false if the input is invalid or the element type is unsupported.
+ *
+ * @ingroup DependentVariable
+ *
+ * @code
+ * // Zero the real portion of component 2 between indices 100 and 199:
+ * OCRange r = { .location = 100, .length = 100 };
+ * bool ok = DependentVariableZeroPartInRange(myDV, 2, r, kRealPart);
+ * @endcode
+ */bool DependentVariableZeroPartInRange(DependentVariableRef dv,
+                                 OCIndex componentIndex,
+                                 OCRange range,
+                                 complexPart part);
+
 bool DependentVariableTakeAbsoluteValue(DependentVariableRef dv,
                                         int64_t componentIndex);
 
@@ -369,6 +399,34 @@ bool DependentVariableTakeAbsoluteValue(DependentVariableRef dv,
 bool DependentVariableMultiplyValuesByDimensionlessComplexConstant(DependentVariableRef dv,
                                                                    int64_t componentIndex,
                                                                    double complex constant);
+
+                                                                   /**
+ * @brief Extracts a specific complex component (real, imaginary, magnitude, or argument)
+ *        from a DependentVariable’s data, replacing each value accordingly.
+ *
+ * @param dv               The DependentVariable to modify.
+ * @param componentIndex   Index of the component to operate on (0-based).  
+ *                         If negative, the operation applies to all components in sequence.
+ * @param part             Which part of each element to retain:
+ *                         - kSIRealPart      : keep real part, zero imaginary  
+ *                         - kSIImaginaryPart : keep imaginary part, zero real  
+ *                         - kSIMagnitudePart : replace with magnitude (abs)  
+ *                         - kSIArgumentPart  : replace with argument (phase)  
+ *
+ * @return true if the data was successfully transformed; false if inputs are invalid
+ *         or the variable’s numeric type does not support the requested component.
+ *
+ * @ingroup DependentVariable
+ *
+ * @code
+ * // Convert component 1 of myDV to its magnitude values:
+ * bool ok = DependentVariableTakeComplexPart(myDV, 1, kSIMagnitudePart);
+ * @endcode
+ */
+bool
+DependentVariableTakeComplexPart(DependentVariableRef dv,
+                                 OCIndex componentIndex,
+                                 complexPart part);
 
 /** @} end of DependentVariable group */
 #ifdef __cplusplus
