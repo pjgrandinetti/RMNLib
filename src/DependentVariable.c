@@ -3397,7 +3397,7 @@ DependentVariableConjugate(DependentVariableRef dv,
 
             case kOCNumberComplex64Type: {
                 // interleaved [r0,i0, r1,i1, …]
-                float complex *buf = (float complex*)CFDataGetMutableByte(data);
+                float complex *buf = (float complex*)OCDataGetMutableBytes(data);
                 float *imag = ((float*)buf) + 1;
                 // negate each imaginary entry:
                 //      imag[j] = -imag[j],  j=0..totalSize-1, stride=2
@@ -3406,7 +3406,7 @@ DependentVariableConjugate(DependentVariableRef dv,
             }
 
             case kOCNumberComplex128Type: {
-                double complex *buf = (double complex*)CFDataGetMutableByte(data);
+                double complex *buf = (double complex*)OCDataGetMutableBytes(data);
                 double *imag = ((double*)buf) + 1;
                 cblas_dscal((int)totalSize, -1.0, imag, 2);
                 break;
