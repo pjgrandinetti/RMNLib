@@ -355,19 +355,19 @@ bool DependentVariableSetValuesToZero(DependentVariableRef dv,
  * @ingroup RMNLib
  */
 /**
- * @brief Zeroes out a specific component (real, imaginary, magnitude, or argument) 
+ * @brief Zeroes out a specific component (real, imaginary, magnitude, or argument)
  *        of a DependentVariable’s data over a given index range.
  *
  * @param dv               The DependentVariable to modify.
- * @param componentIndex   Index of the component to operate on (0-based). 
+ * @param componentIndex   Index of the component to operate on (0-based).
  *                         If negative, all components are processed.
- * @param range            The code-point range [location, location+length) 
+ * @param range            The code-point range [location, location+length)
  *                         within each component to zero.
  * @param part             Which part of the value to zero:
- *                         - kRealPart       : zero the real part  
- *                         - kImaginaryPart  : zero the imaginary part  
- *                         - kMagnitudePart  : zero both parts  
- *                         - kArgumentPart   : replace with magnitude only  
+ *                         - kRealPart       : zero the real part
+ *                         - kImaginaryPart  : zero the imaginary part
+ *                         - kMagnitudePart  : zero both parts
+ *                         - kArgumentPart   : replace with magnitude only
  *
  * @return true if the operation succeeded on the specified component(s) and range;
  *         false if the input is invalid or the element type is unsupported.
@@ -379,15 +379,14 @@ bool DependentVariableSetValuesToZero(DependentVariableRef dv,
  * OCRange r = { .location = 100, .length = 100 };
  * bool ok = DependentVariableZeroPartInRange(myDV, 2, r, kRealPart);
  * @endcode
- */bool DependentVariableZeroPartInRange(DependentVariableRef dv,
-                                 OCIndex componentIndex,
-                                 OCRange range,
-                                 complexPart part);
-
+ */
+bool DependentVariableZeroPartInRange(DependentVariableRef dv,
+                                      OCIndex componentIndex,
+                                      OCRange range,
+                                      complexPart part);
 bool DependentVariableTakeAbsoluteValue(DependentVariableRef dv,
                                         int64_t componentIndex);
-
-                                        /**
+/**
  * @brief Multiply each value in a dependent variable (or a single component) by a dimensionless complex constant.
  *        Uses BLAS level-1 routines for optimized real and complex scaling; falls back to simple loops for integer types.
  * @param dv             The dependent variable whose data will be modified.
@@ -399,19 +398,18 @@ bool DependentVariableTakeAbsoluteValue(DependentVariableRef dv,
 bool DependentVariableMultiplyValuesByDimensionlessComplexConstant(DependentVariableRef dv,
                                                                    int64_t componentIndex,
                                                                    double complex constant);
-
-                                                                   /**
+/**
  * @brief Extracts a specific complex component (real, imaginary, magnitude, or argument)
  *        from a DependentVariable’s data, replacing each value accordingly.
  *
  * @param dv               The DependentVariable to modify.
- * @param componentIndex   Index of the component to operate on (0-based).  
+ * @param componentIndex   Index of the component to operate on (0-based).
  *                         If negative, the operation applies to all components in sequence.
  * @param part             Which part of each element to retain:
- *                         - kSIRealPart      : keep real part, zero imaginary  
- *                         - kSIImaginaryPart : keep imaginary part, zero real  
- *                         - kSIMagnitudePart : replace with magnitude (abs)  
- *                         - kSIArgumentPart  : replace with argument (phase)  
+ *                         - kSIRealPart      : keep real part, zero imaginary
+ *                         - kSIImaginaryPart : keep imaginary part, zero real
+ *                         - kSIMagnitudePart : replace with magnitude (abs)
+ *                         - kSIArgumentPart  : replace with argument (phase)
  *
  * @return true if the data was successfully transformed; false if inputs are invalid
  *         or the variable’s numeric type does not support the requested component.
@@ -423,12 +421,10 @@ bool DependentVariableMultiplyValuesByDimensionlessComplexConstant(DependentVari
  * bool ok = DependentVariableTakeComplexPart(myDV, 1, kSIMagnitudePart);
  * @endcode
  */
-bool
-DependentVariableTakeComplexPart(DependentVariableRef dv,
-                                 OCIndex componentIndex,
-                                 complexPart part);
-
-                                 /**
+bool DependentVariableTakeComplexPart(DependentVariableRef dv,
+                                      OCIndex componentIndex,
+                                      complexPart part);
+/**
  * @brief Conjugates the complex values of one or all components in a DependentVariable.
  *
  * For each complex element in the specified component (or all components if
@@ -436,25 +432,51 @@ DependentVariableTakeComplexPart(DependentVariableRef dv,
  * complex conjugate \f$\bar{z} = x - i·y\f$ by negating the imaginary part in-place.
  * Real-valued components are left unchanged.
  *
- * @param dv  
- *   A valid DependentVariableRef whose data you wish to conjugate.  
+ * @param dv
+ *   A valid DependentVariableRef whose data you wish to conjugate.
  *   Must not be NULL.
  *
- * @param componentIndex  
- *   Index of the component to conjugate.  
- *   - If \c componentIndex is in \f$[0,\,n-1)\f$, only that component is processed.  
- *   - If \c componentIndex is negative, all components are processed.  
+ * @param componentIndex
+ *   Index of the component to conjugate.
+ *   - If \c componentIndex is in \f$[0,\,n-1)\f$, only that component is processed.
+ *   - If \c componentIndex is negative, all components are processed.
  *   - If \c componentIndex ≥ number of components, the function returns \c false.
  *
- * @return  
- *   \c true on success (even if there was nothing to do for real-only data),  
+ * @return
+ *   \c true on success (even if there was nothing to do for real-only data),
  *   \c false if \c dv is NULL, \c componentIndex is out of range, or
  *   the data type is not supported.
  */
-bool
-DependentVariableConjugate(DependentVariableRef dv,
-                           OCIndex            componentIndex);
-                           
+bool DependentVariableConjugate(DependentVariableRef dv,
+                                OCIndex componentIndex);
+/**
+ * Multiply each element in one (or all) components of a DependentVariable
+ * by a dimensionless real constant.
+ *
+ * This function supports signed and unsigned integer types (8/16/32/64-bit),
+ * single- and double-precision real types, and single- and double-precision
+ * complex types.  For integer types, each element is cast to double, scaled,
+ * then cast back.  Real and complex types are scaled via the corresponding
+ * CBLAS “scal” routines for maximum performance.
+ *
+ * @param dv
+ *   The DependentVariable whose data will be modified in place.
+ *   Must be non-NULL and have at least one component.
+ *
+ * @param componentIndex
+ *   The index of the component to scale.  If >= 0, only that component is affected.
+ *   If negative, all components in dv are scaled.
+ *
+ * @param constant
+ *   The real, dimensionless scalar by which to multiply each element.
+ *
+ * @return
+ *   true if dv was valid, componentIndex in range, and scaling completed;
+ *   false otherwise (e.g. dv == NULL, no components, or unsupported element type).
+ */
+bool DependentVariableMultiplyValuesByDimensionlessRealConstant(DependentVariableRef dv,
+                                                                OCIndex componentIndex,
+                                                                double constant);
 /** @} end of DependentVariable group */
 #ifdef __cplusplus
 }

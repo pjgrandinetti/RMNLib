@@ -3420,4 +3420,114 @@ DependentVariableConjugate(DependentVariableRef dv,
     return true;
 }
 
+bool
+DependentVariableMultiplyValuesByDimensionlessRealConstant(DependentVariableRef dv,
+                                                           OCIndex            componentIndex,
+                                                           double             constant)
+{
+    if (!dv) return false;
+
+    OCArrayRef    comps      = DependentVariableGetComponents(dv);
+    uint64_t      nComps     = comps ? OCArrayGetCount(comps) : 0;
+    if (nComps == 0 ||
+        (componentIndex >= 0 && (uint64_t)componentIndex >= nComps))
+    {
+        return false;
+    }
+
+    uint64_t lower = (componentIndex >= 0 ? componentIndex : 0);
+    uint64_t upper = (componentIndex >= 0 ? lower + 1        : nComps);
+    uint64_t size  = DependentVariableGetSize(dv);
+    OCNumberType type  = DependentVariableGetElementType(dv);
+
+    /* prepare BLAS scalars */
+    float  alpha_f = (float)constant;
+    double alpha_d = constant;
+
+    for (uint64_t ci = lower; ci < upper; ++ci) {
+        OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, ci);
+        void *bytes = OCDataGetMutableBytes(data);
+
+        switch (type) {
+            /* 8/16/32/64-bit signed ints */
+            case kOCNumberSInt8Type: {
+                int8_t *arr = (int8_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (int8_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberSInt16Type: {
+                int16_t *arr = (int16_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (int16_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberSInt32Type: {
+                int32_t *arr = (int32_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (int32_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberSInt64Type: {
+                int64_t *arr = (int64_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (int64_t)(arr[i] * constant);
+                break;
+            }
+
+            /* 8/16/32/64-bit unsigned ints */
+            case kOCNumberUInt8Type: {
+                uint8_t *arr = (uint8_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (uint8_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberUInt16Type: {
+                uint16_t *arr = (uint16_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (uint16_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberUInt32Type: {
+                uint32_t *arr = (uint32_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (uint32_t)(arr[i] * constant);
+                break;
+            }
+            case kOCNumberUInt64Type: {
+                uint64_t *arr = (uint64_t *)bytes;
+                for (uint64_t i = 0; i < size; ++i)
+                    arr[i] = (uint64_t)(arr[i] * constant);
+                break;
+            }
+
+            /* 32-bit float */
+            case kOCNumberFloat32Type:
+                cblas_sscal((int)size, alpha_f, (float*)bytes, 1);
+                break;
+
+            /* 64-bit float */
+            case kOCNumberFloat64Type:
+                cblas_dscal((int)size, alpha_d, (double*)bytes, 1);
+                break;
+
+            /* single-precision complex: scale by real constant */
+            case kOCNumberComplex64Type:
+                cblas_csscal((int)size, alpha_f, (void*)bytes, 1);
+                break;
+
+            /* double-precision complex: scale by real constant */
+            case kOCNumberComplex128Type:
+                cblas_zdscal((int)size, alpha_d, (void*)bytes, 1);
+                break;
+
+            default:
+                /* unsupported type */
+                return false;
+        }
+    }
+
+    return true;
+}
+
 #pragma endregion Conversion and Manipulation
