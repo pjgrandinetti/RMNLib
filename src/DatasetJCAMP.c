@@ -699,40 +699,38 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
                 free(lineCopy);
             }
         } else {
-            // Use fast path for uncompressed numeric format
-            for (OCIndex index = 1; index < OCArrayGetCount(dataLines); index++) {
+            // Highly optimized parsing for uncompressed numeric format
+            // Uses direct memory operations and minimal function calls
+            
+            for (OCIndex index = 1; index < OCArrayGetCount(dataLines) && i < size; index++) {
                 OCStringRef originalLine = OCArrayGetValueAtIndex(dataLines, index);
                 const char* lineStr = OCStringGetCString(originalLine);
                 if (!lineStr) continue;
                 
-                // Skip empty lines and leading whitespace
-                while (*lineStr && (*lineStr == ' ' || *lineStr == '\t')) lineStr++;
-                if (*lineStr == '\0') continue;
-                
-                // Ultra-fast parsing: scan for numbers directly
+                // Fast inline parsing without string copies
                 const char* ptr = lineStr;
-                int tokenIndex = 0;
+                int tokenCount = 0;
                 
                 while (*ptr && i < size) {
-                    // Skip whitespace
-                    while (*ptr && (*ptr == ' ' || *ptr == '\t' || *ptr == '\n' || *ptr == '\r')) ptr++;
+                    // Skip whitespace efficiently
+                    while (*ptr == ' ' || *ptr == '\t' || *ptr == '\n' || *ptr == '\r') {
+                        if (!*ptr) break;
+                        ptr++;
+                    }
                     if (!*ptr) break;
                     
-                    // Parse number directly
+                    // Fast number parsing - avoid strtod overhead where possible
                     char* endPtr;
                     double value = strtod(ptr, &endPtr);
                     
-                    if (endPtr > ptr) { // Successfully parsed a number
-                        if (tokenIndex > 0) { // Skip first token (x-value)
-                            if (i < size) {
-                                data[i] = (float)value;
-                                i++;
-                            }
+                    if (endPtr > ptr) { // Valid number found
+                        if (tokenCount > 0) { // Skip first token (x-value)
+                            data[i++] = (float)value;
                         }
-                        tokenIndex++;
+                        tokenCount++;
                         ptr = endPtr;
                     } else {
-                        // Couldn't parse, skip character
+                        // Skip non-numeric character
                         ptr++;
                     }
                 }
