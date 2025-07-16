@@ -485,7 +485,7 @@
 //     SIDimensionRef dim = SILinearDimensionCreateDefault(size, increment, quantityName, inverseQuantityName);
 //     SIDimensionSetOriginOffset(dim, originOffset, error);
 //     SIDimensionSetInverseOriginOffset(dim, inverseOriginOffset);
-//     SIDimensionSetCoordinatesOffset(dim, referenceOffset);
+//     SIDimensionSetCoordinatesOffset(dim, referenceOffset, error);
 //     SIDimensionSetInverseQuantityName(dim, inverseQuantityName);
 //     if (nmrSpectrumType) {
 //         SIDimensionSetMadeDimensionless(dim, true);

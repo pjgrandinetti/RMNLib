@@ -1,14 +1,11 @@
 #pragma once
 #ifndef DIMENSION_H
 #define DIMENSION_H
-
 #include "RMNLibrary.h"
 #include "cJSON.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /**
  * @file Dimension.h
  * @brief Public interface for all Dimension types.
@@ -18,13 +15,11 @@ extern "C" {
  * SIMonotonicDimension, and SILinearDimension.  All can
  * be serialized to/from JSON or dictionaries.
  */
-
 /**
  * @defgroup Dimension Dimension
  * @brief Core types for axes and coordinate spaces.
  * @{
  */
-
 /**
  * @enum dimensionScaling
  * @brief How to scale SI dimensions.
@@ -33,7 +28,6 @@ typedef enum dimensionScaling {
     kDimensionScalingNone, /**< No scaling applied. */
     kDimensionScalingNMR   /**< NMR-specific scaling applied. */
 } dimensionScaling;
-
 /*==============================================================================
   Dimension (Abstract Base)
 ==============================================================================*/
@@ -41,19 +35,16 @@ typedef enum dimensionScaling {
  * @name Dimension (abstract)
  * @{
  */
-
 /**
  * @brief Get the OCTypeID for the base Dimension class.
  */
 OCTypeID DimensionGetTypeID(void);
-
 /**
  * @brief Retrieve a human-readable label for this dimension.
  * @param dim The Dimension instance.
  * @return Its label, or an empty string if unset.
  */
 OCStringRef DimensionGetLabel(DimensionRef dim);
-
 /**
  * @brief Set or change this dimension’s label.
  * @param dim      The Dimension instance.
@@ -62,16 +53,14 @@ OCStringRef DimensionGetLabel(DimensionRef dim);
  * @return true on success.
  */
 bool DimensionSetLabel(DimensionRef dim,
-                       OCStringRef  label,
+                       OCStringRef label,
                        OCStringRef *outError);
-
 /**
  * @brief Get the descriptive text for this dimension.
  * @param dim The Dimension instance.
  * @return Description string.
  */
 OCStringRef DimensionGetDescription(DimensionRef dim);
-
 /**
  * @brief Set or change this dimension’s description.
  * @param dim      The Dimension instance.
@@ -80,16 +69,14 @@ OCStringRef DimensionGetDescription(DimensionRef dim);
  * @return true on success.
  */
 bool DimensionSetDescription(DimensionRef dim,
-                             OCStringRef  desc,
+                             OCStringRef desc,
                              OCStringRef *outError);
-
 /**
  * @brief Retrieve arbitrary metadata attached to this dimension.
  * @param dim The Dimension instance.
  * @return A shallow-deep‐copied OCDictionaryRef.
  */
 OCDictionaryRef DimensionGetMetadata(DimensionRef dim);
-
 /**
  * @brief Replace this dimension’s metadata.
  * @param dim      The Dimension instance.
@@ -97,12 +84,10 @@ OCDictionaryRef DimensionGetMetadata(DimensionRef dim);
  * @param outError On failure, receives a descriptive OCStringRef.
  * @return true on success.
  */
-bool DimensionSetMetadata(DimensionRef    dim,
+bool DimensionSetMetadata(DimensionRef dim,
                           OCDictionaryRef dict,
-                          OCStringRef    *outError);
-
+                          OCStringRef *outError);
 /** @} */
-
 /*==============================================================================
   LabeledDimension
 ==============================================================================*/
@@ -110,12 +95,10 @@ bool DimensionSetMetadata(DimensionRef    dim,
  * @name LabeledDimension
  * @{
  */
-
 /**
  * @brief Get the OCTypeID for LabeledDimension.
  */
 OCTypeID LabeledDimensionGetTypeID(void);
-
 /**
  * @brief Create a custom LabeledDimension.
  * @param label            Name of the dimension.
@@ -126,12 +109,11 @@ OCTypeID LabeledDimensionGetTypeID(void);
  * @return New LabeledDimensionRef, or NULL.
  */
 LabeledDimensionRef
-LabeledDimensionCreate(OCStringRef      label,
-                       OCStringRef      description,
-                       OCDictionaryRef  metadata,
-                       OCArrayRef       coordinateLabels,
-                       OCStringRef     *outError);
-
+LabeledDimensionCreate(OCStringRef label,
+                       OCStringRef description,
+                       OCDictionaryRef metadata,
+                       OCArrayRef coordinateLabels,
+                       OCStringRef *outError);
 /**
  * @brief Create a LabeledDimension with only labels.
  * @param labels Array of OCStringRef coordinate labels (≥2).
@@ -139,14 +121,12 @@ LabeledDimensionCreate(OCStringRef      label,
  */
 LabeledDimensionRef
 LabeledDimensionCreateWithCoordinateLabels(OCArrayRef labels);
-
 /**
  * @brief Get all coordinate labels.
  * @param dim The LabeledDimension.
  * @return OCArrayRef of OCStringRef.
  */
 OCArrayRef LabeledDimensionGetCoordinateLabels(LabeledDimensionRef dim);
-
 /**
  * @brief Replace the set of coordinate labels.
  * @param dim      The LabeledDimension.
@@ -155,9 +135,8 @@ OCArrayRef LabeledDimensionGetCoordinateLabels(LabeledDimensionRef dim);
  * @return true on success.
  */
 bool LabeledDimensionSetCoordinateLabels(LabeledDimensionRef dim,
-                                         OCArrayRef           labels,
-                                         OCStringRef         *outError);
-
+                                         OCArrayRef labels,
+                                         OCStringRef *outError);
 /**
  * @brief Get the label at a specific index.
  * @param dim   The LabeledDimension.
@@ -165,8 +144,7 @@ bool LabeledDimensionSetCoordinateLabels(LabeledDimensionRef dim,
  * @return OCStringRef label, or NULL if out of bounds.
  */
 OCStringRef LabeledDimensionGetCoordinateLabelAtIndex(LabeledDimensionRef dim,
-                                                      OCIndex              index);
-
+                                                      OCIndex index);
 /**
  * @brief Set the label at a specific index.
  * @param dim      The LabeledDimension.
@@ -175,29 +153,25 @@ OCStringRef LabeledDimensionGetCoordinateLabelAtIndex(LabeledDimensionRef dim,
  * @return true on success.
  */
 bool LabeledDimensionSetCoordinateLabelAtIndex(LabeledDimensionRef dim,
-                                               OCIndex              index,
-                                               OCStringRef          label);
-
+                                               OCIndex index,
+                                               OCStringRef label);
 /**
  * @brief Dictionary serializer for LabeledDimension.
  */
 OCDictionaryRef LabeledDimensionCopyAsDictionary(LabeledDimensionRef dim);
-
 /**
  * @brief Recreate from a dictionary.
  */
 LabeledDimensionRef
 LabeledDimensionCreateFromDictionary(OCDictionaryRef dict,
-                                     OCStringRef    *outError);
-
+                                     OCStringRef *outError);
 /**
  * @brief Recreate from JSON.
  */
 LabeledDimensionRef
-LabeledDimensionCreateFromJSON(cJSON       *json,
+LabeledDimensionCreateFromJSON(cJSON *json,
                                OCStringRef *outError);
 /** @} */
-
 /*==============================================================================
   SIDimension (Quantitative SI)
 ==============================================================================*/
@@ -205,12 +179,10 @@ LabeledDimensionCreateFromJSON(cJSON       *json,
  * @name SIDimension
  * @{
  */
-
 /**
  * @brief Get the OCTypeID for SIDimension.
  */
 OCTypeID SIDimensionGetTypeID(void);
-
 /**
  * @brief Create an SI-quantitative dimension.
  * @param label        Name of the axis.
@@ -225,23 +197,42 @@ OCTypeID SIDimensionGetTypeID(void);
  * @param outError     On failure, receives a descriptive OCStringRef.
  * @return New SIDimensionRef, or NULL.
  */
-SIDimensionRef
-SIDimensionCreate(OCStringRef      label,
-                  OCStringRef      description,
-                  OCDictionaryRef  metadata,
-                  OCStringRef      quantityName,
-                  SIScalarRef      offset,
-                  SIScalarRef      origin,
-                  SIScalarRef      period,
-                  bool             periodic,
+SIDimensionRef SIDimensionCreate(OCStringRef label,
+                  OCStringRef description,
+                  OCDictionaryRef metadata,
+                  OCStringRef quantityName,
+                  SIScalarRef offset,
+                  SIScalarRef origin,
+                  SIScalarRef period,
+                  bool periodic,
                   dimensionScaling scaling,
-                  OCStringRef     *outError);
+                  OCStringRef *outError);
 
+/**
+ * @brief Create an SI-quantitative dimension with only quantityName set; all other params default.
+ *        label, description, metadata are NULL; offset, origin, period are NULL; periodic is false; scaling is kDimensionScalingNone.
+ * @param quantityName Name of the physical quantity (e.g. "time").
+ * @param outError     On failure, receives a descriptive OCStringRef.
+ * @return New SIDimensionRef, or NULL.
+ */
+static inline SIDimensionRef SIDimensionCreateWithQuantity(OCStringRef quantityName, OCStringRef *outError) {
+    return SIDimensionCreate(
+        NULL,         // label
+        NULL,         // description
+        NULL,         // metadata
+        quantityName, // quantityName
+        NULL,         // offset
+        NULL,         // origin
+        NULL,         // period
+        false,        // periodic
+        kDimensionScalingNone, // scaling
+        outError      // outError
+    );
+}
 /**
  * @brief Get the physical quantity name.
  */
 OCStringRef SIDimensionGetQuantityName(SIDimensionRef dim);
-
 /**
  * @brief Set the physical quantity name.
  * @param dim      The SIDimension.
@@ -250,14 +241,12 @@ OCStringRef SIDimensionGetQuantityName(SIDimensionRef dim);
  * @return true on success.
  */
 bool SIDimensionSetQuantityName(SIDimensionRef dim,
-                                OCStringRef   name,
-                                OCStringRef  *outError);
-
+                                OCStringRef name,
+                                OCStringRef *outError);
 /**
  * @brief Get offset.
  */
 SIScalarRef SIDimensionGetCoordinatesOffset(SIDimensionRef dim);
-
 /**
  * @brief Set offset.
  * @param dim      The SIDimension.
@@ -266,14 +255,12 @@ SIScalarRef SIDimensionGetCoordinatesOffset(SIDimensionRef dim);
  * @return true on success.
  */
 bool SIDimensionSetCoordinatesOffset(SIDimensionRef dim,
-                                     SIScalarRef    val,
-                                     OCStringRef   *outError);
-
+                                     SIScalarRef val,
+                                     OCStringRef *outError);
 /**
  * @brief Get origin.
  */
 SIScalarRef SIDimensionGetOriginOffset(SIDimensionRef dim);
-
 /**
  * @brief Set origin.
  * @param dim      The SIDimension.
@@ -282,14 +269,12 @@ SIScalarRef SIDimensionGetOriginOffset(SIDimensionRef dim);
  * @return true on success.
  */
 bool SIDimensionSetOriginOffset(SIDimensionRef dim,
-                                SIScalarRef    val,
-                                OCStringRef   *outError);
-
+                                SIScalarRef val,
+                                OCStringRef *outError);
 /**
  * @brief Get period.
  */
 SIScalarRef SIDimensionGetPeriod(SIDimensionRef dim);
-
 /**
  * @brief Set period.
  * @param dim      The SIDimension.
@@ -298,14 +283,12 @@ SIScalarRef SIDimensionGetPeriod(SIDimensionRef dim);
  * @return true on success.
  */
 bool SIDimensionSetPeriod(SIDimensionRef dim,
-                          SIScalarRef    val,
-                          OCStringRef   *outError);
-
+                          SIScalarRef val,
+                          OCStringRef *outError);
 /**
  * @brief Check if periodic.
  */
 bool SIDimensionIsPeriodic(SIDimensionRef dim);
-
 /**
  * @brief Mark periodic flag.
  * @param dim      The SIDimension.
@@ -314,14 +297,12 @@ bool SIDimensionIsPeriodic(SIDimensionRef dim);
  * @return true on success.
  */
 bool SIDimensionSetPeriodic(SIDimensionRef dim,
-                            bool           flag,
-                            OCStringRef   *outError);
-
+                            bool flag,
+                            OCStringRef *outError);
 /**
  * @brief Get scaling type.
  */
 dimensionScaling SIDimensionGetScaling(SIDimensionRef dim);
-
 /**
  * @brief Set scaling type.
  * @param dim      The SIDimension.
@@ -330,26 +311,22 @@ dimensionScaling SIDimensionGetScaling(SIDimensionRef dim);
  */
 bool SIDimensionSetScaling(SIDimensionRef dim,
                            dimensionScaling scaling);
-
 /**
  * @brief Dictionary serializer for SIDimension.
  */
 OCDictionaryRef SIDimensionCopyAsDictionary(SIDimensionRef dim);
-
 /**
  * @brief Recreate from a dictionary.
  */
 SIDimensionRef
 SIDimensionCreateFromDictionary(OCDictionaryRef dict,
-                                OCStringRef    *outError);
-
+                                OCStringRef *outError);
 /**
  * @brief Recreate from JSON.
  */
 SIDimensionRef
-SIDimensionCreateFromJSON(cJSON       *json,
+SIDimensionCreateFromJSON(cJSON *json,
                           OCStringRef *outError);
-
 /**
  * @brief Validate an SIDimension instance for internal consistency.
  * @param dim      The SIDimension to check.
@@ -357,9 +334,8 @@ SIDimensionCreateFromJSON(cJSON       *json,
  * @return true if the dimension is valid.
  */
 bool SIDimensionValidate(SIDimensionRef dim,
-                         OCStringRef   *outError);
+                         OCStringRef *outError);
 /** @} */
-
 /*==============================================================================
   SIMonotonicDimension
 ==============================================================================*/
@@ -367,12 +343,10 @@ bool SIDimensionValidate(SIDimensionRef dim,
  * @name SIMonotonicDimension
  * @{
  */
-
 /**
  * @brief Get OCTypeID for SIMonotonicDimension.
  */
 OCTypeID SIMonotonicDimensionGetTypeID(void);
-
 /**
  * @brief Create a monotonic (but not evenly-spaced) SI dimension.
  * @param label       Axis name.
@@ -390,24 +364,22 @@ OCTypeID SIMonotonicDimensionGetTypeID(void);
  * @return New SIMonotonicDimensionRef, or NULL.
  */
 SIMonotonicDimensionRef
-SIMonotonicDimensionCreate(OCStringRef        label,
-                           OCStringRef        description,
-                           OCDictionaryRef    metadata,
-                           OCStringRef        quantity,
-                           SIScalarRef        offset,
-                           SIScalarRef        origin,
-                           SIScalarRef        period,
-                           bool               periodic,
-                           dimensionScaling   scaling,
-                           OCArrayRef         coordinates,
-                           SIDimensionRef     reciprocal,
-                           OCStringRef       *outError);
-
+SIMonotonicDimensionCreate(OCStringRef label,
+                           OCStringRef description,
+                           OCDictionaryRef metadata,
+                           OCStringRef quantity,
+                           SIScalarRef offset,
+                           SIScalarRef origin,
+                           SIScalarRef period,
+                           bool periodic,
+                           dimensionScaling scaling,
+                           OCArrayRef coordinates,
+                           SIDimensionRef reciprocal,
+                           OCStringRef *outError);
 /**
  * @brief Get the coordinate array.
  */
 OCArrayRef SIMonotonicDimensionGetCoordinates(SIMonotonicDimensionRef dim);
-
 /**
  * @brief Replace the coordinate array.
  * @param dim    The SIMonotonicDimension.
@@ -415,13 +387,11 @@ OCArrayRef SIMonotonicDimensionGetCoordinates(SIMonotonicDimensionRef dim);
  * @return true on success.
  */
 bool SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim,
-                                        OCArrayRef               coords);
-
+                                        OCArrayRef coords);
 /**
  * @brief Get reciprocal dimension.
  */
 SIDimensionRef SIMonotonicDimensionGetReciprocal(SIMonotonicDimensionRef dim);
-
 /**
  * @brief Set reciprocal dimension.
  * @param dim      The SIMonotonicDimension.
@@ -430,29 +400,25 @@ SIDimensionRef SIMonotonicDimensionGetReciprocal(SIMonotonicDimensionRef dim);
  * @return true on success.
  */
 bool SIMonotonicDimensionSetReciprocal(SIMonotonicDimensionRef dim,
-                                        SIDimensionRef           rec,
-                                        OCStringRef             *outError);
-
+                                       SIDimensionRef rec,
+                                       OCStringRef *outError);
 /**
  * @brief Dictionary serializer for SIMonotonicDimension.
  */
 OCDictionaryRef SIMonotonicDimensionCopyAsDictionary(SIMonotonicDimensionRef dim);
-
 /**
  * @brief Recreate from a dictionary.
  */
 SIMonotonicDimensionRef
 SIMonotonicDimensionCreateFromDictionary(OCDictionaryRef dict,
-                                          OCStringRef    *outError);
-
+                                         OCStringRef *outError);
 /**
  * @brief Recreate from JSON.
  */
 SIMonotonicDimensionRef
-SIMonotonicDimensionCreateFromJSON(cJSON       *json,
+SIMonotonicDimensionCreateFromJSON(cJSON *json,
                                    OCStringRef *outError);
 /** @} */
-
 /*==============================================================================
   SILinearDimension
 ==============================================================================*/
@@ -460,12 +426,10 @@ SIMonotonicDimensionCreateFromJSON(cJSON       *json,
  * @name SILinearDimension
  * @{
  */
-
 /**
  * @brief Get OCTypeID for SILinearDimension.
  */
 OCTypeID SILinearDimensionGetTypeID(void);
-
 /**
  * @brief Create an evenly-spaced SI dimension.
  * @param label        Axis name.
@@ -485,26 +449,59 @@ OCTypeID SILinearDimensionGetTypeID(void);
  * @return New SILinearDimensionRef, or NULL.
  */
 SILinearDimensionRef
-SILinearDimensionCreate(OCStringRef        label,
-                        OCStringRef        description,
-                        OCDictionaryRef    metadata,
-                        OCStringRef        quantity,
-                        SIScalarRef        offset,
-                        SIScalarRef        origin,
-                        SIScalarRef        period,
-                        bool               periodic,
-                        dimensionScaling   scaling,
-                        OCIndex            count,
-                        SIScalarRef        increment,
-                        bool               fft,
-                        SIDimensionRef     reciprocal,
-                        OCStringRef       *outError);
+SILinearDimensionCreate(OCStringRef label,
+                        OCStringRef description,
+                        OCDictionaryRef metadata,
+                        OCStringRef quantity,
+                        SIScalarRef offset,
+                        SIScalarRef origin,
+                        SIScalarRef period,
+                        bool periodic,
+                        dimensionScaling scaling,
+                        OCIndex count,
+                        SIScalarRef increment,
+                        bool fft,
+                        SIDimensionRef reciprocal,
+                        OCStringRef *outError);
 
+/**
+ * @brief Create a minimal SILinearDimension with only quantity, increment, count, and reciprocal set.
+ *        All other parameters are set to NULL, false, or kDimensionScalingNone.
+ * @param quantity    Physical quantity name.
+ * @param count       Number of points (≥2).
+ * @param increment   SIScalar step between points.
+ * @param reciprocal  Reciprocal SIDimension.
+ * @param outError    On failure, receives a descriptive OCStringRef.
+ * @return New SILinearDimensionRef, or NULL.
+ */
+static inline SILinearDimensionRef SILinearDimensionCreateMinimal(
+    OCStringRef quantity,
+    OCIndex count,
+    SIScalarRef increment,
+    SIDimensionRef reciprocal,
+    OCStringRef *outError
+) {
+    return SILinearDimensionCreate(
+        NULL,         // label
+        NULL,         // description
+        NULL,         // metadata
+        quantity,     // quantity
+        NULL,         // offset
+        NULL,         // origin
+        NULL,         // period
+        false,        // periodic
+        kDimensionScalingNone, // scaling
+        count,        // count
+        increment,    // increment
+        false,        // fft
+        reciprocal,   // reciprocal
+        outError      // outError
+    );
+}
 /**
  * @brief Get the total point count.
  */
 OCIndex SILinearDimensionGetCount(SILinearDimensionRef dim);
-
 /**
  * @brief Set the total point count.
  * @param dim   The SILinearDimension.
@@ -512,13 +509,11 @@ OCIndex SILinearDimensionGetCount(SILinearDimensionRef dim);
  * @return true on success.
  */
 bool SILinearDimensionSetCount(SILinearDimensionRef dim,
-                               OCIndex               count);
-
+                               OCIndex count);
 /**
  * @brief Get the increment between points.
  */
 SIScalarRef SILinearDimensionGetIncrement(SILinearDimensionRef dim);
-
 /**
  * @brief Set the increment.
  * @param dim   The SILinearDimension.
@@ -526,18 +521,15 @@ SIScalarRef SILinearDimensionGetIncrement(SILinearDimensionRef dim);
  * @return true on success.
  */
 bool SILinearDimensionSetIncrement(SILinearDimensionRef dim,
-                                   SIScalarRef           inc);
-
+                                   SIScalarRef inc);
 /**
  * @brief Get reciprocal increment as SIScalar.
  */
 SIScalarRef SILinearDimensionGetReciprocalIncrement(SILinearDimensionRef dim);
-
 /**
  * @brief Check whether this is marked for FFT.
  */
 bool SILinearDimensionGetComplexFFT(SILinearDimensionRef dim);
-
 /**
  * @brief Mark/unmark FFT usage.
  * @param dim  The SILinearDimension.
@@ -545,13 +537,11 @@ bool SILinearDimensionGetComplexFFT(SILinearDimensionRef dim);
  * @return true on success.
  */
 bool SILinearDimensionSetComplexFFT(SILinearDimensionRef dim,
-                                    bool                  fft);
-
+                                    bool fft);
 /**
  * @brief Get the reciprocal SIDimension.
  */
 SIDimensionRef SILinearDimensionGetReciprocal(SILinearDimensionRef dim);
-
 /**
  * @brief Set the reciprocal SIDimension.
  * @param dim      The SILinearDimension.
@@ -560,33 +550,28 @@ SIDimensionRef SILinearDimensionGetReciprocal(SILinearDimensionRef dim);
  * @return true on success.
  */
 bool SILinearDimensionSetReciprocal(SILinearDimensionRef dim,
-                                    SIDimensionRef        rec,
-                                    OCStringRef          *outError);
-
+                                    SIDimensionRef rec,
+                                    OCStringRef *outError);
 /**
  * @brief Dictionary serializer for SILinearDimension.
  */
 OCDictionaryRef SILinearDimensionCopyAsDictionary(SILinearDimensionRef dim);
-
 /**
  * @brief Recreate from a dictionary.
  */
 SILinearDimensionRef
 SILinearDimensionCreateFromDictionary(OCDictionaryRef dict,
-                                      OCStringRef    *outError);
-
+                                      OCStringRef *outError);
 /**
  * @brief Recreate from JSON.
  */
 SILinearDimensionRef
-SILinearDimensionCreateFromJSON(cJSON       *json,
+SILinearDimensionCreateFromJSON(cJSON *json,
                                 OCStringRef *outError);
 /** @} */
-
 /*==============================================================================
   Utilities
 ==============================================================================*/
-
 /**
  * @brief Return a short string identifier for the runtime type of the dimension.
  *
@@ -595,7 +580,6 @@ SILinearDimensionCreateFromJSON(cJSON       *json,
  * @return Constant OCStringRef (do not release), or NULL if input is NULL.
  */
 OCStringRef DimensionGetType(DimensionRef dim);
-
 /**
  * @brief Serialize a Dimension (any subclass) to a dictionary.
  *
@@ -604,7 +588,6 @@ OCStringRef DimensionGetType(DimensionRef dim);
  * @return A new OCDictionaryRef, or NULL on error. Caller must release.
  */
 OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim);
-
 /**
  * @brief Reconstruct a Dimension from a dictionary representation.
  *
@@ -615,8 +598,7 @@ OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim);
  * @return New DimensionRef, or NULL on failure. Caller must release.
  */
 DimensionRef DimensionCreateFromDictionary(OCDictionaryRef dict,
-                                           OCStringRef    *outError);
-
+                                           OCStringRef *outError);
 /**
  * @brief Reconstruct a Dimension from a cJSON representation.
  *
@@ -625,9 +607,8 @@ DimensionRef DimensionCreateFromDictionary(OCDictionaryRef dict,
  * @param outError On failure, receives a descriptive OCStringRef.
  * @return New DimensionRef, or NULL on failure. Caller must release.
  */
-DimensionRef DimensionCreateFromJSON(cJSON       *json,
+DimensionRef DimensionCreateFromJSON(cJSON *json,
                                      OCStringRef *outError);
-
 /**
  * @brief Get the number of coordinate entries for any Dimension.
  *
@@ -640,7 +621,6 @@ DimensionRef DimensionCreateFromJSON(cJSON       *json,
  * @return Non-negative count, or 0 if invalid.
  */
 OCIndex DimensionGetCount(DimensionRef dim);
-
 /**
  * @brief Create a human-readable label for a specific coordinate index.
  *
@@ -650,11 +630,8 @@ OCIndex DimensionGetCount(DimensionRef dim);
  * @return New OCStringRef (caller must release), or NULL.
  */
 OCStringRef CreateDimensionLongLabel(DimensionRef dim, OCIndex index);
-
 /** @} */
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* DIMENSION_H */
