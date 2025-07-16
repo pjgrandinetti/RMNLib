@@ -25,7 +25,7 @@ static bool has_csdf_ext(const char *name) {
 }
 
 /// Attempt import of exactly one JSON (relpath) under test root.
-/// Prints exactly one line per file: either [ PASS] or [FAIL],
+/// Prints exactly one line per file: either [PASS] or [FAIL],
 /// and includes the failure message inline.
 static bool import_and_check(const char *root,
                              const char *relpath)
@@ -52,7 +52,7 @@ static bool import_and_check(const char *root,
             OCRelease(err);
             return false;
         } else {
-            printf("[ PASS] %-60s : correctly failed (%s)\n", relpath, errmsg);
+            printf("[PASS] %-60s : correctly failed (%s)\n", relpath, errmsg);
             OCRelease(err);
             return true;
         }
@@ -63,7 +63,7 @@ static bool import_and_check(const char *root,
             OCRelease(err);
             return false;
         } else {
-            printf("[ PASS] %-60s : import succeeded\n", relpath);
+            printf("[PASS] %-60s : import succeeded\n", relpath);
             OCRelease(ds);
             OCRelease(err);
             return true;
@@ -235,7 +235,7 @@ bool test_Dataset_import_and_roundtrip(void) {
                 OCRelease(err);
                 import_failed++;
             } else {
-                printf("[ PASS] %-60s : correctly failed to import illegal file (%s)\n",
+                printf("[PASS] %-60s : correctly failed to import illegal file (%s)\n",
                        n->rel, err ? OCStringGetCString(err) : "");
                 OCRelease(err);
             }
@@ -312,7 +312,7 @@ bool test_Dataset_import_and_roundtrip(void) {
 
         // (Optional) Compare ds and ds2 here
 
-        printf("[ PASS] %-60s : import + roundtrip succeeded\n", n->rel);
+        printf("[PASS] %-60s : import + roundtrip succeeded\n", n->rel);
         OCRelease(ds);
         OCRelease(ds2);
     }

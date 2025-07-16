@@ -19,7 +19,9 @@ extern "C" {
  * @param index Pointer to OCIndex for parsing state.
  * @return OCDictionaryRef with parsed JCAMP data.
  */
-OCDictionaryRef DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines, OCIndex *index);
+OCDictionaryRef DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
+                                            OCIndex      *indexOut,
+                                            OCStringRef  *error);
 
 /**
  * @brief Create a Dataset from JCAMP data contents.

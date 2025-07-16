@@ -25,9 +25,16 @@ target_include_directories(RMNLib PUBLIC
 )
 
 # Link libcurl into your library
-target_link_libraries(RMNLib PUBLIC
-    CURL::libcurl                       # ← the imported target for libcurl
-)
+if(APPLE)
+    target_link_libraries(RMNLib PUBLIC
+        CURL::libcurl
+        "-framework Accelerate"
+    )
+else()
+    target_link_libraries(RMNLib PUBLIC
+        CURL::libcurl
+    )
+endif()
 
 # Tests
 enable_testing()
@@ -45,12 +52,23 @@ target_include_directories(RMNLib_runTests PRIVATE
 )
 
 # Link the test binary against RMNLib, OCTypes, SITypes and curl
-target_link_libraries(RMNLib_runTests PRIVATE
-    RMNLib
-    OCTypes
-    SITypes
-    m
-    CURL::libcurl                       # ← make sure tests also link curl
-)
+if(APPLE)
+    target_link_libraries(RMNLib_runTests PRIVATE
+        RMNLib
+        OCTypes
+        SITypes
+        m
+        CURL::libcurl
+        "-framework Accelerate"
+    )
+else()
+    target_link_libraries(RMNLib_runTests PRIVATE
+        RMNLib
+        OCTypes
+        SITypes
+        m
+        CURL::libcurl
+    )
+endif()
 
 add_test(NAME RMNLib_runTests COMMAND RMNLib_runTests)
