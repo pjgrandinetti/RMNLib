@@ -7,7 +7,7 @@ extern "C" {
 #endif
 
 bool test_JCAMP_import_all(void);
-bool test_JCAMP_gh37cj(void);
+bool test_JCAMP_single_file(void);
 
 #ifdef __cplusplus
 }

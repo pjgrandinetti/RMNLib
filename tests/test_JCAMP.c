@@ -121,8 +121,8 @@ import_jcamp_and_check(const char *root, const char *relpath)
 }
 
 /// Test specifically the gh37cj.jdx file that had parsing issues
-bool test_JCAMP_gh37cj(void) {
-    printf("test_JCAMP_gh37cj...\n");
+bool test_JCAMP_single_file(void) {
+    printf("test_JCAMP_single_file...\n");
     
     // Get test root directory
     const char *root = getenv("JCAMP_TEST_ROOT");
@@ -130,9 +130,9 @@ bool test_JCAMP_gh37cj(void) {
         // Fallback to tests/JCAMP if env var not set
         root = "tests/JCAMP";
     }
-    
-    // Try to find gh37cj.jdx in the test directory
-    const char *test_file = "gh37cj.jdx";
+
+    // Try to find GC/guava.jdx in the test directory
+    const char *test_file = "GC/guava.jdx";
     char file_path[PATH_MAX];
     snprintf(file_path, sizeof(file_path), "%s/%s", root, test_file);
     
@@ -192,7 +192,7 @@ bool test_JCAMP_gh37cj(void) {
     OCRelease(ds);
     OCRelease(err);
     
-    printf("test_JCAMP_gh37cj passed.\n");
+    printf("test_JCAMP_single_file passed.\n");
     return true;
 }
 

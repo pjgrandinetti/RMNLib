@@ -73,7 +73,7 @@ int main(void) {
     }
     fprintf(stderr, "[INFO] JCAMP_TEST_ROOT = %s\n",
             getenv("JCAMP_TEST_ROOT"));
-    if (!test_JCAMP_gh37cj()) failures++;
+    if (!test_JCAMP_single_file()) failures++;
     // if (!test_JCAMP_import_all()) failures++;
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",

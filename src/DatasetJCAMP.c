@@ -560,114 +560,183 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         OCArrayRef splitLines = OCStringCreateArrayBySeparatingStrings(string, STR("\n"));
         OCMutableArrayRef dataLines = OCArrayCreateMutableCopy(splitLines);
         OCRelease(splitLines);
-        OCIndex i = 0;
-        for (OCIndex index = 1; index < OCArrayGetCount(dataLines); index++) {
-            OCStringRef originalLine = OCArrayGetValueAtIndex(dataLines, index);
-            
-            // Convert OCString to C string for efficient processing
-            OCIndex lineLength = OCStringGetLength(originalLine);
-            if (lineLength == 0) continue;
-            
-            // Allocate buffer for C string conversion
-            char* cStringBuffer = malloc(lineLength + 1);
-            if (!cStringBuffer) continue;
-            
-            // Convert to C string
-            const char* cString = OCStringGetCString(originalLine);
-            if (!cString) {
-                free(cStringBuffer);
-                continue;
-            }
-            
-            // Copy to our buffer
-            strncpy(cStringBuffer, cString, lineLength);
-            cStringBuffer[lineLength] = '\0';
-            
-            // Calculate maximum possible expanded size (worst case: every char becomes " -X")
-            size_t maxExpandedLen = lineLength * 4 + 1; // Conservative estimate
-            char* processedLine = malloc(maxExpandedLen);
-            if (!processedLine) {
-                free(cStringBuffer);
-                continue;
-            }
-            
-            char* dest = processedLine;
-            
-            // Single-pass character processing
-            for (size_t pos = 0; pos < lineLength; pos++) {
-                unsigned char c = cStringBuffer[pos];
-                
-                if (c == '+') {
-                    *dest++ = ' ';
-                } else if (c == '-') {
-                    *dest++ = ' ';
-                    *dest++ = '-';
-                } else if (jcamp_sqz_map[c]) {
-                    // SQZ format character
-                    const char* replacement = jcamp_sqz_map[c];
-                    while (*replacement) *dest++ = *replacement++;
-                    sqz = true;
-                } else if (jcamp_dif_map[c]) {
-                    // DIF format character  
-                    const char* replacement = jcamp_dif_map[c];
-                    while (*replacement) *dest++ = *replacement++;
-                    dif = true;
-                } else {
-                    // Regular character, copy as-is
-                    *dest++ = c;
-                }
-            }
-            *dest = '\0';
-            
-            free(cStringBuffer);
-            
-            // Create OCString from processed line and split into tokens
-            OCStringRef processedLineStr = OCStringCreateWithCString(processedLine);
-            free(processedLine);
-            
-            if (!processedLineStr) continue;
-            
-            OCMutableStringRef trimmedLine = OCStringCreateMutableCopy(processedLineStr);
-            OCStringTrimWhitespace(trimmedLine);
-            OCRelease(processedLineStr);
-            
-            OCArrayRef splitArray = OCStringCreateArrayBySeparatingStrings(trimmedLine, STR(" "));
-            OCRelease(trimmedLine);
-            
-            if (!splitArray) continue;
-            
-            // Create mutable copy to remove empty items
-            OCMutableArrayRef mutableSplitArray = OCArrayCreateMutableCopy(splitArray);
-            OCRelease(splitArray);
-            
-            for (OCIndex jndex = OCArrayGetCount(mutableSplitArray) - 1; jndex >= 0; jndex--) {
-                OCStringRef item = OCArrayGetValueAtIndex(mutableSplitArray, jndex);
-                if (OCStringGetLength(item) == 0) OCArrayRemoveValueAtIndex(mutableSplitArray, jndex);
-            }
-            for (OCIndex jndex = 0; jndex < OCArrayGetCount(mutableSplitArray); jndex++) {
-                OCMutableStringRef stringNumber = OCStringCreateMutableCopy(OCArrayGetValueAtIndex(mutableSplitArray, jndex));
-                int dup = 0;
-                if (OCStringFindAndReplace(stringNumber, STR("S"), STR(" "), OCRangeMake(0, OCStringGetLength(stringNumber)), 0)) dup = 1;
-                if (OCStringFindAndReplace(stringNumber, STR("T"), STR(" "), OCRangeMake(0, OCStringGetLength(stringNumber)), 0)) dup = 2;
-                if (OCStringFindAndReplace(stringNumber, STR("U"), STR(" "), OCRangeMake(0, OCStringGetLength(stringNumber)), 0)) dup = 3;
-                if (OCStringFindAndReplace(stringNumber, STR("V"), STR(" "), OCRangeMake(0, OCStringGetLength(stringNumber)), 0)) dup = 4;
-                if (OCStringFindAndReplace(stringNumber, STR("W"), STR(" "), OCRangeMake(0, OCStringGetLength(stringNumber)), 0)) dup = 5;
-                if (OCStringFindAndReplace(stringNumber, STR("X"), STR(" "), OCRangeMake(0, OCStringGetLength(stringNumber)), 0)) dup = 6;
-                if (OCStringFindAndReplace(stringNumber, STR("Y"), STR(" "), OCRangeMake(0, OCStringGetLength(stringNumber)), 0)) dup = 7;
-                if (OCStringFindAndReplace(stringNumber, STR("Z"), STR(" "), OCRangeMake(0, OCStringGetLength(stringNumber)), 0)) dup = 8;
-                if (OCStringFindAndReplace(stringNumber, STR("s"), STR(" "), OCRangeMake(0, OCStringGetLength(stringNumber)), 0)) dup = 9;
-                if (jndex > 0) {
-                    data[i] = creal(OCStringGetDoubleComplexValue(stringNumber));
-                    if (dif && jndex > 1) data[i] += data[i - 1];
-                    for (OCIndex kndex = 0; kndex < dup; kndex++) {
-                        i++;
-                        data[i] = data[i - 1];
+        
+        // Detect data format by examining the first data line
+        bool isCompressedFormat = false;
+        if (OCArrayGetCount(dataLines) > 1) {
+            OCStringRef firstDataLine = OCArrayGetValueAtIndex(dataLines, 1);
+            const char* firstLineStr = OCStringGetCString(firstDataLine);
+            if (firstLineStr) {
+                // Check for compressed format characters (SQZ/DIF)
+                for (size_t k = 0; firstLineStr[k] && k < 50; k++) {
+                    unsigned char c = firstLineStr[k];
+                    if (jcamp_sqz_map[c] || jcamp_dif_map[c]) {
+                        isCompressedFormat = true;
+                        break;
                     }
-                    i++;
                 }
-                OCRelease(stringNumber);
             }
-            OCRelease(mutableSplitArray);
+        }
+        
+        OCIndex i = 0;
+        
+        if (isCompressedFormat) {
+            // Use optimized compressed format parsing
+            for (OCIndex index = 1; index < OCArrayGetCount(dataLines); index++) {
+                OCStringRef originalLine = OCArrayGetValueAtIndex(dataLines, index);
+                
+                // Convert OCString to C string for efficient processing
+                const char* cString = OCStringGetCString(originalLine);
+                if (!cString) continue;
+                
+                OCIndex lineLength = strlen(cString);
+                if (lineLength == 0) continue;
+                
+                // Calculate maximum possible expanded size more efficiently
+                size_t maxExpandedLen = lineLength * 3 + 1; // More realistic estimate
+                char* processedLine = malloc(maxExpandedLen);
+                if (!processedLine) continue;
+                
+                char* dest = processedLine;
+                
+                // Single-pass character processing with bounds checking
+                for (size_t pos = 0; pos < lineLength && (dest - processedLine) < (maxExpandedLen - 3); pos++) {
+                    unsigned char c = cString[pos];
+                    
+                    if (c == '+') {
+                        *dest++ = ' ';
+                    } else if (c == '-') {
+                        *dest++ = ' ';
+                        *dest++ = '-';
+                    } else if (jcamp_sqz_map[c]) {
+                        // SQZ format character
+                        const char* replacement = jcamp_sqz_map[c];
+                        while (*replacement && (dest - processedLine) < (maxExpandedLen - 1)) {
+                            *dest++ = *replacement++;
+                        }
+                        sqz = true;
+                    } else if (jcamp_dif_map[c]) {
+                        // DIF format character  
+                        const char* replacement = jcamp_dif_map[c];
+                        while (*replacement && (dest - processedLine) < (maxExpandedLen - 1)) {
+                            *dest++ = *replacement++;
+                        }
+                        dif = true;
+                    } else {
+                        // Regular character, copy as-is
+                        *dest++ = c;
+                    }
+                }
+                *dest = '\0';
+                
+                // Create OCString from processed line and parse tokens more efficiently
+                OCStringRef processedLineStr = OCStringCreateWithCString(processedLine);
+                free(processedLine);
+                
+                if (!processedLineStr) continue;
+                
+                // Direct C string tokenization for better performance
+                const char* lineToProcess = OCStringGetCString(processedLineStr);
+                if (!lineToProcess) {
+                    OCRelease(processedLineStr);
+                    continue;
+                }
+                
+                // Simple whitespace tokenization
+                char* lineCopy = malloc(strlen(lineToProcess) + 1);
+                if (!lineCopy) {
+                    OCRelease(processedLineStr);
+                    continue;
+                }
+                strcpy(lineCopy, lineToProcess);
+                OCRelease(processedLineStr);
+                
+                // Parse tokens directly from C string
+                char* token = strtok(lineCopy, " \t\n\r");
+                int tokenIndex = 0;
+                
+                while (token != NULL && i < size) {
+                    if (tokenIndex > 0) { // Skip first token (x-value)
+                        // Fast duplication character lookup and in-place modification
+                        int dup = 0;
+                        size_t tokenLen = strlen(token);
+                        
+                        // Process in-place for better performance
+                        for (size_t k = 0; k < tokenLen; k++) {
+                            switch (token[k]) {
+                                case 'S': dup = 1; token[k] = ' '; break;
+                                case 'T': dup = 2; token[k] = ' '; break;
+                                case 'U': dup = 3; token[k] = ' '; break;
+                                case 'V': dup = 4; token[k] = ' '; break;
+                                case 'W': dup = 5; token[k] = ' '; break;
+                                case 'X': dup = 6; token[k] = ' '; break;
+                                case 'Y': dup = 7; token[k] = ' '; break;
+                                case 'Z': dup = 8; token[k] = ' '; break;
+                                case 's': dup = 9; token[k] = ' '; break;
+                            }
+                        }
+                        
+                        // Parse the number directly from modified token
+                        char* endPtr;
+                        double value = strtod(token, &endPtr);
+                        
+                        if (i < size) {
+                            data[i] = (float)value;
+                            if (dif && tokenIndex > 1 && i > 0) data[i] += data[i - 1];
+                            
+                            // Handle duplications efficiently with bounds checking
+                            for (int kndex = 0; kndex < dup && (i + kndex + 1) < size; kndex++) {
+                                data[i + kndex + 1] = data[i];
+                            }
+                            i += dup + 1;
+                        }
+                    }
+                    
+                    token = strtok(NULL, " \t\n\r");
+                    tokenIndex++;
+                }
+                
+                free(lineCopy);
+            }
+        } else {
+            // Use fast path for uncompressed numeric format
+            for (OCIndex index = 1; index < OCArrayGetCount(dataLines); index++) {
+                OCStringRef originalLine = OCArrayGetValueAtIndex(dataLines, index);
+                const char* lineStr = OCStringGetCString(originalLine);
+                if (!lineStr) continue;
+                
+                // Skip empty lines and leading whitespace
+                while (*lineStr && (*lineStr == ' ' || *lineStr == '\t')) lineStr++;
+                if (*lineStr == '\0') continue;
+                
+                // Ultra-fast parsing: scan for numbers directly
+                const char* ptr = lineStr;
+                int tokenIndex = 0;
+                
+                while (*ptr && i < size) {
+                    // Skip whitespace
+                    while (*ptr && (*ptr == ' ' || *ptr == '\t' || *ptr == '\n' || *ptr == '\r')) ptr++;
+                    if (!*ptr) break;
+                    
+                    // Parse number directly
+                    char* endPtr;
+                    double value = strtod(ptr, &endPtr);
+                    
+                    if (endPtr > ptr) { // Successfully parsed a number
+                        if (tokenIndex > 0) { // Skip first token (x-value)
+                            if (i < size) {
+                                data[i] = (float)value;
+                                i++;
+                            }
+                        }
+                        tokenIndex++;
+                        ptr = endPtr;
+                    } else {
+                        // Couldn't parse, skip character
+                        ptr++;
+                    }
+                }
+            }
         }
         OCRelease(dataLines);
     }
