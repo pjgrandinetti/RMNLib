@@ -8,6 +8,9 @@
 #include "RMNLibrary.h"
 #include <string.h>
 
+// Forward declaration for PEAK TABLE support
+static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dictionary, OCStringRef *error);
+
 // Return a new dictionary or NULL + error string on failure.
 OCDictionaryRef
 DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
@@ -203,11 +206,8 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
 
     OCStringRef key = STR("PEAK TABLE");
     if (OCDictionaryContainsKey(dictionary, key)) {
-        if (error) {
-            *error = STR("JCAMP Peak Table file is unsupported.");
-        }
-        OCRelease(dictionary);
-        return NULL;
+        // Handle PEAK TABLE format
+        return DatasetImportJCAMPCreatePeakTableDataset(dictionary, error);
     }
 
     // Read in JCAMP Core Header
@@ -904,5 +904,295 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     // Release the dictionary
     OCRelease(dictionary);
     
+    return theDataset;
+}
+
+// Implementation of PEAK TABLE dataset creation
+static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dictionary, OCStringRef *error) {
+    if (error) *error = NULL;
+    if (!dictionary) {
+        if (error) *error = STR("JCAMP Peak Table: dictionary is NULL");
+        return NULL;
+    }
+
+    // Extract metadata from JCAMP Core Header
+    OCMutableDictionaryRef jcampDatasetMetaData = OCDictionaryCreateMutable(0);
+    OCStringRef string = NULL;
+    OCStringRef key = NULL;
+
+    // Title
+    key = STR("TITLE");
+    OCStringRef title = NULL;
+    if (OCDictionaryContainsKey(dictionary, key)) {
+        string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
+        if (string) {
+            OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+            title = OCRetain(string);
+        }
+    }
+
+    // X and Y units
+    key = STR("XUNITS");
+    SIUnitRef xUnits = NULL;
+    OCStringRef quantityName = NULL;
+    if (OCDictionaryContainsKey(dictionary, key)) {
+        OCMutableStringRef string = OCStringCreateMutableCopy((OCStringRef)OCDictionaryGetValue(dictionary, key));
+        if (string) {
+            OCStringTrimWhitespace(string);
+            OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+            if (OCStringCompare(string, STR("m/z"), 0) == kOCCompareEqualTo || OCStringCompare(string, STR("M/Z"), 0) == kOCCompareEqualTo) {
+                double unit_multiplier = 1;
+                xUnits = SIUnitFromExpression(STR("Th"), &unit_multiplier, error);
+                quantityName = kSIQuantityMassToChargeRatio;
+            } else if (OCStringCompare(string, STR("HZ"), 0) == kOCCompareEqualTo) {
+                double unit_multiplier = 1;
+                xUnits = SIUnitFromExpression(STR("Hz"), &unit_multiplier, error);
+                quantityName = kSIQuantityFrequency;
+            } else if (OCStringCompare(string, STR("TIME"), 0) == kOCCompareEqualTo) {
+                double unit_multiplier = 1;
+                xUnits = SIUnitFromExpression(STR("min"), &unit_multiplier, error);
+                quantityName = kSIQuantityTime;
+            } else if (OCStringCompare(string, STR("SECONDS"), 0) == kOCCompareEqualTo) {
+                double unit_multiplier = 1;
+                xUnits = SIUnitFromExpression(STR("s"), &unit_multiplier, error);
+                quantityName = kSIQuantityTime;
+            } else if (OCStringCompare(string, STR("1/CM"), 0) == kOCCompareEqualTo) {
+                double unit_multiplier = 1;
+                xUnits = SIUnitFromExpression(STR("1/cm"), &unit_multiplier, error);
+                quantityName = kSIQuantityWavenumber;
+            } else if (OCStringCompare(string, STR("NANOMETERS"), 0) == kOCCompareEqualTo) {
+                double unit_multiplier = 1;
+                xUnits = SIUnitFromExpression(STR("nm"), &unit_multiplier, error);
+                quantityName = kSIQuantityLength;
+            } else if (OCStringCompare(string, STR("VOLUME"), 0) == kOCCompareEqualTo) {
+                double unit_multiplier = 1;
+                xUnits = SIUnitFromExpression(STR("mL"), &unit_multiplier, error);
+                quantityName = kSIQuantityVolume;
+            }
+            OCRelease(string);
+        }
+    }
+
+    // Fallback to dimensionless if no unit specified
+    if (xUnits == NULL) {
+        xUnits = SIUnitDimensionlessAndUnderived();
+    }
+    if (quantityName == NULL) {
+        quantityName = kSIQuantityDimensionless;
+    }
+
+    key = STR("YUNITS");
+    if (OCDictionaryContainsKey(dictionary, key)) {
+        string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
+        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+    }
+
+    // Parse PEAK TABLE data
+    key = STR("PEAK TABLE");
+    if (!OCDictionaryContainsKey(dictionary, key)) {
+        if (error) *error = STR("JCAMP Peak Table: missing PEAK TABLE data");
+        OCRelease(jcampDatasetMetaData);
+        if (title) OCRelease(title);
+        return NULL;
+    }
+
+    string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
+    if (!string) {
+        if (error) *error = STR("JCAMP Peak Table: PEAK TABLE value is NULL");
+        OCRelease(jcampDatasetMetaData);
+        if (title) OCRelease(title);
+        return NULL;
+    }
+
+    // Split the peak table data into lines
+    OCArrayRef splitLines = OCStringCreateArrayBySeparatingStrings(string, STR("\n"));
+    if (!splitLines) {
+        if (error) *error = STR("JCAMP Peak Table: failed to split PEAK TABLE data");
+        OCRelease(jcampDatasetMetaData);
+        if (title) OCRelease(title);
+        return NULL;
+    }
+
+    // Parse X,Y pairs from the peak table data
+    OCMutableArrayRef xCoordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    OCMutableArrayRef yValues = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+
+    for (OCIndex lineIndex = 0; lineIndex < OCArrayGetCount(splitLines); lineIndex++) {
+        OCStringRef line = (OCStringRef)OCArrayGetValueAtIndex(splitLines, lineIndex);
+        if (!line || OCStringGetLength(line) == 0) continue;
+
+        // Split by whitespace and parse X,Y pairs
+        OCArrayRef tokens = OCStringCreateArrayBySeparatingStrings(line, STR(" "));
+        if (!tokens) continue;
+
+        for (OCIndex tokenIndex = 0; tokenIndex < OCArrayGetCount(tokens); tokenIndex++) {
+            OCStringRef token = (OCStringRef)OCArrayGetValueAtIndex(tokens, tokenIndex);
+            if (!token || OCStringGetLength(token) == 0) continue;
+
+            // Split by comma to get X,Y pair
+            OCArrayRef xyPair = OCStringCreateArrayBySeparatingStrings(token, STR(","));
+            if (xyPair && OCArrayGetCount(xyPair) == 2) {
+                OCStringRef xStr = (OCStringRef)OCArrayGetValueAtIndex(xyPair, 0);
+                OCStringRef yStr = (OCStringRef)OCArrayGetValueAtIndex(xyPair, 1);
+
+                if (xStr && yStr) {
+                    // Parse X coordinate as SIScalar
+                    double xValue = creal(OCStringGetDoubleComplexValue(xStr));
+                    SIScalarRef xScalar = SIScalarCreateWithDouble(xValue, xUnits);
+                    if (xScalar) {
+                        OCArrayAppendValue(xCoordinates, xScalar);
+                        OCRelease(xScalar);
+                    }
+
+                    // Parse Y value as float
+                    float yValue = (float)creal(OCStringGetDoubleComplexValue(yStr));
+                    OCNumberRef yNumber = OCNumberCreateWithFloat(yValue);
+                    if (yNumber) {
+                        OCArrayAppendValue(yValues, yNumber);
+                        OCRelease(yNumber);
+                    }
+                }
+            }
+            if (xyPair) OCRelease(xyPair);
+        }
+        OCRelease(tokens);
+    }
+    OCRelease(splitLines);
+
+    // Validate we have data
+    OCIndex pointCount = OCArrayGetCount(xCoordinates);
+    if (pointCount == 0 || OCArrayGetCount(yValues) != pointCount) {
+        if (error) *error = STR("JCAMP Peak Table: no valid X,Y pairs found or mismatched counts");
+        OCRelease(xCoordinates);
+        OCRelease(yValues);
+        OCRelease(jcampDatasetMetaData);
+        if (title) OCRelease(title);
+        return NULL;
+    }
+
+    if (pointCount < 2) {
+        if (error) *error = STR("JCAMP Peak Table: need at least 2 data points for monotonic dimension");
+        OCRelease(xCoordinates);
+        OCRelease(yValues);
+        OCRelease(jcampDatasetMetaData);
+        if (title) OCRelease(title);
+        return NULL;
+    }
+
+    // Create SIMonotonicDimension from X coordinates
+    SIMonotonicDimensionRef xDimension = SIMonotonicDimensionCreate(
+        STR("Peak Table X"),    // label
+        NULL,                   // description
+        NULL,                   // metadata
+        quantityName,           // quantity
+        NULL,                   // offset (will be defaulted)
+        NULL,                   // origin (will be defaulted) 
+        NULL,                   // period
+        false,                  // periodic
+        kDimensionScalingNone,  // scaling
+        xCoordinates,           // coordinates
+        NULL,                   // reciprocal
+        error                   // outError
+    );
+
+    if (!xDimension) {
+        OCRelease(xCoordinates);
+        OCRelease(yValues);
+        OCRelease(jcampDatasetMetaData);
+        if (title) OCRelease(title);
+        return NULL;
+    }
+
+    // Convert Y values to float array for DependentVariable
+    float *yData = malloc(pointCount * sizeof(float));
+    if (!yData) {
+        if (error) *error = STR("JCAMP Peak Table: failed to allocate memory for Y data");
+        OCRelease(xDimension);
+        OCRelease(xCoordinates);
+        OCRelease(yValues);
+        OCRelease(jcampDatasetMetaData);
+        if (title) OCRelease(title);
+        return NULL;
+    }
+
+    for (OCIndex i = 0; i < pointCount; i++) {
+        OCNumberRef yNumber = (OCNumberRef)OCArrayGetValueAtIndex(yValues, i);
+        float value = 0.0f;
+        OCNumberTryGetFloat(yNumber, &value);
+        yData[i] = value;
+    }
+
+    // Create Dataset with monotonic dimension
+    OCMutableArrayRef dimensions = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    OCArrayAppendValue(dimensions, xDimension);
+
+    DatasetRef theDataset = DatasetCreateEmpty(error);
+    if (!theDataset) {
+        free(yData);
+        OCRelease(xDimension);
+        OCRelease(dimensions);
+        OCRelease(xCoordinates);
+        OCRelease(yValues);
+        OCRelease(jcampDatasetMetaData);
+        if (title) OCRelease(title);
+        return NULL;
+    }
+
+    DatasetSetDimensions(theDataset, dimensions);
+
+    // Create DependentVariable from Y values
+    OCDataRef yDataRef = OCDataCreate((const uint8_t *)yData, pointCount * sizeof(float));
+    DependentVariableRef theDependentVariable = DatasetAddEmptyDependentVariable(theDataset, STR("intensity"), kOCNumberFloat32Type, -1);
+    DependentVariableSetComponentAtIndex(theDependentVariable, yDataRef, 0);
+
+    // Set Y units/labels based on YUNITS
+    OCStringRef yUnits = OCDictionaryGetValue(jcampDatasetMetaData, STR("YUNITS"));
+    if (yUnits) {
+        if (OCStringCompare(yUnits, STR("relative abundance"), kOCCompareCaseInsensitive) == kOCCompareEqualTo) {
+            DependentVariableSetQuantityName(theDependentVariable, kSIQuantityDimensionless);
+            DependentVariableSetComponentLabelAtIndex(theDependentVariable, STR("Relative Abundance"), 0);
+        } else if (OCStringCompare(yUnits, STR("TRANSMITTANCE"), 0) == kOCCompareEqualTo) {
+            DependentVariableSetQuantityName(theDependentVariable, kSIQuantityDimensionless);
+            DependentVariableSetComponentLabelAtIndex(theDependentVariable, STR("Transmittance"), 0);
+        } else if (OCStringCompare(yUnits, STR("ABSORBANCE"), 0) == kOCCompareEqualTo) {
+            DependentVariableSetQuantityName(theDependentVariable, kSIQuantityDimensionless);
+            DependentVariableSetComponentLabelAtIndex(theDependentVariable, STR("Absorbance"), 0);
+        } else {
+            DependentVariableSetComponentLabelAtIndex(theDependentVariable, yUnits, 0);
+        }
+    }
+
+    // Set dataset metadata
+    DatasetSetMetaData(theDataset, jcampDatasetMetaData);
+    DatasetSetTitle(theDataset, title);
+
+    // Copy additional metadata fields from dictionary to dataset metadata
+    OCStringRef metadataKeys[] = {
+        STR("JCAMP-DX"), STR("DATA TYPE"), STR("DATA CLASS"), STR("ORIGIN"), STR("OWNER"),
+        STR("DATE"), STR("TIME"), STR("SPECTROMETER/DATA SYSTEM"), STR("INSTRUMENTAL PARAMETERS"),
+        STR("SAMPLING PROCEDURE"), STR("COMMENT"), STR("NPOINTS"), STR("FIRSTX"), STR("LASTX"),
+        STR("FIRSTY"), STR("XFACTOR"), STR("YFACTOR")
+    };
+    OCIndex metadataKeyCount = sizeof(metadataKeys) / sizeof(metadataKeys[0]);
+    
+    for (OCIndex i = 0; i < metadataKeyCount; i++) {
+        if (OCDictionaryContainsKey(dictionary, metadataKeys[i])) {
+            OCStringRef value = (OCStringRef)OCDictionaryGetValue(dictionary, metadataKeys[i]);
+            if (value) {
+                OCDictionaryAddValue(jcampDatasetMetaData, metadataKeys[i], value);
+            }
+        }
+    }
+
+    // Cleanup
+    free(yData);
+    OCRelease(yDataRef);
+    OCRelease(xDimension);
+    OCRelease(dimensions);
+    OCRelease(xCoordinates);
+    OCRelease(yValues);
+    OCRelease(jcampDatasetMetaData);
+    if (title) OCRelease(title);
+
     return theDataset;
 }
