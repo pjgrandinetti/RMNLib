@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include "RMNLibrary.h"
 #include "test_CSDM.h"
 #include "test_JCAMP.h"
@@ -14,6 +16,29 @@
 #include "test_Dimension.h"
 #include "test_SparseSampling.h"
 #include "test_utils.h"
+
+// Cross-platform setenv function
+static int cross_platform_setenv(const char *name, const char *value, int overwrite) {
+#ifdef _WIN32
+    // Windows implementation
+    if (!overwrite && getenv(name)) {
+        return 0;  // Don't overwrite existing value
+    }
+    size_t len = strlen(name) + strlen(value) + 2;  // +2 for '=' and '\0'
+    char *env_str = malloc(len);
+    if (!env_str) return -1;
+    strcpy(env_str, name);
+    strcat(env_str, "=");
+    strcat(env_str, value);
+    int result = putenv(env_str);
+    // Note: We don't free env_str because putenv on Windows requires it to remain valid
+    return result;
+#else
+    // Unix/Linux implementation
+    return setenv(name, value, overwrite);
+#endif
+}
+
 int main(void) {
     int failures = 0;
     printf("\n=== Running Datum Tests ===\n");
@@ -57,7 +82,7 @@ int main(void) {
     if (!test_Dataset_copy_and_roundtrip()) failures++;
     fprintf(stderr, "\n=== Running CSDM Tests ===\n");
     if (!getenv("CSDM_TEST_ROOT")) {
-        setenv("CSDM_TEST_ROOT",
+        cross_platform_setenv("CSDM_TEST_ROOT",
                "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/CSDM-TestFiles-1.0",
                1);
         fprintf(stderr, "[INFO] Defaulted CSDM_TEST_ROOT to hardcoded path.\n");
@@ -68,7 +93,7 @@ int main(void) {
 
     fprintf(stderr, "\n=== Running JCAMP Tests ===\n");
     if (!getenv("JCAMP_TEST_ROOT")) {
-        setenv("JCAMP_TEST_ROOT",
+        cross_platform_setenv("JCAMP_TEST_ROOT",
                "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/JCAMP",
                1);
         fprintf(stderr, "[INFO] Defaulted JCAMP_TEST_ROOT to hardcoded path.\n");
@@ -80,7 +105,7 @@ int main(void) {
 
     fprintf(stderr, "\n=== Running Image Tests ===\n");
     if (!getenv("IMAGE_TEST_ROOT")) {
-        setenv("IMAGE_TEST_ROOT",
+        cross_platform_setenv("IMAGE_TEST_ROOT",
                "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/Images",
                1);
         fprintf(stderr, "[INFO] Defaulted IMAGE_TEST_ROOT to hardcoded path.\n");
@@ -97,7 +122,7 @@ int main(void) {
 
     fprintf(stderr, "\n=== Running Tecmag Tests ===\n");
     if (!getenv("TECMAG_TEST_ROOT")) {
-        setenv("TECMAG_TEST_ROOT",
+        cross_platform_setenv("TECMAG_TEST_ROOT",
                "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/Tecmag",
                1);
         fprintf(stderr, "[INFO] Defaulted TECMAG_TEST_ROOT to hardcoded path.\n");
