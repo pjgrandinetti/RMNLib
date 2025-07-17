@@ -7,7 +7,7 @@
 #ifndef DATASET_TECMAG_H
 #define DATASET_TECMAG_H
 
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 
 #ifdef __cplusplus
 extern "C" {

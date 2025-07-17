@@ -5,7 +5,7 @@
 //  Created by Philip J. Grandinetti on 2/21/14.
 //  Copyright (c) 2014 PhySy. All rights reserved.
 //
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 #include <string.h>
 
 // Forward declaration for PEAK TABLE support

@@ -59,21 +59,28 @@ typedef struct impl_SILinearDimension *SILinearDimensionRef;
 typedef struct impl_Dataset *DatasetRef;
 /** @endcond */
 #define DependentVariableComponentsFileName STR("dependent_variable-%ld.data")
-// Local module headers
-#include "Dataset.h"
-#include "Datum.h"
-#include "DependentVariable.h"
-#include "Dimension.h"
-#include "GeographicCoordinate.h"
-#include "RMNGridUtils.h"
-#include "SparseSampling.h"
+
+// Core module headers
+#include "core/Dataset.h"
+#include "core/Datum.h"
+#include "core/DependentVariable.h"
+#include "core/Dimension.h"
+#include "core/GeographicCoordinate.h"
+#include "core/SparseSampling.h"
+
+// Utility headers
+#include "utils/RMNGridUtils.h"
+
+// Import/Export headers
+#include "importers/DatasetJCAMP.h"
+#include "importers/DatasetTecmag.h"
+#include "importers/DatasetImage.h"
+
+// Spectroscopy headers
+#include "spectroscopy/NMRSpectroscopy.h"
+
+// JSON metadata functions
 cJSON *OCMetadataCopyJSON(OCDictionaryRef dict);
 OCDictionaryRef OCMetadataCreateFromJSON(cJSON *json, OCStringRef *outError);
 void RMNLibTypesShutdown(void);
-
-#include "DatasetJCAMP.h"
-#include "DatasetTecmag.h"
-#include "DatasetImage.h"
-// Specialized Fields
-#include "NMRSpectroscopy.h"
 #endif /* RMNLIBRARY_H */

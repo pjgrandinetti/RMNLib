@@ -1,7 +1,7 @@
 #pragma once
 #ifndef DIMENSION_H
 #define DIMENSION_H
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 #include "cJSON.h"
 #ifdef __cplusplus
 extern "C" {

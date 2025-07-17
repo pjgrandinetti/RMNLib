@@ -8,7 +8,7 @@
 #ifndef DATASET_IMAGE_H
 #define DATASET_IMAGE_H
 
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 
 #ifdef __cplusplus
 extern "C" {

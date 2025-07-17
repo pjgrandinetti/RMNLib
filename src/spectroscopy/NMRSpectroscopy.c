@@ -1,4 +1,4 @@
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 
 void NMRDimensionSetDimensionless(DimensionRef dim) {
     OCMutableDictionaryRef metaData = DimensionGetMetadata(dim);

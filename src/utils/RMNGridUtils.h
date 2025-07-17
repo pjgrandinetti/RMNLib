@@ -1,7 +1,7 @@
 // RMNGridUtils.h
 #ifndef RMNGRIDUTILS_H
 #define RMNGRIDUTILS_H
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

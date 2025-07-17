@@ -1,5 +1,5 @@
 /* SparseSampling OCType implementation */
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // SparseSampling dictionary keys
 #define kSparseSamplingDimensionIndexesKey "dimension_indexes"

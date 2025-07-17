@@ -7,7 +7,7 @@
 #ifndef DATASET_JCAMP_H
 #define DATASET_JCAMP_H
 
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,4 +1,4 @@
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 
 // Dictionary keys
 #define kGeoCoordLatitudeKey        "latitude"

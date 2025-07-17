@@ -9,7 +9,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 #if defined(_WIN32)
 #include <direct.h>
 #define MKDIR(path) _mkdir(path)

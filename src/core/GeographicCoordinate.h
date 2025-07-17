@@ -1,6 +1,6 @@
 #ifndef GEOGRAPHIC_COORDINATE_H
 #define GEOGRAPHIC_COORDINATE_H
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

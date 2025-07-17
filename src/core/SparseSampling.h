@@ -53,7 +53,7 @@
  */
 #ifndef SPARSE_SAMPLING_H
 #define SPARSE_SAMPLING_H
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -11,7 +11,7 @@
 // (5)  SIMonotonicDimension
 // (6)  SILinearDimension
 // ============================================================================
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 #pragma region Dimension
 // ============================================================================
 // MARK: - (1) Dimension (Abstract Base)

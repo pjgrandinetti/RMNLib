@@ -1,4 +1,4 @@
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 #include "cJSON.h"
 
 #define kDatumCoordinatesKey "coordinates"

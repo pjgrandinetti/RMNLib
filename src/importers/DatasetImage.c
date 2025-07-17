@@ -6,14 +6,14 @@
 //  Translated to OCTypes/SITypes/RMNLib APIs for cross-platform compatibility
 //
 
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 #include <string.h>
 #include <stdlib.h>
 
 // We'll use stb_image for cross-platform image loading
 #ifdef STB_IMAGE_AVAILABLE
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "../third_party/stb_image.h"
 #endif
 
 // Forward declarations for helper functions

@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <complex.h>
 #include <math.h>
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 
 #pragma pack(push)  /* push current alignment to stack */
 #pragma pack(1)     /* set alignment to 1 byte boundary */

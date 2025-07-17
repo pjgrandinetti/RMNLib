@@ -1,3 +1,3 @@
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 
 void NMRDimensionSetDimensionless(DimensionRef dim);

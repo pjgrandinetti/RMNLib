@@ -36,10 +36,12 @@ OCT_LIBDIR  := $(TP_LIB_DIR)
 SIT_LIBDIR  := $(TP_LIB_DIR)
 
 # All required directories
-REQUIRED_DIRS := $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(LIB_DIR) $(THIRD_PARTY_DIR)
+REQUIRED_DIRS := $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(LIB_DIR) $(THIRD_PARTY_DIR) \
+                 $(OBJ_DIR)/core $(OBJ_DIR)/importers $(OBJ_DIR)/spectroscopy $(OBJ_DIR)/utils
 
 # Flags
-CPPFLAGS := -I. -I$(SRC_DIR) -I$(TEST_SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
+CPPFLAGS := -I. -I$(SRC_DIR) -I$(SRC_DIR)/core -I$(SRC_DIR)/importers -I$(SRC_DIR)/spectroscopy \
+            -I$(SRC_DIR)/utils -I$(SRC_DIR)/third_party -I$(TEST_SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
 CFLAGS   := -O3 -Wall -Wextra \
              -Wno-sign-compare -Wno-unused-parameter \
              -Wno-missing-field-initializers -Wno-unused-function \
@@ -103,8 +105,14 @@ dirs: $(REQUIRED_DIRS)
 $(REQUIRED_DIRS):
 	$(MKDIR_P) $@
 
-# Define object files
-STATIC_SRC := $(wildcard $(SRC_DIR)/*.c)
+# Define object files - collect from all subdirectories
+STATIC_SRC := $(wildcard $(SRC_DIR)/*.c) \
+              $(wildcard $(SRC_DIR)/core/*.c) \
+              $(wildcard $(SRC_DIR)/importers/*.c) \
+              $(wildcard $(SRC_DIR)/spectroscopy/*.c) \
+              $(wildcard $(SRC_DIR)/utils/*.c)
+
+# Map all source files to object files, preserving directory structure
 OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(STATIC_SRC))
 
 # Download and extract OCTypes
@@ -215,8 +223,21 @@ TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(TEST_SRC))
 $(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs octypes sitypes
 	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
 
-# 2) THEN: compile src/*.c
+# 2) THEN: compile src/*.c and all subdirectories
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs octypes sitypes
+	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
+
+# Subdirectory compilation rules
+$(OBJ_DIR)/core/%.o: $(SRC_DIR)/core/%.c | dirs octypes sitypes
+	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
+
+$(OBJ_DIR)/importers/%.o: $(SRC_DIR)/importers/%.c | dirs octypes sitypes
+	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
+
+$(OBJ_DIR)/spectroscopy/%.o: $(SRC_DIR)/spectroscopy/%.c | dirs octypes sitypes
+	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
+
+$(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c | dirs octypes sitypes
 	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
 
 # Test binary

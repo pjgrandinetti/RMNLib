@@ -1,7 +1,7 @@
 #ifndef DATUM_H
 #define DATUM_H
 
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 #include "cJSON.h"
 
 #ifdef __cplusplus

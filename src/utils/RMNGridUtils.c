@@ -1,5 +1,5 @@
 // RMNDUtilities.c
-#include "RMNLibrary.h"
+#include "../RMNLibrary.h"
 OCIndex RMNCalculateSizeFromDimensions(OCArrayRef dimensions) {
     OCIndex size = 1;
     if (!dimensions) return size;

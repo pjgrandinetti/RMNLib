@@ -5,9 +5,13 @@ set(CMAKE_C_STANDARD 11)
 # ---- Find and include libcurl ----
 find_package(CURL REQUIRED)
 
-# All hand-written sources
+# All hand-written sources - collect from all subdirectories
 file(GLOB ALL_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/importers/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/spectroscopy/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.c"
 )
 
 # Build the static library
@@ -16,6 +20,11 @@ add_library(RMNLib STATIC ${ALL_SOURCES})
 # Include RMNLib sources, OCTypes + SITypes headers, and generated binaries
 target_include_directories(RMNLib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/importers
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/spectroscopy
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/third_party
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}/OCTypes/src
     ${CMAKE_BINARY_DIR}/OCTypes
@@ -44,6 +53,11 @@ add_executable(RMNLib_runTests ${TEST_SOURCES})
 # Tests executable include paths
 target_include_directories(RMNLib_runTests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/importers
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/spectroscopy
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/third_party
     ${CMAKE_SOURCE_DIR}/OCTypes/src
     ${CMAKE_BINARY_DIR}/OCTypes
     ${CMAKE_SOURCE_DIR}/SITypes/src
