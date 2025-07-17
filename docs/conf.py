@@ -5,6 +5,9 @@
 import os
 import sys
 
+# Check if we're building on Read the Docs
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+
 # If your extensions (or modules to document with autodoc) are in
 # the project root, add that directory to sys.path here:
 #    sys.path.insert(0, os.path.abspath('..'))
@@ -14,9 +17,9 @@ import sys
 project = 'RMNLib'
 author = 'Philip J. Grandinetti'
 # The full version, including alpha/beta/rc tags
-release = '0.1.0'
+release = '0.1.0-alpha (DEVELOPMENT - NOT FOR USE)'
 # The short X.Y version
-version = release
+version = '0.1.0-alpha'
 
 # -- General configuration ---------------------------------------------------
 

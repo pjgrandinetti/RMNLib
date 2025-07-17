@@ -1,9 +1,21 @@
 # RMNLib
 
+> **🚧 DEVELOPMENT STATUS: ALPHA - NOT READY FOR USE 🚧**
+> 
+> **⚠️ WARNING: This project is in early development and is NOT suitable for production use.**
+> 
+> - API is unstable and subject to major changes
+> - Many features are incomplete or untested
+> - Documentation may be outdated or incorrect
+> - Breaking changes will occur without notice
+> - **DO NOT USE** in any production environment
+> 
+> This repository is shared for development purposes only. Check back later for stable releases.
+
 ![CI Status](https://github.com/pjgrandinetti/RMNLib/actions/workflows/ci.yml/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/RMN/badge/?version=latest)](https://RMN.readthedocs.io/en/latest/?badge=latest)
 
-> **⚠️ Development Status**: RMNLib is currently under active development and is not ready for production use. APIs may change without notice and functionality may be incomplete.
+---
 
 A library for multi-dimensional signal processing.
 
