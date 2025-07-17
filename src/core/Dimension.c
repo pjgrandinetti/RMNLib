@@ -2527,6 +2527,37 @@ SILinearDimensionRef SILinearDimensionCreate(
     SIDimensionRef reciprocal,
     OCStringRef *outError)
 {
+    /*
+     * NULL INPUT HANDLING:
+     * 
+     * REQUIRED (must not be NULL):
+     * - increment: Must be a real-valued SIScalar. Used to derive base unit and dimensionality.
+     * - count: Primitive type, cannot be NULL (must be ≥2).
+     * 
+     * OPTIONAL (can be NULL, function provides defaults):
+     * - label: NULL → no label set
+     * - description: NULL → no description set  
+     * - metadata: NULL → no metadata set
+     * - quantityName: NULL → derived from increment's dimensionality
+     * - offset: NULL → creates zero scalar in increment's unit via impl_validateOrDefaultScalar
+     * - origin: NULL → creates zero scalar in increment's unit via impl_validateOrDefaultScalar
+     * - period: NULL → creates zero scalar in increment's unit via impl_validateOrDefaultScalar
+     * - reciprocal: NULL → no reciprocal dimension set
+     * - outError: NULL → errors are silently released instead of returned
+     * 
+     * PRIMITIVE TYPES (cannot be NULL):
+     * - periodic: boolean primitive
+     * - scaling: enum primitive  
+     * - fft: boolean primitive
+     * 
+     * KEY BEHAVIOR:
+     * The function tracks which scalar parameters were originally NULL so it can properly
+     * clean up temporary scalars created by impl_validateOrDefaultScalar. After validation,
+     * offset, origin, and period are guaranteed to be non-NULL and are deep-copied into
+     * the dimension structure. The temporary scalars are then released if they were
+     * created by this function (not provided by the caller).
+     */
+    
     if (outError) *outError = NULL;
     OCStringRef err = NULL;
 
