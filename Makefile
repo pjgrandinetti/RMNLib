@@ -56,7 +56,7 @@ ifeq ($(UNAME_S),Darwin)
 else ifeq ($(UNAME_S),Linux)
   BLAS_LDFLAGS := -lopenblas -llapacke
 else ifneq ($(findstring MINGW,$(UNAME_S)),)
-  BLAS_LDFLAGS := -lopenblas -llapacke
+  BLAS_LDFLAGS := -lopenblas -lm
   # OpenBLAS headers on MSYS2 live under /mingw64/include/openblas
   CPPFLAGS     += -I/mingw64/include/openblas
 endif
