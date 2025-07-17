@@ -73,6 +73,7 @@ void RMNLibTypesShutdown(void);
 
 #include "DatasetJCAMP.h"
 #include "DatasetTecmag.h"
+#include "DatasetImage.h"
 // Specialized Fields
 #include "NMRSpectroscopy.h"
 #endif /* RMNLIBRARY_H */

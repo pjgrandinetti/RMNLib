@@ -43,7 +43,7 @@ CPPFLAGS := -I. -I$(SRC_DIR) -I$(TEST_SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
 CFLAGS   := -O3 -Wall -Wextra \
              -Wno-sign-compare -Wno-unused-parameter \
              -Wno-missing-field-initializers -Wno-unused-function \
-             -MMD -MP
+             -MMD -MP -DSTB_IMAGE_AVAILABLE
 CFLAGS_DEBUG := -O0 -g -Wall -Wextra -Werror -MMD -MP
 
 # Detect OS for BLAS/LAPACK and macOS deprecation silence

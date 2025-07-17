@@ -38,6 +38,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Download stb_image.h for cross-platform image support
+        run: |
+          curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+
       # ARM64 builds via QEMU + Docker
       - name: Set up QEMU emulation
         if: matrix.arch == 'arm64'
@@ -53,6 +57,7 @@ jobs:
           docker run --rm --platform=linux/arm64 \
             -v ${{ github.workspace }}:/src -w /src ubuntu:22.04 bash -lc "\
               apt-get update && apt-get install -y curl clang make flex bison unzip libcurl4-openssl-dev libopenblas-dev liblapacke-dev && \
+              curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h && \
               make clean && make all && make test && \
               cp build/lib/libRMNLib.a libRMN.a"
 
@@ -100,11 +105,12 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
+          curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
           make clean
           make CC=gcc \
                CFLAGS="-std=c99 -I. -Isrc -O3 -Wall -Wextra \
                        -Wno-sign-compare -Wno-unused-parameter \
-                       -Wno-missing-field-initializers" \
+                       -Wno-missing-field-initializers -DSTB_IMAGE_AVAILABLE" \
                LEX=flex YACC="bison -y"
           cp build/lib/libRMNLib.a libRMN.a
 

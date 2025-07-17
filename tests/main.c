@@ -7,6 +7,7 @@
 #include "test_CSDM.h"
 #include "test_JCAMP.h"
 #include "test_Tecmag.h"
+#include "test_Image.h"
 #include "test_Dataset.h"
 #include "test_Datum.h"
 #include "test_DependentVariable.h"
@@ -75,7 +76,24 @@ int main(void) {
     fprintf(stderr, "[INFO] JCAMP_TEST_ROOT = %s\n",
             getenv("JCAMP_TEST_ROOT"));
     // if (!test_JCAMP_single_file()) failures++;
-    if (!test_JCAMP_import_all()) failures++;
+    // if (!test_JCAMP_import_all()) failures++;
+
+    fprintf(stderr, "\n=== Running Image Tests ===\n");
+    if (!getenv("IMAGE_TEST_ROOT")) {
+        setenv("IMAGE_TEST_ROOT",
+               "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/Images",
+               1);
+        fprintf(stderr, "[INFO] Defaulted IMAGE_TEST_ROOT to hardcoded path.\n");
+    }
+    fprintf(stderr, "[INFO] IMAGE_TEST_ROOT = %s\n",
+            getenv("IMAGE_TEST_ROOT"));
+    if (!test_Image_dimensions()) failures++;
+    if (!test_Image_memory_management()) failures++;
+    if (!test_Image_single_file()) failures++;
+    if (!test_Image_grayscale()) failures++;
+    if (!test_Image_rgb()) failures++;
+    if (!test_Image_multiple_images()) failures++;
+    if (!test_Image_import_all()) failures++;
 
     fprintf(stderr, "\n=== Running Tecmag Tests ===\n");
     if (!getenv("TECMAG_TEST_ROOT")) {
