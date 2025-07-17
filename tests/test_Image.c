@@ -259,10 +259,10 @@ bool test_Image_single_file(void) {
     // Validate dataset structure
     bool valid = true;
 
-    // Check that we have at least 2 dimensions (width, height)
+    // Check that we have exactly 1 dimension (single linear dimension for pixels)
     OCMutableArrayRef dimensions = DatasetGetDimensions(dataset);
-    if (OCArrayGetCount(dimensions) < 2) {
-        fprintf(stderr, "Dataset should have at least 2 dimensions\n");
+    if (OCArrayGetCount(dimensions) != 1) {
+        fprintf(stderr, "Dataset should have exactly 1 dimension (linear pixel dimension)\n");
         valid = false;
     }
     // Note: DatasetGetDimensions returns a non-retained reference, so no OCRelease needed
@@ -466,17 +466,12 @@ bool test_Image_multiple_images(void) {
         return true; // Not a failure if format not supported
     }
 
-    // Check dimensions - should have 3 dimensions if multiple images (width, height, time)
+    // Check dimensions - should have 1 dimension regardless of number of images (flattened pixel array)
     OCMutableArrayRef dimensions = DatasetGetDimensions(dataset);
     bool valid = true;
     
-    if (fileCount > 1) {
-        // Should have 3 dimensions for time series
-        valid = (OCArrayGetCount(dimensions) == 3);
-    } else {
-        // Should have 2 dimensions for single image
-        valid = (OCArrayGetCount(dimensions) == 2);
-    }
+    // Should always have 1 dimension for our current implementation
+    valid = (OCArrayGetCount(dimensions) == 1);
     // Note: DatasetGetDimensions returns a non-retained reference, so no OCRelease needed
     OCRelease(dataset);
     return valid;
@@ -508,7 +503,7 @@ bool test_Image_dimensions(void) {
     
     // If we somehow got a dataset, validate its structure
     OCMutableArrayRef dimensions = DatasetGetDimensions(dataset);
-    bool valid = (OCArrayGetCount(dimensions) >= 2);
+    bool valid = (OCArrayGetCount(dimensions) == 1); // Should have 1 dimension for our implementation
     // Note: DatasetGetDimensions returns a non-retained reference, so no OCRelease needed
     OCRelease(dataset);
     return valid;

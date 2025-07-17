@@ -64,7 +64,7 @@ int main(void) {
     }
     fprintf(stderr, "[INFO] CSDM_TEST_ROOT = %s\n",
             getenv("CSDM_TEST_ROOT"));
-    // if (!test_Dataset_import_and_roundtrip()) failures++;
+    if (!test_Dataset_import_and_roundtrip()) failures++;
 
     fprintf(stderr, "\n=== Running JCAMP Tests ===\n");
     if (!getenv("JCAMP_TEST_ROOT")) {
@@ -76,7 +76,7 @@ int main(void) {
     fprintf(stderr, "[INFO] JCAMP_TEST_ROOT = %s\n",
             getenv("JCAMP_TEST_ROOT"));
     // if (!test_JCAMP_single_file()) failures++;
-    // if (!test_JCAMP_import_all()) failures++;
+    if (!test_JCAMP_import_all()) failures++;
 
     fprintf(stderr, "\n=== Running Image Tests ===\n");
     if (!getenv("IMAGE_TEST_ROOT")) {
@@ -105,7 +105,7 @@ int main(void) {
     fprintf(stderr, "[INFO] TECMAG_TEST_ROOT = %s\n",
             getenv("TECMAG_TEST_ROOT"));
     // if (!test_Tecmag_single_file()) failures++;
-    // if (!test_Tecmag_import_all()) failures++;
+    if (!test_Tecmag_import_all()) failures++;
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",
                 failures, failures > 1 ? "s" : "");

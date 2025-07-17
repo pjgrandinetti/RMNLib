@@ -52,65 +52,51 @@ DatasetRef DatasetImportImageCreateSignalWithImageData(OCArrayRef imageDataArray
 #endif
     
     OCIndex imageCount = OCArrayGetCount(imageDataArray);
+    OCIndex totalPixels = width * height * imageCount;
     
     // Create dimensions using SITypes
     SIUnitRef dimensionlessUnit = SIUnitDimensionlessAndUnderived();
     SIScalarRef increment = SIScalarCreateWithDouble(1.0, dimensionlessUnit);
     
-    // Create reciprocal dimensions
-    SIDimensionRef reciprocalDim0 = SIDimensionCreateWithQuantity(kSIQuantityDimensionless, error);
-    SIDimensionRef reciprocalDim1 = SIDimensionCreateWithQuantity(kSIQuantityDimensionless, error);
+    // Create reciprocal dimension
+    SIDimensionRef reciprocalDim = SIDimensionCreateWithQuantity(kSIQuantityDimensionless, error);
     
-    // Create linear dimensions for width and height
-    SILinearDimensionRef dim0 = SILinearDimensionCreateMinimal(kSIQuantityDimensionless, width, increment, reciprocalDim0, error);
-    SILinearDimensionRef dim1 = SILinearDimensionCreateMinimal(kSIQuantityDimensionless, height, increment, reciprocalDim1, error);
+    // Create a single dimension for all pixels
+    SILinearDimensionRef dim = SILinearDimensionCreateMinimal(kSIQuantityDimensionless, totalPixels, increment, reciprocalDim, error);
     
     OCRelease(increment);
-    OCRelease(reciprocalDim0);
-    OCRelease(reciprocalDim1);
+    OCRelease(reciprocalDim);
     
-    if (!dim0 || !dim1) {
-        if (error) *error = STR("DatasetImage: Failed to create spatial dimensions");
-        if (dim0) OCRelease(dim0);
-        if (dim1) OCRelease(dim1);
+    if (!dim) {
+        if (error) *error = STR("DatasetImage: Failed to create pixel dimension");
         return NULL;
     }
     
     // Create dimensions array
     OCMutableArrayRef dimensions = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    OCArrayAppendValue(dimensions, dim0);
-    OCArrayAppendValue(dimensions, dim1);
-    OCRelease(dim0);
-    OCRelease(dim1);
-    
-    // Add time dimension if multiple images
-    if (imageCount > 1) {
-        SIUnitRef secondsUnit = SIUnitFindWithUnderivedSymbol(STR("s"));
-        SIScalarRef dwell = SIScalarCreateWithDouble(frameIncrementInSec, secondsUnit);
-        
-        SIDimensionRef reciprocalTimeDim = SIDimensionCreateWithQuantity(kSIQuantityFrequency, error);
-        SILinearDimensionRef timeDim = SILinearDimensionCreateMinimal(kSIQuantityTime, imageCount, dwell, reciprocalTimeDim, error);
-        
-        OCRelease(dwell);
-        OCRelease(reciprocalTimeDim);
-        
-        if (timeDim) {
-            OCArrayAppendValue(dimensions, timeDim);
-            OCRelease(timeDim);
-        }
-    }
-    
+    OCArrayAppendValue(dimensions, dim);
+    OCRelease(dim);
+
     // Create dataset
     DatasetRef dataset = DatasetCreateEmpty(error);
     if (!dataset) {
         OCRelease(dimensions);
+        if (error) *error = STR("DatasetImage: Failed to create empty dataset");
+        return NULL;
+    }
+
+    DatasetSetDimensions(dataset, dimensions);
+    
+    // Debug: Check if dimensions were set properly
+    OCArrayRef check_dims = DatasetGetDimensions(dataset);
+    if (!check_dims || OCArrayGetCount(check_dims) == 0) {
+        OCRelease(dimensions);
+        OCRelease(dataset);
+        if (error) *error = STR("DatasetImage: Failed to set dimensions on dataset");
         return NULL;
     }
     
-    DatasetSetDimensions(dataset, dimensions);
-    OCRelease(dimensions);
-    
-    // Process images based on channel count
+    OCRelease(dimensions);    // Process images based on channel count
     bool success = false;
     
 #ifdef STB_IMAGE_AVAILABLE
@@ -140,7 +126,7 @@ static bool ProcessGrayscaleImages(DatasetRef dataset, OCArrayRef imageDataArray
     OCIndex imageCount = OCArrayGetCount(imageDataArray);
     OCIndex totalPixels = width * height * imageCount;
     
-    DependentVariableRef dv = DatasetAddEmptyDependentVariable(dataset, STR("gray_image"), kOCNumberFloat32Type, totalPixels);
+    DependentVariableRef dv = DatasetAddEmptyDependentVariable(dataset, STR("pixel_1"), kOCNumberFloat32Type, totalPixels);
     if (!dv) {
         if (error) *error = STR("DatasetImage: Failed to create dependent variable");
         return false;
@@ -201,7 +187,7 @@ static bool ProcessRGBImages(DatasetRef dataset, OCArrayRef imageDataArray, int 
     OCIndex imageCount = OCArrayGetCount(imageDataArray);
     OCIndex totalPixels = width * height * imageCount;
     
-    DependentVariableRef dv = DatasetAddEmptyDependentVariable(dataset, STR("rgb_image"), kOCNumberFloat32Type, totalPixels);
+    DependentVariableRef dv = DatasetAddEmptyDependentVariable(dataset, STR("pixel_3"), kOCNumberFloat32Type, totalPixels);
     if (!dv) {
         if (error) *error = STR("DatasetImage: Failed to create dependent variable");
         return false;
@@ -295,9 +281,27 @@ static bool ProcessRGBAImages(DatasetRef dataset, OCArrayRef imageDataArray, int
     OCIndex imageCount = OCArrayGetCount(imageDataArray);
     OCIndex totalPixels = width * height * imageCount;
     
-    DependentVariableRef dv = DatasetAddEmptyDependentVariable(dataset, STR("rgba_image"), kOCNumberFloat32Type, -1);
+    DependentVariableRef dv = DatasetAddEmptyDependentVariable(dataset, STR("pixel_4"), kOCNumberFloat32Type, -1);
     if (!dv) {
-        if (error) *error = STR("DatasetImage: Failed to create dependent variable");
+        if (error) {
+            // Check if dataset has dimensions
+            OCArrayRef dims = DatasetGetDimensions(dataset);
+            if (!dims) {
+                *error = STR("DatasetImage: Failed to create dependent variable - dataset has no dimensions");
+            } else {
+                OCIndex dimCount = OCArrayGetCount(dims);
+                if (dimCount == 0) {
+                    *error = STR("DatasetImage: Failed to create dependent variable - dataset has empty dimensions array");
+                } else {
+                    // Let's calculate the expected size and compare
+                    char errorMsg[256];
+                    snprintf(errorMsg, sizeof(errorMsg), 
+                            "DatasetImage: Failed to create dependent variable - have %ld dims, totalPixels=%ld, width=%d, height=%d", 
+                            (long)dimCount, (long)totalPixels, width, height);
+                    *error = OCStringCreateWithCString(errorMsg);
+                }
+            }
+        }
         return false;
     }
     
