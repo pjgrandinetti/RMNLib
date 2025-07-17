@@ -72,9 +72,9 @@ typedef struct impl_Dataset *DatasetRef;
 #include "utils/RMNGridUtils.h"
 
 // Import/Export headers
-#include "importers/DatasetJCAMP.h"
-#include "importers/DatasetTecmag.h"
-#include "importers/DatasetImage.h"
+#include "importers/JCAMP.h"
+#include "importers/Tecmag.h"
+#include "importers/Image.h"
 
 // Spectroscopy headers
 #include "spectroscopy/NMRSpectroscopy.h"
