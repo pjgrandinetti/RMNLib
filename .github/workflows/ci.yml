@@ -112,7 +112,11 @@ jobs:
                        -Wno-sign-compare -Wno-unused-parameter \
                        -Wno-missing-field-initializers -DSTB_IMAGE_AVAILABLE" \
                LEX=flex YACC="bison -y"
-          make test
+          make test CC=gcc \
+               CFLAGS="-std=c99 -I. -Isrc -O3 -Wall -Wextra \
+                       -Wno-sign-compare -Wno-unused-parameter \
+                       -Wno-missing-field-initializers -DSTB_IMAGE_AVAILABLE" \
+               LEX=flex YACC="bison -y"
           cp build/lib/libRMNLib.a libRMN.a
 
       - name: Upload library artifact
