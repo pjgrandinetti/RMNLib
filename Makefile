@@ -42,11 +42,11 @@ REQUIRED_DIRS := $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(LIB_DIR) $(THIR
 # Flags
 CPPFLAGS := -I. -I$(SRC_DIR) -I$(SRC_DIR)/core -I$(SRC_DIR)/importers -I$(SRC_DIR)/spectroscopy \
             -I$(SRC_DIR)/utils -I$(SRC_DIR)/third_party -I$(TEST_SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
-CFLAGS   := -O3 -Wall -Wextra \
+CFLAGS   := -fPIC -O3 -Wall -Wextra \
              -Wno-sign-compare -Wno-unused-parameter \
              -Wno-missing-field-initializers -Wno-unused-function \
              -MMD -MP -DSTB_IMAGE_AVAILABLE
-CFLAGS_DEBUG := -O0 -g -Wall -Wextra -Werror -MMD -MP
+CFLAGS_DEBUG := -fPIC -O0 -g -Wall -Wextra -Werror -MMD -MP
 
 # Detect OS for BLAS/LAPACK and macOS deprecation silence
 UNAME_S := $(shell uname -s)
