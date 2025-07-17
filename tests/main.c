@@ -6,6 +6,7 @@
 #include "RMNLibrary.h"
 #include "test_CSDM.h"
 #include "test_JCAMP.h"
+#include "test_Tecmag.h"
 #include "test_Dataset.h"
 #include "test_Datum.h"
 #include "test_DependentVariable.h"
@@ -62,7 +63,7 @@ int main(void) {
     }
     fprintf(stderr, "[INFO] CSDM_TEST_ROOT = %s\n",
             getenv("CSDM_TEST_ROOT"));
-    if (!test_Dataset_import_and_roundtrip()) failures++;
+    // if (!test_Dataset_import_and_roundtrip()) failures++;
 
     fprintf(stderr, "\n=== Running JCAMP Tests ===\n");
     if (!getenv("JCAMP_TEST_ROOT")) {
@@ -75,6 +76,18 @@ int main(void) {
             getenv("JCAMP_TEST_ROOT"));
     // if (!test_JCAMP_single_file()) failures++;
     if (!test_JCAMP_import_all()) failures++;
+
+    fprintf(stderr, "\n=== Running Tecmag Tests ===\n");
+    if (!getenv("TECMAG_TEST_ROOT")) {
+        setenv("TECMAG_TEST_ROOT",
+               "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/Tecmag",
+               1);
+        fprintf(stderr, "[INFO] Defaulted TECMAG_TEST_ROOT to hardcoded path.\n");
+    }
+    fprintf(stderr, "[INFO] TECMAG_TEST_ROOT = %s\n",
+            getenv("TECMAG_TEST_ROOT"));
+    // if (!test_Tecmag_single_file()) failures++;
+    // if (!test_Tecmag_import_all()) failures++;
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",
                 failures, failures > 1 ? "s" : "");

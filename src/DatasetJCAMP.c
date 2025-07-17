@@ -207,7 +207,9 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     OCStringRef key = STR("PEAK TABLE");
     if (OCDictionaryContainsKey(dictionary, key)) {
         // Handle PEAK TABLE format
-        return DatasetImportJCAMPCreatePeakTableDataset(dictionary, error);
+        DatasetRef result = DatasetImportJCAMPCreatePeakTableDataset(dictionary, error);
+        OCRelease(dictionary);
+        return result;
     }
 
     // Read in JCAMP Core Header
@@ -1162,10 +1164,6 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
         }
     }
 
-    // Set dataset metadata
-    DatasetSetMetaData(theDataset, jcampDatasetMetaData);
-    DatasetSetTitle(theDataset, title);
-
     // Copy additional metadata fields from dictionary to dataset metadata
     OCStringRef metadataKeys[] = {
         STR("JCAMP-DX"), STR("DATA TYPE"), STR("DATA CLASS"), STR("ORIGIN"), STR("OWNER"),
@@ -1183,6 +1181,10 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
             }
         }
     }
+
+    // Set dataset metadata
+    DatasetSetMetaData(theDataset, jcampDatasetMetaData);
+    DatasetSetTitle(theDataset, title);
 
     // Cleanup
     free(yData);

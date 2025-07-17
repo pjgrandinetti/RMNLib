@@ -9,7 +9,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "RMNLibrary.h"
-#include "DatasetJCAMP.h"
 #include "test_utils.h"
 
 /// Helper: does filename end with .jdx or .dx (JCAMP extensions)?
