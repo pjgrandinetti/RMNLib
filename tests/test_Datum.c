@@ -2,7 +2,9 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include "RMNLibrary.h"
 #include "test_utils.h"
 bool test_Datum_NULL_cases(void) {

@@ -7,7 +7,9 @@
 #include <limits.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include "RMNLibrary.h"
 #include "test_utils.h"
 

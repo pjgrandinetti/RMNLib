@@ -7,9 +7,20 @@
 #include <limits.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include "RMNLibrary.h"
 #include "test_utils.h"
+
+// Cross-platform directory creation function
+static int cross_platform_mkdir(const char *path) {
+#ifdef _WIN32
+    return mkdir(path);
+#else
+    return mkdir(path, 0777);
+#endif
+}
 
 /// Helper: is this path under the “Illegal file format” tree?
 static bool is_illegal(const char *relpath) {
@@ -204,8 +215,8 @@ bool test_Dataset_import_and_roundtrip(void) {
 
     // Create temporary export directory
     const char *local_tmp = "tmp/rmnpy_roundtrip";
-    mkdir("tmp", 0777);
-    mkdir(local_tmp, 0777);
+    cross_platform_mkdir("tmp");
+    cross_platform_mkdir(local_tmp);
     char tmpdir[PATH_MAX];
     snprintf(tmpdir, sizeof(tmpdir), "%s", local_tmp);
     printf("Export dir: %s\n", tmpdir);
