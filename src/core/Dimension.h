@@ -352,7 +352,7 @@ OCTypeID SIMonotonicDimensionGetTypeID(void);
  * @param label       Axis name.
  * @param description Optional description.
  * @param metadata    Optional metadata.
- * @param quantity    Physical quantity name.
+ * @param quantityName    Physical quantity name.
  * @param offset      SIScalar offset.
  * @param origin      SIScalar origin.
  * @param period      SIScalar period.
@@ -367,7 +367,7 @@ SIMonotonicDimensionRef
 SIMonotonicDimensionCreate(OCStringRef label,
                            OCStringRef description,
                            OCDictionaryRef metadata,
-                           OCStringRef quantity,
+                           OCStringRef quantityName,
                            SIScalarRef offset,
                            SIScalarRef origin,
                            SIScalarRef period,
@@ -452,7 +452,7 @@ SILinearDimensionRef
 SILinearDimensionCreate(OCStringRef label,
                         OCStringRef description,
                         OCDictionaryRef metadata,
-                        OCStringRef quantity,
+                        OCStringRef quantityName,
                         SIScalarRef offset,
                         SIScalarRef origin,
                         SIScalarRef period,
@@ -467,7 +467,7 @@ SILinearDimensionCreate(OCStringRef label,
 /**
  * @brief Create a minimal SILinearDimension with only quantity, increment, count, and reciprocal set.
  *        All other parameters are set to NULL, false, or kDimensionScalingNone.
- * @param quantity    Physical quantity name.
+ * @param quantityName    Physical quantity name.
  * @param count       Number of points (≥2).
  * @param increment   SIScalar step between points.
  * @param reciprocal  Reciprocal SIDimension.
@@ -475,7 +475,7 @@ SILinearDimensionCreate(OCStringRef label,
  * @return New SILinearDimensionRef, or NULL.
  */
 static inline SILinearDimensionRef SILinearDimensionCreateMinimal(
-    OCStringRef quantity,
+    OCStringRef quantityName,
     OCIndex count,
     SIScalarRef increment,
     SIDimensionRef reciprocal,
@@ -485,7 +485,7 @@ static inline SILinearDimensionRef SILinearDimensionCreateMinimal(
         NULL,         // label
         NULL,         // description
         NULL,         // metadata
-        quantity,     // quantity
+        quantityName, // quantityName
         NULL,         // offset
         NULL,         // origin
         NULL,         // period
