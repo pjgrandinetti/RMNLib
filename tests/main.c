@@ -94,7 +94,7 @@ int main(void) {
     fprintf(stderr, "\n=== Running JCAMP Tests ===\n");
     if (!getenv("JCAMP_TEST_ROOT")) {
         cross_platform_setenv("JCAMP_TEST_ROOT",
-               "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/JCAMP",
+               "tests/JCAMP",
                1);
         fprintf(stderr, "[INFO] Defaulted JCAMP_TEST_ROOT to hardcoded path.\n");
     }
@@ -106,7 +106,7 @@ int main(void) {
     fprintf(stderr, "\n=== Running Image Tests ===\n");
     if (!getenv("IMAGE_TEST_ROOT")) {
         cross_platform_setenv("IMAGE_TEST_ROOT",
-               "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/Images",
+               "tests/Images",
                1);
         fprintf(stderr, "[INFO] Defaulted IMAGE_TEST_ROOT to hardcoded path.\n");
     }
@@ -123,7 +123,7 @@ int main(void) {
     fprintf(stderr, "\n=== Running Tecmag Tests ===\n");
     if (!getenv("TECMAG_TEST_ROOT")) {
         cross_platform_setenv("TECMAG_TEST_ROOT",
-               "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/Tecmag",
+               "tests/Tecmag",
                1);
         fprintf(stderr, "[INFO] Defaulted TECMAG_TEST_ROOT to hardcoded path.\n");
     }

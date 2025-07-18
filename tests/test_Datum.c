@@ -11,9 +11,17 @@ bool test_Datum_NULL_cases(void) {
     bool ok = true;
     int saved_err = dup(fileno(stderr));
     if (saved_err < 0) return false;
+#ifdef _WIN32
+    FILE *nullf = fopen("NUL", "w");
+#else
     FILE *nullf = fopen("/dev/null", "w");
+#endif
     if (!nullf) {
+#ifdef _WIN32
+        perror("Failed to open NUL");
+#else
         perror("Failed to open /dev/null");
+#endif
         close(saved_err);
         return false;
     }
