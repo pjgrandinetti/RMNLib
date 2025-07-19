@@ -85,7 +85,7 @@ OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
 SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
 SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
-.PHONY: all dirs clean prepare octypes sitypes test test-asan docs doxygen html synclib fetchlibs
+.PHONY: all dirs clean prepare octypes sitypes test test-asan docs doxygen html install synclib fetchlibs
 
 fetchlibs: octypes sitypes
 	@echo "Both OCTypes and SITypes libraries are up to date."
@@ -311,6 +311,21 @@ html: doxygen
 
 .PHONY: docs
 docs: html
+
+# Install target: package headers and library
+INSTALL_DIR := install
+INSTALL_LIB_DIR := $(INSTALL_DIR)/lib
+INSTALL_INC_DIR := $(INSTALL_DIR)/include/RMNLib
+
+.PHONY: install
+install: all
+	$(MKDIR_P) $(INSTALL_LIB_DIR) $(INSTALL_INC_DIR)
+	cp $(LIB_DIR)/libRMNLib.a $(INSTALL_LIB_DIR)/
+	cp src/*.h $(INSTALL_INC_DIR)/
+	cp src/core/*.h $(INSTALL_INC_DIR)/
+	cp src/importers/*.h $(INSTALL_INC_DIR)/
+	cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/
+	cp src/utils/*.h $(INSTALL_INC_DIR)/
 
 .PHONY: synclib
 synclib:

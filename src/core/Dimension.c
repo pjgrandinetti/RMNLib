@@ -1381,7 +1381,7 @@ bool SIDimensionSetPeriod(SIDimensionRef dim,
         return false;
     }
     // 7) Normalize element type
-    SIScalarSetElementType((SIMutableScalarRef)copy, (SINumberType)kOCNumberFloat64Type);
+    SIScalarSetNumericType((SIMutableScalarRef)copy, (SINumberType)kOCNumberFloat64Type);
     // 8) Swap in the new period value and enable periodicity
     OCRelease(dim->period);
     dim->period = copy;
@@ -2912,7 +2912,7 @@ SIScalarRef SILinearDimensionGetReciprocalIncrement(SILinearDimensionRef dim) {
     // rec = 1 / rec
     SIScalarRaiseToAPowerWithoutReducingUnit(rec, -1.0, NULL);
     // normalize to double
-    SIScalarSetElementType(rec, (SINumberType)kOCNumberFloat64Type);
+    SIScalarSetNumericType(rec, (SINumberType)kOCNumberFloat64Type);
     return rec;
 }
 bool SILinearDimensionGetComplexFFT(SILinearDimensionRef dim) {
