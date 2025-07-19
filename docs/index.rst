@@ -53,141 +53,194 @@ Link against the static library when compiling::
 
     gcc -o myprogram myprogram.c -L. -lRMNLib -lm
 
-Creating and Working with Datasets
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Creating Datasets
+^^^^^^^^^^^^^^^^^^
 
-RMNLib revolves around the concept of datasets that contain multidimensional scientific data. 
-Let's build a dataset step by step, starting with its components:
+RMNLib revolves around datasets containing multidimensional scientific data. Here's a simple linear dimension example:
 
 .. code-block:: c
 
-    // Step 1: Generate the component data first
     OCStringRef error = NULL;
-    OCIndex count = 1024;  // Number of data points
     
-    // First create the data component (complex data needs 2x space for real + imaginary)
-    OCDataRef componentData = OCDataCreateWithBytes(NULL, count * sizeof(double complex));
-    
-    // Generate a damped complex valued oscillation
-    double complex *data = (double complex *)OCDataGetBytesPtr(componentData);
+    // Simulate damped complex oscillation data (typical NMR/ESR experiment)
+    OCIndex count = 1024;
+    double complex *values = malloc(count * sizeof(double complex));
     double frequency = 100.0;    // Hz
-    double decayRate = 50.0;     // decay constant
-    double samplingInterval = 1.0e-6; // 1 μs sampling interval (1 MHz sampling rate)
+    double decayRate = 50.0;     // s⁻¹ (decay constant)
     
-    for (OCIndex i = 0; i < count; i++) {
-        double time = i * samplingInterval;
+    for (int i = 0; i < count; i++) {
+        double time = i * 1.0e-6;  // 1 µs sampling interval
         double amplitude = exp(-decayRate * time);
         double phase = 2.0 * M_PI * frequency * time;
-        
-        // Store complex value directly
-        data[i] = amplitude * (cos(phase) + I * sin(phase));
+        values[i] = amplitude * (cos(phase) + I * sin(phase));
     }
-
-    // Step 2: Create a dimension to define the coordinate space
-    // First create a reciprocal dimension (frequency domain)
-    SIDimensionRef frequencyDimension = SIDimensionCreateWithQuantity(kSIQuantityFrequency, &error);
     
-    // Now create the main time dimension with the frequency dimension as reciprocal
+    // Create RMNLib dataset and export as CSDM file
+    SIDimensionRef freqDim = SIDimensionCreateWithQuantity(kSIQuantityFrequency, &error);
     SIScalarRef increment = SIScalarCreateFromExpression(STR("1.0 µs"), &error);
-    SILinearDimensionRef dimension = SILinearDimensionCreateMinimal(
-        kSIQuantityTime, 
-        count,         // count
-        increment, 
-        frequencyDimension, // reciprocal dimension
-        &error);
-
-    // Step 3: Create a dependent variable to hold your data
-    DependentVariableRef depVar = DependentVariableCreateWithComponent(
-        STR("amplitude"),      // name
-        NULL,                  // description
-        NULL,                  // unit (default to dimensionless)
-        STR("scalar"),         // quantityName
-        kOCNumberComplex128Type,  // numericType (complex double)
-        NULL,                  // componentLabels
-        componentData,         // component data
-        &error);
+    SILinearDimensionRef timeDim = SILinearDimensionCreateMinimal(
+        kSIQuantityTime,  // quantityName
+        count,            // count  
+        increment,        // increment
+        freqDim,          // reciprocal
+        &error);          // outError
+    OCRelease(increment);
+    OCRelease(freqDim);
     
-    // Step 4: Create arrays to hold our components
+    OCDataRef data = OCDataCreateWithBytes(values, count * sizeof(double complex));
+    OCArrayRef components = OCArrayCreate();
+    OCArrayAddValue(components, (OCTypeRef)data);
+    SIUnitRef voltUnit = SIUnitFromExpression(STR("V"), NULL, &error);
+    DependentVariableRef depVar = DependentVariableCreateMinimal(
+        voltUnit,                    // unit
+        kSIQuantityElectricPotential, // quantityName
+        STR("scalar"),               // quantityType
+        kOCNumberComplex128Type,     // numericType
+        components,                  // components
+        &error);                     // outError
+    OCRelease(components);
+    OCRelease(data);
+    if (!voltUnit || error) goto cleanup;
+    
+    // Create dataset structure
     OCArrayRef dimensions = OCArrayCreate();
     OCArrayRef dependentVariables = OCArrayCreate();
-    OCArrayAddValue(dimensions, (OCTypeRef)dimension);
+    OCArrayAddValue(dimensions, (OCTypeRef)timeDim);
     OCArrayAddValue(dependentVariables, (OCTypeRef)depVar);
-    
-    // Step 5: Create a dataset and assemble the components
-    DatasetRef dataset = DatasetCreateMinimal(
-        dimensions,           // dimensions array
-        dependentVariables,   // dependent variables array
-        &error);
-    
-    // Clean up when done
-    OCRelease(frequencyDimension);
-    OCRelease(increment);
-    OCRelease(dimension);
-    OCRelease(componentData);
+    OCRelease(timeDim);
     OCRelease(depVar);
+    OCRelease(voltUnit);
+    
+    DatasetRef dataset = DatasetCreateMinimal(
+        dimensions,           // dimensions
+        dependentVariables,   // dependentVariables
+        &error);              // outError
     OCRelease(dimensions);
     OCRelease(dependentVariables);
-    OCRelease(dataset);
-    if (error) {
-        printf("Error: %s\n", OCStringGetCStringPtr(error));
-        OCRelease(error);
+    
+    // Export as CSDM file (binary_dir can be NULL to use same directory as JSON)
+    if (dataset && !error) {
+        bool success = DatasetExport(
+            dataset,              // ds
+            "experiment.csdf",    // json_path
+            NULL,                 // binary_dir (auto-determined from json_path)
+            &error);              // outError
+        if (success) {
+            printf("Dataset saved to experiment.csdf\n");
+        }
     }
+    
+    // Clean up allocated memory
+    free(values);
+    if (dataset) OCRelease(dataset);
+    if (error) { printf("Error: %s\n", OCStringGetCString(error)); OCRelease(error); }
 
-Working with Different Dimension Types
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Monotonic Dimensions
+^^^^^^^^^^^^^^^^^^^^
 
-RMNLib supports various dimension types for different coordinate systems:
+For non-uniform sampling, use monotonic dimensions with explicit coordinates:
 
 .. code-block:: c
 
     OCStringRef error = NULL;
     
-    // Linear dimension (evenly spaced points)
-    SIScalarRef increment = SIScalarCreateFromExpression(STR("0.5 s"), &error);
-    SILinearDimensionRef linearDim = SILinearDimensionCreateMinimal(
-        kSIQuantityTime,
-        200,        // count
-        increment,  // step size
-        NULL,       // reciprocal
-        &error);
+    // T1 inversion recovery with non-uniform time spacing
+    // Recovery times span multiple orders of magnitude (µs to seconds)
+    OCStringRef timeExpressions[] = {
+        STR("10.0 µs"), STR("50.0 µs"), STR("100.0 µs"), STR("500.0 µs"),   
+        STR("1.0 ms"), STR("5.0 ms"), STR("10.0 ms"), STR("50.0 ms"), STR("100.0 ms"), STR("500.0 ms"),   
+        STR("1.0 s"), STR("2.0 s"), STR("5.0 s"), STR("10.0 s")
+    };
+    int numPoints = sizeof(timeExpressions) / sizeof(timeExpressions[0]);
     
-    // Monotonic dimension (arbitrary spacing, but ordered)
-    double values[] = {0.0, 1.5, 3.7, 8.2, 15.0};
-    OCArrayRef valueArray = OCArrayCreate();
-    for (int i = 0; i < 5; i++) {
-        OCStringRef valueStr = OCStringCreateWithFormat("%.1f m", values[i]);
-        SIScalarRef scalar = SIScalarCreateFromExpression(valueStr, &error);
-        OCArrayAddValue(valueArray, (OCTypeRef)scalar);
-        OCRelease(scalar);
-        OCRelease(valueStr);
+    // Convert string expressions to SIScalar objects and store in OCArray
+    OCMutableArrayRef recoveryTimes = OCArrayCreateMutable(numPoints, &kOCTypeArrayCallBacks);
+    for (int i = 0; i < numPoints; i++) {
+        SIScalarRef timeScalar = SIScalarCreateFromExpression(timeExpressions[i], &error);
+        if (!timeScalar || error) goto cleanup;
+        OCArrayAppendValue(recoveryTimes, (const void*)timeScalar);
+        OCRelease(timeScalar);  // Array now owns it
     }
-    SIMonotonicDimensionRef monotonicDim = SIMonotonicDimensionCreate(
-        kSIQuantityLength,
-        NULL,       // description
-        NULL,       // metadata
-        valueArray, // coordinates
-        NULL,       // reciprocal
-        &error);
     
-    // Labeled dimension (categorical data)
-    OCArrayRef labels = OCArrayCreate();
-    OCArrayAddValue(labels, (OCTypeRef)STR("Sample A"));
-    OCArrayAddValue(labels, (OCTypeRef)STR("Sample B"));
-    OCArrayAddValue(labels, (OCTypeRef)STR("Sample C"));
+    // Calculate experimental inversion recovery data: M(t) = M0 * (1 - 2*exp(-t/T1))
+    double T1_seconds = 0.5;  // 500 ms relaxation time
+    double M0 = 1000.0;       // Initial magnetization
+    double *magnetization = malloc(numPoints * sizeof(double));
     
-    LabeledDimensionRef labeledDim = LabeledDimensionCreateWithCoordinateLabels(labels);
+    // Create second unit once for efficiency (reused in loop)
+    SIUnitRef secondUnit = SIUnitFromExpression(STR("s"), NULL, &error);
+    if (!secondUnit || error) goto cleanup;
     
-    // Clean up
-    OCRelease(increment);
-    OCRelease(linearDim);
-    OCRelease(valueArray);
-    OCRelease(monotonicDim);
-    OCRelease(labels);
-    OCRelease(labeledDim);
-    if (error) {
-        printf("Error: %s\n", OCStringGetCStringPtr(error));
-        OCRelease(error);
+    // Calculate magnetization values for each recovery time
+    for (int i = 0; i < numPoints; i++) {
+        // Get time value in seconds from SIScalar in the array
+        SIScalarRef timeScalar = (SIScalarRef)OCArrayGetValueAtIndex(recoveryTimes, i);
+        double timeInSeconds = SIScalarDoubleValueInUnit(timeScalar, secondUnit);
+        magnetization[i] = M0 * (1.0 - 2.0 * exp(-timeInSeconds / T1_seconds));
     }
+    
+    // Create RMNLib dataset from experimental data
+    // We can use the recoveryTimes array directly as coordinates
+    SIMonotonicDimensionRef timeDim = SIMonotonicDimensionCreateMinimal(
+        kSIQuantityTime,             // quantityName
+        (OCArrayRef)recoveryTimes,   // coordinates
+        NULL,                        // reciprocal
+        &error);                     // outError
+    
+    OCDataRef magnetizationData = OCDataCreateWithBytes(magnetization, numPoints * sizeof(double));
+    OCMutableArrayRef components = OCArrayCreateMutable(1, &kOCTypeArrayCallBacks);
+    OCArrayAppendValue(components, (const void*)magnetizationData);
+    
+    SIUnitRef dimensionlessUnit = SIUnitFromExpression(STR("dimensionless"), NULL, &error);
+    DependentVariableRef magnetizationVar = DependentVariableCreateMinimal(
+        dimensionlessUnit,       // unit
+        kSIQuantityDimensionless, // quantityName
+        STR("scalar"),           // quantityType
+        kOCNumberFloat64Type,    // numericType
+        (OCArrayRef)components,  // components
+        &error);                 // outError
+    OCRelease(components);
+    OCRelease(magnetizationData);
+    if (!dimensionlessUnit || error) goto cleanup;
+    
+    OCMutableArrayRef dimensions = OCArrayCreateMutable(1, &kOCTypeArrayCallBacks);
+    OCMutableArrayRef dependentVariables = OCArrayCreateMutable(1, &kOCTypeArrayCallBacks);
+    OCArrayAppendValue(dimensions, (const void*)timeDim);
+    OCArrayAppendValue(dependentVariables, (const void*)magnetizationVar);
+    OCRelease(timeDim);
+    OCRelease(magnetizationVar);
+    OCRelease(dimensionlessUnit);
+    
+    DatasetRef inversionRecoveryDataset = DatasetCreateMinimal(
+        (OCArrayRef)dimensions,       // dimensions
+        (OCArrayRef)dependentVariables, // dependentVariables
+        &error);                      // outError
+    OCRelease(dimensions);
+    OCRelease(dependentVariables);
+    
+    if (inversionRecoveryDataset && !error) {
+        printf("Successfully created T1 inversion recovery dataset\n");
+        printf("Time range: 10 µs to 10 s (6 orders of magnitude)\n");
+        printf("T1 relaxation time: %.1f ms\n", T1_seconds * 1000);
+        
+        // Export as CSDM file
+        bool success = DatasetExport(
+            inversionRecoveryDataset,  // ds
+            "T1_recovery.csdf",        // json_path
+            NULL,                      // binary_dir (auto-determined)
+            &error);                   // outError
+        if (success) {
+            printf("Dataset saved to T1_recovery.csdf\n");
+        }
+    }
+    
+    // Clean up allocated memory
+    free(magnetization);
+    OCRelease(recoveryTimes);
+    if (inversionRecoveryDataset) OCRelease(inversionRecoveryDataset);
+    
+cleanup:
+    if (error) { printf("Error: %s\n", OCStringGetCString(error)); OCRelease(error); }
 
 Memory Management
 ^^^^^^^^^^^^^^^^^
@@ -208,211 +261,50 @@ RMNLib uses reference counting for memory management. Follow these rules:
     OCRelease(dataset);                             // retain count = 0, object is deallocated
     OCRelease(copy);                                // Clean up the copy
 
-Metadata and JSON Serialization
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Store and retrieve metadata using dictionaries and JSON:
+**Best Practice: Release objects immediately when ownership transfers**
 
 .. code-block:: c
 
-    // Create metadata dictionary
-    OCDictionaryRef metadata = OCDictionaryCreate();
-    OCDictionarySetValue(metadata, 
-                        STR("experiment_name"),
-                        STR("NMR_Experiment_001"));
+    SIScalarRef increment = SIScalarCreateFromExpression(STR("1.0 s"), &error);
+    SILinearDimensionRef dimension = SILinearDimensionCreateMinimal(
+        kSIQuantityTime, 100, increment, NULL, &error);
     
-    // Convert to JSON for storage/transmission
+    OCRelease(increment);  // Release immediately - dimension now owns it
+    
+    OCArrayRef dimensions = OCArrayCreate();
+    OCArrayAddValue(dimensions, (OCTypeRef)dimension);
+    
+    OCRelease(dimension);  // Release immediately - array now owns it
+
+This pattern provides lower memory pressure, clearer ownership semantics, and easier debugging.
+
+Metadata and Error Handling
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: c
+
+    // Metadata with JSON serialization
+    OCDictionaryRef metadata = OCDictionaryCreate();
+    OCDictionarySetValue(metadata, STR("experiment"), STR("T1_measurement"));
+    
     cJSON *json = OCMetadataCopyJSON(metadata);
     char *jsonString = cJSON_Print(json);
-    printf("Metadata JSON: %s\n", jsonString);
     
-    // Convert back from JSON
-    OCStringRef error = NULL;
-    OCDictionaryRef restoredMetadata = OCMetadataCreateFromJSON(json, &error);
-    if (error) {
-        printf("Error: %s\n", OCStringGetCStringPtr(error));
-        OCRelease(error);
-    }
-    
-    // Clean up
-    free(jsonString);
-    cJSON_Delete(json);
-    OCRelease(metadata);
-    OCRelease(restoredMetadata);
-
-Error Handling
-^^^^^^^^^^^^^^
-
-Most RMNLib functions return NULL on error. Always check return values:
-
-.. code-block:: c
-
+    // Error handling - always check return values
     DatasetRef dataset = DatasetCreate();
     if (!dataset) {
         fprintf(stderr, "Failed to create dataset\n");
         return -1;
     }
     
-    DimensionRef dimension = DimensionCreateLinear(0.0, 1.0, 100);
-    if (!dimension) {
-        fprintf(stderr, "Failed to create dimension\n");
-        OCRelease(dataset);
-        return -1;
-    }
-    
-    // Use the objects...
-    
-    // Always clean up
-    OCRelease(dimension);
+    // Clean up
+    free(jsonString);
+    cJSON_Delete(json);
+    OCRelease(metadata);
     OCRelease(dataset);
-
-Library Cleanup
-^^^^^^^^^^^^^^^^
-
-For clean shutdown and accurate leak detection, call the shutdown function:
-
-.. code-block:: c
-
-    int main() {
-        // Your program logic here...
-        
-        // At the end of your program
-        RMNLibTypesShutdown();
-        return 0;
-    }
-
-Complete Example
-^^^^^^^^^^^^^^^^
-
-Here's a complete example that creates a simple 1D dataset with reciprocal dimensions:
-
-.. code-block:: c
-
-    #include "RMNLibrary.h"
     
-    int main() {
-        OCStringRef error = NULL;
-        OCIndex count = 1024;  // Number of data points
-        
-        // Step 1: Create reciprocal dimension (frequency domain)
-        SIDimensionRef frequencyDimension = SIDimensionCreateWithQuantity(kSIQuantityFrequency, &error);
-        if (!frequencyDimension || error) {
-            printf("Failed to create frequency dimension: %s\n", 
-                   error ? OCStringGetCStringPtr(error) : "unknown error");
-            if (error) OCRelease(error);
-            return -1;
-        }
-        
-        // Step 2: Create main time dimension with reciprocal
-        SIScalarRef increment = SIScalarCreateFromExpression(STR("1.0 µs"), &error);
-        if (!increment || error) {
-            printf("Failed to create time increment: %s\n", 
-                   error ? OCStringGetCStringPtr(error) : "unknown error");
-            if (error) OCRelease(error);
-            OCRelease(frequencyDimension);
-            return -1;
-        }
-        
-        SILinearDimensionRef dimension = SILinearDimensionCreateMinimal(
-            kSIQuantityTime, 
-            count,        // count
-            increment, 
-            frequencyDimension, // reciprocal dimension
-            &error);
-        if (!dimension || error) {
-            printf("Failed to create time dimension: %s\n", 
-                   error ? OCStringGetCStringPtr(error) : "unknown error");
-            if (error) OCRelease(error);
-            OCRelease(frequencyDimension);
-            OCRelease(increment);
-            return -1;
-        }
-        
-        // Step 3: Create dependent variable for data
-        // First create the data component (complex data needs 2x space for real + imaginary)
-        OCDataRef componentData = OCDataCreateWithBytes(NULL, count * sizeof(double complex));
-        
-        // Generate a damped complex valued oscillation
-        double complex *data = (double complex *)OCDataGetBytesPtr(componentData);
-        double frequency = 100.0;    // Hz
-        double decayRate = 50.0;     // decay constant
-        double samplingInterval = 1.0e-6; // 1 μs sampling interval (1 MHz sampling rate)
-        
-        for (OCIndex i = 0; i < count; i++) {
-            double time = i * samplingInterval;
-            double amplitude = exp(-decayRate * time);
-            double phase = 2.0 * M_PI * frequency * time;
-            
-            // Store complex value directly
-            data[i] = amplitude * (cos(phase) + I * sin(phase));
-        }
-        
-        DependentVariableRef depVar = DependentVariableCreateWithComponent(
-            STR("intensity"),      // name
-            NULL,                  // description
-            NULL,                  // unit (dimensionless)
-            STR("scalar"),         // quantityName
-            kOCNumberComplex128Type,  // numericType (complex double)
-            NULL,                  // componentLabels
-            componentData,         // component data
-            &error);
-        if (!depVar || error) {
-            printf("Failed to create dependent variable: %s\n", 
-                   error ? OCStringGetCStringPtr(error) : "unknown error");
-            if (error) OCRelease(error);
-            OCRelease(frequencyDimension);
-            OCRelease(increment);
-            OCRelease(dimension);
-            OCRelease(componentData);
-            return -1;
-        }
-        
-        // Step 4: Create arrays to hold components
-        OCArrayRef dimensions = OCArrayCreate();
-        OCArrayRef dependentVariables = OCArrayCreate();
-        if (!dimensions || !dependentVariables) {
-            printf("Failed to create arrays\n");
-            OCRelease(frequencyDimension);
-            OCRelease(increment);
-            OCRelease(dimension);
-            OCRelease(componentData);
-            OCRelease(depVar);
-            if (dimensions) OCRelease(dimensions);
-            if (dependentVariables) OCRelease(dependentVariables);
-            return -1;
-        }
-        
-        OCArrayAddValue(dimensions, (OCTypeRef)dimension);
-        OCArrayAddValue(dependentVariables, (OCTypeRef)depVar);
-        
-        // Step 5: Create dataset
-        DatasetRef dataset = DatasetCreateMinimal(
-            dimensions,           // dimensions array
-            dependentVariables,   // dependent variables array
-            &error);
-        
-        if (!dataset || error) {
-            printf("Failed to create dataset: %s\n", 
-                   error ? OCStringGetCStringPtr(error) : "unknown error");
-            if (error) OCRelease(error);
-        } else {
-            printf("Dataset created successfully with reciprocal time/frequency dimensions!\n");
-        }
-        
-        // Clean up
-        OCRelease(frequencyDimension);
-        OCRelease(increment);
-        OCRelease(dimension);
-        OCRelease(componentData);
-        OCRelease(depVar);
-        OCRelease(dimensions);
-        OCRelease(dependentVariables);
-        if (dataset) OCRelease(dataset);
-        
-        // Shutdown library
-        RMNLibTypesShutdown();
-        return dataset ? 0 : -1;
-    }
+    // Library shutdown for leak detection
+    RMNLibTypesShutdown();
 
 .. toctree::
    :maxdepth: 2

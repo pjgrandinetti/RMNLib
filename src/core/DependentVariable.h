@@ -189,6 +189,28 @@ DependentVariableCreateExternal(
     OCStringRef componentsURL,
     OCStringRef *outError);
 /**
+ * @brief Minimal convenience constructor with only essential parameters.
+ * 
+ * Creates a DependentVariable with the minimal required parameters.
+ * Uses default values for name, description, componentLabels, sparseSampling, and metaData.
+ * 
+ * @param unit           Physical unit (required).
+ * @param quantityName   Logical quantity name (e.g. "temperature").
+ * @param quantityType   Semantic type ("scalar", "vector_N", etc.).
+ * @param numericType    Numeric storage type (kOCNumberFloat64Type, etc.).
+ * @param components     Array of OCDataRef buffers (required).
+ * @param outError       Optional pointer for error message.
+ * @return New DependentVariableRef or NULL on validation/alloc error.
+ */
+DependentVariableRef
+DependentVariableCreateMinimal(
+    SIUnitRef unit,
+    OCStringRef quantityName,
+    OCStringRef quantityType,
+    OCNumberType numericType,
+    OCArrayRef components,
+    OCStringRef *outError);
+/**
  * @brief Deserialize from cJSON using internal dictionary logic.
  */
 DependentVariableRef

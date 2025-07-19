@@ -1074,15 +1074,54 @@ static bool ensure_parent_dirs(const char *fullpath, OCStringRef *outError) {
         return true;
     return ensure_directory(dir, outError);
 }
+static bool derive_directory_from_path(const char *filepath, char *output, size_t output_size) {
+    if (!filepath || !output || output_size == 0) return false;
+    
+    size_t len = strnlen(filepath, PATH_MAX);
+    if (len == 0 || len >= PATH_MAX) return false;
+    
+    // Copy the path and find the last directory separator
+    char temp[PATH_MAX];
+    memcpy(temp, filepath, len);
+    temp[len] = '\0';
+    
+    char *last_sep = strrchr(temp, '/');
+    if (!last_sep) {
+        last_sep = strrchr(temp, '\\');  // Windows support
+    }
+    
+    if (last_sep) {
+        // Terminate at the separator to get directory
+        *last_sep = '\0';
+        size_t dir_len = strlen(temp);
+        if (dir_len >= output_size) return false;
+        strcpy(output, temp);
+    } else {
+        // No separator found, use current directory
+        if (output_size < 2) return false;
+        strcpy(output, ".");
+    }
+    return true;
+}
 // ————— DatasetExport —————
 bool DatasetExport(DatasetRef ds,
                    const char *json_path,
                    const char *binary_dir,
                    OCStringRef *outError) {
     if (outError) *outError = NULL;
-    if (!ds || !json_path || !binary_dir) {
+    if (!ds || !json_path) {
         if (outError) *outError = STR("Invalid arguments");
         return false;
+    }
+    
+    // If binary_dir is NULL, derive it from json_path
+    char derived_binary_dir[PATH_MAX];
+    if (!binary_dir) {
+        if (!derive_directory_from_path(json_path, derived_binary_dir, sizeof(derived_binary_dir))) {
+            if (outError) *outError = STR("Cannot determine binary directory from JSON path");
+            return false;
+        }
+        binary_dir = derived_binary_dir;
     }
     // 0) decide extension
     bool hasExternal = false;

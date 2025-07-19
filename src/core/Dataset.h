@@ -185,6 +185,7 @@ bool DatasetSetMetaData(DatasetRef ds, OCDictionaryRef md);
  * @param ds         Dataset to export.
  * @param json_path  Full path to JSON file (.csdf/.csdfe).
  * @param binary_dir Directory under which to write external‐data files.
+ *                   If NULL, the directory containing json_path is used.
  * @param outError   On error, set to a brief OCStringRef.
  * @return true on success, false on failure (and `*outError` set).
  */

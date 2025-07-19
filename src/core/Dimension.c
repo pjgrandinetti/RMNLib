@@ -1982,6 +1982,27 @@ Fail:
     return NULL;
 }
 
+SIMonotonicDimensionRef SIMonotonicDimensionCreateMinimal(
+    OCStringRef quantityName,
+    OCArrayRef coordinates,
+    SIDimensionRef reciprocal,
+    OCStringRef *outError)
+{
+    return SIMonotonicDimensionCreate(
+        NULL,               // label
+        NULL,               // description
+        NULL,               // metadata
+        quantityName,       // quantityName
+        NULL,               // offset (will be defaulted)
+        NULL,               // origin (will be defaulted)
+        NULL,               // period (will be defaulted)
+        false,              // periodic
+        kDimensionScalingNone, // scaling
+        coordinates,        // coordinates
+        reciprocal,         // reciprocal
+        outError);          // outError
+}
+
 // getters & setters
 OCArrayRef SIMonotonicDimensionGetCoordinates(SIMonotonicDimensionRef dim) {
     return dim ? dim->coordinates : NULL;

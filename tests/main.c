@@ -50,6 +50,7 @@ int main(void) {
     if (!test_LabeledDimension()) failures++;
     if (!test_SIDimension()) failures++;
     if (!test_SIMonotonic_and_SILinearDimension()) failures++;
+    if (!test_minimal_monotonic()) failures++;
     fprintf(stderr, "\n=== Running DependentVariable Tests ===\n");
     if (!test_DependentVariable_base()) failures++;
     if (!test_DependentVariable_components()) failures++;

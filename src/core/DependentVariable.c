@@ -678,6 +678,32 @@ DependentVariableRef DependentVariableCreateComplexCopy(DependentVariableRef src
     }
     return dv;
 }
+DependentVariableRef DependentVariableCreateMinimal(
+    SIUnitRef unit,
+    OCStringRef quantityName,
+    OCStringRef quantityType,
+    OCNumberType numericType,
+    OCArrayRef components,
+    OCStringRef *outError) {
+    return impl_DependentVariableCreate(
+        /* type               */ STR(kDependentVariableComponentTypeValueInternal),
+        /* name               */ NULL,  // minimal - no name
+        /* description        */ NULL,  // minimal - no description
+        /* unit               */ unit,
+        /* quantityName       */ quantityName,
+        /* quantityType       */ quantityType,
+        /* numericType        */ numericType,
+        /* encoding           */ NULL,  // default to base64
+        /* componentsURL      */ NULL,  // not used for internal
+        /* components         */ components,
+        /* copyComponents     */ true,  // deep-copy blobs
+        /* explicitSize       */ (OCIndex)-1,  // ignored when components != NULL
+        /* componentLabels    */ NULL,  // minimal - auto-generate labels
+        /* sparseSampling     */ NULL,  // minimal - no sparse sampling
+        /* copySparseSampling */ true,  // deep-copy if present
+        /* metaData           */ NULL,  // minimal - no metadata
+        /* outError           */ outError);
+}
 OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
     if (!dv) return NULL;
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);

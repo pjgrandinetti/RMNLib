@@ -377,6 +377,31 @@ SIMonotonicDimensionCreate(OCStringRef label,
                            SIDimensionRef reciprocal,
                            OCStringRef *outError);
 /**
+ * @brief Create a monotonic dimension with minimal parameters.
+ * 
+ * This is a convenience function that calls SIMonotonicDimensionCreate with
+ * sensible defaults for optional parameters:
+ * - label: NULL
+ * - description: NULL  
+ * - metadata: NULL
+ * - offset: NULL (will be defaulted by the main function)
+ * - origin: NULL (will be defaulted by the main function)
+ * - period: NULL (will be defaulted by the main function)
+ * - periodic: false
+ * - scaling: kDimensionScalingNone
+ * 
+ * @param quantityName Physical quantity name.
+ * @param coordinates Array of SIScalarRef at each grid point (≥2).
+ * @param reciprocal Reciprocal SIDimension (for FFT, etc), or NULL.
+ * @param outError On failure, receives a descriptive OCStringRef.
+ * @return New SIMonotonicDimensionRef, or NULL.
+ */
+SIMonotonicDimensionRef
+SIMonotonicDimensionCreateMinimal(OCStringRef quantityName,
+                                  OCArrayRef coordinates,
+                                  SIDimensionRef reciprocal,
+                                  OCStringRef *outError);
+/**
  * @brief Get the coordinate array.
  */
 OCArrayRef SIMonotonicDimensionGetCoordinates(SIMonotonicDimensionRef dim);
