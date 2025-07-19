@@ -325,7 +325,7 @@ static DependentVariableRef impl_DependentVariableCreate(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    OCNumberType elementType,    // numericType
+    OCNumberType numericType,    // was elementType
     OCStringRef encoding,        // "none", "base64", or "raw"
     OCStringRef componentsURL,   // only for external
     OCArrayRef components,       // array of OCDataRef
@@ -398,7 +398,7 @@ static DependentVariableRef impl_DependentVariableCreate(
     OCRelease(dv->componentsURL);
     dv->componentsURL = componentsURL ? OCStringCreateCopy(componentsURL)
                                       : NULL;
-    dv->numericType = elementType;
+    dv->numericType = numericType;
     dv->unit = unit ? unit : SIUnitDimensionlessAndUnderived();
     OCRelease(dv->quantityName);
     dv->quantityName = quantityName ? OCStringCreateCopy(quantityName)
@@ -434,7 +434,7 @@ static DependentVariableRef impl_DependentVariableCreate(
                 }
             }
         } else {
-            size_t eltSize = OCNumberTypeSize(elementType);
+            size_t eltSize = OCNumberTypeSize(numericType);
             size_t byteLen = (size_t)explicitSize * eltSize;
             for (OCIndex i = 0; i < componentsCount; ++i) {
                 OCMutableDataRef buf = OCDataCreateMutable(0);
@@ -483,7 +483,7 @@ DependentVariableRef DependentVariableCreate(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    OCNumberType elementType,
+    OCNumberType numericType,
     OCArrayRef componentLabels,
     OCArrayRef components,
     OCStringRef *outError) {
@@ -494,7 +494,7 @@ DependentVariableRef DependentVariableCreate(
         /* unit            */ unit,
         /* quantityName    */ quantityName,
         /* quantityType    */ quantityType,
-        /* elementType     */ elementType,
+        /* numericType     */ numericType,
         /* encoding        */ NULL,  // default to base64
         /* componentsURL   */ NULL,  // not used for internal
         /* components      */ components,
@@ -512,7 +512,7 @@ DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    OCNumberType elementType,
+    OCNumberType numericType,
     OCArrayRef componentLabels,
     OCArrayRef components,
     OCStringRef *outError) {
@@ -523,7 +523,7 @@ DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
         /* unit            */ unit,
         /* quantityName    */ quantityName,
         /* quantityType    */ quantityType,
-        /* elementType     */ elementType,
+        /* numericType     */ numericType,
         /* encoding        */ NULL,  // default to base64
         /* componentsURL   */ NULL,  // not used for internal
         /* components      */ components,
@@ -541,7 +541,7 @@ DependentVariableRef DependentVariableCreateWithSize(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    OCNumberType elementType,
+    OCNumberType numericType,
     OCArrayRef componentLabels,
     OCIndex size,
     OCStringRef *outError) {
@@ -552,7 +552,7 @@ DependentVariableRef DependentVariableCreateWithSize(
         /* unit            */ unit,
         /* quantityName    */ quantityName,
         /* quantityType    */ quantityType,
-        /* elementType     */ elementType,
+        /* numericType     */ numericType,
         /* encoding        */ NULL,   // default to "base64"
         /* componentsURL   */ NULL,   // not used for internal
         /* components      */ NULL,   // no blobs, use explicitSize
@@ -566,7 +566,7 @@ DependentVariableRef DependentVariableCreateWithSize(
 }
 DependentVariableRef DependentVariableCreateDefault(
     OCStringRef quantityType,
-    OCNumberType elementType,
+    OCNumberType numericType,
     OCIndex size,
     OCStringRef *outError) {
     return impl_DependentVariableCreate(
@@ -576,7 +576,7 @@ DependentVariableRef DependentVariableCreateDefault(
         /* unit               */ NULL,
         /* quantityName       */ NULL,
         /* quantityType       */ quantityType,
-        /* elementType        */ elementType,
+        /* numericType        */ numericType,
         /* encoding           */ NULL,  // default to "base64"
         /* componentsURL      */ NULL,  // not used for internal
         /* components         */ NULL,  // no blobs, use explicitSize
@@ -593,7 +593,7 @@ DependentVariableRef DependentVariableCreateWithComponent(
     OCStringRef description,
     SIUnitRef unit,
     OCStringRef quantityName,
-    OCNumberType elementType,
+    OCNumberType numericType,
     OCArrayRef componentLabels,
     OCDataRef component,
     OCStringRef *outError) {
@@ -606,7 +606,7 @@ DependentVariableRef DependentVariableCreateWithComponent(
         /* unit               */ unit,
         /* quantityName       */ quantityName,
         /* quantityType       */ STR("scalar"),
-        /* elementType        */ elementType,
+        /* numericType        */ numericType,
         /* encoding           */ NULL,  // default to "base64"
         /* componentsURL      */ NULL,  // not used for internal
         /* components         */ arr,
@@ -626,7 +626,7 @@ DependentVariableRef DependentVariableCreateExternal(
     SIUnitRef unit,
     OCStringRef quantityName,
     OCStringRef quantityType,
-    OCNumberType elementType,
+    OCNumberType numericType,
     OCStringRef componentsURL,
     OCStringRef *outError) {
     if (componentsURL == NULL) {
@@ -644,7 +644,7 @@ DependentVariableRef DependentVariableCreateExternal(
         /* unit               */ unit,
         /* quantityName       */ quantityName,
         /* quantityType       */ quantityType,
-        /* elementType        */ elementType,
+        /* numericType        */ numericType,
         /* encoding           */ NULL,  // default to "base64"
         /* componentsURL      */ componentsURL,
         /* components         */ NULL,  // no inline blobs for external
@@ -947,12 +947,12 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
             return NULL;
         }
     }
-    // 5) parse numeric_type → elementType
-    OCNumberType elementType = kOCNumberTypeInvalid;
+    // 5) parse numeric_type → numericType
+    OCNumberType numericType = kOCNumberTypeInvalid;
     if (OCGetTypeID(numType) == OCStringGetTypeID()) {
         const char *typeName = OCStringGetCString(numType);
-        elementType = OCNumberTypeFromName(typeName);
-        if (elementType == kOCNumberTypeInvalid) {
+        numericType = OCNumberTypeFromName(typeName);
+        if (numericType == kOCNumberTypeInvalid) {
             if (outError) *outError = STR("DependentVariableCreateFromDictionary: invalid numeric_type string");
             return NULL;
         }
@@ -1010,7 +1010,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
                     OCNumberRef num = OCArrayGetValueAtIndex(numList, j);
                     double v = 0;
                     OCNumberTryGetDouble(num, &v);
-                    switch (elementType) {
+                    switch (numericType) {
                         case kOCNumberSInt8Type: {
                             int8_t i8 = (int8_t)v;
                             OCDataAppendBytes(data, (uint8_t const *)&i8, sizeof(i8));
@@ -1127,7 +1127,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
         /* unit            */ unit,
         /* quantityName    */ quantityName,
         /* quantityType    */ quantityType,
-        /* elementType     */ elementType,
+        /* numericType     */ numericType,
         /* encoding        */ encoding,
         /* componentsURL   */ componentsURL,
         /* components      */ components,

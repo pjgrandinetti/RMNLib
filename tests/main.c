@@ -77,6 +77,7 @@ int main(void) {
     if (!test_SparseSampling_size_calculations()) failures++;
     fprintf(stderr, "\n=== Running Dataset Tests ===\n");
     if (!test_Dataset_minimal_create()) failures++;
+    if (!test_DatasetCreateMinimal()) failures++;
     if (!test_Dataset_mutators()) failures++;
     if (!test_Dataset_type_contract()) failures++;
     if (!test_Dataset_copy_and_roundtrip()) failures++;

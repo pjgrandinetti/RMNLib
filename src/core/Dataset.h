@@ -67,6 +67,24 @@ DatasetRef DatasetCreate(
     OCStringRef      *outError);
 
 /**
+ * @brief Create a minimal Dataset with only dimensions and dependent variables.
+ * 
+ * This is a simplified version of DatasetCreate that only requires the essential
+ * components: dimensions and dependent variables. All other fields are set to
+ * sensible defaults (empty strings, NULL, etc.).
+ *
+ * @param dimensions         Array of DimensionRef (may be NULL for scalar data).
+ * @param dependentVariables Array of DependentVariableRef (must not be empty).
+ * @param[out] outError      If non-NULL and creation fails, set to an OCStringRef
+ *                          describing the validation or allocation error.
+ * @return Newly allocated DatasetRef on success, or NULL on failure.
+ */
+DatasetRef DatasetCreateMinimal(
+    OCArrayRef      dimensions,
+    OCArrayRef      dependentVariables,
+    OCStringRef    *outError);
+
+/**
  * @brief Helper: Create an empty Dataset (all fields NULL except outError).
  * @param[out] outError If non-NULL and creation fails, set to error string.
  * @return Newly allocated DatasetRef on success, or NULL on failure.

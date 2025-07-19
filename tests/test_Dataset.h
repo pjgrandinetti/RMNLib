@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 bool test_Dataset_minimal_create(void);
+bool test_DatasetCreateMinimal(void);
 bool test_Dataset_mutators(void);
 bool test_Dataset_copy_and_roundtrip(void);
 bool test_Dataset_type_contract(void);

@@ -66,6 +66,47 @@ cleanup:
     return ok;
 }
 
+bool test_DatasetCreateMinimal(void) {
+    printf("test_DatasetCreateMinimal...\n");
+    bool ok = false;
+    OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    DatasetRef ds = NULL;
+
+    DependentVariableRef dv = _make_mock_dv();
+    if (!dv) {
+        fprintf(stderr, "[ERROR] DatasetCreateMinimal: mock DV failed\n");
+        goto cleanup;
+    }
+    OCArrayAppendValue(dvs, dv);
+    OCRelease(dv);
+
+    // Test our new minimal function
+    ds = DatasetCreateMinimal(NULL,    // dimensions (NULL for scalar data)
+                             dvs,      // dependentVariables
+                             NULL);    // outError
+    TEST_ASSERT(ds != NULL);
+
+    // Sanity checks - should have same results as regular DatasetCreate with defaults
+    TEST_ASSERT(OCArrayGetCount(DatasetGetDependentVariables(ds)) == 1);
+    TEST_ASSERT(OCArrayGetCount(DatasetGetDimensions(ds)) == 0);
+    TEST_ASSERT(OCArrayGetCount(DatasetGetTags(ds)) == 0);
+    TEST_ASSERT(OCIndexArrayGetCount(DatasetGetDimensionPrecedence(ds)) == 0);
+    
+    // Check that default values are set
+    TEST_ASSERT(DatasetGetDescription(ds) != NULL);
+    TEST_ASSERT(DatasetGetTitle(ds) != NULL);
+    TEST_ASSERT(DatasetGetFocus(ds) == NULL);
+    TEST_ASSERT(DatasetGetPreviousFocus(ds) == NULL);
+
+    ok = true;
+
+cleanup:
+    OCRelease(ds);
+    OCRelease(dvs);
+    printf("test_DatasetCreateMinimal %s.\n", ok ? "passed" : "FAILED");
+    return ok;
+}
+
 bool test_Dataset_mutators(void) {
     printf("test_Dataset_mutators...\n");
     bool ok = false;

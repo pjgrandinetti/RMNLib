@@ -418,6 +418,27 @@ DatasetRef DatasetCreate(
     }
     return ds;
 }
+
+DatasetRef DatasetCreateMinimal(
+    OCArrayRef      dimensions,
+    OCArrayRef      dependentVariables,
+    OCStringRef    *outError) {
+    
+    // Call the full DatasetCreate function with default values for all optional parameters
+    return DatasetCreate(
+        dimensions,          // dimensions
+        NULL,               // dimensionPrecedence (use natural order)
+        dependentVariables, // dependentVariables
+        NULL,               // tags (empty)
+        NULL,               // description (empty)
+        NULL,               // title (empty) 
+        NULL,               // focus
+        NULL,               // previousFocus
+        NULL,               // metaData
+        outError            // outError
+    );
+}
+
 OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
     if (!ds) return NULL;
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
