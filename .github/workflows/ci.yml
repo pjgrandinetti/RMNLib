@@ -128,9 +128,9 @@ jobs:
       - name: Package public headers
         if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
         run: |
-          mkdir -p header-pkg/include
-          cp src/*.h header-pkg/include/
-          zip -j header-pkg/libRMN-headers.zip header-pkg/include/*.h
+          make install
+          mkdir -p header-pkg
+          cd install && zip -r ../header-pkg/libRMN-headers.zip include/
 
       - name: Upload headers artifact
         if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
