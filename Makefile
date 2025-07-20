@@ -321,11 +321,12 @@ INSTALL_INC_DIR := $(INSTALL_DIR)/include/RMNLib
 install: all
 	$(MKDIR_P) $(INSTALL_LIB_DIR) $(INSTALL_INC_DIR)
 	cp $(LIB_DIR)/libRMNLib.a $(INSTALL_LIB_DIR)/
-	cp src/*.h $(INSTALL_INC_DIR)/
-	cp src/core/*.h $(INSTALL_INC_DIR)/
-	cp src/importers/*.h $(INSTALL_INC_DIR)/
-	cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/
-	cp src/utils/*.h $(INSTALL_INC_DIR)/
+	cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
+	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
+	cp src/core/*.h $(INSTALL_INC_DIR)/core/
+	cp src/importers/*.h $(INSTALL_INC_DIR)/importers/
+	cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/spectroscopy/
+	cp src/utils/*.h $(INSTALL_INC_DIR)/utils/
 
 .PHONY: synclib
 synclib:
