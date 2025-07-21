@@ -37,7 +37,7 @@ Compile the static library::
 
     make
 
-This produces ``libRMNLib.a``.
+This produces ``libRMN.a``.
 
 Usage
 ~~~~~

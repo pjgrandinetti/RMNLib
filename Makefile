@@ -98,7 +98,7 @@ else
 TP_DEPS :=
 endif
 
-all: dirs $(TP_DEPS) prepare $(LIB_DIR)/libRMNLib.a
+all: dirs $(TP_DEPS) prepare $(LIB_DIR)/libRMN.a
 
 dirs: $(REQUIRED_DIRS)
 
@@ -212,7 +212,7 @@ prepare:
 	@echo "Preparing generated files"
 
 # Build static library
-$(LIB_DIR)/libRMNLib.a: $(OBJ)
+$(LIB_DIR)/libRMN.a: $(OBJ)
 	$(AR) rcs $@ $^
 
 # Test sources and objects
@@ -241,15 +241,15 @@ $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c | dirs octypes sitypes
 	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
 
 # Test binary
-$(BIN_DIR)/runTests: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
+$(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) \
+		-lRMN -lSITypes -lOCTypes $(CURL_LIBS) \
 		$(BLAS_LDFLAGS) -lm \
 		-o $@
 
 # AddressSanitizer test binary
-$(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMNLib.a $(TEST_OBJ) octypes sitypes
+$(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
 		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) \
@@ -265,7 +265,7 @@ test-asan: $(BIN_DIR)/runTests.asan
 	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
 clean:
-	$(RM) -r $(BUILD_DIR) libRMNLib.a
+	$(RM) -r $(BUILD_DIR) libRMN.a
 	$(RM) -rf $(THIRD_PARTY_DIR)
 
 # Determine repository root and Xcode build dir
@@ -320,7 +320,7 @@ INSTALL_INC_DIR := $(INSTALL_DIR)/include/RMNLib
 .PHONY: install
 install: all
 	$(MKDIR_P) $(INSTALL_LIB_DIR) $(INSTALL_INC_DIR)
-	cp $(LIB_DIR)/libRMNLib.a $(INSTALL_LIB_DIR)/
+	cp $(LIB_DIR)/libRMN.a $(INSTALL_LIB_DIR)/
 	cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
 	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
 	cp src/core/*.h $(INSTALL_INC_DIR)/core/
