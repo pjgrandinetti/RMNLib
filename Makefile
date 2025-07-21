@@ -252,7 +252,7 @@ $(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 $(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMNLib -lSITypes -lOCTypes $(CURL_LIBS) \
+		-lRMN -lSITypes -lOCTypes $(CURL_LIBS) \
 		$(BLAS_LDFLAGS) -lm \
 		-o $@
 
