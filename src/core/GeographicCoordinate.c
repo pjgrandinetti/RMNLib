@@ -438,13 +438,13 @@ GeographicCoordinateRef GeographicCoordinateGetCurrent(OCDictionaryRef metadata,
     }
 
     SIScalarRef lat = SIScalarCreateWithDouble(jlat->valuedouble,
-                                              SIUnitFindWithUnderivedSymbol(STR("deg")));
+                                              SIUnitWithSymbol(STR("°")));
     SIScalarRef lon = SIScalarCreateWithDouble(jlon->valuedouble,
-                                              SIUnitFindWithUnderivedSymbol(STR("deg")));
+                                              SIUnitWithSymbol(STR("°")));
     SIScalarRef alt = NULL;
     if (cJSON_IsNumber(jalt)) {
         alt = SIScalarCreateWithDouble(jalt->valuedouble,
-                                   SIUnitFindWithUnderivedSymbol(STR("m")));
+                                   SIUnitWithSymbol(STR("m")));
     }
 
     GeographicCoordinateRef gc = GeographicCoordinateCreate(lat, lon, alt, metadata);

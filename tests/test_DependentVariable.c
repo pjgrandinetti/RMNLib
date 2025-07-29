@@ -61,7 +61,7 @@ bool test_DependentVariable_base(void) {
     TEST_ASSERT(OCStringEqual(DependentVariableGetName(dv), STR("foo")));
     TEST_ASSERT(DependentVariableSetDescription(dv, STR("bar")));
     TEST_ASSERT(OCStringEqual(DependentVariableGetDescription(dv), STR("bar")));
-    SIUnitRef m_per_s = SIUnitFindWithUnderivedSymbol(STR("m/s"));
+    SIUnitRef m_per_s = SIUnitWithSymbol(STR("m/s"));
     TEST_ASSERT(SIQuantitySetUnit((SIMutableQuantityRef)dv, m_per_s));
     TEST_ASSERT(OCTypeEqual(
         SIQuantityGetUnit((SIQuantityRef)dv),
@@ -374,7 +374,7 @@ bool test_DependentVariable_components(void) {
     dv = DependentVariableCreate(
         STR("v"),
         STR("vec"),
-        SIUnitFindWithUnderivedSymbol(STR("m/s")),
+        SIUnitWithSymbol(STR("m/s")),
         STR("velocity"),
         STR("vector_1"),
         kOCNumberFloat32Type,

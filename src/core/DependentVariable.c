@@ -1304,7 +1304,7 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCStringRef qname = (OCStringRef)OCDictionaryGetValue(dict, STR(kDependentVariableQuantityNameKey));
         if (qname && OCStringEqual(qname, kSIQuantityDimensionless)) {
             SIUnitRef u = SIUnitDimensionlessAndUnderived();
-            OCStringRef sym = SIUnitCreateSymbol(u);
+            OCStringRef sym = SIUnitCopySymbol(u);
             OCDictionarySetValue(dict, STR(kDependentVariableUnitKey), sym);
             OCRelease(sym);
         }

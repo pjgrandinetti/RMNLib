@@ -48,7 +48,7 @@ bool test_CreateDimensionLongLabel(void) {
     // --- SIDimension case (should be: "foo-5/m") ---
     offset = SIScalarCreateWithDouble(
         3.14,
-        SIUnitFindWithUnderivedSymbol(STR("m"))
+        SIUnitWithSymbol(STR("m"))
     );
     TEST_ASSERT(offset != NULL);
 
@@ -267,7 +267,7 @@ bool test_SIDimension(void) {
 
     offset = SIScalarCreateWithDouble(
         1.0,
-        SIUnitFindWithUnderivedSymbol(STR("m"))
+        SIUnitWithSymbol(STR("m"))
     );
     TEST_ASSERT(offset != NULL);
 
@@ -298,14 +298,14 @@ bool test_SIDimension(void) {
     TEST_ASSERT(
         SIScalarDoubleValueInUnit(
             SIDimensionGetCoordinatesOffset(si),
-            SIUnitFindWithUnderivedSymbol(STR("m")),
+            SIUnitWithSymbol(STR("m")),
             NULL
         ) == 1.0
     );
     TEST_ASSERT(
         SIScalarDoubleValueInUnit(
             SIDimensionGetOriginOffset(si),
-            SIUnitFindWithUnderivedSymbol(STR("m")),
+            SIUnitWithSymbol(STR("m")),
             NULL
         ) == 0.0
     );
@@ -352,8 +352,8 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
     coords = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     TEST_ASSERT(coords);
 
-    s0 = SIScalarCreateWithDouble(0.0,SIUnitFindWithUnderivedSymbol(STR("s")));
-    s1 = SIScalarCreateWithDouble(1.0,SIUnitFindWithUnderivedSymbol(STR("s")));
+    s0 = SIScalarCreateWithDouble(0.0,SIUnitWithSymbol(STR("s")));
+    s1 = SIScalarCreateWithDouble(1.0,SIUnitWithSymbol(STR("s")));
     TEST_ASSERT(s0 && s1);
 
     OCArrayAppendValue(coords, s0);
@@ -416,7 +416,7 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
     {
         SIScalarRef recOff = SIScalarCreateWithDouble(
             0.0,
-            SIUnitFindWithUnderivedSymbol(STR("Hz"))
+            SIUnitWithSymbol(STR("Hz"))
         );
         err = NULL;
         rec = SIDimensionCreate(

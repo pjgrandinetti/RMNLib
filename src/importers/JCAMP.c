@@ -344,19 +344,19 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
             } else if (OCStringCompare(string, STR("HZ"), 0) == kOCCompareEqualTo) {
                 double unit_multiplier = 1;
                 xUnits = SIUnitFromExpression(STR("Hz"), &unit_multiplier, error);
-                inverseXUnits = SIUnitFindWithUnderivedSymbol(STR("s"));
+                inverseXUnits = SIUnitWithSymbol(STR("s"));
                 quantityName = kSIQuantityFrequency;
                 inverseQuantityName = kSIQuantityTime;
             } else if (OCStringCompare(string, STR("TIME"), 0) == kOCCompareEqualTo) {
                 double unit_multiplier = 1;
                 xUnits = SIUnitFromExpression(STR("min"), &unit_multiplier, error);
-                inverseXUnits = SIUnitFindWithUnderivedSymbol(STR("Hz"));
+                inverseXUnits = SIUnitWithSymbol(STR("Hz"));
                 quantityName = kSIQuantityTime;
                 inverseQuantityName = kSIQuantityFrequency;
             } else if (OCStringCompare(string, STR("SECONDS"), 0) == kOCCompareEqualTo) {
                 double unit_multiplier = 1;
                 xUnits = SIUnitFromExpression(STR("s"), &unit_multiplier, error);
-                inverseXUnits = SIUnitFindWithUnderivedSymbol(STR("Hz"));
+                inverseXUnits = SIUnitWithSymbol(STR("Hz"));
                 quantityName = kSIQuantityTime;
                 inverseQuantityName = kSIQuantityFrequency;
             }
@@ -750,7 +750,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     SIScalarRef originOffset = SIScalarCreateWithDouble(originOffsetValue, xUnits);
     if (quantityName && OCStringCompare(quantityName, kSIQuantityFrequency, 0) == kOCCompareEqualTo) {
         OCRelease(originOffset);
-        SIUnitRef megahertz = SIUnitFindWithUnderivedSymbol(STR("MHz"));
+        SIUnitRef megahertz = SIUnitWithSymbol(STR("MHz"));
         originOffset = SIScalarCreateWithDouble(observeFrequency, megahertz);
     } else {
         OCRelease(originOffset);
@@ -760,7 +760,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     SIScalarRef inverseOriginOffset = SIScalarCreateWithDouble(0.0, inverseXUnits);
     if (inverseQuantityName && OCStringCompare(inverseQuantityName, kSIQuantityFrequency, 0) == kOCCompareEqualTo) {
         OCRelease(inverseOriginOffset);
-        SIUnitRef megahertz = SIUnitFindWithUnderivedSymbol(STR("MHz"));
+        SIUnitRef megahertz = SIUnitWithSymbol(STR("MHz"));
         inverseOriginOffset = SIScalarCreateWithDouble(observeFrequency, megahertz);
     } else {
         OCRelease(inverseOriginOffset);

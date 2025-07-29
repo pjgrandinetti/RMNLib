@@ -3104,7 +3104,7 @@ OCStringRef CreateDimensionLongLabel(DimensionRef dim, OCIndex index) {
         tid == SILinearDimensionGetTypeID()) {
         SIScalarRef offset = SIDimensionGetCoordinatesOffset((SIDimensionRef)dim);
         if (offset)
-            unitStr = SIScalarCreateUnitString(offset);
+            unitStr = SIScalarCopyUnitSymbol(offset);
     }
     // Defensive: fallback if unitStr is NULL
     if (!unitStr)
