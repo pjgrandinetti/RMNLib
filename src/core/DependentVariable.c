@@ -402,7 +402,7 @@ static DependentVariableRef impl_DependentVariableCreate(
     dv->unit = unit ? unit : SIUnitDimensionlessAndUnderived();
     OCRelease(dv->quantityName);
     dv->quantityName = quantityName ? OCStringCreateCopy(quantityName)
-                                    : OCStringCreateCopy(SIUnitGuessQuantityName(dv->unit));
+                                    : SIUnitCreateQuantityNameGuess(dv->unit);
     OCRelease(dv->quantityType);
     dv->quantityType = quantityType ? OCStringCreateCopy(quantityType)
                                     : STR("scalar");
