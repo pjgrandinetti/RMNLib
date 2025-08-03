@@ -42,9 +42,9 @@ as local modules (Datum, Dimension, Dataset).
 #endif
 
 // Include the core OCTypes definitions and utilities
-#include <OCLibrary.h>
+#include <OCTypes.h>
 // Include the core SITypes definitions and utilities
-#include <SILibrary.h>
+#include <SITypes.h>
 /** @cond INTERNAL */
 // Centralized Ref typedefs
 typedef struct impl_GeographicCoordinate *GeographicCoordinateRef;

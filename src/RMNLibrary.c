@@ -150,9 +150,16 @@ OCDictionaryRef OCMetadataCreateFromJSON(cJSON *json, OCStringRef *outError) {
     }
     return dict;
 }
+
+static bool rmnLibShutdownCalled = false;
+
 void RMNLibTypesShutdown(void) {
+    if (rmnLibShutdownCalled) return;
+    rmnLibShutdownCalled = true;
+    
+    // SITypesShutdown() will handle both SITypes cleanup and OCTypes cleanup
+    // since SITypes depends on OCTypes
     SITypesShutdown();
-    OCTypesShutdown();
 }
 // If you want automatic teardown when the library is unloaded:
 // __attribute__((destructor(100)))

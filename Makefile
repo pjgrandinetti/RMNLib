@@ -116,7 +116,7 @@ STATIC_SRC := $(wildcard $(SRC_DIR)/*.c) \
 OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(STATIC_SRC))
 
 # Download and extract OCTypes
-octypes: $(TP_LIB_DIR)/libOCTypes.a $(OCT_INCLUDE)/OCLibrary.h
+octypes: $(TP_LIB_DIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes.h
 
 $(OCT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
@@ -151,11 +151,11 @@ else
 endif
 
 # ──────────────── OCTypes headers ─────────────────
-$(OCT_INCLUDE)/OCLibrary.h: $(OCT_HEADERS_ARCHIVE) | $(OCT_INCLUDE)
+$(OCT_INCLUDE)/OCTypes.h: $(OCT_HEADERS_ARCHIVE) | $(OCT_INCLUDE)
 ifeq ($(IS_MINGW),)
 	@echo "Extracting OCTypes headers (linux/macOS)"
 	@if [ -f "$@" ]; then \
-	  echo "  → OCLibrary.h exists, skipping"; \
+	  echo "  → OCTypes.h exists, skipping"; \
 	else \
 	  unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"; \
 	fi
@@ -166,7 +166,7 @@ else
 endif
 
 # Download and extract SITypes
-sitypes: $(TP_LIB_DIR)/libSITypes.a $(SIT_INCLUDE)/SILibrary.h
+sitypes: $(TP_LIB_DIR)/libSITypes.a $(SIT_INCLUDE)/SITypes.h
 
 $(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
@@ -194,11 +194,11 @@ else
 endif
 
 # ──────────────── SITypes headers ─────────────────
-$(SIT_INCLUDE)/SILibrary.h: $(SIT_HEADERS_ARCHIVE) | $(SIT_INCLUDE)
+$(SIT_INCLUDE)/SITypes.h: $(SIT_HEADERS_ARCHIVE) | $(SIT_INCLUDE)
 ifeq ($(IS_MINGW),)
 	@echo "Extracting SITypes headers (linux/macOS)"
 	@if [ -f "$@" ]; then \
-	  echo "  → SILibrary.h exists, skipping"; \
+	  echo "  → SITypes.h exists, skipping"; \
 	else \
 	  unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"; \
 	fi
