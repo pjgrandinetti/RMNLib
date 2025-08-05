@@ -104,7 +104,7 @@ DependentVariableGetTypeID(void);
  * @return New DependentVariableRef, or NULL on failure.
  */
 DependentVariableRef
-DependentVariableCreateCopy(DependentVariableRef orig);
+DependentVariableCopy(DependentVariableRef orig);
 /**
  * @brief Like CreateCopy, but ensures the result is complex-typed.
  * @param src   Source object.

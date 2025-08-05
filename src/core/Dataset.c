@@ -370,7 +370,7 @@ DatasetRef DatasetCreate(
                     SparseSamplingSetEncoding(sparseSampling, STR("base64"));
                 }
                 // Perform the deep copy with optimized encoding
-                toInsert = DependentVariableCreateCopy(dv);
+                toInsert = DependentVariableCopy(dv);
                 // Also ensure the copied DV uses base64 encoding to avoid future OCNumber creation
                 SparseSamplingRef copiedSparseSampling = DependentVariableGetSparseSampling(toInsert);
                 if (copiedSparseSampling) {
@@ -515,7 +515,7 @@ OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
         OCMutableArrayRef dvs_arr = OCArrayCreateMutable(m, &kOCTypeArrayCallBacks);
         for (OCIndex i = 0; i < m; ++i) {
             DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(ds->dependentVariables, i);
-            DependentVariableRef copy = DependentVariableCreateCopy(dv);
+            DependentVariableRef copy = DependentVariableCopy(dv);
             DependentVariableSetType(copy, STR("internal"));
             OCDictionaryRef ddv = DependentVariableCopyAsDictionary(copy);
             OCArrayAppendValue(dvs_arr, ddv);

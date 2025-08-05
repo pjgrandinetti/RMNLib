@@ -656,14 +656,14 @@ DependentVariableRef DependentVariableCreateExternal(
         /* metaData           */ NULL,  // no extra metadata
         /* outError           */ outError);
 }
-DependentVariableRef DependentVariableCreateCopy(DependentVariableRef src) {
+DependentVariableRef DependentVariableCopy(DependentVariableRef src) {
     return impl_DependentVariableDeepCopy(src);
 }
 DependentVariableRef DependentVariableCreateComplexCopy(DependentVariableRef src,
                                                         OCTypeRef owner) {
     if (!src) return NULL;
     // 1) Make a deep copy of the source
-    DependentVariableRef dv = DependentVariableCreateCopy(src);
+    DependentVariableRef dv = DependentVariableCopy(src);
     if (!dv) return NULL;
     // 2) Assign the owner (weak back-pointer)
     DependentVariableSetOwner(dv, owner);
@@ -1390,7 +1390,7 @@ DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv
     if (freeCount < 0 || freeCount > allDimsCount) return NULL;
     // 1) no dims fixed? just copy
     if (freeCount == allDimsCount) {
-        return DependentVariableCreateCopy(dv);
+        return DependentVariableCopy(dv);
     }
     // 2) build an OCIndexSet of the *fixed* dimension‐indices
     OCIndexSetRef fixedDims =
