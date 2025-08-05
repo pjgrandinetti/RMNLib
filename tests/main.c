@@ -64,6 +64,7 @@ int main(void) {
     if (!test_DependentVariable_sparse_sampling()) failures++;
     if (!test_DependentVariable_copy_and_roundtrip()) failures++;
     if (!test_DependentVariable_invalid_create()) failures++;
+    if (!test_DependentVariable_arithmetic_operations()) failures++;
     fprintf(stderr, "\n=== Running SparseSampling Tests ===\n");
     if (!test_SparseSampling_basic_create()) failures++;
     if (!test_SparseSampling_validation()) failures++;

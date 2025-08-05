@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 #include "RMNLibrary.h"
 #include "SparseSampling.h"
 #include "test_utils.h"
@@ -579,5 +580,149 @@ cleanup:
     OCRelease(oneBuf);
     OCRelease(err);
     printf("DependentVariable invalid-create tests %s\n", ok ? "passed." : "FAILED!");
+    return ok;
+}
+
+bool test_DependentVariable_arithmetic_operations(void) {
+    bool ok = false;
+    DependentVariableRef dv1 = NULL, dv2 = NULL;
+    OCMutableArrayRef components1 = NULL, components2 = NULL;
+    OCMutableDataRef comp1 = NULL, comp2 = NULL;
+    OCDataRef result = NULL;
+    SIUnitRef unit = NULL;
+    OCStringRef err = NULL;
+    const float *resultData = NULL;
+    float *data1Ptr = NULL, *data2Ptr = NULL;
+
+    // Create test data
+    float data1[] = {1.0f, 2.0f, 3.0f, 4.0f};
+    float data2[] = {0.5f, 1.0f, 1.5f, 2.0f};
+
+    // Create unit
+    unit = SIUnitDimensionlessAndUnderived();
+    TEST_ASSERT(unit != NULL);
+
+    // Create data components
+    comp1 = OCDataCreateMutable(0);
+    comp2 = OCDataCreateMutable(0);
+    TEST_ASSERT(comp1 != NULL && comp2 != NULL);
+
+    // Set length and copy data
+    OCDataSetLength(comp1, sizeof(data1));
+    OCDataSetLength(comp2, sizeof(data2));
+    
+    data1Ptr = (float*)OCDataGetMutableBytes(comp1);
+    data2Ptr = (float*)OCDataGetMutableBytes(comp2);
+    memcpy(data1Ptr, data1, sizeof(data1));
+    memcpy(data2Ptr, data2, sizeof(data2));
+
+    // Create component arrays
+    components1 = OCArrayCreateMutable(1, &kOCTypeArrayCallBacks);
+    components2 = OCArrayCreateMutable(1, &kOCTypeArrayCallBacks);
+    OCArrayAppendValue(components1, comp1);
+    OCArrayAppendValue(components2, comp2);
+
+    // Create first DependentVariable
+    dv1 = DependentVariableCreateMinimal(
+        unit,
+        STR("test1"),
+        STR("scalar"),
+        kOCNumberFloat32Type,
+        components1,
+        &err
+    );
+    if (!dv1 && err) {
+        printf("DependentVariable create failed: %s\n", OCStringGetCString(err));
+    }
+    TEST_ASSERT(dv1 != NULL);
+
+    // Create second DependentVariable
+    dv2 = DependentVariableCreateMinimal(
+        unit,
+        STR("test2"),
+        STR("scalar"),
+        kOCNumberFloat32Type,
+        components2,
+        &err
+    );
+    if (!dv2 && err) {
+        printf("DependentVariable create failed: %s\n", OCStringGetCString(err));
+    }
+    TEST_ASSERT(dv2 != NULL);
+
+    // Test addition: dv1 = dv1 + dv2
+    TEST_ASSERT(DependentVariableAdd(dv1, dv2, &err));
+    if (err) {
+        printf("Addition error: %s\n", OCStringGetCString(err));
+        goto cleanup;
+    }
+
+    // Check addition results (should be [1.5, 3.0, 4.5, 6.0])
+    result = DependentVariableGetComponentAtIndex(dv1, 0);
+    TEST_ASSERT(result != NULL);
+    resultData = (const float*)OCDataGetBytesPtr(result);
+    TEST_ASSERT(fabs(resultData[0] - 1.5f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[1] - 3.0f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[2] - 4.5f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[3] - 6.0f) < 1e-6f);
+
+    // Test subtraction: dv1 = dv1 - dv2 (should restore original values)
+    TEST_ASSERT(DependentVariableSubtract(dv1, dv2, &err));
+    if (err) {
+        printf("Subtraction error: %s\n", OCStringGetCString(err));
+        goto cleanup;
+    }
+
+    // Check subtraction results (should be back to [1.0, 2.0, 3.0, 4.0])
+    result = DependentVariableGetComponentAtIndex(dv1, 0);
+    TEST_ASSERT(result != NULL);
+    resultData = (const float*)OCDataGetBytesPtr(result);
+    TEST_ASSERT(fabs(resultData[0] - 1.0f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[1] - 2.0f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[2] - 3.0f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[3] - 4.0f) < 1e-6f);
+
+    // Test multiplication: dv1 = dv1 * dv2
+    TEST_ASSERT(DependentVariableMultiply(dv1, dv2, &err));
+    if (err) {
+        printf("Multiplication error: %s\n", OCStringGetCString(err));
+        goto cleanup;
+    }
+
+    // Check multiplication results (should be [0.5, 2.0, 4.5, 8.0])
+    result = DependentVariableGetComponentAtIndex(dv1, 0);
+    TEST_ASSERT(result != NULL);
+    resultData = (const float*)OCDataGetBytesPtr(result);
+    TEST_ASSERT(fabs(resultData[0] - 0.5f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[1] - 2.0f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[2] - 4.5f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[3] - 8.0f) < 1e-6f);
+
+    // Test division: dv1 = dv1 / dv2 (should restore original values)
+    TEST_ASSERT(DependentVariableDivide(dv1, dv2, &err));
+    if (err) {
+        printf("Division error: %s\n", OCStringGetCString(err));
+        goto cleanup;
+    }
+
+    // Check division results (should be back to [1.0, 2.0, 3.0, 4.0])
+    result = DependentVariableGetComponentAtIndex(dv1, 0);
+    TEST_ASSERT(result != NULL);
+    resultData = (const float*)OCDataGetBytesPtr(result);
+    TEST_ASSERT(fabs(resultData[0] - 1.0f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[1] - 2.0f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[2] - 3.0f) < 1e-6f);
+    TEST_ASSERT(fabs(resultData[3] - 4.0f) < 1e-6f);
+
+    ok = true;
+cleanup:
+    if (dv1) OCRelease(dv1);
+    if (dv2) OCRelease(dv2);
+    if (components1) OCRelease(components1);
+    if (components2) OCRelease(components2);
+    if (comp1) OCRelease(comp1);
+    if (comp2) OCRelease(comp2);
+    OCRelease(err);
+    printf("DependentVariable arithmetic operations tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
