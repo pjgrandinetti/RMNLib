@@ -5,6 +5,14 @@ set(CMAKE_C_STANDARD 11)
 # ---- Find and include libcurl ----
 find_package(CURL REQUIRED)
 
+# ---- Find OpenMP (optional for parallel processing) ----
+find_package(OpenMP)
+if(OpenMP_C_FOUND)
+    message(STATUS "OpenMP found - enabling parallel processing")
+else()
+    message(STATUS "OpenMP not found - using sequential processing")
+endif()
+
 # All hand-written sources - collect from all subdirectories
 file(GLOB ALL_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
@@ -43,6 +51,11 @@ else()
     target_link_libraries(RMNLib PUBLIC
         CURL::libcurl
     )
+endif()
+
+# Link OpenMP if available
+if(OpenMP_C_FOUND)
+    target_link_libraries(RMNLib PUBLIC OpenMP::OpenMP_C)
 endif()
 
 # Tests

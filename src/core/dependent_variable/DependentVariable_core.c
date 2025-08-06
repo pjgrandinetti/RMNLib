@@ -27,8 +27,8 @@ static void impl_DependentVariableFinalize(const void *ptr) {
     OCRelease(dv->metaData);
     // NOTE: dv->owner is a weak back-pointer — do NOT OCRelease it
 }
-static bool DependentVariableComponentsAreEqual(const struct impl_DependentVariable *a,
-                                                const struct impl_DependentVariable *b) {
+static bool impl_DependentVariableComponentsAreEqual(const struct impl_DependentVariable *a,
+                                                     const struct impl_DependentVariable *b) {
     if (!a || !b) return false;
     OCIndex nA = DependentVariableGetComponentCount((DependentVariableRef)a);
     OCIndex nB = DependentVariableGetComponentCount((DependentVariableRef)b);
@@ -64,7 +64,7 @@ static bool impl_DependentVariableEqual(const void *a, const void *b) {
     if (dvA->name != dvB->name &&
         !OCTypeEqual(dvA->name, dvB->name)) return false;
     // 2) raw components & labels
-    if (!DependentVariableComponentsAreEqual(dvA, dvB)) return false;
+    if (!impl_DependentVariableComponentsAreEqual(dvA, dvB)) return false;
     if (dvA->componentLabels != dvB->componentLabels &&
         !OCTypeEqual(dvA->componentLabels, dvB->componentLabels)) return false;
     // 3) quantity & description

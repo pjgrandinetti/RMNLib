@@ -39,6 +39,28 @@ as local modules (Datum, Dimension, Dataset).
 /* LAPACKE C interface to LAPACK */
 #include <lapacke.h>
 #endif
+/*
+ -------------------------------------------------------------
+ OpenMP — conditionally include for parallel processing
+ -------------------------------------------------------------
+ OpenMP provides parallel processing capabilities for loops and other
+ constructs. Support varies by compiler and platform:
+   GCC      : -fopenmp flag required (includes MinGW on Windows)
+   Clang    : -fopenmp flag + OpenMP runtime library
+   MSVC     : /openmp flag
+   MinGW    : -fopenmp flag (typically uses GCC toolchain)
+   Others   : may not be supported
+
+ If OpenMP is not available, the pragma directives are safely ignored
+ and the code runs sequentially.
+ -------------------------------------------------------------
+*/
+#ifdef _OPENMP
+#include <omp.h>
+#define HAVE_OPENMP 1
+#else
+#define HAVE_OPENMP 0
+#endif
 // Include the core OCTypes definitions and utilities
 #include <OCTypes.h>
 // Include the core SITypes definitions and utilities

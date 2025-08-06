@@ -666,1309 +666,289 @@ typedef enum {
     kArithmeticDivide
 } ArithmeticOperation;
 // Unified helper function for arithmetic operations with potential type conversion
-static bool perform_arithmetic_with_conversion(void *dest, OCNumberType dest_type,
-                                               const void *src, OCNumberType src_type,
-                                               OCIndex size, ArithmeticOperation op,
-                                               double unit_multiplier) {
-    // Same type - use optimized operations where possible
+// Helpers to load any element as a double:
+// Load the real part of element i as a double, from any type
+static inline double load_double(const void *src, OCNumberType t, OCIndex i) {
+    switch (t) {
+        case kOCNumberSInt8Type:
+            return (double)((const int8_t *)src)[i];
+        case kOCNumberSInt16Type:
+            return (double)((const int16_t *)src)[i];
+        case kOCNumberSInt32Type:
+            return (double)((const int32_t *)src)[i];
+        case kOCNumberSInt64Type:
+            return (double)((const int64_t *)src)[i];
+        case kOCNumberUInt8Type:
+            return (double)((const uint8_t *)src)[i];
+        case kOCNumberUInt16Type:
+            return (double)((const uint16_t *)src)[i];
+        case kOCNumberUInt32Type:
+            return (double)((const uint32_t *)src)[i];
+        case kOCNumberUInt64Type:
+            return (double)((const uint64_t *)src)[i];
+        case kOCNumberFloat32Type:
+            return (double)((const float *)src)[i];
+        case kOCNumberFloat64Type:
+            return ((const double *)src)[i];
+        case kOCNumberComplex64Type:
+            return (double)crealf(((const float complex *)src)[i]);
+        case kOCNumberComplex128Type:
+            return creal(((const double complex *)src)[i]);
+    }
+    return 0.0;  // unreachable
+}
+// Store a double back into element i of any type (real or complex real part)
+static inline void store_double(
+    void *dst, OCNumberType t, OCIndex i, double v) {
+    switch (t) {
+        case kOCNumberSInt8Type:
+            ((int8_t *)dst)[i] = (int8_t)v;
+            break;
+        case kOCNumberSInt16Type:
+            ((int16_t *)dst)[i] = (int16_t)v;
+            break;
+        case kOCNumberSInt32Type:
+            ((int32_t *)dst)[i] = (int32_t)v;
+            break;
+        case kOCNumberSInt64Type:
+            ((int64_t *)dst)[i] = (int64_t)v;
+            break;
+        case kOCNumberUInt8Type:
+            ((uint8_t *)dst)[i] = (uint8_t)v;
+            break;
+        case kOCNumberUInt16Type:
+            ((uint16_t *)dst)[i] = (uint16_t)v;
+            break;
+        case kOCNumberUInt32Type:
+            ((uint32_t *)dst)[i] = (uint32_t)v;
+            break;
+        case kOCNumberUInt64Type:
+            ((uint64_t *)dst)[i] = (uint64_t)v;
+            break;
+        case kOCNumberFloat32Type:
+            ((float *)dst)[i] = (float)v;
+            break;
+        case kOCNumberFloat64Type:
+            ((double *)dst)[i] = v;
+            break;
+        case kOCNumberComplex64Type:
+            ((float complex *)dst)[i] = (float)v + 0.0f * I;
+            break;
+        case kOCNumberComplex128Type:
+            ((double complex *)dst)[i] = v + 0.0 * I;
+            break;
+    }
+}
+static bool perform_arithmetic_with_conversion(
+    void *dest,
+    OCNumberType dest_type,
+    const void *src,
+    OCNumberType src_type,
+    OCIndex size,
+    ArithmeticOperation op,
+    double u)  // unit_multiplier
+{
+    // 1) SAME-TYPE fast paths
     if (dest_type == src_type) {
         switch (dest_type) {
             case kOCNumberFloat32Type: {
-                float *dest_f = (float *)dest;
-                const float *src_f = (const float *)src;
-                // Use BLAS for add/subtract operations
+                float *restrict d = (float *restrict)dest;
+                const float *restrict s = (const float *restrict)src;
+                const float f = (float)u;
                 if (op == kArithmeticAdd) {
-                    cblas_saxpy((int)size, 1.0f, src_f, 1, dest_f, 1);
-                    return true;
+                    cblas_saxpy((int)size, 1.0f, s, 1, d, 1);
                 } else if (op == kArithmeticSubtract) {
-                    cblas_saxpy((int)size, -1.0f, src_f, 1, dest_f, 1);
-                    return true;
-                } else {
-                    // Element-wise for multiply/divide
-                    float factor = (float)unit_multiplier;
-                    for (OCIndex i = 0; i < size; i++) {
-                        if (op == kArithmeticMultiply) {
-                            dest_f[i] *= src_f[i] * factor;
-                        } else {  // kArithmeticDivide
-                            if (src_f[i] != 0.0f) {
-                                dest_f[i] = (dest_f[i] / src_f[i]) * factor;
-                            } else {
-                                dest_f[i] = (dest_f[i] > 0.0f) ? INFINITY : (dest_f[i] < 0.0f) ? -INFINITY
-                                                                                               : NAN;
-                            }
-                        }
-                    }
-                    return true;
+                    cblas_saxpy((int)size, -1.0f, s, 1, d, 1);
+                } else if (op == kArithmeticMultiply) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+                    for (OCIndex i = 0; i < size; i++)
+                        d[i] = fmaf(d[i], s[i], 0.0f) * f;
+                } else {  // Divide
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+                    for (OCIndex i = 0; i < size; i++)
+                        d[i] *= f / s[i];
                 }
+                return true;
             }
             case kOCNumberFloat64Type: {
-                double *dest_d = (double *)dest;
-                const double *src_d = (const double *)src;
-                // Use BLAS for add/subtract operations
+                double *restrict d = (double *restrict)dest;
+                const double *restrict s = (const double *restrict)src;
+                const double f = u;
                 if (op == kArithmeticAdd) {
-                    cblas_daxpy((int)size, 1.0, src_d, 1, dest_d, 1);
-                    return true;
+                    cblas_daxpy((int)size, 1.0, s, 1, d, 1);
                 } else if (op == kArithmeticSubtract) {
-                    cblas_daxpy((int)size, -1.0, src_d, 1, dest_d, 1);
-                    return true;
+                    cblas_daxpy((int)size, -1.0, s, 1, d, 1);
+                } else if (op == kArithmeticMultiply) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+                    for (OCIndex i = 0; i < size; i++)
+                        d[i] = fma(d[i], s[i], 0.0) * f;
                 } else {
-                    // Element-wise for multiply/divide
-                    for (OCIndex i = 0; i < size; i++) {
-                        if (op == kArithmeticMultiply) {
-                            dest_d[i] *= src_d[i] * unit_multiplier;
-                        } else {  // kArithmeticDivide
-                            if (src_d[i] != 0.0) {
-                                dest_d[i] = (dest_d[i] / src_d[i]) * unit_multiplier;
-                            } else {
-                                dest_d[i] = (dest_d[i] > 0.0) ? INFINITY : (dest_d[i] < 0.0) ? -INFINITY
-                                                                                             : NAN;
-                            }
-                        }
-                    }
-                    return true;
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+                    for (OCIndex i = 0; i < size; i++)
+                        d[i] *= f / s[i];
                 }
+                return true;
             }
             case kOCNumberComplex64Type: {
-                float complex *dest_c = (float complex *)dest;
-                const float complex *src_c = (const float complex *)src;
-                // Use BLAS for add/subtract operations
+                float complex *restrict d = (float complex *restrict)dest;
+                const float complex *restrict s = (const float complex *restrict)src;
+                const float complex f = (float)u + 0.0f * I;
                 if (op == kArithmeticAdd) {
-                    float complex alpha = 1.0f + 0.0f * I;
-                    cblas_caxpy((int)size, &alpha, src_c, 1, dest_c, 1);
-                    return true;
+                    float complex α = 1.0f + 0.0f * I;
+                    cblas_caxpy((int)size, &α, s, 1, d, 1);
                 } else if (op == kArithmeticSubtract) {
-                    float complex alpha = -1.0f + 0.0f * I;
-                    cblas_caxpy((int)size, &alpha, src_c, 1, dest_c, 1);
-                    return true;
+                    float complex α = -1.0f + 0.0f * I;
+                    cblas_caxpy((int)size, &α, s, 1, d, 1);
+                } else if (op == kArithmeticMultiply) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+                    for (OCIndex i = 0; i < size; i++)
+                        d[i] *= s[i] * f;
                 } else {
-                    // Element-wise for multiply/divide
-                    float complex factor = (float)unit_multiplier + 0.0f * I;
-                    for (OCIndex i = 0; i < size; i++) {
-                        if (op == kArithmeticMultiply) {
-                            dest_c[i] *= src_c[i] * factor;
-                        } else {  // kArithmeticDivide
-                            if (cabsf(src_c[i]) != 0.0f) {
-                                dest_c[i] = (dest_c[i] / src_c[i]) * factor;
-                            } else {
-                                dest_c[i] = INFINITY + INFINITY * I;
-                            }
-                        }
-                    }
-                    return true;
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+                    for (OCIndex i = 0; i < size; i++)
+                        d[i] *= f / s[i];
                 }
+                return true;
             }
             case kOCNumberComplex128Type: {
-                double complex *dest_c = (double complex *)dest;
-                const double complex *src_c = (const double complex *)src;
-                // Use BLAS for add/subtract operations
+                double complex *restrict d = (double complex *restrict)dest;
+                const double complex *restrict s = (const double complex *restrict)src;
+                const double complex f = u + 0.0 * I;
                 if (op == kArithmeticAdd) {
-                    double complex alpha = 1.0 + 0.0 * I;
-                    cblas_zaxpy((int)size, &alpha, src_c, 1, dest_c, 1);
-                    return true;
+                    double complex α = 1.0 + 0.0 * I;
+                    cblas_zaxpy((int)size, &α, s, 1, d, 1);
                 } else if (op == kArithmeticSubtract) {
-                    double complex alpha = -1.0 + 0.0 * I;
-                    cblas_zaxpy((int)size, &alpha, src_c, 1, dest_c, 1);
-                    return true;
+                    double complex α = -1.0 + 0.0 * I;
+                    cblas_zaxpy((int)size, &α, s, 1, d, 1);
+                } else if (op == kArithmeticMultiply) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+                    for (OCIndex i = 0; i < size; i++)
+                        d[i] *= s[i] * f;
                 } else {
-                    // Element-wise for multiply/divide
-                    double complex factor = unit_multiplier + 0.0 * I;
-                    for (OCIndex i = 0; i < size; i++) {
-                        if (op == kArithmeticMultiply) {
-                            dest_c[i] *= src_c[i] * factor;
-                        } else {  // kArithmeticDivide
-                            if (cabs(src_c[i]) != 0.0) {
-                                dest_c[i] = (dest_c[i] / src_c[i]) * factor;
-                            } else {
-                                dest_c[i] = INFINITY + INFINITY * I;
-                            }
-                        }
-                    }
-                    return true;
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+                    for (OCIndex i = 0; i < size; i++)
+                        d[i] *= f / s[i];
                 }
+                return true;
             }
             default:
-                return false;  // Unsupported type
+                break;
         }
     }
-    // Mixed types - simplified version (can be expanded as needed)
-    // For brevity, include just the most common conversions
+    // 2) Fast float32↔float64 cross-paths
     if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberFloat32Type) {
-        double *dest_d = (double *)dest;
-        const float *src_f = (const float *)src;
-        for (OCIndex i = 0; i < size; i++) {
-            double src_val = (double)src_f[i];
-            if (op == kArithmeticAdd)
-                dest_d[i] += src_val;
-            else if (op == kArithmeticSubtract)
-                dest_d[i] -= src_val;
-            else if (op == kArithmeticMultiply)
-                dest_d[i] *= src_val * unit_multiplier;
-            else if (src_val != 0.0)
-                dest_d[i] = (dest_d[i] / src_val) * unit_multiplier;
-            else
-                dest_d[i] = (dest_d[i] > 0.0) ? INFINITY : (dest_d[i] < 0.0) ? -INFINITY
-                                                                             : NAN;
+        double *restrict d = (double *restrict)dest;
+        const float *restrict s = (const float *restrict)src;
+        const double f = u;
+        if (op == kArithmeticAdd) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+            for (OCIndex i = 0; i < size; i++) d[i] += (double)s[i];
+        } else if (op == kArithmeticSubtract) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+            for (OCIndex i = 0; i < size; i++) d[i] -= (double)s[i];
+        } else if (op == kArithmeticMultiply) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+            for (OCIndex i = 0; i < size; i++)
+                d[i] = fma(d[i], (double)s[i], 0.0) * f;
+        } else {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+            for (OCIndex i = 0; i < size; i++)
+                d[i] *= f / (double)s[i];
         }
         return true;
     }
     if (dest_type == kOCNumberFloat32Type && src_type == kOCNumberFloat64Type) {
-        float *dest_f = (float *)dest;
-        const double *src_d = (const double *)src;
-        float factor = (float)unit_multiplier;
-        for (OCIndex i = 0; i < size; i++) {
-            float src_val = (float)src_d[i];
-            if (op == kArithmeticAdd)
-                dest_f[i] += src_val;
-            else if (op == kArithmeticSubtract)
-                dest_f[i] -= src_val;
-            else if (op == kArithmeticMultiply)
-                dest_f[i] *= src_val * factor;
-            else if (src_val != 0.0f)
-                dest_f[i] = (dest_f[i] / src_val) * factor;
-            else
-                dest_f[i] = (dest_f[i] > 0.0f) ? INFINITY : (dest_f[i] < 0.0f) ? -INFINITY
-                                                                               : NAN;
+        float *restrict d = (float *restrict)dest;
+        const double *restrict s = (const double *restrict)src;
+        const float f = (float)u;
+        if (op == kArithmeticAdd) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+            for (OCIndex i = 0; i < size; i++) d[i] += (float)s[i];
+        } else if (op == kArithmeticSubtract) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+            for (OCIndex i = 0; i < size; i++) d[i] -= (float)s[i];
+        } else if (op == kArithmeticMultiply) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+            for (OCIndex i = 0; i < size; i++)
+                d[i] = fmaf(d[i], (float)s[i], 0.0f) * f;
+        } else {
+#if HAVE_OPENMP
+#pragma omp parallel for simd aligned(d, s : 32)
+#endif
+            for (OCIndex i = 0; i < size; i++)
+                d[i] *= f / (float)s[i];
         }
         return true;
     }
-    // Fallback to element-by-element operation for other cases
-    return false;
-}
-// Fallback element-by-element arithmetic for unsupported conversions
-static void perform_arithmetic_elementwise(void *dest, OCNumberType dest_type,
-                                           const void *src, OCNumberType src_type,
-                                           OCIndex size, ArithmeticOperation op,
-                                           double unit_multiplier) {
-    // Simplified element-wise implementation
-    for (OCIndex i = 0; i < size; i++) {
-        switch (dest_type) {
-            case kOCNumberFloat32Type: {
-                float *dest_f = (float *)dest;
-                float factor = (float)unit_multiplier;
-                switch (src_type) {
-                    case kOCNumberFloat64Type: {
-                        const double *src_d = (const double *)src;
-                        float src_val = (float)src_d[i];
-                        if (op == kArithmeticAdd)
-                            dest_f[i] += src_val;
-                        else if (op == kArithmeticSubtract)
-                            dest_f[i] -= src_val;
-                        else if (op == kArithmeticMultiply)
-                            dest_f[i] *= src_val * factor;
-                        else if (src_val != 0.0f)
-                            dest_f[i] = (dest_f[i] / src_val) * factor;
-                        else
-                            dest_f[i] = (dest_f[i] > 0.0f) ? INFINITY : (dest_f[i] < 0.0f) ? -INFINITY
-                                                                                           : NAN;
-                        break;
-                    }
-                    case kOCNumberComplex64Type: {
-                        const float complex *src_c = (const float complex *)src;
-                        float real_part = crealf(src_c[i]);
-                        if (op == kArithmeticAdd)
-                            dest_f[i] += real_part;
-                        else if (op == kArithmeticSubtract)
-                            dest_f[i] -= real_part;
-                        else if (op == kArithmeticMultiply)
-                            dest_f[i] *= real_part * factor;
-                        else if (real_part != 0.0f)
-                            dest_f[i] = (dest_f[i] / real_part) * factor;
-                        else
-                            dest_f[i] = (dest_f[i] > 0.0f) ? INFINITY : (dest_f[i] < 0.0f) ? -INFINITY
-                                                                                           : NAN;
-                        break;
-                    }
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberFloat64Type: {
-                double *dest_d = (double *)dest;
-                switch (src_type) {
-                    case kOCNumberComplex64Type: {
-                        const float complex *src_c = (const float complex *)src;
-                        double real_part = (double)crealf(src_c[i]);
-                        if (op == kArithmeticAdd)
-                            dest_d[i] += real_part;
-                        else if (op == kArithmeticSubtract)
-                            dest_d[i] -= real_part;
-                        else if (op == kArithmeticMultiply)
-                            dest_d[i] *= real_part * unit_multiplier;
-                        else if (real_part != 0.0)
-                            dest_d[i] = (dest_d[i] / real_part) * unit_multiplier;
-                        else
-                            dest_d[i] = (dest_d[i] > 0.0) ? INFINITY : (dest_d[i] < 0.0) ? -INFINITY
-                                                                                         : NAN;
-                        break;
-                    }
-                    case kOCNumberComplex128Type: {
-                        const double complex *src_c = (const double complex *)src;
-                        double real_part = creal(src_c[i]);
-                        if (op == kArithmeticAdd)
-                            dest_d[i] += real_part;
-                        else if (op == kArithmeticSubtract)
-                            dest_d[i] -= real_part;
-                        else if (op == kArithmeticMultiply)
-                            dest_d[i] *= real_part * unit_multiplier;
-                        else if (real_part != 0.0)
-                            dest_d[i] = (dest_d[i] / real_part) * unit_multiplier;
-                        else
-                            dest_d[i] = (dest_d[i] > 0.0) ? INFINITY : (dest_d[i] < 0.0) ? -INFINITY
-                                                                                         : NAN;
-                        break;
-                    }
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberComplex64Type: {
-                float complex *dest_c = (float complex *)dest;
-                float complex factor = (float)unit_multiplier + 0.0f * I;
-                switch (src_type) {
-                    case kOCNumberFloat32Type: {
-                        const float *src_f = (const float *)src;
-                        if (op == kArithmeticAdd)
-                            dest_c[i] += src_f[i];
-                        else if (op == kArithmeticSubtract)
-                            dest_c[i] -= src_f[i];
-                        else if (op == kArithmeticMultiply)
-                            dest_c[i] *= src_f[i] * factor;
-                        else if (src_f[i] != 0.0f)
-                            dest_c[i] = (dest_c[i] / src_f[i]) * factor;
-                        else
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        break;
-                    }
-                    case kOCNumberFloat64Type: {
-                        const double *src_d = (const double *)src;
-                        float src_val = (float)src_d[i];
-                        if (op == kArithmeticAdd)
-                            dest_c[i] += src_val;
-                        else if (op == kArithmeticSubtract)
-                            dest_c[i] -= src_val;
-                        else if (op == kArithmeticMultiply)
-                            dest_c[i] *= src_val * factor;
-                        else if (src_val != 0.0f)
-                            dest_c[i] = (dest_c[i] / src_val) * factor;
-                        else
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        break;
-                    }
-                    case kOCNumberComplex128Type: {
-                        const double complex *src_c_d = (const double complex *)src;
-                        float complex src_val = (float complex)src_c_d[i];
-                        if (op == kArithmeticAdd)
-                            dest_c[i] += src_val;
-                        else if (op == kArithmeticSubtract)
-                            dest_c[i] -= src_val;
-                        else if (op == kArithmeticMultiply)
-                            dest_c[i] *= src_val * factor;
-                        else if (cabsf(src_val) != 0.0f)
-                            dest_c[i] = (dest_c[i] / src_val) * factor;
-                        else
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        break;
-                    }
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberComplex128Type: {
-                double complex *dest_c = (double complex *)dest;
-                double complex factor = unit_multiplier + 0.0 * I;
-                switch (src_type) {
-                    case kOCNumberFloat32Type: {
-                        const float *src_f = (const float *)src;
-                        double src_val = (double)src_f[i];
-                        if (op == kArithmeticAdd)
-                            dest_c[i] += src_val;
-                        else if (op == kArithmeticSubtract)
-                            dest_c[i] -= src_val;
-                        else if (op == kArithmeticMultiply)
-                            dest_c[i] *= src_val * factor;
-                        else if (src_val != 0.0)
-                            dest_c[i] = (dest_c[i] / src_val) * factor;
-                        else
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        break;
-                    }
-                    case kOCNumberFloat64Type: {
-                        const double *src_d = (const double *)src;
-                        if (op == kArithmeticAdd)
-                            dest_c[i] += src_d[i];
-                        else if (op == kArithmeticSubtract)
-                            dest_c[i] -= src_d[i];
-                        else if (op == kArithmeticMultiply)
-                            dest_c[i] *= src_d[i] * factor;
-                        else if (src_d[i] != 0.0)
-                            dest_c[i] = (dest_c[i] / src_d[i]) * factor;
-                        else
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        break;
-                    }
-                    case kOCNumberComplex64Type: {
-                        const float complex *src_c_f = (const float complex *)src;
-                        double complex src_val = (double complex)src_c_f[i];
-                        if (op == kArithmeticAdd)
-                            dest_c[i] += src_val;
-                        else if (op == kArithmeticSubtract)
-                            dest_c[i] -= src_val;
-                        else if (op == kArithmeticMultiply)
-                            dest_c[i] *= src_val * factor;
-                        else if (cabs(src_val) != 0.0)
-                            dest_c[i] = (dest_c[i] / src_val) * factor;
-                        else
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        break;
-                    }
-                    default:
-                        break;
-                }
-                break;
-            }
-            default:
-                break;
-        }
-    }
-}
-// Helper function for dividing arrays with potential type conversion
-static bool divide_arrays_with_conversion(void *dest, OCNumberType dest_type,
-                                          const void *src, OCNumberType src_type,
-                                          OCIndex size, double unit_multiplier) {
-    // Same type - use optimized vectorized operations where possible
-    if (dest_type == src_type) {
-        switch (dest_type) {
-            case kOCNumberFloat32Type: {
-                float *dest_f = (float *)dest;
-                const float *src_f = (const float *)src;
-                float factor = (float)unit_multiplier;
-                // Use vectorized operations when available
-                for (OCIndex i = 0; i < size; i++) {
-                    if (src_f[i] != 0.0f) {
-                        dest_f[i] = (dest_f[i] / src_f[i]) * factor;
-                    } else {
-                        dest_f[i] = INFINITY;  // Handle division by zero
-                    }
-                }
-                return true;
-            }
-            case kOCNumberFloat64Type: {
-                double *dest_d = (double *)dest;
-                const double *src_d = (const double *)src;
-                // Use vectorized operations when available
-                for (OCIndex i = 0; i < size; i++) {
-                    if (src_d[i] != 0.0) {
-                        dest_d[i] = (dest_d[i] / src_d[i]) * unit_multiplier;
-                    } else {
-                        dest_d[i] = INFINITY;  // Handle division by zero
-                    }
-                }
-                return true;
-            }
-            case kOCNumberComplex64Type: {
-                float complex *dest_c = (float complex *)dest;
-                const float complex *src_c = (const float complex *)src;
-                float complex factor = (float)unit_multiplier + 0.0f * I;
-                for (OCIndex i = 0; i < size; i++) {
-                    if (cabsf(src_c[i]) != 0.0f) {
-                        dest_c[i] = (dest_c[i] / src_c[i]) * factor;
-                    } else {
-                        dest_c[i] = INFINITY + INFINITY * I;  // Handle division by zero
-                    }
-                }
-                return true;
-            }
-            case kOCNumberComplex128Type: {
-                double complex *dest_c = (double complex *)dest;
-                const double complex *src_c = (const double complex *)src;
-                double complex factor = unit_multiplier + 0.0 * I;
-                for (OCIndex i = 0; i < size; i++) {
-                    if (cabs(src_c[i]) != 0.0) {
-                        dest_c[i] = (dest_c[i] / src_c[i]) * factor;
-                    } else {
-                        dest_c[i] = INFINITY + INFINITY * I;  // Handle division by zero
-                    }
-                }
-                return true;
-            }
-            default:
-                return false;  // Unsupported type
-        }
-    }
-    // Mixed types with optimized conversions
-    if (dest_type == kOCNumberFloat32Type && src_type == kOCNumberFloat64Type) {
-        float *dest_f = (float *)dest;
-        const double *src_d = (const double *)src;
-        float factor = (float)unit_multiplier;
+    // 3) GENERIC fallback for every other type combination
+    if (op == kArithmeticAdd) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd
+#endif
         for (OCIndex i = 0; i < size; i++) {
-            if (src_d[i] != 0.0) {
-                dest_f[i] = (dest_f[i] / (float)src_d[i]) * factor;
-            } else {
-                dest_f[i] = INFINITY;
-            }
+            double dv = load_double(dest, dest_type, i);
+            double sv = load_double(src, src_type, i);
+            store_double(dest, dest_type, i, dv + sv);
         }
-        return true;
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberFloat32Type) {
-        double *dest_d = (double *)dest;
-        const float *src_f = (const float *)src;
+    } else if (op == kArithmeticSubtract) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd
+#endif
         for (OCIndex i = 0; i < size; i++) {
-            if (src_f[i] != 0.0f) {
-                dest_d[i] = (dest_d[i] / (double)src_f[i]) * unit_multiplier;
-            } else {
-                dest_d[i] = INFINITY;
-            }
+            double dv = load_double(dest, dest_type, i);
+            double sv = load_double(src, src_type, i);
+            store_double(dest, dest_type, i, dv - sv);
         }
-        return true;
-    }
-    if (dest_type == kOCNumberFloat32Type && src_type == kOCNumberComplex64Type) {
-        float *dest_f = (float *)dest;
-        const float complex *src_c = (const float complex *)src;
-        float factor = (float)unit_multiplier;
+    } else if (op == kArithmeticMultiply) {
+#if HAVE_OPENMP
+#pragma omp parallel for simd
+#endif
         for (OCIndex i = 0; i < size; i++) {
-            float real_part = crealf(src_c[i]);
-            if (real_part != 0.0f) {
-                dest_f[i] = (dest_f[i] / real_part) * factor;
-            } else {
-                dest_f[i] = INFINITY;
-            }
+            double dv = load_double(dest, dest_type, i);
+            double sv = load_double(src, src_type, i);
+            store_double(dest, dest_type, i, dv * (sv * u));
         }
-        return true;
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberComplex128Type) {
-        double *dest_d = (double *)dest;
-        const double complex *src_c = (const double complex *)src;
+    } else {  // kArithmeticDivide
+#if HAVE_OPENMP
+#pragma omp parallel for simd
+#endif
         for (OCIndex i = 0; i < size; i++) {
-            double real_part = creal(src_c[i]);
-            if (real_part != 0.0) {
-                dest_d[i] = (dest_d[i] / real_part) * unit_multiplier;
-            } else {
-                dest_d[i] = INFINITY;
-            }
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberComplex64Type) {
-        double *dest_d = (double *)dest;
-        const float complex *src_c = (const float complex *)src;
-        for (OCIndex i = 0; i < size; i++) {
-            double real_part = (double)crealf(src_c[i]);
-            if (real_part != 0.0) {
-                dest_d[i] = (dest_d[i] / real_part) * unit_multiplier;
-            } else {
-                dest_d[i] = INFINITY;
-            }
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex64Type && src_type == kOCNumberFloat32Type) {
-        float complex *dest_c = (float complex *)dest;
-        const float *src_f = (const float *)src;
-        float factor = (float)unit_multiplier;
-        for (OCIndex i = 0; i < size; i++) {
-            if (src_f[i] != 0.0f) {
-                dest_c[i] = (dest_c[i] / src_f[i]) * factor;
-            } else {
-                dest_c[i] = INFINITY + INFINITY * I;
-            }
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex64Type && src_type == kOCNumberFloat64Type) {
-        float complex *dest_c = (float complex *)dest;
-        const double *src_d = (const double *)src;
-        float factor = (float)unit_multiplier;
-        for (OCIndex i = 0; i < size; i++) {
-            if (src_d[i] != 0.0) {
-                dest_c[i] = (dest_c[i] / (float)src_d[i]) * factor;
-            } else {
-                dest_c[i] = INFINITY + INFINITY * I;
-            }
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex128Type && src_type == kOCNumberFloat32Type) {
-        double complex *dest_c = (double complex *)dest;
-        const float *src_f = (const float *)src;
-        for (OCIndex i = 0; i < size; i++) {
-            if (src_f[i] != 0.0f) {
-                dest_c[i] = (dest_c[i] / (double)src_f[i]) * unit_multiplier;
-            } else {
-                dest_c[i] = INFINITY + INFINITY * I;
-            }
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex128Type && src_type == kOCNumberFloat64Type) {
-        double complex *dest_c = (double complex *)dest;
-        const double *src_d = (const double *)src;
-        for (OCIndex i = 0; i < size; i++) {
-            if (src_d[i] != 0.0) {
-                dest_c[i] = (dest_c[i] / src_d[i]) * unit_multiplier;
-            } else {
-                dest_c[i] = INFINITY + INFINITY * I;
-            }
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex64Type && src_type == kOCNumberComplex128Type) {
-        float complex *dest_c = (float complex *)dest;
-        const double complex *src_c = (const double complex *)src;
-        float complex factor = (float)unit_multiplier + 0.0f * I;
-        for (OCIndex i = 0; i < size; i++) {
-            if (cabs(src_c[i]) != 0.0) {
-                dest_c[i] = (dest_c[i] / (float complex)src_c[i]) * factor;
-            } else {
-                dest_c[i] = INFINITY + INFINITY * I;
-            }
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex128Type && src_type == kOCNumberComplex64Type) {
-        double complex *dest_c = (double complex *)dest;
-        const float complex *src_c = (const float complex *)src;
-        double complex factor = unit_multiplier + 0.0 * I;
-        for (OCIndex i = 0; i < size; i++) {
-            if (cabsf(src_c[i]) != 0.0f) {
-                dest_c[i] = (dest_c[i] / (double complex)src_c[i]) * factor;
-            } else {
-                dest_c[i] = INFINITY + INFINITY * I;
-            }
-        }
-        return true;
-    }
-    // Fallback to element-by-element division for other cases
-    return false;
-}
-// Fallback element-by-element division for unsupported conversions
-static void divide_arrays_elementwise(void *dest, OCNumberType dest_type,
-                                      const void *src, OCNumberType src_type,
-                                      OCIndex size, double unit_multiplier) {
-    for (OCIndex i = 0; i < size; i++) {
-        switch (dest_type) {
-            case kOCNumberFloat32Type: {
-                float *dest_f = (float *)dest;
-                float factor = (float)unit_multiplier;
-                switch (src_type) {
-                    case kOCNumberFloat64Type: {
-                        double src_val = ((const double *)src)[i];
-                        if (src_val != 0.0) {
-                            dest_f[i] = (dest_f[i] / (float)src_val) * factor;
-                        } else {
-                            dest_f[i] = INFINITY;
-                        }
-                        break;
-                    }
-                    case kOCNumberComplex64Type: {
-                        float real_part = crealf(((const float complex *)src)[i]);
-                        if (real_part != 0.0f) {
-                            dest_f[i] = (dest_f[i] / real_part) * factor;
-                        } else {
-                            dest_f[i] = INFINITY;
-                        }
-                        break;
-                    }
-                    case kOCNumberComplex128Type: {
-                        double real_part = creal(((const double complex *)src)[i]);
-                        if (real_part != 0.0) {
-                            dest_f[i] = (dest_f[i] / (float)real_part) * factor;
-                        } else {
-                            dest_f[i] = INFINITY;
-                        }
-                        break;
-                    }
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberFloat64Type: {
-                double *dest_d = (double *)dest;
-                switch (src_type) {
-                    case kOCNumberFloat32Type: {
-                        float src_val = ((const float *)src)[i];
-                        if (src_val != 0.0f) {
-                            dest_d[i] = (dest_d[i] / (double)src_val) * unit_multiplier;
-                        } else {
-                            dest_d[i] = INFINITY;
-                        }
-                        break;
-                    }
-                    case kOCNumberComplex64Type: {
-                        double real_part = (double)crealf(((const float complex *)src)[i]);
-                        if (real_part != 0.0) {
-                            dest_d[i] = (dest_d[i] / real_part) * unit_multiplier;
-                        } else {
-                            dest_d[i] = INFINITY;
-                        }
-                        break;
-                    }
-                    case kOCNumberComplex128Type: {
-                        double real_part = creal(((const double complex *)src)[i]);
-                        if (real_part != 0.0) {
-                            dest_d[i] = (dest_d[i] / real_part) * unit_multiplier;
-                        } else {
-                            dest_d[i] = INFINITY;
-                        }
-                        break;
-                    }
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberComplex64Type: {
-                float complex *dest_c = (float complex *)dest;
-                float complex factor = (float)unit_multiplier + 0.0f * I;
-                switch (src_type) {
-                    case kOCNumberFloat32Type: {
-                        float src_val = ((const float *)src)[i];
-                        if (src_val != 0.0f) {
-                            dest_c[i] = (dest_c[i] / src_val) * factor;
-                        } else {
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        }
-                        break;
-                    }
-                    case kOCNumberFloat64Type: {
-                        double src_val = ((const double *)src)[i];
-                        if (src_val != 0.0) {
-                            dest_c[i] = (dest_c[i] / (float)src_val) * factor;
-                        } else {
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        }
-                        break;
-                    }
-                    case kOCNumberComplex128Type: {
-                        double complex src_val = ((const double complex *)src)[i];
-                        if (cabs(src_val) != 0.0) {
-                            dest_c[i] = (dest_c[i] / (float complex)src_val) * factor;
-                        } else {
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        }
-                        break;
-                    }
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberComplex128Type: {
-                double complex *dest_c = (double complex *)dest;
-                double complex factor = unit_multiplier + 0.0 * I;
-                switch (src_type) {
-                    case kOCNumberFloat32Type: {
-                        float src_val = ((const float *)src)[i];
-                        if (src_val != 0.0f) {
-                            dest_c[i] = (dest_c[i] / (double)src_val) * factor;
-                        } else {
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        }
-                        break;
-                    }
-                    case kOCNumberFloat64Type: {
-                        double src_val = ((const double *)src)[i];
-                        if (src_val != 0.0) {
-                            dest_c[i] = (dest_c[i] / src_val) * factor;
-                        } else {
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        }
-                        break;
-                    }
-                    case kOCNumberComplex64Type: {
-                        float complex src_val = ((const float complex *)src)[i];
-                        if (cabsf(src_val) != 0.0f) {
-                            dest_c[i] = (dest_c[i] / (double complex)src_val) * factor;
-                        } else {
-                            dest_c[i] = INFINITY + INFINITY * I;
-                        }
-                        break;
-                    }
-                    default:
-                        break;
-                }
-                break;
-            }
-            default:
-                break;
+            double dv = load_double(dest, dest_type, i);
+            double sv = load_double(src, src_type, i);
+            store_double(dest, dest_type, i, dv * (u / sv));
         }
     }
-}
-// Helper function for multiplying arrays with potential type conversion
-static bool multiply_arrays_with_conversion(void *dest, OCNumberType dest_type,
-                                            const void *src, OCNumberType src_type,
-                                            OCIndex size, double unit_multiplier) {
-    // Same type - use optimized vectorized operations where possible
-    if (dest_type == src_type) {
-        switch (dest_type) {
-            case kOCNumberFloat32Type: {
-                float *dest_f = (float *)dest;
-                const float *src_f = (const float *)src;
-                float factor = (float)unit_multiplier;
-                // Use vectorized operations when available
-                for (OCIndex i = 0; i < size; i++) {
-                    dest_f[i] *= src_f[i] * factor;
-                }
-                return true;
-            }
-            case kOCNumberFloat64Type: {
-                double *dest_d = (double *)dest;
-                const double *src_d = (const double *)src;
-                // Use vectorized operations when available
-                for (OCIndex i = 0; i < size; i++) {
-                    dest_d[i] *= src_d[i] * unit_multiplier;
-                }
-                return true;
-            }
-            case kOCNumberComplex64Type: {
-                float complex *dest_c = (float complex *)dest;
-                const float complex *src_c = (const float complex *)src;
-                float complex factor = (float)unit_multiplier + 0.0f * I;
-                for (OCIndex i = 0; i < size; i++) {
-                    dest_c[i] *= src_c[i] * factor;
-                }
-                return true;
-            }
-            case kOCNumberComplex128Type: {
-                double complex *dest_c = (double complex *)dest;
-                const double complex *src_c = (const double complex *)src;
-                double complex factor = unit_multiplier + 0.0 * I;
-                for (OCIndex i = 0; i < size; i++) {
-                    dest_c[i] *= src_c[i] * factor;
-                }
-                return true;
-            }
-            default:
-                return false;  // Unsupported type
-        }
-    }
-    // Mixed types with optimized conversions
-    if (dest_type == kOCNumberFloat32Type && src_type == kOCNumberFloat64Type) {
-        float *dest_f = (float *)dest;
-        const double *src_d = (const double *)src;
-        float factor = (float)unit_multiplier;
-        for (OCIndex i = 0; i < size; i++) {
-            dest_f[i] *= (float)src_d[i] * factor;
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberFloat32Type) {
-        double *dest_d = (double *)dest;
-        const float *src_f = (const float *)src;
-        for (OCIndex i = 0; i < size; i++) {
-            dest_d[i] *= (double)src_f[i] * unit_multiplier;
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberFloat32Type && src_type == kOCNumberComplex64Type) {
-        float *dest_f = (float *)dest;
-        const float complex *src_c = (const float complex *)src;
-        float factor = (float)unit_multiplier;
-        for (OCIndex i = 0; i < size; i++) {
-            dest_f[i] *= crealf(src_c[i]) * factor;
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberComplex128Type) {
-        double *dest_d = (double *)dest;
-        const double complex *src_c = (const double complex *)src;
-        for (OCIndex i = 0; i < size; i++) {
-            dest_d[i] *= creal(src_c[i]) * unit_multiplier;
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberComplex64Type) {
-        double *dest_d = (double *)dest;
-        const float complex *src_c = (const float complex *)src;
-        for (OCIndex i = 0; i < size; i++) {
-            dest_d[i] *= (double)crealf(src_c[i]) * unit_multiplier;
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex64Type && src_type == kOCNumberFloat32Type) {
-        float complex *dest_c = (float complex *)dest;
-        const float *src_f = (const float *)src;
-        float factor = (float)unit_multiplier;
-        for (OCIndex i = 0; i < size; i++) {
-            dest_c[i] *= src_f[i] * factor;
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex64Type && src_type == kOCNumberFloat64Type) {
-        float complex *dest_c = (float complex *)dest;
-        const double *src_d = (const double *)src;
-        float factor = (float)unit_multiplier;
-        for (OCIndex i = 0; i < size; i++) {
-            dest_c[i] *= (float)src_d[i] * factor;
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex128Type && src_type == kOCNumberFloat32Type) {
-        double complex *dest_c = (double complex *)dest;
-        const float *src_f = (const float *)src;
-        for (OCIndex i = 0; i < size; i++) {
-            dest_c[i] *= (double)src_f[i] * unit_multiplier;
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex128Type && src_type == kOCNumberFloat64Type) {
-        double complex *dest_c = (double complex *)dest;
-        const double *src_d = (const double *)src;
-        for (OCIndex i = 0; i < size; i++) {
-            dest_c[i] *= src_d[i] * unit_multiplier;
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex64Type && src_type == kOCNumberComplex128Type) {
-        float complex *dest_c = (float complex *)dest;
-        const double complex *src_c = (const double complex *)src;
-        float complex factor = (float)unit_multiplier + 0.0f * I;
-        for (OCIndex i = 0; i < size; i++) {
-            dest_c[i] *= (float complex)src_c[i] * factor;
-        }
-        return true;
-    }
-    if (dest_type == kOCNumberComplex128Type && src_type == kOCNumberComplex64Type) {
-        double complex *dest_c = (double complex *)dest;
-        const float complex *src_c = (const float complex *)src;
-        double complex factor = unit_multiplier + 0.0 * I;
-        for (OCIndex i = 0; i < size; i++) {
-            dest_c[i] *= (double complex)src_c[i] * factor;
-        }
-        return true;
-    }
-    // Fallback to element-by-element multiplication for other cases
-    return false;
-}
-// Fallback element-by-element multiplication for unsupported conversions
-static void multiply_arrays_elementwise(void *dest, OCNumberType dest_type,
-                                        const void *src, OCNumberType src_type,
-                                        OCIndex size, double unit_multiplier) {
-    for (OCIndex i = 0; i < size; i++) {
-        switch (dest_type) {
-            case kOCNumberFloat32Type: {
-                float *dest_f = (float *)dest;
-                float factor = (float)unit_multiplier;
-                switch (src_type) {
-                    case kOCNumberFloat64Type:
-                        dest_f[i] *= (float)((const double *)src)[i] * factor;
-                        break;
-                    case kOCNumberComplex64Type:
-                        dest_f[i] *= crealf(((const float complex *)src)[i]) * factor;
-                        break;
-                    case kOCNumberComplex128Type:
-                        dest_f[i] *= (float)creal(((const double complex *)src)[i]) * factor;
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberFloat64Type: {
-                double *dest_d = (double *)dest;
-                switch (src_type) {
-                    case kOCNumberFloat32Type:
-                        dest_d[i] *= ((const float *)src)[i] * unit_multiplier;
-                        break;
-                    case kOCNumberComplex64Type:
-                        dest_d[i] *= (double)crealf(((const float complex *)src)[i]) * unit_multiplier;
-                        break;
-                    case kOCNumberComplex128Type:
-                        dest_d[i] *= creal(((const double complex *)src)[i]) * unit_multiplier;
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberComplex64Type: {
-                float complex *dest_c = (float complex *)dest;
-                float complex factor = (float)unit_multiplier + 0.0f * I;
-                switch (src_type) {
-                    case kOCNumberFloat32Type:
-                        dest_c[i] *= ((const float *)src)[i] * factor;
-                        break;
-                    case kOCNumberFloat64Type:
-                        dest_c[i] *= (float)((const double *)src)[i] * factor;
-                        break;
-                    case kOCNumberComplex128Type:
-                        dest_c[i] *= (float complex)((const double complex *)src)[i] * factor;
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberComplex128Type: {
-                double complex *dest_c = (double complex *)dest;
-                double complex factor = unit_multiplier + 0.0 * I;
-                switch (src_type) {
-                    case kOCNumberFloat32Type:
-                        dest_c[i] *= ((const float *)src)[i] * factor;
-                        break;
-                    case kOCNumberFloat64Type:
-                        dest_c[i] *= ((const double *)src)[i] * factor;
-                        break;
-                    case kOCNumberComplex64Type:
-                        dest_c[i] *= ((const float complex *)src)[i] * factor;
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            default:
-                break;
-        }
-    }
-}
-// Helper function for subtracting arrays with potential type conversion
-static bool subtract_arrays_with_conversion(void *dest, OCNumberType dest_type,
-                                            const void *src, OCNumberType src_type,
-                                            OCIndex size) {
-    // Same type - use optimized BLAS operations
-    if (dest_type == src_type) {
-        switch (dest_type) {
-            case kOCNumberFloat32Type:
-                cblas_saxpy((int)size, -1.0f, (const float *)src, 1, (float *)dest, 1);
-                return true;
-            case kOCNumberFloat64Type:
-                cblas_daxpy((int)size, -1.0, (const double *)src, 1, (double *)dest, 1);
-                return true;
-            case kOCNumberComplex64Type: {
-                float complex alpha = -1.0f + 0.0f * I;
-                cblas_caxpy((int)size, &alpha, (const float complex *)src, 1, (float complex *)dest, 1);
-                return true;
-            }
-            case kOCNumberComplex128Type: {
-                double complex alpha = -1.0 + 0.0 * I;
-                cblas_zaxpy((int)size, &alpha, (const double complex *)src, 1, (double complex *)dest, 1);
-                return true;
-            }
-            default:
-                return false;  // Unsupported type
-        }
-    }
-    // Mixed types - use optimized conversions where possible
-    if (dest_type == kOCNumberFloat32Type && src_type == kOCNumberFloat64Type) {
-        // Convert double to float precision, subtract, then convert back
-        double *temp_double = malloc(size * sizeof(double));
-        if (temp_double) {
-            float *dest_f = (float *)dest;
-            const double *src_d = (const double *)src;
-            for (OCIndex i = 0; i < size; i++) {
-                temp_double[i] = (double)dest_f[i];
-            }
-            cblas_daxpy((int)size, -1.0, src_d, 1, temp_double, 1);
-            for (OCIndex i = 0; i < size; i++) {
-                dest_f[i] = (float)temp_double[i];
-            }
-            free(temp_double);
-            return true;
-        }
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberFloat32Type) {
-        // Promote float to double, then use BLAS
-        double *temp_double = malloc(size * sizeof(double));
-        if (temp_double) {
-            double *dest_d = (double *)dest;
-            const float *src_f = (const float *)src;
-            for (OCIndex i = 0; i < size; i++) {
-                temp_double[i] = (double)src_f[i];
-            }
-            cblas_daxpy((int)size, -1.0, temp_double, 1, dest_d, 1);
-            free(temp_double);
-            return true;
-        }
-    }
-    if (dest_type == kOCNumberFloat32Type && src_type == kOCNumberComplex64Type) {
-        // Extract real parts using BLAS
-        float *temp_real = malloc(size * sizeof(float));
-        if (temp_real) {
-            cblas_scopy((int)size, (const float *)src, 2, temp_real, 1);
-            cblas_saxpy((int)size, -1.0f, temp_real, 1, (float *)dest, 1);
-            free(temp_real);
-            return true;
-        }
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberComplex128Type) {
-        // Extract real parts using BLAS
-        double *temp_real = malloc(size * sizeof(double));
-        if (temp_real) {
-            cblas_dcopy((int)size, (const double *)src, 2, temp_real, 1);
-            cblas_daxpy((int)size, -1.0, temp_real, 1, (double *)dest, 1);
-            free(temp_real);
-            return true;
-        }
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberComplex64Type) {
-        // Extract real parts and convert precision
-        double *temp_real = malloc(size * sizeof(double));
-        if (temp_real) {
-            const float complex *src_c = (const float complex *)src;
-            for (OCIndex i = 0; i < size; i++) {
-                temp_real[i] = (double)crealf(src_c[i]);
-            }
-            cblas_daxpy((int)size, -1.0, temp_real, 1, (double *)dest, 1);
-            free(temp_real);
-            return true;
-        }
-    }
-    // Fallback to element-by-element subtraction for other cases
-    return false;
-}
-// Fallback element-by-element subtraction for unsupported conversions
-static void subtract_arrays_elementwise(void *dest, OCNumberType dest_type,
-                                        const void *src, OCNumberType src_type,
-                                        OCIndex size) {
-    for (OCIndex i = 0; i < size; i++) {
-        switch (dest_type) {
-            case kOCNumberFloat32Type: {
-                float *dest_f = (float *)dest;
-                switch (src_type) {
-                    case kOCNumberFloat64Type:
-                        dest_f[i] -= (float)((const double *)src)[i];
-                        break;
-                    case kOCNumberComplex64Type:
-                        dest_f[i] -= crealf(((const float complex *)src)[i]);
-                        break;
-                    case kOCNumberComplex128Type:
-                        dest_f[i] -= (float)creal(((const double complex *)src)[i]);
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberFloat64Type: {
-                double *dest_d = (double *)dest;
-                switch (src_type) {
-                    case kOCNumberFloat32Type:
-                        dest_d[i] -= ((const float *)src)[i];
-                        break;
-                    case kOCNumberComplex64Type:
-                        dest_d[i] -= (double)crealf(((const float complex *)src)[i]);
-                        break;
-                    case kOCNumberComplex128Type:
-                        dest_d[i] -= creal(((const double complex *)src)[i]);
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberComplex64Type: {
-                float complex *dest_c = (float complex *)dest;
-                switch (src_type) {
-                    case kOCNumberFloat32Type:
-                        dest_c[i] -= ((const float *)src)[i];
-                        break;
-                    case kOCNumberFloat64Type:
-                        dest_c[i] -= (float)((const double *)src)[i];
-                        break;
-                    case kOCNumberComplex128Type:
-                        dest_c[i] -= (float complex)((const double complex *)src)[i];
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberComplex128Type: {
-                double complex *dest_c = (double complex *)dest;
-                switch (src_type) {
-                    case kOCNumberFloat32Type:
-                        dest_c[i] -= ((const float *)src)[i];
-                        break;
-                    case kOCNumberFloat64Type:
-                        dest_c[i] -= ((const double *)src)[i];
-                        break;
-                    case kOCNumberComplex64Type:
-                        dest_c[i] -= ((const float complex *)src)[i];
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            default:
-                break;
-        }
-    }
-}
-// Helper function for adding arrays with potential type conversion
-static bool add_arrays_with_conversion(void *dest, OCNumberType dest_type,
-                                       const void *src, OCNumberType src_type,
-                                       OCIndex size) {
-    // Same type - use optimized BLAS operations
-    if (dest_type == src_type) {
-        switch (dest_type) {
-            case kOCNumberFloat32Type:
-                cblas_saxpy((int)size, 1.0f, (const float *)src, 1, (float *)dest, 1);
-                return true;
-            case kOCNumberFloat64Type:
-                cblas_daxpy((int)size, 1.0, (const double *)src, 1, (double *)dest, 1);
-                return true;
-            case kOCNumberComplex64Type: {
-                float complex alpha = 1.0f + 0.0f * I;
-                cblas_caxpy((int)size, &alpha, (const float complex *)src, 1, (float complex *)dest, 1);
-                return true;
-            }
-            case kOCNumberComplex128Type: {
-                double complex alpha = 1.0 + 0.0 * I;
-                cblas_zaxpy((int)size, &alpha, (const double complex *)src, 1, (double complex *)dest, 1);
-                return true;
-            }
-            default:
-                return false;  // Unsupported type
-        }
-    }
-    // Mixed types - use optimized conversions where possible
-    if (dest_type == kOCNumberFloat32Type && src_type == kOCNumberFloat64Type) {
-        // Convert double to float precision, add, then convert back
-        double *temp_double = malloc(size * sizeof(double));
-        if (temp_double) {
-            float *dest_f = (float *)dest;
-            const double *src_d = (const double *)src;
-            for (OCIndex i = 0; i < size; i++) {
-                temp_double[i] = (double)dest_f[i];
-            }
-            cblas_daxpy((int)size, 1.0, src_d, 1, temp_double, 1);
-            for (OCIndex i = 0; i < size; i++) {
-                dest_f[i] = (float)temp_double[i];
-            }
-            free(temp_double);
-            return true;
-        }
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberFloat32Type) {
-        // Promote float to double, then use BLAS
-        double *temp_double = malloc(size * sizeof(double));
-        if (temp_double) {
-            double *dest_d = (double *)dest;
-            const float *src_f = (const float *)src;
-            for (OCIndex i = 0; i < size; i++) {
-                temp_double[i] = (double)src_f[i];
-            }
-            cblas_daxpy((int)size, 1.0, temp_double, 1, dest_d, 1);
-            free(temp_double);
-            return true;
-        }
-    }
-    if (dest_type == kOCNumberFloat32Type && src_type == kOCNumberComplex64Type) {
-        // Extract real parts using BLAS
-        float *temp_real = malloc(size * sizeof(float));
-        if (temp_real) {
-            cblas_scopy((int)size, (const float *)src, 2, temp_real, 1);
-            cblas_saxpy((int)size, 1.0f, temp_real, 1, (float *)dest, 1);
-            free(temp_real);
-            return true;
-        }
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberComplex128Type) {
-        // Extract real parts using BLAS
-        double *temp_real = malloc(size * sizeof(double));
-        if (temp_real) {
-            cblas_dcopy((int)size, (const double *)src, 2, temp_real, 1);
-            cblas_daxpy((int)size, 1.0, temp_real, 1, (double *)dest, 1);
-            free(temp_real);
-            return true;
-        }
-    }
-    if (dest_type == kOCNumberFloat64Type && src_type == kOCNumberComplex64Type) {
-        // Extract real parts and convert precision
-        double *temp_real = malloc(size * sizeof(double));
-        if (temp_real) {
-            const float complex *src_c = (const float complex *)src;
-            for (OCIndex i = 0; i < size; i++) {
-                temp_real[i] = (double)crealf(src_c[i]);
-            }
-            cblas_daxpy((int)size, 1.0, temp_real, 1, (double *)dest, 1);
-            free(temp_real);
-            return true;
-        }
-    }
-    // Fallback to element-by-element addition for other cases
-    return false;
-}
-// Fallback element-by-element addition for unsupported conversions
-static void add_arrays_elementwise(void *dest, OCNumberType dest_type,
-                                   const void *src, OCNumberType src_type,
-                                   OCIndex size) {
-    for (OCIndex i = 0; i < size; i++) {
-        switch (dest_type) {
-            case kOCNumberFloat32Type: {
-                float *dest_f = (float *)dest;
-                switch (src_type) {
-                    case kOCNumberFloat64Type:
-                        dest_f[i] += (float)((const double *)src)[i];
-                        break;
-                    case kOCNumberComplex64Type:
-                        dest_f[i] += crealf(((const float complex *)src)[i]);
-                        break;
-                    case kOCNumberComplex128Type:
-                        dest_f[i] += (float)creal(((const double complex *)src)[i]);
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberFloat64Type: {
-                double *dest_d = (double *)dest;
-                switch (src_type) {
-                    case kOCNumberComplex64Type:
-                        dest_d[i] += crealf(((const float complex *)src)[i]);
-                        break;
-                    case kOCNumberComplex128Type:
-                        dest_d[i] += creal(((const double complex *)src)[i]);
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberComplex64Type: {
-                float complex *dest_c = (float complex *)dest;
-                switch (src_type) {
-                    case kOCNumberFloat32Type:
-                        dest_c[i] += ((const float *)src)[i];
-                        break;
-                    case kOCNumberFloat64Type:
-                        dest_c[i] += (float)((const double *)src)[i];
-                        break;
-                    case kOCNumberComplex128Type:
-                        dest_c[i] += (float complex)((const double complex *)src)[i];
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            case kOCNumberComplex128Type: {
-                double complex *dest_c = (double complex *)dest;
-                switch (src_type) {
-                    case kOCNumberFloat32Type:
-                        dest_c[i] += ((const float *)src)[i];
-                        break;
-                    case kOCNumberFloat64Type:
-                        dest_c[i] += ((const double *)src)[i];
-                        break;
-                    case kOCNumberComplex64Type:
-                        dest_c[i] += ((const float complex *)src)[i];
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-            default:
-                break;
-        }
-    }
+    return true;
 }
 bool DependentVariableAdd(DependentVariableRef input1,
                           DependentVariableRef input2,
@@ -2004,11 +984,8 @@ bool DependentVariableAdd(DependentVariableRef input1,
         OCMutableDataRef input2Values = (OCMutableDataRef)OCArrayGetValueAtIndex(input2->components, componentIndex * (componentsCount2 != 1));
         void *dest = OCDataGetMutableBytes(input1Values);
         const void *src = OCDataGetMutableBytes(input2Values);
-        // Try optimized arithmetic first
-        if (!perform_arithmetic_with_conversion(dest, input1->numericType, src, input2->numericType, size, kArithmeticAdd, 1.0)) {
-            // Fall back to element-by-element arithmetic for unsupported cases
-            perform_arithmetic_elementwise(dest, input1->numericType, src, input2->numericType, size, kArithmeticAdd, 1.0);
-        }
+        // Perform arithmetic with conversion
+        perform_arithmetic_with_conversion(dest, input1->numericType, src, input2->numericType, size, kArithmeticAdd, 1.0);
     }
     return true;
 }
@@ -2046,11 +1023,8 @@ bool DependentVariableSubtract(DependentVariableRef input1,
         OCMutableDataRef input2Values = (OCMutableDataRef)OCArrayGetValueAtIndex(input2->components, componentIndex * (componentsCount2 != 1));
         void *dest = OCDataGetMutableBytes(input1Values);
         const void *src = OCDataGetMutableBytes(input2Values);
-        // Try optimized arithmetic first
-        if (!perform_arithmetic_with_conversion(dest, input1->numericType, src, input2->numericType, size, kArithmeticSubtract, 1.0)) {
-            // Fall back to element-by-element arithmetic for unsupported cases
-            perform_arithmetic_elementwise(dest, input1->numericType, src, input2->numericType, size, kArithmeticSubtract, 1.0);
-        }
+        // Perform arithmetic with conversion
+        perform_arithmetic_with_conversion(dest, input1->numericType, src, input2->numericType, size, kArithmeticSubtract, 1.0);
     }
     return true;
 }
@@ -2089,11 +1063,8 @@ bool DependentVariableMultiply(DependentVariableRef input1,
         OCMutableDataRef input2Values = (OCMutableDataRef)OCArrayGetValueAtIndex(input2->components, componentIndex * (componentsCount2 != 1));
         void *dest = OCDataGetMutableBytes(input1Values);
         const void *src = OCDataGetBytesPtr(input2Values);
-        // Try optimized arithmetic first
-        if (!perform_arithmetic_with_conversion(dest, input1->numericType, src, input2->numericType, size, kArithmeticMultiply, unit_multiplier)) {
-            // Fall back to element-by-element arithmetic for unsupported cases
-            perform_arithmetic_elementwise(dest, input1->numericType, src, input2->numericType, size, kArithmeticMultiply, unit_multiplier);
-        }
+        // Perform arithmetic with conversion
+        perform_arithmetic_with_conversion(dest, input1->numericType, src, input2->numericType, size, kArithmeticMultiply, unit_multiplier);
     }
     return true;
 }
@@ -2167,11 +1138,8 @@ bool DependentVariableDivide(DependentVariableRef input1,
         OCMutableDataRef input2Values = (OCMutableDataRef)OCArrayGetValueAtIndex(input2->components, componentIndex * (componentsCount2 != 1));
         void *dest = OCDataGetMutableBytes(input1Values);
         const void *src = OCDataGetBytesPtr(input2Values);
-        // Try optimized arithmetic first
-        if (!perform_arithmetic_with_conversion(dest, input1->numericType, src, input2->numericType, size, kArithmeticDivide, unit_multiplier)) {
-            // Fall back to element-by-element arithmetic for unsupported cases
-            perform_arithmetic_elementwise(dest, input1->numericType, src, input2->numericType, size, kArithmeticDivide, unit_multiplier);
-        }
+        // Perform arithmetic with conversion
+        perform_arithmetic_with_conversion(dest, input1->numericType, src, input2->numericType, size, kArithmeticDivide, unit_multiplier);
     }
     return true;
 }

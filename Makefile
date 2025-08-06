@@ -61,6 +61,18 @@ else ifneq ($(findstring MINGW,$(UNAME_S)),)
   CPPFLAGS     += -I/mingw64/include/openblas
 endif
 
+# Detect OpenMP support (optional for parallel processing)
+# Test if compiler supports OpenMP by attempting compilation
+OPENMP_TEST := $(shell echo 'int main(){return 0;}' | $(CC) -fopenmp -x c - -o /dev/null 2>/dev/null && echo yes)
+ifeq ($(OPENMP_TEST),yes)
+  CFLAGS       += -fopenmp
+  OPENMP_LDFLAGS := -fopenmp
+  $(info OpenMP found - enabling parallel processing)
+else
+  OPENMP_LDFLAGS :=
+  $(info OpenMP not found - using sequential processing)
+endif
+
 # OS-specific library ZIP selection (must come before Archives definitions)
 ARCH    := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
@@ -249,7 +261,7 @@ $(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
 		-lRMN -lSITypes -lOCTypes $(CURL_LIBS) \
-		$(BLAS_LDFLAGS) -lm \
+		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
 		-o $@
 
 # AddressSanitizer test binary
@@ -257,7 +269,7 @@ $(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
 		-lRMN -lSITypes -lOCTypes $(CURL_LIBS) \
-		$(BLAS_LDFLAGS) -lm \
+		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
 		-o $@
 
 test: $(BIN_DIR)/runTests

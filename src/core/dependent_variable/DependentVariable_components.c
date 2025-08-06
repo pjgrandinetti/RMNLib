@@ -1,12 +1,5 @@
 #include "DependentVariable.h"
 #include "DependentVariable_private.h"
-OCIndex DependentVariableGetComponentCount(DependentVariableRef dv) {
-    if (!dv) return 0;
-    return OCArrayGetCount(dv->components);
-}
-OCMutableArrayRef DependentVariableGetComponents(DependentVariableRef dv) {
-    return dv ? dv->components : NULL;
-}
 OCArrayRef DependentVariableGetComponentLabels(DependentVariableRef dv) {
     if (!dv) return NULL;
     return (OCArrayRef)dv->componentLabels;
@@ -67,6 +60,13 @@ bool DependentVariableSetComponentLabelAtIndex(DependentVariableRef dv, OCString
     // Just overwrite the slot; OCArray uses retain/release automatically.
     OCArraySetValueAtIndex(labels, componentIndex, newLabel);
     return true;
+}
+OCIndex DependentVariableGetComponentCount(DependentVariableRef dv) {
+    if (!dv) return 0;
+    return OCArrayGetCount(dv->components);
+}
+OCMutableArrayRef DependentVariableGetComponents(DependentVariableRef dv) {
+    return dv ? dv->components : NULL;
 }
 bool DependentVariableSetComponents(DependentVariableRef dv, OCArrayRef newComponents) {
     if (!dv || !newComponents) return false;
