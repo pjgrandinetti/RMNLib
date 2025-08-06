@@ -190,10 +190,10 @@ DependentVariableCreateExternal(
     OCStringRef *outError);
 /**
  * @brief Minimal convenience constructor with only essential parameters.
- * 
+ *
  * Creates a DependentVariable with the minimal required parameters.
  * Uses default values for name, description, componentLabels, sparseSampling, and metaData.
- * 
+ *
  * @param unit           Physical unit (required).
  * @param quantityName   Logical quantity name (e.g. "temperature").
  * @param quantityType   Semantic type ("scalar", "vector_N", etc.).
@@ -284,8 +284,8 @@ bool DependentVariableSetQuantityName(DependentVariableRef dv, OCStringRef quant
 OCStringRef DependentVariableGetQuantityType(DependentVariableRef dv);
 bool DependentVariableSetQuantityType(DependentVariableRef dv, OCStringRef quantityType);
 OCStringRef DependentVariableGetUnitSymbol(DependentVariableRef dv);
-OCNumberType DependentVariableGetElementType(DependentVariableRef dv);
-bool DependentVariableSetElementType(DependentVariableRef dv, OCNumberType newType);
+OCNumberType DependentVariableGetNumericType(DependentVariableRef dv);
+bool DependentVariableSetNumericType(DependentVariableRef dv, OCNumberType newType);
 /** @} end of Basic Accessors */
 /**
  * @name Sparse-sampling Accessors
@@ -499,11 +499,10 @@ bool DependentVariableConjugate(DependentVariableRef dv,
 bool DependentVariableMultiplyValuesByDimensionlessRealConstant(DependentVariableRef dv,
                                                                 OCIndex componentIndex,
                                                                 double constant);
-
 /**
  * @brief Add the values of two DependentVariables element-wise.
  *        The operation is performed in-place on the first variable.
- * 
+ *
  * @param input1  The first DependentVariable (modified in-place).
  * @param input2  The second DependentVariable to add.
  * @param error   On failure, receives an OCStringRef describing the problem; may be NULL.
@@ -513,11 +512,10 @@ bool DependentVariableMultiplyValuesByDimensionlessRealConstant(DependentVariabl
 bool DependentVariableAdd(DependentVariableRef input1,
                           DependentVariableRef input2,
                           OCStringRef *error);
-
 /**
  * @brief Subtract the values of the second DependentVariable from the first element-wise.
  *        The operation is performed in-place on the first variable.
- * 
+ *
  * @param input1  The first DependentVariable (modified in-place).
  * @param input2  The second DependentVariable to subtract.
  * @param error   On failure, receives an OCStringRef describing the problem; may be NULL.
@@ -527,12 +525,11 @@ bool DependentVariableAdd(DependentVariableRef input1,
 bool DependentVariableSubtract(DependentVariableRef input1,
                                DependentVariableRef input2,
                                OCStringRef *error);
-
 /**
  * @brief Multiply the values of two DependentVariables element-wise.
  *        The operation is performed in-place on the first variable.
  *        Units are multiplied according to dimensional analysis.
- * 
+ *
  * @param input1  The first DependentVariable (modified in-place).
  * @param input2  The second DependentVariable to multiply.
  * @param error   On failure, receives an OCStringRef describing the problem; may be NULL.
@@ -542,13 +539,12 @@ bool DependentVariableSubtract(DependentVariableRef input1,
 bool DependentVariableMultiply(DependentVariableRef input1,
                                DependentVariableRef input2,
                                OCStringRef *error);
-
 /**
  * @brief Divide the values of the first DependentVariable by the second element-wise.
  *        The operation is performed in-place on the first variable.
  *        Units are divided according to dimensional analysis.
  *        Division by zero produces IEEE infinity values.
- * 
+ *
  * @param input1  The first DependentVariable (modified in-place).
  * @param input2  The second DependentVariable to divide by.
  * @param error   On failure, receives an OCStringRef describing the problem; may be NULL.
@@ -558,18 +554,16 @@ bool DependentVariableMultiply(DependentVariableRef input1,
 bool DependentVariableDivide(DependentVariableRef input1,
                              DependentVariableRef input2,
                              OCStringRef *error);
-
 /**
  * @brief Combine magnitude and argument arrays to create complex values.
  *        The magnitude variable is modified in-place to contain complex results.
- * 
+ *
  * @param magnitude  The magnitude DependentVariable (modified in-place to complex type).
  * @param argument   The argument (phase) DependentVariable.
  * @return true on success, false on error.
  */
 bool DependentVariableCombineMagnitudeWithArgument(DependentVariableRef magnitude,
                                                    DependentVariableRef argument);
-
 /** @} end of DependentVariable group */
 #ifdef __cplusplus
 }

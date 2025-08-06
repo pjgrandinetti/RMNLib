@@ -648,12 +648,12 @@ DependentVariableRef DependentVariableCreateComplexCopy(DependentVariableRef src
     DependentVariableSetOwner(dv, owner);
     // 3) If it isn’t already a complex type, upgrade its element type
     if (!SIQuantityIsComplexType((SIQuantityRef)dv)) {
-        OCNumberType base = DependentVariableGetElementType(dv);
+        OCNumberType base = DependentVariableGetNumericType(dv);
         OCNumberType complexType =
             (base == kOCNumberFloat32Type
                  ? kOCNumberComplex64Type
                  : kOCNumberComplex128Type);
-        DependentVariableSetElementType(dv, complexType);
+        DependentVariableSetNumericType(dv, complexType);
     }
     return dv;
 }
@@ -709,7 +709,7 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
     }
     // 3) components (always embed raw data for round-trip)
     {
-        OCNumberType et = DependentVariableGetElementType(dv);
+        OCNumberType et = DependentVariableGetNumericType(dv);
         bool isBase64 = dv->encoding && OCStringEqual(dv->encoding, STR(kDependentVariableEncodingValueBase64));
         bool isRaw = dv->encoding && OCStringEqual(dv->encoding, STR(kDependentVariableEncodingValueRaw));
         bool isComplex = (et == kOCNumberComplex64Type || et == kOCNumberComplex128Type);
@@ -884,7 +884,7 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
         OCRelease(s);
     }
     {
-        const char *typeName = OCNumberGetTypeName(DependentVariableGetElementType(dv));
+        const char *typeName = OCNumberGetTypeName(DependentVariableGetNumericType(dv));
         if (typeName) {
             OCStringRef typeStr = OCStringCreateWithCString(typeName);
             OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), typeStr);

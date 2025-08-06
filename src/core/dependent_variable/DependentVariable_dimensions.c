@@ -26,7 +26,7 @@ DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv
             dv->unit,
             DependentVariableGetQuantityName(dv),
             DependentVariableGetQuantityType(dv),
-            DependentVariableGetElementType(dv),
+            DependentVariableGetNumericType(dv),
             DependentVariableGetComponentLabels(dv),
             crossSize,
             /* owner */ NULL);
@@ -47,7 +47,7 @@ DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv
         npts[d] = DimensionGetCount(dim);
     }
     // 6) for each component buffer, walk the cross‐section
-    OCNumberType elemType = DependentVariableGetElementType(dv);
+    OCNumberType elemType = DependentVariableGetNumericType(dv);
     OCIndex nComps = DependentVariableGetComponentCount(dv);
     for (OCIndex ci = 0; ci < nComps; ci++) {
         OCDataRef srcBlob = DependentVariableGetComponentAtIndex(dv, ci);
@@ -123,7 +123,7 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
             dv->unit,
             DependentVariableGetQuantityName(dv),
             DependentVariableGetQuantityType(dv),
-            DependentVariableGetElementType(dv),
+            DependentVariableGetNumericType(dv),
             DependentVariableGetComponentLabels(dv),
             nVerts,
             /* owner */ NULL);

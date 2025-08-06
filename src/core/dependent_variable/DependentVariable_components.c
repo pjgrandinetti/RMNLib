@@ -276,11 +276,11 @@ bool DependentVariableSetSize(DependentVariableRef dv, OCIndex newSize) {
     }
     return true;
 }
-OCNumberType DependentVariableGetElementType(DependentVariableRef dv) {
+OCNumberType DependentVariableGetNumericType(DependentVariableRef dv) {
     if (!dv) return kOCNumberTypeInvalid;
     return dv->numericType;
 }
-bool DependentVariableSetElementType(DependentVariableRef dv, OCNumberType newType) {
+bool DependentVariableSetNumericType(DependentVariableRef dv, OCNumberType newType) {
     if (!dv) return false;
     OCNumberType oldType = dv->numericType;
     if (oldType == newType) return true;

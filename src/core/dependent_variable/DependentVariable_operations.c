@@ -26,7 +26,7 @@ bool DependentVariableConvertToUnit(DependentVariableRef dv,
         return false;
     }
     /* Determine element type and reject integer types */
-    OCNumberType etype = DependentVariableGetElementType(dv);
+    OCNumberType etype = DependentVariableGetNumericType(dv);
     switch (etype) {
         case kOCNumberSInt8Type:
         case kOCNumberSInt16Type:
@@ -137,7 +137,7 @@ bool DependentVariableZeroPartInRange(DependentVariableRef dv,
     for (OCIndex ci = startComp; ci < endComp; ++ci) {
         OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, ci);
         uint8_t *ptr = OCDataGetMutableBytes(data);
-        OCNumberType etype = DependentVariableGetElementType(dv);
+        OCNumberType etype = DependentVariableGetNumericType(dv);
         switch (etype) {
             case kOCNumberFloat32Type:
                 if (part == kSIRealPart || part == kSIMagnitudePart) {
@@ -244,7 +244,7 @@ bool DependentVariableTakeAbsoluteValue(DependentVariableRef dv,
         upper = lower + 1;
     }
     uint64_t size = DependentVariableGetSize(dv);
-    OCNumberType origEtype = DependentVariableGetElementType(dv);
+    OCNumberType origEtype = DependentVariableGetNumericType(dv);
     OCNumberType newEtype = origEtype;
     for (uint64_t ci = lower; ci < upper; ++ci) {
         OCMutableDataRef data = (OCMutableDataRef)OCArrayGetValueAtIndex(comps, ci);
@@ -311,7 +311,7 @@ bool DependentVariableTakeAbsoluteValue(DependentVariableRef dv,
         }
     }
     if (newEtype != origEtype) {
-        DependentVariableSetElementType(dv, newEtype);
+        DependentVariableSetNumericType(dv, newEtype);
     }
     return true;
 }
@@ -331,7 +331,7 @@ bool DependentVariableMultiplyValuesByDimensionlessComplexConstant(DependentVari
         upper = lower + 1;
     }
     uint64_t size = DependentVariableGetSize(dv);
-    OCNumberType etype = DependentVariableGetElementType(dv);
+    OCNumberType etype = DependentVariableGetNumericType(dv);
     /* Prepare BLAS scalars */
     float scalar_f32 = (float)creal(constant);
     double scalar_f64 = creal(constant);
@@ -517,9 +517,9 @@ bool DependentVariableTakeComplexPart(DependentVariableRef dv,
     }
     if (componentIndex < 0) {
         if (dv->numericType == kOCNumberComplex64Type) {
-            DependentVariableSetElementType(dv, kOCNumberFloat32Type);
+            DependentVariableSetNumericType(dv, kOCNumberFloat32Type);
         } else if (dv->numericType == kOCNumberComplex128Type) {
-            DependentVariableSetElementType(dv, kOCNumberFloat64Type);
+            DependentVariableSetNumericType(dv, kOCNumberFloat64Type);
         }
     }
     return true;
@@ -576,7 +576,7 @@ bool DependentVariableMultiplyValuesByDimensionlessRealConstant(DependentVariabl
     uint64_t lower = (componentIndex >= 0 ? componentIndex : 0);
     uint64_t upper = (componentIndex >= 0 ? lower + 1 : nComps);
     uint64_t size = DependentVariableGetSize(dv);
-    OCNumberType type = DependentVariableGetElementType(dv);
+    OCNumberType type = DependentVariableGetNumericType(dv);
     /* prepare BLAS scalars */
     float alpha_f = (float)constant;
     double alpha_d = constant;
@@ -1158,7 +1158,7 @@ bool DependentVariableCombineMagnitudeWithArgument(DependentVariableRef magnitud
     } else {
         finalType = kOCNumberComplex64Type;
     }
-    DependentVariableSetElementType(magnitude, finalType);
+    DependentVariableSetNumericType(magnitude, finalType);
     OCIndex size = DependentVariableGetSize(magnitude);
     for (OCIndex componentIndex = 0; componentIndex < componentsCount1; componentIndex++) {
         OCMutableDataRef resultValues = (OCMutableDataRef)OCArrayGetValueAtIndex(magnitude->components, componentIndex);
@@ -1208,8 +1208,8 @@ bool DependentVariableAppend(DependentVariableRef dv, DependentVariableRef appen
         return false;
     }
     // 3) must have the same element type
-    OCNumberType et1 = DependentVariableGetElementType(dv);
-    OCNumberType et2 = DependentVariableGetElementType(appendedDV);
+    OCNumberType et1 = DependentVariableGetNumericType(dv);
+    OCNumberType et2 = DependentVariableGetNumericType(appendedDV);
     if (et1 != et2) {
         if (outError) {
             *outError = OCStringCreateWithFormat(

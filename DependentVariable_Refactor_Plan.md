@@ -52,7 +52,7 @@
 - **Quantity accessors**: 
   - `DependentVariableGetQuantityName`, `DependentVariableSetQuantityName`
   - `DependentVariableGetQuantityType`, `DependentVariableSetQuantityType`
-  - `DependentVariableGetElementType`, `DependentVariableSetElementType`
+  - `DependentVariableGetNumericType`, `DependentVariableSetNumericType`
 - **Metadata accessors**: 
   - `DependentVariableGetMetaData`, `DependentVariableSetMetaData`
   - `DependentVariableGetOwner`, `DependentVariableSetOwner`
