@@ -283,7 +283,6 @@ OCStringRef DependentVariableGetQuantityName(DependentVariableRef dv);
 bool DependentVariableSetQuantityName(DependentVariableRef dv, OCStringRef quantityName);
 OCStringRef DependentVariableGetQuantityType(DependentVariableRef dv);
 bool DependentVariableSetQuantityType(DependentVariableRef dv, OCStringRef quantityType);
-OCStringRef DependentVariableGetUnitSymbol(DependentVariableRef dv);
 OCNumberType DependentVariableGetNumericType(DependentVariableRef dv);
 bool DependentVariableSetNumericType(DependentVariableRef dv, OCNumberType newType);
 /** @} end of Basic Accessors */
