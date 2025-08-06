@@ -16,8 +16,7 @@ as local modules (Datum, Dimension, Dataset).
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-/* 
+/*
  -------------------------------------------------------------
  BLAS & LAPACK — pick the right include for each platform
  -------------------------------------------------------------
@@ -32,15 +31,14 @@ as local modules (Datum, Dimension, Dataset).
  -------------------------------------------------------------
 */
 #if defined(__APPLE__)
-  /* All BLAS & LAPACK lives in Accelerate.framework on macOS */
-  #include <Accelerate/Accelerate.h>
+/* All BLAS & LAPACK lives in Accelerate.framework on macOS */
+#include <Accelerate/Accelerate.h>
 #else
-  /* CBLAS interface */
-  #include <cblas.h>
-  /* LAPACKE C interface to LAPACK */
-  #include <lapacke.h>
+/* CBLAS interface */
+#include <cblas.h>
+/* LAPACKE C interface to LAPACK */
+#include <lapacke.h>
 #endif
-
 // Include the core OCTypes definitions and utilities
 #include <OCTypes.h>
 // Include the core SITypes definitions and utilities
@@ -59,36 +57,30 @@ typedef struct impl_SILinearDimension *SILinearDimensionRef;
 typedef struct impl_Dataset *DatasetRef;
 /** @endcond */
 #define DependentVariableComponentsFileName STR("dependent_variable-%ld.data")
-
 // Core module headers
 #include "core/Dataset.h"
 #include "core/Datum.h"
-#include "core/DependentVariable.h"
 #include "core/Dimension.h"
 #include "core/GeographicCoordinate.h"
 #include "core/SparseSampling.h"
-
+#include "core/dependent_variable/DependentVariable.h"
 // Utility headers
 #include "utils/RMNGridUtils.h"
-
 // Import/Export headers
+#include "importers/Image.h"
 #include "importers/JCAMP.h"
 #include "importers/Tecmag.h"
-#include "importers/Image.h"
-
 // Spectroscopy headers
 #include "spectroscopy/NMRSpectroscopy.h"
-
 /**
  * @defgroup MetadataJSON JSON Metadata Functions
  * @brief Functions for converting metadata dictionaries to/from JSON format.
- * 
- * These functions provide serialization and deserialization capabilities for 
- * metadata stored in OCDictionary objects, enabling data persistence and 
+ *
+ * These functions provide serialization and deserialization capabilities for
+ * metadata stored in OCDictionary objects, enabling data persistence and
  * exchange with external systems.
  * @{
  */
-
 /**
  * @brief Converts an OCDictionary containing metadata to a JSON object.
  *
@@ -104,7 +96,7 @@ typedef struct impl_Dataset *DatasetRef;
  * - Nested OCDictionary objects (converted to JSON objects recursively)
  * - Other OCTypes objects (serialized using their copyJSON virtual method)
  *
- * @param dict The OCDictionary containing metadata to serialize. If NULL, 
+ * @param dict The OCDictionary containing metadata to serialize. If NULL,
  *             returns a JSON null object.
  *
  * @return A newly allocated cJSON object representing the metadata dictionary.
@@ -123,7 +115,6 @@ typedef struct impl_Dataset *DatasetRef;
  * @ingroup MetadataJSON
  */
 cJSON *OCMetadataCopyJSON(OCDictionaryRef dict);
-
 /**
  * @brief Creates an OCDictionary from a JSON object containing metadata.
  *
@@ -166,18 +157,15 @@ cJSON *OCMetadataCopyJSON(OCDictionaryRef dict);
  * @ingroup MetadataJSON
  */
 OCDictionaryRef OCMetadataCreateFromJSON(cJSON *json, OCStringRef *outError);
-
-/** @} */ // end of MetadataJSON group
-
+/** @} */  // end of MetadataJSON group
 /**
  * @defgroup LibraryManagement Library Management Functions
  * @brief Functions for managing the lifecycle of the RMNLib library.
- * 
+ *
  * These functions handle initialization and cleanup of library-wide resources,
  * ensuring proper memory management and resource cleanup.
  * @{
  */
-
 /**
  * @brief Shuts down the RMNLib library and releases all internal resources.
  *
@@ -217,7 +205,5 @@ OCDictionaryRef OCMetadataCreateFromJSON(cJSON *json, OCStringRef *outError);
  * @ingroup LibraryManagement
  */
 void RMNLibTypesShutdown(void);
-
-/** @} */ // end of LibraryManagement group
-
-#endif /* RMNLIBRARY_H */
+/** @} */  // end of LibraryManagement group
+#endif     /* RMNLIBRARY_H */

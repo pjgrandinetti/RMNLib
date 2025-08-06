@@ -1,13 +1,13 @@
 #ifndef DATASET_H
 #define DATASET_H
 #include "Datum.h"
-#include "DependentVariable.h"
 #include "GeographicCoordinate.h"
 #include "OCArray.h"
 #include "OCDictionary.h"
 #include "OCIndexArray.h"
 #include "OCString.h"
 #include "OCType.h"
+#include "dependent_variable/DependentVariable.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -55,20 +55,19 @@ OCTypeID DatasetGetTypeID(void);
  * @return Newly allocated DatasetRef on success, or NULL on failure.
  */
 DatasetRef DatasetCreate(
-    OCArrayRef        dimensions,
-    OCIndexArrayRef   dimensionPrecedence,
-    OCArrayRef        dependentVariables,
-    OCArrayRef        tags,
-    OCStringRef       description,
-    OCStringRef       title,
-    DatumRef          focus,
-    DatumRef          previousFocus,
-    OCDictionaryRef   metaData,
-    OCStringRef      *outError);
-
+    OCArrayRef dimensions,
+    OCIndexArrayRef dimensionPrecedence,
+    OCArrayRef dependentVariables,
+    OCArrayRef tags,
+    OCStringRef description,
+    OCStringRef title,
+    DatumRef focus,
+    DatumRef previousFocus,
+    OCDictionaryRef metaData,
+    OCStringRef *outError);
 /**
  * @brief Create a minimal Dataset with only dimensions and dependent variables.
- * 
+ *
  * This is a simplified version of DatasetCreate that only requires the essential
  * components: dimensions and dependent variables. All other fields are set to
  * sensible defaults (empty strings, NULL, etc.).
@@ -80,10 +79,9 @@ DatasetRef DatasetCreate(
  * @return Newly allocated DatasetRef on success, or NULL on failure.
  */
 DatasetRef DatasetCreateMinimal(
-    OCArrayRef      dimensions,
-    OCArrayRef      dependentVariables,
-    OCStringRef    *outError);
-
+    OCArrayRef dimensions,
+    OCArrayRef dependentVariables,
+    OCStringRef *outError);
 /**
  * @brief Helper: Create an empty Dataset (all fields NULL except outError).
  * @param[out] outError If non-NULL and creation fails, set to error string.
@@ -91,17 +89,16 @@ DatasetRef DatasetCreateMinimal(
  */
 static inline DatasetRef DatasetCreateEmpty(OCStringRef *outError) {
     return DatasetCreate(
-        NULL, // dimensions
-        NULL, // dimensionPrecedence
-        NULL, // dependentVariables
-        NULL, // tags
-        NULL, // description
-        NULL, // title
-        NULL, // focus
-        NULL, // previousFocus
-        NULL, // metaData
-        outError
-    );
+        NULL,  // dimensions
+        NULL,  // dimensionPrecedence
+        NULL,  // dependentVariables
+        NULL,  // tags
+        NULL,  // description
+        NULL,  // title
+        NULL,  // focus
+        NULL,  // previousFocus
+        NULL,  // metaData
+        outError);
 }
 /**
  * @brief Rebuild a Dataset from a deep‐copied dictionary.
@@ -223,13 +220,10 @@ bool DatasetGetReadOnly(DatasetRef ds);
 /** @brief Set or clear read-only. */
 bool DatasetSetReadOnly(DatasetRef ds, bool readOnly);
 /** @} */
-
 DependentVariableRef DatasetAddEmptyDependentVariable(DatasetRef theDataset,
-                                                            OCStringRef quantityType,
-                                                            OCNumberType elementType,
-                                                            OCIndex size);
-
-
+                                                      OCStringRef quantityType,
+                                                      OCNumberType elementType,
+                                                      OCIndex size);
 #ifdef __cplusplus
 }
 #endif
