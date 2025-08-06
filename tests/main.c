@@ -7,16 +7,15 @@
 #endif
 #include "RMNLibrary.h"
 #include "test_CSDM.h"
-#include "test_JCAMP.h"
-#include "test_Tecmag.h"
-#include "test_Image.h"
 #include "test_Dataset.h"
 #include "test_Datum.h"
 #include "test_DependentVariable.h"
 #include "test_Dimension.h"
+#include "test_Image.h"
+#include "test_JCAMP.h"
 #include "test_SparseSampling.h"
+#include "test_Tecmag.h"
 #include "test_utils.h"
-
 // Cross-platform setenv function
 static int cross_platform_setenv(const char *name, const char *value, int overwrite) {
 #ifdef _WIN32
@@ -38,7 +37,6 @@ static int cross_platform_setenv(const char *name, const char *value, int overwr
     return setenv(name, value, overwrite);
 #endif
 }
-
 int main(void) {
     int failures = 0;
     printf("\n=== Running Datum Tests ===\n");
@@ -65,6 +63,13 @@ int main(void) {
     if (!test_DependentVariable_copy_and_roundtrip()) failures++;
     if (!test_DependentVariable_invalid_create()) failures++;
     if (!test_DependentVariable_arithmetic_operations()) failures++;
+    fprintf(stderr, "\n=== Running Comprehensive Arithmetic Tests ===\n");
+    if (!test_DependentVariable_arithmetic_comprehensive_types()) failures++;
+    if (!test_DependentVariable_arithmetic_error_cases()) failures++;
+    if (!test_DependentVariable_arithmetic_complex()) failures++;
+    if (!test_DependentVariable_arithmetic_edge_cases()) failures++;
+    if (!test_DependentVariable_arithmetic_large_scale()) failures++;
+    if (!test_DependentVariable_arithmetic_integer_types()) failures++;
     fprintf(stderr, "\n=== Running SparseSampling Tests ===\n");
     if (!test_SparseSampling_basic_create()) failures++;
     if (!test_SparseSampling_validation()) failures++;
@@ -86,31 +91,29 @@ int main(void) {
     fprintf(stderr, "\n=== Running CSDM Tests ===\n");
     if (!getenv("CSDM_TEST_ROOT")) {
         cross_platform_setenv("CSDM_TEST_ROOT",
-               "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/CSDM-TestFiles-1.0",
-               1);
+                              "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/CSDM-TestFiles-1.0",
+                              1);
         fprintf(stderr, "[INFO] Defaulted CSDM_TEST_ROOT to hardcoded path.\n");
     }
     fprintf(stderr, "[INFO] CSDM_TEST_ROOT = %s\n",
             getenv("CSDM_TEST_ROOT"));
     if (!test_Dataset_import_and_roundtrip()) failures++;
-
     fprintf(stderr, "\n=== Running JCAMP Tests ===\n");
     if (!getenv("JCAMP_TEST_ROOT")) {
         cross_platform_setenv("JCAMP_TEST_ROOT",
-               "tests/JCAMP",
-               1);
+                              "tests/JCAMP",
+                              1);
         fprintf(stderr, "[INFO] Defaulted JCAMP_TEST_ROOT to hardcoded path.\n");
     }
     fprintf(stderr, "[INFO] JCAMP_TEST_ROOT = %s\n",
             getenv("JCAMP_TEST_ROOT"));
     // if (!test_JCAMP_single_file()) failures++;
     if (!test_JCAMP_import_all()) failures++;
-
     fprintf(stderr, "\n=== Running Image Tests ===\n");
     if (!getenv("IMAGE_TEST_ROOT")) {
         cross_platform_setenv("IMAGE_TEST_ROOT",
-               "tests/Images",
-               1);
+                              "tests/Images",
+                              1);
         fprintf(stderr, "[INFO] Defaulted IMAGE_TEST_ROOT to hardcoded path.\n");
     }
     fprintf(stderr, "[INFO] IMAGE_TEST_ROOT = %s\n",
@@ -122,12 +125,11 @@ int main(void) {
     if (!test_Image_rgb()) failures++;
     if (!test_Image_multiple_images()) failures++;
     if (!test_Image_import_all()) failures++;
-
     fprintf(stderr, "\n=== Running Tecmag Tests ===\n");
     if (!getenv("TECMAG_TEST_ROOT")) {
         cross_platform_setenv("TECMAG_TEST_ROOT",
-               "tests/Tecmag",
-               1);
+                              "tests/Tecmag",
+                              1);
         fprintf(stderr, "[INFO] Defaulted TECMAG_TEST_ROOT to hardcoded path.\n");
     }
     fprintf(stderr, "[INFO] TECMAG_TEST_ROOT = %s\n",

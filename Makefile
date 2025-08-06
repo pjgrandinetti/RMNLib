@@ -37,10 +37,10 @@ SIT_LIBDIR  := $(TP_LIB_DIR)
 
 # All required directories
 REQUIRED_DIRS := $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(LIB_DIR) $(THIRD_PARTY_DIR) \
-                 $(OBJ_DIR)/core $(OBJ_DIR)/importers $(OBJ_DIR)/spectroscopy $(OBJ_DIR)/utils
+                 $(OBJ_DIR)/core $(OBJ_DIR)/core/dependent_variable $(OBJ_DIR)/importers $(OBJ_DIR)/spectroscopy $(OBJ_DIR)/utils
 
 # Flags
-CPPFLAGS := -I. -I$(SRC_DIR) -I$(SRC_DIR)/core -I$(SRC_DIR)/importers -I$(SRC_DIR)/spectroscopy \
+CPPFLAGS := -I. -I$(SRC_DIR) -I$(SRC_DIR)/core -I$(SRC_DIR)/core/dependent_variable -I$(SRC_DIR)/importers -I$(SRC_DIR)/spectroscopy \
             -I$(SRC_DIR)/utils -I$(SRC_DIR)/third_party -I$(TEST_SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
 CFLAGS   := -fPIC -O3 -Wall -Wextra \
              -Wno-sign-compare -Wno-unused-parameter \
@@ -59,6 +59,18 @@ else ifneq ($(findstring MINGW,$(UNAME_S)),)
   BLAS_LDFLAGS := -lopenblas -lm
   # OpenBLAS headers on MSYS2 live under /mingw64/include/openblas
   CPPFLAGS     += -I/mingw64/include/openblas
+endif
+
+# Detect OpenMP support (optional for parallel processing)
+# Test if compiler supports OpenMP by attempting compilation
+OPENMP_TEST := $(shell echo 'int main(){return 0;}' | $(CC) -fopenmp -x c - -o /dev/null 2>/dev/null && echo yes)
+ifeq ($(OPENMP_TEST),yes)
+  CFLAGS       += -fopenmp
+  OPENMP_LDFLAGS := -fopenmp
+  $(info OpenMP found - enabling parallel processing)
+else
+  OPENMP_LDFLAGS :=
+  $(info OpenMP not found - using sequential processing)
 endif
 
 # OS-specific library ZIP selection (must come before Archives definitions)
@@ -108,6 +120,7 @@ $(REQUIRED_DIRS):
 # Define object files - collect from all subdirectories
 STATIC_SRC := $(wildcard $(SRC_DIR)/*.c) \
               $(wildcard $(SRC_DIR)/core/*.c) \
+              $(wildcard $(SRC_DIR)/core/dependent_variable/*.c) \
               $(wildcard $(SRC_DIR)/importers/*.c) \
               $(wildcard $(SRC_DIR)/spectroscopy/*.c) \
               $(wildcard $(SRC_DIR)/utils/*.c)
@@ -231,6 +244,9 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs octypes sitypes
 $(OBJ_DIR)/core/%.o: $(SRC_DIR)/core/%.c | dirs octypes sitypes
 	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
 
+$(OBJ_DIR)/core/dependent_variable/%.o: $(SRC_DIR)/core/dependent_variable/%.c | dirs octypes sitypes
+	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
+
 $(OBJ_DIR)/importers/%.o: $(SRC_DIR)/importers/%.c | dirs octypes sitypes
 	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
 
@@ -245,7 +261,7 @@ $(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
 		-lRMN -lSITypes -lOCTypes $(CURL_LIBS) \
-		$(BLAS_LDFLAGS) -lm \
+		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
 		-o $@
 
 # AddressSanitizer test binary
@@ -253,7 +269,7 @@ $(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
 		-lRMN -lSITypes -lOCTypes $(CURL_LIBS) \
-		$(BLAS_LDFLAGS) -lm \
+		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
 		-o $@
 
 test: $(BIN_DIR)/runTests
