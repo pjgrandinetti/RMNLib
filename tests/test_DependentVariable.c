@@ -625,7 +625,7 @@ bool test_DependentVariable_arithmetic_operations(void) {
     // Create first DependentVariable
     dv1 = DependentVariableCreateMinimal(
         unit,
-        STR("test1"),
+        NULL,  // NULL quantityName for test - arbitrary names not supported
         STR("scalar"),
         kOCNumberFloat32Type,
         components1,
@@ -639,7 +639,7 @@ bool test_DependentVariable_arithmetic_operations(void) {
     // Create second DependentVariable
     dv2 = DependentVariableCreateMinimal(
         unit,
-        STR("test2"),
+        NULL,  // NULL quantityName for test - arbitrary names not supported
         STR("scalar"),
         kOCNumberFloat32Type,
         components2,
