@@ -1,13 +1,13 @@
 #ifndef DATASET_H
 #define DATASET_H
 #include "Datum.h"
+#include "DependentVariable.h"
 #include "GeographicCoordinate.h"
 #include "OCArray.h"
 #include "OCDictionary.h"
 #include "OCIndexArray.h"
 #include "OCString.h"
 #include "OCType.h"
-#include "dependent_variable/DependentVariable.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -73,9 +73,11 @@ jobs:
             libomp-dev
 
       # On macOS (x64)
-      - name: Ensure BLAS/LAPACK on macOS
+      - name: Install LLVM and OpenMP on macOS
         if: matrix.os == 'macos-latest' && matrix.arch == 'x64'
         run: |
+          echo "Installing LLVM with OpenMP support for macOS"
+          brew install llvm libomp
           echo "Using Accelerate.framework for BLAS/LAPACK on macOS"
 
       - name: Build & test on Linux/macOS

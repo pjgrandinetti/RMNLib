@@ -3,8 +3,23 @@
 .DEFAULT_GOAL := all
 .SUFFIXES:
 
+# Detect OS early for various decisions
+UNAME_S := $(shell uname -s)
+
 # Tools
-CC      := clang
+# Use LLVM Clang with OpenMP on macOS by default, but allow override via CC environment variable
+ifeq ($(origin CC),default)
+  # Default case: use LLVM clang if available on macOS
+  ifeq ($(UNAME_S),Darwin)
+    ifneq (,$(wildcard /opt/homebrew/opt/llvm/bin/clang))
+      CC := /opt/homebrew/opt/llvm/bin/clang
+    else
+      CC := clang
+    endif
+  else
+    CC := clang
+  endif
+endif
 AR      := ar
 LEX     := flex
 YACC    := bison
@@ -42,6 +57,15 @@ REQUIRED_DIRS := $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(LIB_DIR) $(THIR
 # Flags
 CPPFLAGS := -I. -I$(SRC_DIR) -I$(SRC_DIR)/core -I$(SRC_DIR)/core/dependent_variable -I$(SRC_DIR)/importers -I$(SRC_DIR)/spectroscopy \
             -I$(SRC_DIR)/utils -I$(SRC_DIR)/third_party -I$(TEST_SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
+# Add LLVM/OpenMP include paths on macOS if available
+ifeq ($(UNAME_S),Darwin)
+  ifneq (,$(wildcard /opt/homebrew/opt/llvm/include))
+    CPPFLAGS += -I/opt/homebrew/opt/llvm/include
+  endif
+  ifneq (,$(wildcard /opt/homebrew/opt/libomp/include))
+    CPPFLAGS += -I/opt/homebrew/opt/libomp/include
+  endif
+endif
 CFLAGS   := -fPIC -O3 -Wall -Wextra \
              -Wno-sign-compare -Wno-unused-parameter \
              -Wno-missing-field-initializers -Wno-unused-function \
@@ -49,7 +73,6 @@ CFLAGS   := -fPIC -O3 -Wall -Wextra \
 CFLAGS_DEBUG := -fPIC -O0 -g -Wall -Wextra -Werror -MMD -MP
 
 # Detect OS for BLAS/LAPACK and macOS deprecation silence
-UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
   CFLAGS       += -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64
   BLAS_LDFLAGS := -framework Accelerate
@@ -66,7 +89,16 @@ endif
 OPENMP_TEST := $(shell echo 'int main(){return 0;}' | $(CC) -fopenmp -x c - -o /dev/null 2>/dev/null && echo yes)
 ifeq ($(OPENMP_TEST),yes)
   CFLAGS       += -fopenmp
-  OPENMP_LDFLAGS := -fopenmp
+  # Set OpenMP linking flags based on OS and available libraries
+  ifeq ($(UNAME_S),Darwin)
+    ifneq (,$(wildcard /opt/homebrew/opt/libomp/lib))
+      OPENMP_LDFLAGS := -fopenmp -L/opt/homebrew/opt/libomp/lib -lomp
+    else
+      OPENMP_LDFLAGS := -fopenmp
+    endif
+  else
+    OPENMP_LDFLAGS := -fopenmp
+  endif
   $(info OpenMP found - enabling parallel processing)
 else
   OPENMP_LDFLAGS :=

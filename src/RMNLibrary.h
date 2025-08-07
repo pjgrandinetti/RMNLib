@@ -82,10 +82,10 @@ typedef struct impl_Dataset *DatasetRef;
 // Core module headers
 #include "core/Dataset.h"
 #include "core/Datum.h"
+#include "core/DependentVariable.h"
 #include "core/Dimension.h"
 #include "core/GeographicCoordinate.h"
 #include "core/SparseSampling.h"
-#include "core/dependent_variable/DependentVariable.h"
 // Utility headers
 #include "utils/RMNGridUtils.h"
 // Import/Export headers
