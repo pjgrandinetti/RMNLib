@@ -5,23 +5,19 @@
 //  Created by Philip J. Grandinetti on 2/21/14.
 //  Copyright (c) 2014 PhySy. All rights reserved.
 //
-#include "../RMNLibrary.h"
 #include <string.h>
-
+#include "../RMNLibrary.h"
 // Forward declaration for PEAK TABLE support
-static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dictionary, OCStringRef *error);
-
+static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dictionary, OCStringRef* error);
 // Return a new dictionary or NULL + error string on failure.
 OCDictionaryRef
 DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
-                                            OCIndex      *indexOut,
-                                            OCStringRef  *error)
-{
+                                            OCIndex* indexOut,
+                                            OCStringRef* error) {
     if (OCArrayGetCount(lines) < 1) {
         if (error) *error = STR("JCAMP import: input `lines` array is empty");
         return NULL;
     }
-
     // 1) Verify TITLE or DTYPx
     OCIndex idx = 0;
     OCStringRef firstLine = (OCStringRef)OCArrayGetValueAtIndex(lines, 0);
@@ -35,7 +31,6 @@ DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
         firstLine = (OCStringRef)OCArrayGetValueAtIndex(lines, 1);
         idx = 1;
     }
-
     // split KEY=VALUE
     OCArrayRef kv = OCStringCreateArrayBySeparatingStrings(firstLine, STR("="));
     if (OCArrayGetCount(kv) != 2) {
@@ -48,10 +43,8 @@ DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
         OCRelease(kv);
         return NULL;
     }
-
     OCStringRef key0 = OCArrayGetValueAtIndex(kv, 0);
     OCStringRef val0 = OCArrayGetValueAtIndex(kv, 1);
-    
     // Strip $$ comments from the initial value as well
     OCMutableStringRef val0_clean = OCStringCreateMutableCopy(val0);
     OCRange commentRange = OCStringFind(val0_clean, STR("$$"), 0);
@@ -59,11 +52,9 @@ DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
         OCStringDelete(val0_clean, OCRangeMake(commentRange.location, OCStringGetLength(val0_clean) - commentRange.location));
     }
     OCStringTrimWhitespace(val0_clean);
-    
     // Trim whitespace from key
     OCMutableStringRef trimmedKey = OCStringCreateMutableCopy(key0);
     OCStringTrimWhitespace(trimmedKey);
-    
     if (OCStringCompare(trimmedKey, STR("TITLE"), kOCCompareCaseInsensitive) != kOCCompareEqualTo) {
         if (error) {
             *error = OCStringCreateWithFormat(
@@ -75,43 +66,34 @@ DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
         OCRelease(kv);
         return NULL;
     }
-    
     OCRelease(trimmedKey);
-
     // build dictionary
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     OCDictionaryAddValue(dict, key0, val0_clean);
     OCRelease(val0_clean);
     OCRelease(kv);
-
     if (hasDTYPx) {
         OCDictionaryAddValue(dict, STR("DTYPx"), kOCBooleanTrue);
     }
-
     // iterate remaining lines
     for (OCIndex i = idx + 1; i < OCArrayGetCount(lines); ++i) {
         OCStringRef line = (OCStringRef)OCArrayGetValueAtIndex(lines, i);
         OCArrayRef parts = OCStringCreateArrayBySeparatingStrings(line, STR("="));
-
         if (OCArrayGetCount(parts) == 2) {
             OCStringRef k = OCArrayGetValueAtIndex(parts, 0);
             OCStringRef v = OCArrayGetValueAtIndex(parts, 1);
-            
             // Trim whitespace from key for comparison
             OCMutableStringRef trimmedK = OCStringCreateMutableCopy(k);
             OCStringTrimWhitespace(trimmedK);
-            
             if (OCStringGetLength(trimmedK) == 0) {
                 // skip empty key
                 OCRelease(trimmedK);
-            }
-            else if (OCStringCompare(trimmedK, STR("END"), kOCCompareCaseInsensitive) == kOCCompareEqualTo) {
+            } else if (OCStringCompare(trimmedK, STR("END"), kOCCompareCaseInsensitive) == kOCCompareEqualTo) {
                 OCRelease(trimmedK);
                 OCRelease(parts);
                 *indexOut = i;
                 return dict;
-            }
-            else {
+            } else {
                 // normal key/value - strip $$ comments from value
                 OCMutableStringRef mv = OCStringCreateMutableCopy(v);
                 OCRange commentRange = OCStringFind(mv, STR("$$"), 0);
@@ -124,13 +106,12 @@ DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
                 OCRelease(mv);
                 OCRelease(trimmedK);
             }
-        }
-        else if (OCArrayGetCount(parts) == 1) {
+        } else if (OCArrayGetCount(parts) == 1) {
             // single-token line → ambiguous record start
             if (error) {
                 *error = OCStringCreateWithFormat(
-                  STR("JCAMP import: malformed record at line %u: '%@' (no '=')"),
-                  i, line);
+                    STR("JCAMP import: malformed record at line %u: '%@' (no '=')"),
+                    i, line);
             }
             OCRelease(parts);
             OCRelease(dict);
@@ -139,7 +120,6 @@ DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
         // else: more than one '=', unlikely but skip
         OCRelease(parts);
     }
-
     // if we fall off the bottom without END
     if (error) {
         *error = STR("JCAMP import: reached EOF without encountering 'END' record");
@@ -147,13 +127,12 @@ DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
     OCRelease(dict);
     return NULL;
 }
-DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRef *error) {
+DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRef* error) {
     if (error && *error) return NULL;
     if (!contents) {
         if (error) *error = STR("JCAMP import: input data is NULL");
         return NULL;
     }
-
     OCStringRef temp = OCStringCreateWithExternalRepresentation(contents);
     if (!temp) {
         if (error) *error = STR("JCAMP import: could not convert data to string");
@@ -165,7 +144,6 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         if (error) *error = STR("JCAMP import: could not create mutable string from file contents");
         return NULL;
     }
-
     OCArrayRef array = OCStringCreateArrayBySeparatingStrings(fileString, STR("##"));
     OCRelease(fileString);
     if (!array) {
@@ -183,7 +161,6 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         OCRelease(lines);
         return NULL;
     }
-
     for (OCIndex index = 0; index < OCArrayGetCount(lines); index++) {
         OCMutableStringRef line = OCStringCreateMutableCopy(OCArrayGetValueAtIndex(lines, index));
         OCRange range = OCStringFind(line, STR("$$"), 0);
@@ -198,12 +175,10 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         OCStringRef string = OCArrayGetValueAtIndex(lines, index);
         if (OCStringGetLength(string) == 0) OCArrayRemoveValueAtIndex(lines, index);
     }
-
     OCIndex index = 0;
-    OCDictionaryRef dictionary = DatasetImportJCAMPCreateDictionaryWithLines(lines, &index,error);
+    OCDictionaryRef dictionary = DatasetImportJCAMPCreateDictionaryWithLines(lines, &index, error);
     OCRelease(lines);
     if (NULL == dictionary) return NULL;
-
     OCStringRef key = STR("PEAK TABLE");
     if (OCDictionaryContainsKey(dictionary, key)) {
         // Handle PEAK TABLE format
@@ -211,16 +186,15 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         OCRelease(dictionary);
         return result;
     }
-
     // Read in JCAMP Core Header
-    OCMutableDictionaryRef jcampDatasetMetaData = OCDictionaryCreateMutable(0);
+    OCMutableDictionaryRef jcampDataSetApplicationMetaData = OCDictionaryCreateMutable(0);
     OCStringRef string = NULL;
     key = STR("TITLE");
     OCStringRef title = NULL;
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
         if (string) {
-            OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
             title = OCRetain(string);
         }
     }
@@ -228,24 +202,24 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     key = STR("JCAMP-DX");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR("DATA CLASS");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     bool nmrSpectrumType = false;
     bool irSpectrumType = false;
-    (void)irSpectrumType; // Avoid unused variable warning
+    (void)irSpectrumType;  // Avoid unused variable warning
     bool eprSpectrumType = false;
     key = STR("DATA TYPE");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
         if (string) {
-            OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
             if (OCStringCompare(string, STR("NMR SPECTRUM"), 0) == kOCCompareEqualTo) nmrSpectrumType = true;
             if (OCStringCompare(string, STR("INFRARED SPECTRUM"), 0) == kOCCompareEqualTo) irSpectrumType = true;
             if (OCStringCompare(string, STR("EPR SPECTRUM"), 0) == kOCCompareEqualTo) eprSpectrumType = true;
@@ -255,49 +229,49 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     key = STR("ORIGIN");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR("OWNER");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR("BLOCKS");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR("DATE");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR("TIME");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR("SPECTROMETER/DATA SYSTEM");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR("INSTRUMENT PARAMETERS");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR("SAMPLING PROCEDURE");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR("XUNITS");
@@ -309,7 +283,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         OCMutableStringRef string = OCStringCreateMutableCopy((OCStringRef)OCDictionaryGetValue(dictionary, key));
         if (string) {
             OCStringTrimWhitespace(string);
-            OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
             if (OCStringCompare(string, STR("1/CM"), 0) == kOCCompareEqualTo) {
                 double unit_multiplier = 1;
                 xUnits = SIUnitFromExpression(STR("1/cm"), &unit_multiplier, error);
@@ -368,15 +342,15 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     //    SIUnitRef yUnits = NULL;
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR("RESOLUTION");
     double resolution = 0;
-    (void)resolution; // Avoid unused variable warning
+    (void)resolution;  // Avoid unused variable warning
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
         resolution = creal(OCStringGetDoubleComplexValue(string));
     }
     string = NULL;
@@ -385,7 +359,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
         if (string) {
-            OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
             description = OCRetain(string);
         }
     }
@@ -394,7 +368,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     double firstX = 0;
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
         firstX = creal(OCStringGetDoubleComplexValue(string));
     }
     string = NULL;
@@ -402,43 +376,43 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     double lastX = 0;
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
         lastX = creal(OCStringGetDoubleComplexValue(string));
     }
     string = NULL;
     key = STR("DELTAX");
     double deltaX = 0;
-    (void)deltaX; // Avoid unused variable warning
+    (void)deltaX;  // Avoid unused variable warning
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
         deltaX = creal(OCStringGetDoubleComplexValue(string));
     }
     string = NULL;
     key = STR("MAXY");
     double maxY = 0;
-    (void)maxY; // Avoid unused variable warning
+    (void)maxY;  // Avoid unused variable warning
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
         maxY = creal(OCStringGetDoubleComplexValue(string));
     }
     string = NULL;
     key = STR("MINY");
     double minY = 0;
-    (void)minY; // Avoid unused variable warning
+    (void)minY;  // Avoid unused variable warning
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
         minY = creal(OCStringGetDoubleComplexValue(string));
     }
     string = NULL;
     key = STR("XFACTOR");
     double xFactor = 1;
-    (void) xFactor; // Avoid unused variable warning
+    (void)xFactor;  // Avoid unused variable warning
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
         xFactor = creal(OCStringGetDoubleComplexValue(string));
     }
     string = NULL;
@@ -446,7 +420,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     double yFactor = 1;
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
         yFactor = creal(OCStringGetDoubleComplexValue(string));
     }
     string = NULL;
@@ -455,29 +429,28 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
         if (string) {
-            OCDictionaryAddValue(jcampDatasetMetaData, key, string);
-            size = (int) creal(OCStringGetDoubleComplexValue(string));
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
+            size = (int)creal(OCStringGetDoubleComplexValue(string));
         }
     } else {
         // NPOINTS not found - this could be an issue
     }
-    
     // Ensure minimum size for linear dimension
     if (size < 2) {
         if (error) *error = STR("JCAMP import: NPOINTS must be at least 2 for linear dimension");
         OCRelease(dictionary);
         if (title) OCRelease(title);
         if (description) OCRelease(description);
-        OCRelease(jcampDatasetMetaData);
+        OCRelease(jcampDataSetApplicationMetaData);
         return NULL;
     }
     string = NULL;
     key = STR("FIRSTY");
     double firstY = 0;
-    (void)firstY; // Avoid unused variable warning
+    (void)firstY;  // Avoid unused variable warning
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
         firstY = creal(OCStringGetDoubleComplexValue(string));
     }
     string = NULL;
@@ -485,35 +458,33 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     double observeFrequency = 0;
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
         observeFrequency = creal(OCStringGetDoubleComplexValue(string));
     }
     string = NULL;
     key = STR(".OBSERVE NUCLEUS");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR(".ACQUISITION MODE");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
     string = NULL;
     key = STR(".AVERAGES");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
-
     key = STR("XYDATA");
     float data[2 * size];
     float originOffsetValue = firstX;
     bool sqz = false;
-    (void)sqz; // Avoid unused variable warning
+    (void)sqz;  // Avoid unused variable warning
     bool dif = false;
-    
     // Ensure xUnits is not NULL - use dimensionless as fallback
     if (xUnits == NULL) {
         xUnits = SIUnitDimensionlessAndUnderived();
@@ -521,7 +492,6 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     if (inverseXUnits == NULL) {
         inverseXUnits = SIUnitDimensionlessAndUnderived();
     }
-    
     // Ensure quantity names are not NULL - use dimensionless as fallback
     if (quantityName == NULL) {
         quantityName = kSIQuantityDimensionless;
@@ -529,40 +499,58 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     if (inverseQuantityName == NULL) {
         inverseQuantityName = kSIQuantityDimensionless;
     }
-    
     // Create JCAMP character mapping table for efficient single-pass processing
     static const char* jcamp_sqz_map[256] = {0};
     static const char* jcamp_dif_map[256] = {0};
     static bool maps_initialized = false;
-    
     if (!maps_initialized) {
         // SQZ format mappings
-        jcamp_sqz_map['@'] = " 0";   jcamp_sqz_map['A'] = " 1";   jcamp_sqz_map['B'] = " 2";
-        jcamp_sqz_map['C'] = " 3";   jcamp_sqz_map['D'] = " 4";   jcamp_sqz_map['E'] = " 5";
-        jcamp_sqz_map['F'] = " 6";   jcamp_sqz_map['G'] = " 7";   jcamp_sqz_map['H'] = " 8";
-        jcamp_sqz_map['I'] = " 9";   jcamp_sqz_map['a'] = " -1";  jcamp_sqz_map['b'] = " -2";
-        jcamp_sqz_map['c'] = " -3";  jcamp_sqz_map['d'] = " -4";  jcamp_sqz_map['e'] = " -5";
-        jcamp_sqz_map['f'] = " -6";  jcamp_sqz_map['g'] = " -7";  jcamp_sqz_map['h'] = " -8";
+        jcamp_sqz_map['@'] = " 0";
+        jcamp_sqz_map['A'] = " 1";
+        jcamp_sqz_map['B'] = " 2";
+        jcamp_sqz_map['C'] = " 3";
+        jcamp_sqz_map['D'] = " 4";
+        jcamp_sqz_map['E'] = " 5";
+        jcamp_sqz_map['F'] = " 6";
+        jcamp_sqz_map['G'] = " 7";
+        jcamp_sqz_map['H'] = " 8";
+        jcamp_sqz_map['I'] = " 9";
+        jcamp_sqz_map['a'] = " -1";
+        jcamp_sqz_map['b'] = " -2";
+        jcamp_sqz_map['c'] = " -3";
+        jcamp_sqz_map['d'] = " -4";
+        jcamp_sqz_map['e'] = " -5";
+        jcamp_sqz_map['f'] = " -6";
+        jcamp_sqz_map['g'] = " -7";
+        jcamp_sqz_map['h'] = " -8";
         jcamp_sqz_map['i'] = " -9";
-        
-        // DIF format mappings  
-        jcamp_dif_map['%'] = " 0";   jcamp_dif_map['J'] = " 1";   jcamp_dif_map['K'] = " 2";
-        jcamp_dif_map['L'] = " 3";   jcamp_dif_map['M'] = " 4";   jcamp_dif_map['N'] = " 5";
-        jcamp_dif_map['O'] = " 6";   jcamp_dif_map['P'] = " 7";   jcamp_dif_map['Q'] = " 8";
-        jcamp_dif_map['R'] = " 9";   jcamp_dif_map['j'] = " -1";  jcamp_dif_map['k'] = " -2";
-        jcamp_dif_map['l'] = " -3";  jcamp_dif_map['m'] = " -4";  jcamp_dif_map['n'] = " -5";
-        jcamp_dif_map['o'] = " -6";  jcamp_dif_map['p'] = " -7";  jcamp_dif_map['q'] = " -8";
+        // DIF format mappings
+        jcamp_dif_map['%'] = " 0";
+        jcamp_dif_map['J'] = " 1";
+        jcamp_dif_map['K'] = " 2";
+        jcamp_dif_map['L'] = " 3";
+        jcamp_dif_map['M'] = " 4";
+        jcamp_dif_map['N'] = " 5";
+        jcamp_dif_map['O'] = " 6";
+        jcamp_dif_map['P'] = " 7";
+        jcamp_dif_map['Q'] = " 8";
+        jcamp_dif_map['R'] = " 9";
+        jcamp_dif_map['j'] = " -1";
+        jcamp_dif_map['k'] = " -2";
+        jcamp_dif_map['l'] = " -3";
+        jcamp_dif_map['m'] = " -4";
+        jcamp_dif_map['n'] = " -5";
+        jcamp_dif_map['o'] = " -6";
+        jcamp_dif_map['p'] = " -7";
+        jcamp_dif_map['q'] = " -8";
         jcamp_dif_map['r'] = " -9";
-        
         maps_initialized = true;
     }
-    
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
         OCArrayRef splitLines = OCStringCreateArrayBySeparatingStrings(string, STR("\n"));
         OCMutableArrayRef dataLines = OCArrayCreateMutableCopy(splitLines);
         OCRelease(splitLines);
-        
         // Detect data format by examining the first data line
         bool isCompressedFormat = false;
         if (OCArrayGetCount(dataLines) > 1) {
@@ -579,32 +567,24 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
                 }
             }
         }
-        
         OCIndex i = 0;
-        
         if (isCompressedFormat) {
             // Use optimized compressed format parsing
             for (OCIndex index = 1; index < OCArrayGetCount(dataLines); index++) {
                 OCStringRef originalLine = OCArrayGetValueAtIndex(dataLines, index);
-                
                 // Convert OCString to C string for efficient processing
                 const char* cString = OCStringGetCString(originalLine);
                 if (!cString) continue;
-                
                 OCIndex lineLength = strlen(cString);
                 if (lineLength == 0) continue;
-                
                 // Calculate maximum possible expanded size more efficiently
-                size_t maxExpandedLen = lineLength * 3 + 1; // More realistic estimate
+                size_t maxExpandedLen = lineLength * 3 + 1;  // More realistic estimate
                 char* processedLine = malloc(maxExpandedLen);
                 if (!processedLine) continue;
-                
                 char* dest = processedLine;
-                
                 // Single-pass character processing with bounds checking
                 for (size_t pos = 0; pos < lineLength && (dest - processedLine) < (maxExpandedLen - 3); pos++) {
                     unsigned char c = cString[pos];
-                    
                     if (c == '+') {
                         *dest++ = ' ';
                     } else if (c == '-') {
@@ -618,7 +598,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
                         }
                         sqz = true;
                     } else if (jcamp_dif_map[c]) {
-                        // DIF format character  
+                        // DIF format character
                         const char* replacement = jcamp_dif_map[c];
                         while (*replacement && (dest - processedLine) < (maxExpandedLen - 1)) {
                             *dest++ = *replacement++;
@@ -630,20 +610,16 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
                     }
                 }
                 *dest = '\0';
-                
                 // Create OCString from processed line and parse tokens more efficiently
                 OCStringRef processedLineStr = OCStringCreateWithCString(processedLine);
                 free(processedLine);
-                
                 if (!processedLineStr) continue;
-                
                 // Direct C string tokenization for better performance
                 const char* lineToProcess = OCStringGetCString(processedLineStr);
                 if (!lineToProcess) {
                     OCRelease(processedLineStr);
                     continue;
                 }
-                
                 // Simple whitespace tokenization
                 char* lineCopy = malloc(strlen(lineToProcess) + 1);
                 if (!lineCopy) {
@@ -652,40 +628,61 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
                 }
                 strcpy(lineCopy, lineToProcess);
                 OCRelease(processedLineStr);
-                
                 // Parse tokens directly from C string
                 char* token = strtok(lineCopy, " \t\n\r");
                 int tokenIndex = 0;
-                
                 while (token != NULL && i < size) {
-                    if (tokenIndex > 0) { // Skip first token (x-value)
+                    if (tokenIndex > 0) {  // Skip first token (x-value)
                         // Fast duplication character lookup and in-place modification
                         int dup = 0;
                         size_t tokenLen = strlen(token);
-                        
                         // Process in-place for better performance
                         for (size_t k = 0; k < tokenLen; k++) {
                             switch (token[k]) {
-                                case 'S': dup = 1; token[k] = ' '; break;
-                                case 'T': dup = 2; token[k] = ' '; break;
-                                case 'U': dup = 3; token[k] = ' '; break;
-                                case 'V': dup = 4; token[k] = ' '; break;
-                                case 'W': dup = 5; token[k] = ' '; break;
-                                case 'X': dup = 6; token[k] = ' '; break;
-                                case 'Y': dup = 7; token[k] = ' '; break;
-                                case 'Z': dup = 8; token[k] = ' '; break;
-                                case 's': dup = 9; token[k] = ' '; break;
+                                case 'S':
+                                    dup = 1;
+                                    token[k] = ' ';
+                                    break;
+                                case 'T':
+                                    dup = 2;
+                                    token[k] = ' ';
+                                    break;
+                                case 'U':
+                                    dup = 3;
+                                    token[k] = ' ';
+                                    break;
+                                case 'V':
+                                    dup = 4;
+                                    token[k] = ' ';
+                                    break;
+                                case 'W':
+                                    dup = 5;
+                                    token[k] = ' ';
+                                    break;
+                                case 'X':
+                                    dup = 6;
+                                    token[k] = ' ';
+                                    break;
+                                case 'Y':
+                                    dup = 7;
+                                    token[k] = ' ';
+                                    break;
+                                case 'Z':
+                                    dup = 8;
+                                    token[k] = ' ';
+                                    break;
+                                case 's':
+                                    dup = 9;
+                                    token[k] = ' ';
+                                    break;
                             }
                         }
-                        
                         // Parse the number directly from modified token
                         char* endPtr;
                         double value = strtod(token, &endPtr);
-                        
                         if (i < size) {
                             data[i] = (float)value;
                             if (dif && tokenIndex > 1 && i > 0) data[i] += data[i - 1];
-                            
                             // Handle duplications efficiently with bounds checking
                             for (int kndex = 0; kndex < dup && (i + kndex + 1) < size; kndex++) {
                                 data[i + kndex + 1] = data[i];
@@ -693,26 +690,21 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
                             i += dup + 1;
                         }
                     }
-                    
                     token = strtok(NULL, " \t\n\r");
                     tokenIndex++;
                 }
-                
                 free(lineCopy);
             }
         } else {
             // Highly optimized parsing for uncompressed numeric format
             // Uses direct memory operations and minimal function calls
-            
             for (OCIndex index = 1; index < OCArrayGetCount(dataLines) && i < size; index++) {
                 OCStringRef originalLine = OCArrayGetValueAtIndex(dataLines, index);
                 const char* lineStr = OCStringGetCString(originalLine);
                 if (!lineStr) continue;
-                
                 // Fast inline parsing without string copies
                 const char* ptr = lineStr;
                 int tokenCount = 0;
-                
                 while (*ptr && i < size) {
                     // Skip whitespace efficiently
                     while (*ptr == ' ' || *ptr == '\t' || *ptr == '\n' || *ptr == '\r') {
@@ -720,13 +712,11 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
                         ptr++;
                     }
                     if (!*ptr) break;
-                    
                     // Fast number parsing - avoid strtod overhead where possible
                     char* endPtr;
                     double value = strtod(ptr, &endPtr);
-                    
-                    if (endPtr > ptr) { // Valid number found
-                        if (tokenCount > 0) { // Skip first token (x-value)
+                    if (endPtr > ptr) {        // Valid number found
+                        if (tokenCount > 0) {  // Skip first token (x-value)
                             data[i++] = (float)value;
                         }
                         tokenCount++;
@@ -740,11 +730,10 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         }
         OCRelease(dataLines);
     }
-
-    OCDataRef values = OCDataCreate((const uint8_t *)data, sizeof(float) * size);
+    OCDataRef values = OCDataCreate((const uint8_t*)data, sizeof(float) * size);
     double sampleInc = (lastX - firstX) / (size - 1);
     bool reverse = false;
-    (void)reverse; // Avoid unused variable warning
+    (void)reverse;  // Avoid unused variable warning
     if (sampleInc < 0) reverse = true;
     SIScalarRef increment = SIScalarCreateWithDouble(fabs(sampleInc), xUnits);
     SIScalarRef originOffset = SIScalarCreateWithDouble(originOffsetValue, xUnits);
@@ -772,19 +761,15 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     if (reciprocal && inverseOriginOffset) {
         SIDimensionSetOriginOffset(reciprocal, inverseOriginOffset, error);
     }
-    
-    SILinearDimensionRef dim = SILinearDimensionCreateMinimal(quantityName,size,increment,reciprocal,error);
+    SILinearDimensionRef dim = SILinearDimensionCreateMinimal(quantityName, size, increment, reciprocal, error);
     if (dim && originOffset) {
-        SIDimensionSetOriginOffset((SIDimensionRef) dim, originOffset, error);
+        SIDimensionSetOriginOffset((SIDimensionRef)dim, originOffset, error);
     }
-    
     // Only set coordinates offset if both dim and referenceOffset are valid
     if (dim && referenceOffset) {
-        SIDimensionSetCoordinatesOffset((SIDimensionRef) dim, referenceOffset, error);
+        SIDimensionSetCoordinatesOffset((SIDimensionRef)dim, referenceOffset, error);
     }
-    
-    if (nmrSpectrumType && dim) NMRDimensionSetDimensionless((DimensionRef) dim);
-
+    if (nmrSpectrumType && dim) NMRDimensionSetDimensionless((DimensionRef)dim);
     OCRelease(increment);
     OCRelease(originOffset);
     OCRelease(referenceOffset);
@@ -796,13 +781,12 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         OCRelease(dictionary);
         if (title) OCRelease(title);
         if (description) OCRelease(description);
-        OCRelease(jcampDatasetMetaData);
+        OCRelease(jcampDataSetApplicationMetaData);
         return NULL;
     }
     // SIDimensionMakeNiceUnits(dim);
     OCArrayAppendValue(dimensions, dim);
     OCRelease(dim);
-
     DatasetRef theDataset = DatasetCreateEmpty(error);
     DatasetSetDimensions(theDataset, dimensions);
     OCRelease(dimensions);
@@ -810,8 +794,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
     DependentVariableSetComponentAtIndex(theDependentVariable, values, 0);
     OCRelease(values);
     DependentVariableMultiplyValuesByDimensionlessRealConstant(theDependentVariable, -1, yFactor);
-
-    OCStringRef yUnits = OCDictionaryGetValue(jcampDatasetMetaData, STR("YUNITS"));
+    OCStringRef yUnits = OCDictionaryGetValue(jcampDataSetApplicationMetaData, STR("YUNITS"));
     if (yUnits) {
         if (OCStringCompare(yUnits, STR("pH"), 0) == kOCCompareEqualTo) {
             DependentVariableSetQuantityName(theDependentVariable, kSIQuantityDimensionless);
@@ -838,7 +821,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         if (string) {
             double value = creal(OCStringGetDoubleComplexValue(string));
             SIScalarRef scalar = SIScalarCreateWithDouble(value, unit);
-            OCDictionaryAddValue(jcampDatasetMetaData, key, scalar);
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, scalar);
             OCRelease(scalar);
         }
     }
@@ -851,7 +834,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         if (string) {
             double value = creal(OCStringGetDoubleComplexValue(string));
             SIScalarRef scalar = SIScalarCreateWithDouble(value, unit);
-            OCDictionaryAddValue(jcampDatasetMetaData, key, scalar);
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, scalar);
             OCRelease(scalar);
         }
     }
@@ -864,7 +847,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         if (string) {
             double value = creal(OCStringGetDoubleComplexValue(string));
             SIScalarRef scalar = SIScalarCreateWithDouble(value, unit);
-            OCDictionaryAddValue(jcampDatasetMetaData, key, scalar);
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, scalar);
             OCRelease(scalar);
         }
     }
@@ -877,7 +860,7 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         if (string) {
             double value = creal(OCStringGetDoubleComplexValue(string));
             SIScalarRef scalar = SIScalarCreateWithDouble(value, unit);
-            OCDictionaryAddValue(jcampDatasetMetaData, key, scalar);
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, scalar);
             OCRelease(scalar);
         }
     }
@@ -890,49 +873,42 @@ DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRe
         if (string) {
             double value = creal(OCStringGetDoubleComplexValue(string));
             SIScalarRef scalar = SIScalarCreateWithDouble(value, unit);
-            OCDictionaryAddValue(jcampDatasetMetaData, key, scalar);
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, scalar);
             OCRelease(scalar);
         }
     }
-    DatasetSetMetaData(theDataset, jcampDatasetMetaData);
+    DatasetSetApplicationMetaData(theDataset, jcampDataSetApplicationMetaData);
     DatasetSetDescription(theDataset, description);
     DatasetSetTitle(theDataset, title);
-    OCRelease(jcampDatasetMetaData);
-    
+    OCRelease(jcampDataSetApplicationMetaData);
     // Release retained objects
     if (title) OCRelease(title);
     if (description) OCRelease(description);
-    
     // Release the dictionary
     OCRelease(dictionary);
-    
     return theDataset;
 }
-
 // Implementation of PEAK TABLE dataset creation
-static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dictionary, OCStringRef *error) {
+static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dictionary, OCStringRef* error) {
     if (error) *error = NULL;
     if (!dictionary) {
         if (error) *error = STR("JCAMP Peak Table: dictionary is NULL");
         return NULL;
     }
-
     // Extract metadata from JCAMP Core Header
-    OCMutableDictionaryRef jcampDatasetMetaData = OCDictionaryCreateMutable(0);
+    OCMutableDictionaryRef jcampDataSetApplicationMetaData = OCDictionaryCreateMutable(0);
     OCStringRef string = NULL;
     OCStringRef key = NULL;
-
     // Title
     key = STR("TITLE");
     OCStringRef title = NULL;
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
         if (string) {
-            OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
             title = OCRetain(string);
         }
     }
-
     // X and Y units
     key = STR("XUNITS");
     SIUnitRef xUnits = NULL;
@@ -941,7 +917,7 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
         OCMutableStringRef string = OCStringCreateMutableCopy((OCStringRef)OCDictionaryGetValue(dictionary, key));
         if (string) {
             OCStringTrimWhitespace(string);
-            OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+            OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
             if (OCStringCompare(string, STR("m/z"), 0) == kOCCompareEqualTo || OCStringCompare(string, STR("M/Z"), 0) == kOCCompareEqualTo) {
                 double unit_multiplier = 1;
                 xUnits = SIUnitFromExpression(STR("Th"), &unit_multiplier, error);
@@ -974,7 +950,6 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
             OCRelease(string);
         }
     }
-
     // Fallback to dimensionless if no unit specified
     if (xUnits == NULL) {
         xUnits = SIUnitDimensionlessAndUnderived();
@@ -982,61 +957,51 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
     if (quantityName == NULL) {
         quantityName = kSIQuantityDimensionless;
     }
-
     key = STR("YUNITS");
     if (OCDictionaryContainsKey(dictionary, key)) {
         string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
-        if (string) OCDictionaryAddValue(jcampDatasetMetaData, key, string);
+        if (string) OCDictionaryAddValue(jcampDataSetApplicationMetaData, key, string);
     }
-
     // Parse PEAK TABLE data
     key = STR("PEAK TABLE");
     if (!OCDictionaryContainsKey(dictionary, key)) {
         if (error) *error = STR("JCAMP Peak Table: missing PEAK TABLE data");
-        OCRelease(jcampDatasetMetaData);
+        OCRelease(jcampDataSetApplicationMetaData);
         if (title) OCRelease(title);
         return NULL;
     }
-
     string = (OCStringRef)OCDictionaryGetValue(dictionary, key);
     if (!string) {
         if (error) *error = STR("JCAMP Peak Table: PEAK TABLE value is NULL");
-        OCRelease(jcampDatasetMetaData);
+        OCRelease(jcampDataSetApplicationMetaData);
         if (title) OCRelease(title);
         return NULL;
     }
-
     // Split the peak table data into lines
     OCArrayRef splitLines = OCStringCreateArrayBySeparatingStrings(string, STR("\n"));
     if (!splitLines) {
         if (error) *error = STR("JCAMP Peak Table: failed to split PEAK TABLE data");
-        OCRelease(jcampDatasetMetaData);
+        OCRelease(jcampDataSetApplicationMetaData);
         if (title) OCRelease(title);
         return NULL;
     }
-
     // Parse X,Y pairs from the peak table data
     OCMutableArrayRef xCoordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCMutableArrayRef yValues = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-
     for (OCIndex lineIndex = 0; lineIndex < OCArrayGetCount(splitLines); lineIndex++) {
         OCStringRef line = (OCStringRef)OCArrayGetValueAtIndex(splitLines, lineIndex);
         if (!line || OCStringGetLength(line) == 0) continue;
-
         // Split by whitespace and parse X,Y pairs
         OCArrayRef tokens = OCStringCreateArrayBySeparatingStrings(line, STR(" "));
         if (!tokens) continue;
-
         for (OCIndex tokenIndex = 0; tokenIndex < OCArrayGetCount(tokens); tokenIndex++) {
             OCStringRef token = (OCStringRef)OCArrayGetValueAtIndex(tokens, tokenIndex);
             if (!token || OCStringGetLength(token) == 0) continue;
-
             // Split by comma to get X,Y pair
             OCArrayRef xyPair = OCStringCreateArrayBySeparatingStrings(token, STR(","));
             if (xyPair && OCArrayGetCount(xyPair) == 2) {
                 OCStringRef xStr = (OCStringRef)OCArrayGetValueAtIndex(xyPair, 0);
                 OCStringRef yStr = (OCStringRef)OCArrayGetValueAtIndex(xyPair, 1);
-
                 if (xStr && yStr) {
                     // Parse X coordinate as SIScalar
                     double xValue = creal(OCStringGetDoubleComplexValue(xStr));
@@ -1045,7 +1010,6 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
                         OCArrayAppendValue(xCoordinates, xScalar);
                         OCRelease(xScalar);
                     }
-
                     // Parse Y value as float
                     float yValue = (float)creal(OCStringGetDoubleComplexValue(yStr));
                     OCNumberRef yNumber = OCNumberCreateWithFloat(yValue);
@@ -1060,27 +1024,24 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
         OCRelease(tokens);
     }
     OCRelease(splitLines);
-
     // Validate we have data
     OCIndex pointCount = OCArrayGetCount(xCoordinates);
     if (pointCount == 0 || OCArrayGetCount(yValues) != pointCount) {
         if (error) *error = STR("JCAMP Peak Table: no valid X,Y pairs found or mismatched counts");
         OCRelease(xCoordinates);
         OCRelease(yValues);
-        OCRelease(jcampDatasetMetaData);
+        OCRelease(jcampDataSetApplicationMetaData);
         if (title) OCRelease(title);
         return NULL;
     }
-
     if (pointCount < 2) {
         if (error) *error = STR("JCAMP Peak Table: need at least 2 data points for monotonic dimension");
         OCRelease(xCoordinates);
         OCRelease(yValues);
-        OCRelease(jcampDatasetMetaData);
+        OCRelease(jcampDataSetApplicationMetaData);
         if (title) OCRelease(title);
         return NULL;
     }
-
     // Create SIMonotonicDimension from X coordinates
     SIMonotonicDimensionRef xDimension = SIMonotonicDimensionCreate(
         STR("Peak Table X"),    // label
@@ -1088,7 +1049,7 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
         NULL,                   // metadata
         quantityName,           // quantity
         NULL,                   // offset (will be defaulted)
-        NULL,                   // origin (will be defaulted) 
+        NULL,                   // origin (will be defaulted)
         NULL,                   // period
         false,                  // periodic
         kDimensionScalingNone,  // scaling
@@ -1096,38 +1057,33 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
         NULL,                   // reciprocal
         error                   // outError
     );
-
     if (!xDimension) {
         OCRelease(xCoordinates);
         OCRelease(yValues);
-        OCRelease(jcampDatasetMetaData);
+        OCRelease(jcampDataSetApplicationMetaData);
         if (title) OCRelease(title);
         return NULL;
     }
-
     // Convert Y values to float array for DependentVariable
-    float *yData = malloc(pointCount * sizeof(float));
+    float* yData = malloc(pointCount * sizeof(float));
     if (!yData) {
         if (error) *error = STR("JCAMP Peak Table: failed to allocate memory for Y data");
         OCRelease(xDimension);
         OCRelease(xCoordinates);
         OCRelease(yValues);
-        OCRelease(jcampDatasetMetaData);
+        OCRelease(jcampDataSetApplicationMetaData);
         if (title) OCRelease(title);
         return NULL;
     }
-
     for (OCIndex i = 0; i < pointCount; i++) {
         OCNumberRef yNumber = (OCNumberRef)OCArrayGetValueAtIndex(yValues, i);
         float value = 0.0f;
         OCNumberTryGetFloat(yNumber, &value);
         yData[i] = value;
     }
-
     // Create Dataset with monotonic dimension
     OCMutableArrayRef dimensions = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(dimensions, xDimension);
-
     DatasetRef theDataset = DatasetCreateEmpty(error);
     if (!theDataset) {
         free(yData);
@@ -1135,20 +1091,17 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
         OCRelease(dimensions);
         OCRelease(xCoordinates);
         OCRelease(yValues);
-        OCRelease(jcampDatasetMetaData);
+        OCRelease(jcampDataSetApplicationMetaData);
         if (title) OCRelease(title);
         return NULL;
     }
-
     DatasetSetDimensions(theDataset, dimensions);
-
     // Create DependentVariable from Y values
-    OCDataRef yDataRef = OCDataCreate((const uint8_t *)yData, pointCount * sizeof(float));
+    OCDataRef yDataRef = OCDataCreate((const uint8_t*)yData, pointCount * sizeof(float));
     DependentVariableRef theDependentVariable = DatasetAddEmptyDependentVariable(theDataset, STR("intensity"), kOCNumberFloat32Type, -1);
     DependentVariableSetComponentAtIndex(theDependentVariable, yDataRef, 0);
-
     // Set Y units/labels based on YUNITS
-    OCStringRef yUnits = OCDictionaryGetValue(jcampDatasetMetaData, STR("YUNITS"));
+    OCStringRef yUnits = OCDictionaryGetValue(jcampDataSetApplicationMetaData, STR("YUNITS"));
     if (yUnits) {
         if (OCStringCompare(yUnits, STR("relative abundance"), kOCCompareCaseInsensitive) == kOCCompareEqualTo) {
             DependentVariableSetQuantityName(theDependentVariable, kSIQuantityDimensionless);
@@ -1163,29 +1116,24 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
             DependentVariableSetComponentLabelAtIndex(theDependentVariable, yUnits, 0);
         }
     }
-
     // Copy additional metadata fields from dictionary to dataset metadata
     OCStringRef metadataKeys[] = {
         STR("JCAMP-DX"), STR("DATA TYPE"), STR("DATA CLASS"), STR("ORIGIN"), STR("OWNER"),
         STR("DATE"), STR("TIME"), STR("SPECTROMETER/DATA SYSTEM"), STR("INSTRUMENTAL PARAMETERS"),
         STR("SAMPLING PROCEDURE"), STR("COMMENT"), STR("NPOINTS"), STR("FIRSTX"), STR("LASTX"),
-        STR("FIRSTY"), STR("XFACTOR"), STR("YFACTOR")
-    };
+        STR("FIRSTY"), STR("XFACTOR"), STR("YFACTOR")};
     OCIndex metadataKeyCount = sizeof(metadataKeys) / sizeof(metadataKeys[0]);
-    
     for (OCIndex i = 0; i < metadataKeyCount; i++) {
         if (OCDictionaryContainsKey(dictionary, metadataKeys[i])) {
             OCStringRef value = (OCStringRef)OCDictionaryGetValue(dictionary, metadataKeys[i]);
             if (value) {
-                OCDictionaryAddValue(jcampDatasetMetaData, metadataKeys[i], value);
+                OCDictionaryAddValue(jcampDataSetApplicationMetaData, metadataKeys[i], value);
             }
         }
     }
-
     // Set dataset metadata
-    DatasetSetMetaData(theDataset, jcampDatasetMetaData);
+    DatasetSetApplicationMetaData(theDataset, jcampDataSetApplicationMetaData);
     DatasetSetTitle(theDataset, title);
-
     // Cleanup
     free(yData);
     OCRelease(yDataRef);
@@ -1193,8 +1141,7 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
     OCRelease(dimensions);
     OCRelease(xCoordinates);
     OCRelease(yValues);
-    OCRelease(jcampDatasetMetaData);
+    OCRelease(jcampDataSetApplicationMetaData);
     if (title) OCRelease(title);
-
     return theDataset;
 }

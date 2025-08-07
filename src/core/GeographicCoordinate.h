@@ -24,15 +24,15 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
 /// @return Newly created dictionary (caller must release)
 OCDictionaryRef GeographicCoordinateCopyAsDictionary(GeographicCoordinateRef gc);
 /// Getters
-SIScalarRef GeographicCoordinateGetLatitude(GeographicCoordinateRef gc);      ///< Latitude
-SIScalarRef GeographicCoordinateGetLongitude(GeographicCoordinateRef gc);     ///< Longitude
-SIScalarRef GeographicCoordinateGetAltitude(GeographicCoordinateRef gc);      ///< Altitude or NULL
-OCDictionaryRef GeographicCoordinateGetMetaData(GeographicCoordinateRef gc);  ///< User metadata (never NULL)
+SIScalarRef GeographicCoordinateGetLatitude(GeographicCoordinateRef gc);                 ///< Latitude
+SIScalarRef GeographicCoordinateGetLongitude(GeographicCoordinateRef gc);                ///< Longitude
+SIScalarRef GeographicCoordinateGetAltitude(GeographicCoordinateRef gc);                 ///< Altitude or NULL
+OCDictionaryRef GeographicCoordinateGetApplicationMetaData(GeographicCoordinateRef gc);  ///< User metadata (never NULL)
 /// Setters
 bool GeographicCoordinateSetLatitude(GeographicCoordinateRef gc, SIScalarRef latitude);
 bool GeographicCoordinateSetLongitude(GeographicCoordinateRef gc, SIScalarRef longitude);
 bool GeographicCoordinateSetAltitude(GeographicCoordinateRef gc, SIScalarRef altitude);
-bool GeographicCoordinateSetMetaData(GeographicCoordinateRef gc, OCDictionaryRef metadata);
+bool GeographicCoordinateSetApplicationMetaData(GeographicCoordinateRef gc, OCDictionaryRef metadata);
 /// Deep copy
 GeographicCoordinateRef GeographicCoordinateCreateCopy(GeographicCoordinateRef gc);
 /// Type identification

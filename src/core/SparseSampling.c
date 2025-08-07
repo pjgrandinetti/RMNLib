@@ -7,7 +7,7 @@
 #define kSparseSamplingUnsignedIntegerTypeKey "unsigned_integer_type"
 #define kSparseSamplingEncodingKey "encoding"
 #define kSparseSamplingDescriptionKey "description"
-#define kSparseSamplingMetaDataKey "application"
+#define kSparseSamplingApplicationKey "application"
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // Type registration
 static OCTypeID kSparseSamplingID = kOCNotATypeID;
@@ -26,7 +26,7 @@ struct impl_SparseSampling {
     OCNumberType unsignedIntegerType;      // UInt8/16/32/64 only
     OCStringRef encoding;                  // "none" or "base64"
     OCStringRef description;
-    OCDictionaryRef metaData;
+    OCDictionaryRef application;
 };
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // Finalize & Equal
@@ -37,7 +37,7 @@ static void impl_SparseSamplingFinalize(const void *ptr) {
     OCRelease(ss->sparseGridVertexes);
     OCRelease(ss->encoding);
     OCRelease(ss->description);
-    OCRelease(ss->metaData);
+    OCRelease(ss->application);
 }
 static bool impl_SparseSamplingEqual(const void *a, const void *b) {
     const struct impl_SparseSampling *A = (const struct impl_SparseSampling *)a;
@@ -54,7 +54,7 @@ static bool impl_SparseSamplingEqual(const void *a, const void *b) {
         return false;
     if (!OCTypeEqual(A->dimensionIndexes, B->dimensionIndexes))
         return false;
-    if (!OCTypeEqual(A->metaData, B->metaData))
+    if (!OCTypeEqual(A->application, B->application))
         return false;
     // Handle NULL sparseGridVertexes explicitly
     if (!A->sparseGridVertexes && !B->sparseGridVertexes)
@@ -99,49 +99,40 @@ static cJSON *impl_SparseSamplingCreateJSON(const void *obj) {
 }
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // Deep‐copy
-
 static void *
-impl_SparseSamplingDeepCopy(const void *ptr)
-{
+impl_SparseSamplingDeepCopy(const void *ptr) {
     if (ptr == NULL) {
         return NULL;
     }
-
     const struct impl_SparseSampling *src =
         (const struct impl_SparseSampling *)ptr;
-
     // Allocate a zeroed struct so we can bail early without uninitialized fields
     struct impl_SparseSampling *dst =
         calloc(1, sizeof(*dst));
     if (dst == NULL) {
         return NULL;
     }
-
     // Copy the OCBase header (type tag & ref-count)
     memcpy(&dst->base, &src->base, sizeof(OCBase));
-
     // Deep-copy each OCTypeRef field via OCTypeDeepCopy:
-    dst->dimensionIndexes    = src->dimensionIndexes
-                               ? (OCIndexSetRef)OCTypeDeepCopy(src->dimensionIndexes)
-                               : NULL;
-    dst->sparseGridVertexes  = src->sparseGridVertexes
-                               ? (OCMutableArrayRef)OCTypeDeepCopy(src->sparseGridVertexes)
-                               : NULL;
-
+    dst->dimensionIndexes = src->dimensionIndexes
+                                ? (OCIndexSetRef)OCTypeDeepCopy(src->dimensionIndexes)
+                                : NULL;
+    dst->sparseGridVertexes = src->sparseGridVertexes
+                                  ? (OCMutableArrayRef)OCTypeDeepCopy(src->sparseGridVertexes)
+                                  : NULL;
     // Primitive field
     dst->unsignedIntegerType = src->unsignedIntegerType;
-
     // Strings and dictionaries
-    dst->encoding            = src->encoding
-                               ? (OCStringRef)OCTypeDeepCopy(src->encoding)
-                               : NULL;
-    dst->description         = src->description
-                               ? (OCStringRef)OCTypeDeepCopy(src->description)
-                               : NULL;
-    dst->metaData            = src->metaData
-                               ? (OCDictionaryRef)OCTypeDeepCopy(src->metaData)
-                               : NULL;
-
+    dst->encoding = src->encoding
+                        ? (OCStringRef)OCTypeDeepCopy(src->encoding)
+                        : NULL;
+    dst->description = src->description
+                           ? (OCStringRef)OCTypeDeepCopy(src->description)
+                           : NULL;
+    dst->application = src->application
+                           ? (OCDictionaryRef)OCTypeDeepCopy(src->application)
+                           : NULL;
     return dst;
 }
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
@@ -163,7 +154,7 @@ static void impl_InitSparseSamplingFields(SparseSamplingRef ss) {
     ss->unsignedIntegerType = kOCNumberUInt64Type;
     ss->encoding = STR(kSparseSamplingEncodingValueBase64);
     ss->description = STR("");
-    ss->metaData = OCDictionaryCreateMutable(0);
+    ss->application = OCDictionaryCreateMutable(0);
 }
 bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError) {
     if (outError) *outError = NULL;
@@ -268,10 +259,9 @@ SparseSamplingRef SparseSamplingCreate(
     // 4. Assign provided values
     if (dimensionIndexes) {
         OCRelease(ss->dimensionIndexes);
-        
         // Handle empty index sets specially since OCIndexSetCreateMutableCopy returns NULL for empty sets
         if (OCIndexSetGetCount(dimensionIndexes) == 0) {
-            ss->dimensionIndexes = OCIndexSetCreateMutable(); // Create new empty mutable set
+            ss->dimensionIndexes = OCIndexSetCreateMutable();  // Create new empty mutable set
         } else {
             ss->dimensionIndexes = OCIndexSetCreateMutableCopy(dimensionIndexes);
         }
@@ -287,10 +277,10 @@ SparseSamplingRef SparseSamplingCreate(
     ss->description = description
                           ? OCStringCreateCopy(description)
                           : OCStringCreateCopy(STR(""));
-    OCRelease(ss->metaData);
-    ss->metaData = metadata
-                       ? (OCDictionaryRef)OCTypeDeepCopyMutable(metadata)
-                       : OCDictionaryCreateMutable(0);
+    OCRelease(ss->application);
+    ss->application = metadata
+                          ? (OCDictionaryRef)OCTypeDeepCopyMutable(metadata)
+                          : OCDictionaryCreateMutable(0);
     // 5. Final structural validation
     if (!validateSparseSampling((SparseSamplingRef)ss, outError)) {
         OCRelease(ss);
@@ -302,7 +292,6 @@ SparseSamplingRef SparseSamplingCreate(
 // Dictionary serialization
 OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
     if (!ss) return NULL;
-    
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     // 1. dimension_indexes → OCArray of OCNumber from OCIndexSet
     OCArrayRef dimIdxNumbers = OCIndexSetCreateOCNumberArray(ss->dimensionIndexes);
@@ -319,7 +308,6 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
     // 2. sparse_grid_vertexes: optimize based on encoding type
     OCIndex ndim = OCIndexSetGetCount(ss->dimensionIndexes);
     OCIndex nVerts = OCArrayGetCount(ss->sparseGridVertexes);
-    
     if (OCStringEqual(ss->encoding, STR(kSparseSamplingEncodingValueBase64))) {
         // Direct binary encoding - avoid creating OCNumber objects
         OCIndex totalCoords = nVerts * ndim;
@@ -331,13 +319,11 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
         }
         OCDataSetLength(bin, totalCoords * itemSize);
         uint8_t *bytes = OCDataGetMutableBytes(bin);
-        
         // Direct binary write without intermediate OCNumber objects
         OCIndex writePos = 0;
         for (OCIndex i = 0; i < nVerts; ++i) {
             OCIndexPairSetRef vertex = (OCIndexPairSetRef)OCArrayGetValueAtIndex(ss->sparseGridVertexes, i);
             if (!vertex || OCIndexPairSetGetCount(vertex) != ndim) continue;
-            
             OCIndexPair *pairs = OCIndexPairSetGetBytesPtr(vertex);
             for (OCIndex j = 0; j < ndim; ++j) {
                 OCIndex value = pairs[j].value;
@@ -360,7 +346,6 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
                 writePos++;
             }
         }
-        
         OCStringRef b64 = OCDataCreateBase64EncodedString(bin, 0);
         if (b64) {
             OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), b64);
@@ -373,7 +358,6 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
         for (OCIndex i = 0; i < nVerts; ++i) {
             OCIndexPairSetRef vertex = (OCIndexPairSetRef)OCArrayGetValueAtIndex(ss->sparseGridVertexes, i);
             if (!vertex || OCIndexPairSetGetCount(vertex) != ndim) continue;
-            
             OCIndexPair *pairs = OCIndexPairSetGetBytesPtr(vertex);
             for (OCIndex j = 0; j < ndim; ++j) {
                 OCNumberRef num = OCNumberCreateWithOCIndex(pairs[j].value);
@@ -400,9 +384,9 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
         OCRelease(descCopy);
     }
     // 6. metadata
-    if (ss->metaData) {
-        OCDictionaryRef mdCopy = (OCDictionaryRef)OCTypeDeepCopyMutable(ss->metaData);
-        OCDictionarySetValue(dict, STR(kSparseSamplingMetaDataKey), mdCopy);
+    if (ss->application) {
+        OCDictionaryRef mdCopy = (OCDictionaryRef)OCTypeDeepCopyMutable(ss->application);
+        OCDictionarySetValue(dict, STR(kSparseSamplingApplicationKey), mdCopy);
         OCRelease(mdCopy);
     }
     return dict;
@@ -415,8 +399,7 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
         return NULL;
     }
     // 1. Parse dimension_indexes (OCArray of OCNumber → OCIndexSet)
-    OCMutableIndexSetRef dimSet = OCIndexSetCreateMutable(); // Create mutable like SparseSamplingCreate does
-    
+    OCMutableIndexSetRef dimSet = OCIndexSetCreateMutable();  // Create mutable like SparseSamplingCreate does
     OCArrayRef idxArr = OCDictionaryGetValue(dict, STR(kSparseSamplingDimensionIndexesKey));
     if (idxArr && OCGetTypeID(idxArr) == OCArrayGetTypeID()) {
         for (OCIndex i = 0; i < OCArrayGetCount(idxArr); ++i) {
@@ -455,21 +438,18 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
             OCRelease(gridVerts);
             return NULL;
         }
-        
         OCIndex totalItems = OCDataGetLength(bin) / OCNumberTypeSize(utype);
         if (ndim > 0 && totalItems % ndim != 0) {
-            if (outError) 
-                *outError = OCStringCreateWithFormat(STR("Binary data size mismatch: %ld items not divisible by %ld dimensions"), 
-                                                   (long)totalItems, (long)ndim);
+            if (outError)
+                *outError = OCStringCreateWithFormat(STR("Binary data size mismatch: %ld items not divisible by %ld dimensions"),
+                                                     (long)totalItems, (long)ndim);
             OCRelease(bin);
             OCRelease(dimSet);
             OCRelease(gridVerts);
             return NULL;
         }
-        
         const uint8_t *bytes = OCDataGetBytesPtr(bin);
         OCIndex vertexCount = ndim > 0 ? totalItems / ndim : 0;
-        
         // OPTIMIZATION: Get dimension indexes as raw array instead of OCNumber array
         OCIndex *dimIndices = malloc(ndim * sizeof(OCIndex));
         if (!dimIndices) {
@@ -479,7 +459,6 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
             OCRelease(gridVerts);
             return NULL;
         }
-        
         // Extract dimension indices directly from the set without OCNumber conversion
         OCIndex dimIdx = 0;
         for (OCIndex d = 0; d < 100 && dimIdx < ndim; ++d) {  // Reasonable upper bound
@@ -487,7 +466,6 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
                 dimIndices[dimIdx++] = d;
             }
         }
-        
         // Direct binary-to-IndexPairSet conversion without OCNumber objects
         for (OCIndex i = 0; i < vertexCount; ++i) {
             OCMutableIndexPairSetRef ps = OCIndexPairSetCreateMutable();
@@ -523,7 +501,6 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
         OCIndex total = OCArrayGetCount(flat);
         if (ndim > 0 && total % ndim == 0) {
             OCIndex vertexCount = total / ndim;
-            
             // OPTIMIZATION: Get dimension indexes as raw array instead of OCNumber array
             OCIndex *dimIndices = malloc(ndim * sizeof(OCIndex));
             if (!dimIndices) {
@@ -532,7 +509,6 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
                 OCRelease(gridVerts);
                 return NULL;
             }
-            
             // Extract dimension indices directly from the set without OCNumber conversion
             OCIndex dimIdx = 0;
             for (OCIndex d = 0; d < 100 && dimIdx < ndim; ++d) {  // Reasonable upper bound
@@ -540,7 +516,6 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
                     dimIndices[dimIdx++] = d;
                 }
             }
-            
             for (OCIndex i = 0; i < vertexCount; ++i) {
                 OCMutableIndexPairSetRef ps = OCIndexPairSetCreateMutable();
                 for (OCIndex j = 0; j < ndim; ++j) {
@@ -564,7 +539,7 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
     }
     // 5. Parse optional fields
     OCStringRef desc = OCDictionaryGetValue(dict, STR(kSparseSamplingDescriptionKey));
-    OCDictionaryRef md = OCDictionaryGetValue(dict, STR(kSparseSamplingMetaDataKey));
+    OCDictionaryRef md = OCDictionaryGetValue(dict, STR(kSparseSamplingApplicationKey));
     // 6. Construct and validate
     OCStringRef createErr = NULL;
     SparseSamplingRef ss = SparseSamplingCreate(dimSet, gridVerts, utype, enc, desc, md, &createErr);
@@ -592,10 +567,8 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
             *outError = STR("Expected top-level JSON object for SparseSampling");
         return NULL;
     }
-
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
     cJSON *item;
-
     // --- dimension_indexes → OCArray of OCNumber
     item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingDimensionIndexesKey);
     OCMutableArrayRef dimIndexes = NULL;
@@ -614,9 +587,7 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
         }
         OCRelease(dimIndexes);
     }
-
     OCIndex ndim = dimIndexes ? OCArrayGetCount(dimIndexes) : 0;
-
     // --- encoding
     OCStringRef encodingValue = STR(kSparseSamplingEncodingValueBase64);
     item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingEncodingKey);
@@ -625,7 +596,6 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
         OCDictionarySetValue(dict, STR(kSparseSamplingEncodingKey), encodingValue);
         OCRelease(encodingValue);  // retained by dictionary
     }
-
     // --- required: unsigned_integer_type
     item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingUnsignedIntegerTypeKey);
     if (!cJSON_IsString(item)) {
@@ -635,7 +605,6 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
         OCRelease(dict);
         return NULL;
     }
-
     const char *ts = item->valuestring;
     OCNumberType utype = OCNumberTypeFromName(ts);
     if (utype == kOCNumberTypeInvalid) {
@@ -647,12 +616,10 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
         OCRelease(dict);
         return NULL;
     }
-
     // Store as OCString for round-trip consistency
     OCStringRef typeStr = OCStringCreateWithCString(ts);
     OCDictionarySetValue(dict, STR(kSparseSamplingUnsignedIntegerTypeKey), typeStr);
     OCRelease(typeStr);
-
     // --- sparse_grid_vertexes - optimized parsing
     item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingSparseGridVertexesKey);
     if (cJSON_IsString(item) &&
@@ -670,7 +637,6 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
         // Optimized: pre-allocate array and minimize object creation
         int arraySize = cJSON_GetArraySize(item);
         OCMutableArrayRef flatVerts = OCArrayCreateMutable(arraySize, &kOCTypeArrayCallBacks);
-        
         // Fast iteration without creating intermediate OCNumber objects for validation
         cJSON *elem;
         int validCount = 0;
@@ -679,7 +645,6 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
                 validCount++;
             }
         }
-        
         if (validCount == 0) {
             if (outError)
                 *outError = STR("sparse_grid_vertexes must not be empty.");
@@ -687,7 +652,6 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
             OCRelease(dict);
             return NULL;
         }
-
         if (ndim == 0 || validCount % ndim != 0) {
             if (outError)
                 *outError = OCStringCreateWithFormat(
@@ -697,7 +661,6 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
             OCRelease(dict);
             return NULL;
         }
-
         // Now create OCNumber objects only for valid entries
         cJSON_ArrayForEach(elem, item) {
             if (cJSON_IsNumber(elem)) {
@@ -706,11 +669,9 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
                 OCRelease(n);
             }
         }
-
         OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), flatVerts);
         OCRelease(flatVerts);
     }
-
     // --- description
     item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingDescriptionKey);
     if (cJSON_IsString(item)) {
@@ -718,9 +679,8 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
         OCDictionarySetValue(dict, STR(kSparseSamplingDescriptionKey), s);
         OCRelease(s);
     }
-
     // --- metadata
-    item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingMetaDataKey);
+    item = cJSON_GetObjectItemCaseSensitive(json, kSparseSamplingApplicationKey);
     if (cJSON_IsObject(item)) {
         OCMutableDictionaryRef md = OCDictionaryCreateMutable(0);
         cJSON *mdField;
@@ -733,10 +693,9 @@ SparseSamplingDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
                 OCRelease(valStr);
             }
         }
-        OCDictionarySetValue(dict, STR(kSparseSamplingMetaDataKey), md);
+        OCDictionarySetValue(dict, STR(kSparseSamplingApplicationKey), md);
         OCRelease(md);
     }
-
     return dict;
 }
 /**
@@ -831,14 +790,14 @@ bool SparseSamplingSetDescription(SparseSamplingRef ss, OCStringRef d) {
     ss->description = copy;
     return true;
 }
-OCDictionaryRef SparseSamplingGetMetaData(SparseSamplingRef ss) {
-    return ss ? ss->metaData : NULL;
+OCDictionaryRef SparseSamplingGetApplicationMetaData(SparseSamplingRef ss) {
+    return ss ? ss->application : NULL;
 }
-bool SparseSamplingSetMetaData(SparseSamplingRef ss, OCDictionaryRef md) {
+bool SparseSamplingSetApplicationMetaData(SparseSamplingRef ss, OCDictionaryRef md) {
     if (!ss) return false;
-    OCRelease(ss->metaData);
-    ss->metaData = md
-                       ? (OCDictionaryRef)OCTypeDeepCopyMutable(md)
-                       : OCDictionaryCreateMutable(0);
-    return ss->metaData != NULL;
+    OCRelease(ss->application);
+    ss->application = md
+                          ? (OCDictionaryRef)OCTypeDeepCopyMutable(md)
+                          : OCDictionaryCreateMutable(0);
+    return ss->application != NULL;
 }

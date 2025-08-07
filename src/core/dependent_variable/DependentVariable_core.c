@@ -24,7 +24,7 @@ static void impl_DependentVariableFinalize(const void *ptr) {
     // --- collection fields ---
     OCRelease(dv->components);
     OCRelease(dv->componentLabels);
-    OCRelease(dv->metaData);
+    OCRelease(dv->application);
     // NOTE: dv->owner is a weak back-pointer — do NOT OCRelease it
 }
 static bool impl_DependentVariableComponentsAreEqual(const struct impl_DependentVariable *a,
@@ -77,9 +77,9 @@ static bool impl_DependentVariableEqual(const void *a, const void *b) {
     // 4) sparseSampling (new combined field)
     if (dvA->sparseSampling != dvB->sparseSampling &&
         !OCTypeEqual(dvA->sparseSampling, dvB->sparseSampling)) return false;
-    // 5) metadata
-    if (dvA->metaData != dvB->metaData &&
-        !OCTypeEqual(dvA->metaData, dvB->metaData)) return false;
+    // 5) application
+    if (dvA->application != dvB->application &&
+        !OCTypeEqual(dvA->application, dvB->application)) return false;
     return true;
 }
 static OCStringRef impl_DependentVariableCopyFormattingDesc(OCTypeRef cf) {
@@ -124,10 +124,10 @@ static void *impl_DependentVariableDeepCopy(const void *ptr) {
     // 3) Dependent Variable Type attributes
     dst->name = src->name ? OCStringCreateCopy(src->name) : NULL;
     dst->description = src->description ? OCStringCreateCopy(src->description) : NULL;
-    dst->metaData = src->metaData ? OCDictionaryCreateMutableCopy(src->metaData) : NULL;
+    dst->application = src->application ? OCDictionaryCreateMutableCopy(src->application) : NULL;
     dst->quantityName = src->quantityName ? OCStringCreateCopy(src->quantityName) : NULL;
     dst->quantityType = src->quantityType ? OCStringCreateCopy(src->quantityType) : NULL;
-    // 4) Components metadata
+    // 4) Components application
     dst->type = src->type ? OCStringCreateCopy(src->type) : NULL;
     dst->encoding = src->encoding ? OCStringCreateCopy(src->encoding) : NULL;
     dst->componentsURL = src->componentsURL ? OCStringCreateCopy(src->componentsURL) : NULL;
@@ -161,7 +161,7 @@ static void *impl_DependentVariableDeepCopy(const void *ptr) {
     } else {
         dst->componentLabels = NULL;
     }
-    // 7) Sparse‐sampling metadata
+    // 7) Sparse‐sampling application
     dst->sparseSampling = src->sparseSampling
                               ? OCTypeDeepCopy(src->sparseSampling)
                               : NULL;
@@ -173,7 +173,7 @@ fail:
     OCRelease(dst->unit);
     OCRelease(dst->name);
     OCRelease(dst->description);
-    OCRelease(dst->metaData);
+    OCRelease(dst->application);
     OCRelease(dst->quantityName);
     OCRelease(dst->quantityType);
     OCRelease(dst->type);
@@ -205,7 +205,7 @@ static void impl_InitDependentVariableFields(DependentVariableRef dv) {
     dv->description = STR("");
     dv->quantityName = STR("");
     dv->quantityType = STR("");
-    dv->metaData = OCDictionaryCreateMutable(0);
+    dv->application = OCDictionaryCreateMutable(0);
     // Storage mode defaults
     dv->type = STR(kDependentVariableComponentTypeValueInternal);
     dv->encoding = STR(kDependentVariableEncodingValueBase64);
@@ -312,8 +312,8 @@ static DependentVariableRef impl_DependentVariableCreate(
     OCIndex explicitSize,        // elements-per-component if components==NULL
     OCArrayRef componentLabels,  // array of OCStringRef
     SparseSamplingRef sparseSampling,
-    bool copySparseSampling,   // NEW: whether to deep-copy SparseSampling
-    OCDictionaryRef metaData,  // application‐specific annotations
+    bool copySparseSampling,      // NEW: whether to deep-copy SparseSampling
+    OCDictionaryRef application,  // application‐specific annotations
     OCStringRef *outError) {
     bool isExternal = type && OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal));
     // 0) internal must have either buffers or positive explicitSize
@@ -389,10 +389,10 @@ static DependentVariableRef impl_DependentVariableCreate(
     dv->name = name ? OCStringCreateCopy(name) : STR("");
     OCRelease(dv->description);
     dv->description = description ? OCStringCreateCopy(description) : STR("");
-    OCRelease(dv->metaData);
-    dv->metaData = metaData
-                       ? (OCMutableDictionaryRef)OCTypeDeepCopyMutable(metaData)
-                       : OCDictionaryCreateMutable(0);
+    OCRelease(dv->application);
+    dv->application = application
+                          ? (OCMutableDictionaryRef)OCTypeDeepCopyMutable(application)
+                          : OCDictionaryCreateMutable(0);
     // 5) build components array
     OCRelease(dv->components);
     dv->components = OCArrayCreateMutable(componentsCount, &kOCTypeArrayCallBacks);
@@ -482,7 +482,7 @@ DependentVariableRef DependentVariableCreate(
         /* componentLabels */ componentLabels,
         /* sparseSampling  */ NULL,     // no sparse‐sampling by default
         /* copySparseSampling */ true,  // deep-copy if present
-        /* metaData        */ NULL,     // no extra metadata by default
+        /* application        */ NULL,  // no extra application by default
         /* outError        */ outError);
 }
 DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
@@ -511,7 +511,7 @@ DependentVariableRef DependentVariableCreateWithComponentsNoCopy(
         /* componentLabels */ componentLabels,
         /* sparseSampling  */ NULL,     // none by default
         /* copySparseSampling */ true,  // deep-copy if present
-        /* metaData        */ NULL,     // none by default
+        /* application        */ NULL,  // none by default
         /* outError        */ outError);
 }
 DependentVariableRef DependentVariableCreateWithSize(
@@ -540,7 +540,7 @@ DependentVariableRef DependentVariableCreateWithSize(
         /* componentLabels */ componentLabels,
         /* sparseSampling  */ NULL,     // none by default
         /* copySparseSampling */ true,  // deep-copy if present
-        /* metaData        */ NULL,     // none by default
+        /* application        */ NULL,  // none by default
         /* outError        */ outError);
 }
 DependentVariableRef DependentVariableCreateDefault(
@@ -561,10 +561,10 @@ DependentVariableRef DependentVariableCreateDefault(
         /* components         */ NULL,  // no blobs, use explicitSize
         /* copyComponents     */ false,
         /* explicitSize       */ size,
-        /* componentLabels    */ NULL,  // default labels
-        /* sparseSampling     */ NULL,  // none
-        /* copySparseSampling */ true,  // deep-copy if present
-        /* metaData           */ NULL,  // none
+        /* componentLabels    */ NULL,     // default labels
+        /* sparseSampling     */ NULL,     // none
+        /* copySparseSampling */ true,     // deep-copy if present
+        /* application           */ NULL,  // none
         /* outError           */ outError);
 }
 DependentVariableRef DependentVariableCreateWithComponent(
@@ -592,9 +592,9 @@ DependentVariableRef DependentVariableCreateWithComponent(
         /* copyComponents     */ true,
         /* explicitSize       */ (OCIndex)-1,
         /* componentLabels    */ componentLabels,
-        /* sparseSampling     */ NULL,  // none
-        /* copySparseSampling */ true,  // deep-copy if present
-        /* metaData           */ NULL,  // none
+        /* sparseSampling     */ NULL,     // none
+        /* copySparseSampling */ true,     // deep-copy if present
+        /* application           */ NULL,  // none
         /* outError           */ outError);
     OCRelease(arr);
     return dv;
@@ -628,11 +628,11 @@ DependentVariableRef DependentVariableCreateExternal(
         /* componentsURL      */ componentsURL,
         /* components         */ NULL,  // no inline blobs for external
         /* copyComponents     */ false,
-        /* explicitSize       */ 0,     // ignored for external
-        /* componentLabels    */ NULL,  // not used for external
-        /* sparseSampling     */ NULL,  // no sparse-sampling by default
-        /* copySparseSampling */ true,  // deep-copy if present
-        /* metaData           */ NULL,  // no extra metadata
+        /* explicitSize       */ 0,        // ignored for external
+        /* componentLabels    */ NULL,     // not used for external
+        /* sparseSampling     */ NULL,     // no sparse-sampling by default
+        /* copySparseSampling */ true,     // deep-copy if present
+        /* application           */ NULL,  // no extra application
         /* outError           */ outError);
 }
 DependentVariableRef DependentVariableCopy(DependentVariableRef src) {
@@ -680,7 +680,7 @@ DependentVariableRef DependentVariableCreateMinimal(
         /* componentLabels    */ NULL,         // minimal - auto-generate labels
         /* sparseSampling     */ NULL,         // minimal - no sparse sampling
         /* copySparseSampling */ true,         // deep-copy if present
-        /* metaData           */ NULL,         // minimal - no metadata
+        /* application           */ NULL,      // minimal - no application
         /* outError           */ outError);
 }
 OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
@@ -910,10 +910,10 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
             OCRelease(spDict);
         }
     }
-    // 8) metadata
-    if (dv->metaData) {
-        OCMutableDictionaryRef mdCopy = (OCMutableDictionaryRef)OCTypeDeepCopyMutable(dv->metaData);
-        OCDictionarySetValue(dict, STR(kDependentVariableMetaDataKey), mdCopy);
+    // 8) application
+    if (dv->application) {
+        OCMutableDictionaryRef mdCopy = (OCMutableDictionaryRef)OCTypeDeepCopyMutable(dv->application);
+        OCDictionarySetValue(dict, STR(kDependentVariableApplicationKey), mdCopy);
         OCRelease(mdCopy);
     }
     return (OCDictionaryRef)dict;
@@ -1104,7 +1104,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
             return NULL;
         }
     }
-    // 8b) pull sparseSampling & metaData out of dict
+    // 8b) pull sparseSampling & application out of dict
     SparseSamplingRef sparseSampling = NULL;
     {
         OCDictionaryRef spDict =
@@ -1122,9 +1122,9 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
             }
         }
     }
-    OCDictionaryRef metaData =
-        (OCDictionaryRef)OCDictionaryGetValue(dict, STR(kDependentVariableMetaDataKey));
-    // 9) call core creator with encoding & metaData
+    OCDictionaryRef application =
+        (OCDictionaryRef)OCDictionaryGetValue(dict, STR(kDependentVariableApplicationKey));
+    // 9) call core creator with encoding & application
     DependentVariableRef dv = impl_DependentVariableCreate(
         /* type            */ type,
         /* name            */ name,
@@ -1141,7 +1141,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
         /* componentLabels */ labelArr,
         /* sparseSampling  */ sparseSampling,
         /* copySparseSampling */ false,  // OPTIMIZATION: Don't deep copy during initial creation!
-        /* metaData        */ metaData,
+        /* application        */ application,
         /* outError        */ outError);
     OCRelease(components);
     if (sparseSampling) OCRelease(sparseSampling);

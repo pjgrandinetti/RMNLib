@@ -238,7 +238,7 @@ bool SparseSamplingSetDescription(SparseSamplingRef ss, OCStringRef desc);
  * @returns   OCDictionaryRef metadata (do not release). May be empty.
  */
 OCDictionaryRef
-SparseSamplingGetMetaData(SparseSamplingRef ss);
+SparseSamplingGetApplicationMetaData(SparseSamplingRef ss);
 /**
  * @brief Set the metadata dictionary.
  *
@@ -246,7 +246,7 @@ SparseSamplingGetMetaData(SparseSamplingRef ss);
  * @param metadata  New OCDictionaryRef metadata. May be NULL to clear.
  * @returns         true on success, false on NULL ss or allocation failure.
  */
-bool SparseSamplingSetMetaData(SparseSamplingRef ss, OCDictionaryRef metadata);
+bool SparseSamplingSetApplicationMetaData(SparseSamplingRef ss, OCDictionaryRef metadata);
 /** @} */
 #ifdef __cplusplus
 }

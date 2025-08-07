@@ -54,7 +54,7 @@
   - `DependentVariableGetQuantityType`, `DependentVariableSetQuantityType`
   - `DependentVariableGetNumericType`, `DependentVariableSetNumericType`
 - **Metadata accessors**: 
-  - `DependentVariableGetMetaData`, `DependentVariableSetMetaData`
+  - `DependentVariableGetApplicationMetaData`, `DependentVariableSetApplicationMetaData`
   - `DependentVariableGetOwner`, `DependentVariableSetOwner`
   - `DependentVariableGetSparseSampling`, `DependentVariableSetSparseSampling`
 - **Size/Count accessors**: 

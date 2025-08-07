@@ -35,7 +35,7 @@
 #define kDatasetDependentVariablesKey "dependent_variables"
 #define kDatasetFocusKey "focus"
 #define kDatasetPreviousFocusKey "previous_focus"
-#define kDatasetMetadataKey "application"
+#define kDatasetApplicationKey "application"
 #pragma region Type Registration
 static OCTypeID kDatasetID = kOCNotATypeID;
 struct impl_Dataset {
@@ -53,7 +53,7 @@ struct impl_Dataset {
     DatumRef focus;
     DatumRef previousFocus;
     OCMutableIndexArrayRef dimensionPrecedence;
-    OCDictionaryRef metaData;
+    OCDictionaryRef application;
 };
 OCTypeID DatasetGetTypeID(void) {
     if (kDatasetID == kOCNotATypeID)
@@ -75,7 +75,7 @@ static void impl_DatasetFinalize(const void *ptr) {
     OCRelease(ds->version);
     OCRelease(ds->timestamp);
     OCRelease(ds->geographicCoordinate);
-    OCRelease(ds->metaData);
+    OCRelease(ds->application);
 }
 static bool impl_DatasetEqual(const void *a, const void *b) {
     const DatasetRef A = (const DatasetRef)a;
@@ -103,8 +103,8 @@ static bool impl_DatasetEqual(const void *a, const void *b) {
     if ((A->geographicCoordinate != B->geographicCoordinate) &&
         !OCTypeEqual(A->geographicCoordinate, B->geographicCoordinate)) return false;
     if (A->readOnly != B->readOnly) return false;
-    if (A->metaData != B->metaData &&
-        !OCTypeEqual(A->metaData, B->metaData)) return false;
+    if (A->application != B->application &&
+        !OCTypeEqual(A->application, B->application)) return false;
     return true;
 }
 static OCStringRef impl_DatasetCopyFormattingDesc(OCTypeRef cf) {
@@ -183,9 +183,9 @@ impl_DatasetDeepCopy(const void *ptr) {
     dst->dimensionPrecedence = src->dimensionPrecedence
                                    ? (OCMutableIndexArrayRef)OCTypeDeepCopy(src->dimensionPrecedence)
                                    : NULL;
-    dst->metaData = src->metaData
-                        ? (OCDictionaryRef)OCTypeDeepCopy(src->metaData)
-                        : NULL;
+    dst->application = src->application
+                           ? (OCDictionaryRef)OCTypeDeepCopy(src->application)
+                           : NULL;
     return dst;
 }
 static struct impl_Dataset *DatasetAllocate(void) {
@@ -212,7 +212,7 @@ static void impl_InitDatasetFields(DatasetRef ds) {
     ds->timestamp = OCCreateISO8601Timestamp();
     ds->geographicCoordinate = NULL;
     ds->readOnly = false;
-    ds->metaData = OCDictionaryCreateMutable(0);
+    ds->application = OCDictionaryCreateMutable(0);
 }
 static bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
                                            OCArrayRef dependentVariables,
@@ -314,7 +314,7 @@ DatasetRef DatasetCreate(
     OCStringRef title,
     DatumRef focus,
     DatumRef previousFocus,
-    OCDictionaryRef metaData,
+    OCDictionaryRef application,
     OCStringRef *outError) {
     if (outError) *outError = NULL;
     // — allow blank datasets (zero DVs) —
@@ -412,33 +412,30 @@ DatasetRef DatasetCreate(
     ds->focus = focus ? (DatumRef)OCRetain(focus) : NULL;
     ds->previousFocus = previousFocus ? (DatumRef)OCRetain(previousFocus) : NULL;
     // — copy metadata if present —
-    if (metaData) {
-        OCRelease(ds->metaData);
-        ds->metaData = OCTypeDeepCopyMutable(metaData);
+    if (application) {
+        OCRelease(ds->application);
+        ds->application = OCTypeDeepCopyMutable(application);
     }
     return ds;
 }
-
 DatasetRef DatasetCreateMinimal(
-    OCArrayRef      dimensions,
-    OCArrayRef      dependentVariables,
-    OCStringRef    *outError) {
-    
+    OCArrayRef dimensions,
+    OCArrayRef dependentVariables,
+    OCStringRef *outError) {
     // Call the full DatasetCreate function with default values for all optional parameters
     return DatasetCreate(
         dimensions,          // dimensions
-        NULL,               // dimensionPrecedence (use natural order)
-        dependentVariables, // dependentVariables
-        NULL,               // tags (empty)
-        NULL,               // description (empty)
-        NULL,               // title (empty) 
-        NULL,               // focus
-        NULL,               // previousFocus
-        NULL,               // metaData
-        outError            // outError
+        NULL,                // dimensionPrecedence (use natural order)
+        dependentVariables,  // dependentVariables
+        NULL,                // tags (empty)
+        NULL,                // description (empty)
+        NULL,                // title (empty)
+        NULL,                // focus
+        NULL,                // previousFocus
+        NULL,                // application
+        outError             // outError
     );
 }
-
 OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
     if (!ds) return NULL;
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
@@ -543,10 +540,10 @@ OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
         OCRelease(pf);
     }
     // metadata
-    if (ds->metaData) {
-        OCDictionaryRef meta_copy = (OCDictionaryRef)OCTypeDeepCopyMutable(ds->metaData);
+    if (ds->application) {
+        OCDictionaryRef meta_copy = (OCDictionaryRef)OCTypeDeepCopyMutable(ds->application);
         OCDictionarySetValue(dict,
-                             STR(kDatasetMetadataKey),
+                             STR(kDatasetApplicationKey),
                              meta_copy);
         OCRelease(meta_copy);
     }
@@ -667,7 +664,7 @@ DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outErr
         if (!prevFocus) goto cleanup;
     }
     // --- metadata ---
-    if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR(kDatasetMetadataKey)))) {
+    if ((ddict = (OCDictionaryRef)OCDictionaryGetValue(dict, STR(kDatasetApplicationKey)))) {
         metadata = (OCDictionaryRef)OCTypeDeepCopyMutable(ddict);
         if (!metadata) {
             if (outError) *outError = STR("Dataset creation failed: cannot copy metadata");
@@ -925,14 +922,14 @@ static OCDictionaryRef DatasetDictionaryCreateFromJSON(cJSON *json,
         OCRelease(fd);
     }
     // metadata
-    entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetMetadataKey);
+    entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetApplicationKey);
     if (entry && cJSON_IsObject(entry)) {
         OCDictionaryRef md = OCMetadataCreateFromJSON(entry, outError);
         if (!md) {
             OCRelease(dict);
             return NULL;
         }
-        OCDictionarySetValue(dict, STR(kDatasetMetadataKey), md);
+        OCDictionarySetValue(dict, STR(kDatasetApplicationKey), md);
         OCRelease(md);
     }
     return dict;
@@ -1076,20 +1073,16 @@ static bool ensure_parent_dirs(const char *fullpath, OCStringRef *outError) {
 }
 static bool derive_directory_from_path(const char *filepath, char *output, size_t output_size) {
     if (!filepath || !output || output_size == 0) return false;
-    
     size_t len = strnlen(filepath, PATH_MAX);
     if (len == 0 || len >= PATH_MAX) return false;
-    
     // Copy the path and find the last directory separator
     char temp[PATH_MAX];
     memcpy(temp, filepath, len);
     temp[len] = '\0';
-    
     char *last_sep = strrchr(temp, '/');
     if (!last_sep) {
         last_sep = strrchr(temp, '\\');  // Windows support
     }
-    
     if (last_sep) {
         // Terminate at the separator to get directory
         *last_sep = '\0';
@@ -1113,7 +1106,6 @@ bool DatasetExport(DatasetRef ds,
         if (outError) *outError = STR("Invalid arguments");
         return false;
     }
-    
     // If binary_dir is NULL, derive it from json_path
     char derived_binary_dir[PATH_MAX];
     if (!binary_dir) {
@@ -1486,10 +1478,10 @@ bool DatasetSetDependentVariables(DatasetRef ds, OCMutableArrayRef dvs) {
     if (!ds || !dvs) return false;
     OCRelease(ds->dependentVariables);
     ds->dependentVariables = (OCMutableArrayRef)OCRetain(dvs);
-    for(OCIndex i = 0; i < OCArrayGetCount(dvs); ++i) {
+    for (OCIndex i = 0; i < OCArrayGetCount(dvs); ++i) {
         DependentVariableRef dv = (DependentVariableRef)OCArrayGetValueAtIndex(dvs, i);
         if (dv) {
-            DependentVariableSetOwner(dv, (OCTypeRef) ds);
+            DependentVariableSetOwner(dv, (OCTypeRef)ds);
         }
     }
     return true;
@@ -1539,13 +1531,13 @@ bool DatasetSetPreviousFocus(DatasetRef ds, DatumRef previousFocus) {
     ds->previousFocus = previousFocus ? (DatumRef)OCRetain(previousFocus) : NULL;
     return true;
 }
-OCDictionaryRef DatasetGetMetaData(DatasetRef ds) {
-    return ds ? ds->metaData : NULL;
+OCDictionaryRef DatasetGetApplicationMetaData(DatasetRef ds) {
+    return ds ? ds->application : NULL;
 }
-bool DatasetSetMetaData(DatasetRef ds, OCDictionaryRef md) {
+bool DatasetSetApplicationMetaData(DatasetRef ds, OCDictionaryRef md) {
     if (!ds || !md) return false;
-    OCRelease(ds->metaData);
-    ds->metaData = (OCDictionaryRef)OCRetain(md);
+    OCRelease(ds->application);
+    ds->application = (OCDictionaryRef)OCRetain(md);
     return true;
 }
 #pragma endregion Getters / Setters
@@ -1585,30 +1577,24 @@ bool DatasetSetReadOnly(DatasetRef ds, bool readOnly) {
     ds->readOnly = readOnly;
     return true;
 }
-
 DependentVariableRef DatasetAddEmptyDependentVariable(DatasetRef theDataset,
-                                                            OCStringRef quantityType,
-                                                            OCNumberType elementType,
-                                                            OCIndex size)
-{
-    IF_NO_OBJECT_EXISTS_RETURN(theDataset,NULL);
-    IF_NO_OBJECT_EXISTS_RETURN(quantityType,NULL);
-    
-    if(NULL==theDataset->dimensions && size<0) return NULL;
-    
-    if(theDataset->dimensions) {
+                                                      OCStringRef quantityType,
+                                                      OCNumberType elementType,
+                                                      OCIndex size) {
+    IF_NO_OBJECT_EXISTS_RETURN(theDataset, NULL);
+    IF_NO_OBJECT_EXISTS_RETURN(quantityType, NULL);
+    if (NULL == theDataset->dimensions && size < 0) return NULL;
+    if (theDataset->dimensions) {
         OCIndex sizeFromDimensions = RMNCalculateSizeFromDimensions(theDataset->dimensions);
-        if(size==-1) size = sizeFromDimensions;
-        if(size!= sizeFromDimensions) return NULL;
+        if (size == -1) size = sizeFromDimensions;
+        if (size != sizeFromDimensions) return NULL;
     }
-    
     DependentVariableRef theDependentVariable = DependentVariableCreateDefault(quantityType,
-                                                                                   elementType,
-                                                                                   size,
-                                                                                   NULL);
+                                                                               elementType,
+                                                                               size,
+                                                                               NULL);
     OCArrayAppendValue(theDataset->dependentVariables, theDependentVariable);
     OCRelease(theDependentVariable);
     return theDependentVariable;
 }
-
 #pragma endregion

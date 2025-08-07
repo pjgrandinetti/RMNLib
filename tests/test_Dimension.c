@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include "RMNLibrary.h"
 #include "test_utils.h"
-
 // ----------------------------------------------------------------------------
 // test_CreateDimensionLongLabel
 // ----------------------------------------------------------------------------
@@ -15,83 +14,68 @@ bool test_CreateDimensionLongLabel(void) {
     OCStringRef err = NULL;
     SIScalarRef offset = NULL;
     SIDimensionRef sidim = NULL;
-
     // --- LabeledDimension case ---
     labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     TEST_ASSERT(labels != NULL);
-
     OCArrayAppendValue(labels, STR("A"));
     OCArrayAppendValue(labels, STR("B"));
-
     err = NULL;
     ld = LabeledDimensionCreate(
         STR("LD_Label"),
         STR("desc"),
-        NULL,       // metadata
+        NULL,  // metadata
         labels,
-        &err        // outError
+        &err  // outError
     );
     TEST_ASSERT(ld != NULL);
     TEST_ASSERT(err == NULL);
-
     longLabel = CreateDimensionLongLabel(
         (DimensionRef)ld,
-        1           // no outError for CreateDimensionLongLabel
+        1  // no outError for CreateDimensionLongLabel
     );
     TEST_ASSERT(longLabel != NULL);
-
     expected = OCStringCreateWithFormat(STR("LD_Label-1"));
     TEST_ASSERT(OCStringEqual(longLabel, expected));
     OCRelease(longLabel);
     OCRelease(expected);
-
     // --- SIDimension case (should be: "foo-5/m") ---
     offset = SIScalarCreateWithDouble(
         3.14,
-        SIUnitWithSymbol(STR("m"))
-    );
+        SIUnitWithSymbol(STR("m")));
     TEST_ASSERT(offset != NULL);
-
     err = NULL;
     sidim = SIDimensionCreate(
-        STR("foo"),            // label
-        STR("desc"),           // description
-        NULL,                  // metadata
-        kSIQuantityLength,     // quantityName
-        offset,                // offset
-        NULL,                  // origin
-        NULL,                  // period
-        false,                 // periodic
-        kDimensionScalingNone, // scaling
-        &err                   // outError
+        STR("foo"),             // label
+        STR("desc"),            // description
+        NULL,                   // metadata
+        kSIQuantityLength,      // quantityName
+        offset,                 // offset
+        NULL,                   // origin
+        NULL,                   // period
+        false,                  // periodic
+        kDimensionScalingNone,  // scaling
+        &err                    // outError
     );
     TEST_ASSERT(sidim != NULL);
     TEST_ASSERT(err == NULL);
-
     OCStringRef longLabelSI = CreateDimensionLongLabel(
         (DimensionRef)sidim,
-        5
-    );
+        5);
     TEST_ASSERT(longLabelSI != NULL);
-
     OCStringRef expectedSI = OCStringCreateWithFormat(STR("foo-5/m"));
     TEST_ASSERT(OCStringEqual(longLabelSI, expectedSI));
     OCRelease(longLabelSI);
     OCRelease(expectedSI);
-
     ok = true;
-
 cleanup:
     if (sidim) OCRelease(sidim);
     if (offset) OCRelease(offset);
     if (ld) OCRelease(ld);
     if (labels) OCRelease(labels);
     if (err) OCRelease(err);
-
     printf("CreateDimensionLongLabel test %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
-
 // ----------------------------------------------------------------------------
 // test_Dimension_base
 // ----------------------------------------------------------------------------
@@ -102,80 +86,60 @@ bool test_Dimension_base(void) {
     OCMutableDictionaryRef meta = NULL;
     OCDictionaryRef gotMeta = NULL, metaCopy = NULL;
     OCStringRef err = NULL;
-
     labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     TEST_ASSERT(labels);
-
     OCArrayAppendValue(labels, STR("A"));
     OCArrayAppendValue(labels, STR("B"));
-
     // convenience constructor no longer takes outError
     dim = (DimensionRef)LabeledDimensionCreateWithCoordinateLabels(labels);
     TEST_ASSERT(dim);
-
     // 1) type must be "labeled"
     TEST_ASSERT(OCStringEqual(DimensionGetType(dim), STR("labeled")));
-
     // 2) label & description default to ""
     TEST_ASSERT(OCStringEqual(DimensionGetLabel(dim), STR("")));
     TEST_ASSERT(OCStringEqual(DimensionGetDescription(dim), STR("")));
-
     // 3) metadata default is an empty dictionary
-    gotMeta = DimensionGetMetadata(dim);
+    gotMeta = DimensionGetApplicationMetaData(dim);
     TEST_ASSERT(gotMeta);
     TEST_ASSERT(OCDictionaryGetCount(gotMeta) == 0);
-
     // 4) setters / getters
     err = NULL;
     TEST_ASSERT(DimensionSetLabel(dim, STR("MyLabel"), &err));
     TEST_ASSERT(err == NULL);
-
     err = NULL;
     TEST_ASSERT(DimensionSetDescription(dim, STR("MyDesc"), &err));
     TEST_ASSERT(err == NULL);
-
     TEST_ASSERT(OCStringEqual(DimensionGetLabel(dim), STR("MyLabel")));
     TEST_ASSERT(OCStringEqual(DimensionGetDescription(dim), STR("MyDesc")));
-
     // 5) set some metadata and round-trip
     meta = OCDictionaryCreateMutable(0);
     OCDictionarySetValue(meta, STR("foo"), STR("bar"));
-
     err = NULL;
-    TEST_ASSERT(DimensionSetMetadata(dim, meta, &err));
+    TEST_ASSERT(DimensionSetApplicationMetaData(dim, meta, &err));
     TEST_ASSERT(err == NULL);
-
-    gotMeta = DimensionGetMetadata(dim);
+    gotMeta = DimensionGetApplicationMetaData(dim);
     TEST_ASSERT(OCStringEqual(
         OCDictionaryGetValue(gotMeta, STR("foo")),
-        STR("bar")
-    ));
-
+        STR("bar")));
     // deep copy via OCTypeDeepCopy
     copy = (DimensionRef)OCTypeDeepCopy(dim);
     TEST_ASSERT(copy);
     TEST_ASSERT(OCStringEqual(DimensionGetLabel(copy), STR("MyLabel")));
     TEST_ASSERT(OCStringEqual(DimensionGetDescription(copy), STR("MyDesc")));
-
-    metaCopy = DimensionGetMetadata(copy);
+    metaCopy = DimensionGetApplicationMetaData(copy);
     TEST_ASSERT(OCStringEqual(
         OCDictionaryGetValue(metaCopy, STR("foo")),
-        STR("bar")
-    ));
-
+        STR("bar")));
     ok = true;
-
 cleanup:
     if (copy) OCRelease(copy);
     if (dim) OCRelease(dim);
     if (meta) OCRelease(meta);
     if (labels) OCRelease(labels);
     if (err) OCRelease(err);
-
     printf("Dimension base public API test %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
-
 // ----------------------------------------------------------------------------
 // test_LabeledDimension
 // ----------------------------------------------------------------------------
@@ -186,62 +150,47 @@ bool test_LabeledDimension(void) {
     OCDictionaryRef dict = NULL;
     OCStringRef f1 = NULL, f2 = NULL;
     OCStringRef err = NULL;
-
     labels = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     TEST_ASSERT(labels);
-
     OCArrayAppendValue(labels, STR("A"));
     OCArrayAppendValue(labels, STR("B"));
     OCArrayAppendValue(labels, STR("C"));
-
     err = NULL;
     ld = LabeledDimensionCreate(
-        STR("L"),       // label
-        STR("desc"),    // description
-        NULL,           // metadata
-        labels,         // coordinateLabels
-        &err            // outError
+        STR("L"),     // label
+        STR("desc"),  // description
+        NULL,         // metadata
+        labels,       // coordinateLabels
+        &err          // outError
     );
     TEST_ASSERT(ld != NULL);
     TEST_ASSERT(err == NULL);
-
     TEST_ASSERT(OCStringEqual(
         DimensionGetType((DimensionRef)ld),
-        STR("labeled")
-    ));
+        STR("labeled")));
     TEST_ASSERT(OCStringEqual(
         DimensionGetLabel((DimensionRef)ld),
-        STR("L")
-    ));
+        STR("L")));
     TEST_ASSERT(OCStringEqual(
         DimensionGetDescription((DimensionRef)ld),
-        STR("desc")
-    ));
+        STR("desc")));
     TEST_ASSERT(OCDictionaryGetCount(
-        DimensionGetMetadata((DimensionRef)ld)
-    ) == 0);
-
+                    DimensionGetApplicationMetaData((DimensionRef)ld)) == 0);
     OCArrayRef got = LabeledDimensionGetCoordinateLabels(ld);
     TEST_ASSERT(got && OCArrayGetCount(got) == 3);
     TEST_ASSERT(OCStringEqual(
         LabeledDimensionGetCoordinateLabelAtIndex(ld, 2),
-        STR("C")
-    ));
-
+        STR("C")));
     dict = LabeledDimensionCopyAsDictionary(ld);
     TEST_ASSERT(dict);
-
     err = NULL;
     ld2 = LabeledDimensionCreateFromDictionary(dict, &err);
     TEST_ASSERT(ld2 != NULL);
     TEST_ASSERT(err == NULL);
-
     f1 = OCTypeCopyFormattingDesc((OCTypeRef)ld);
     f2 = OCTypeCopyFormattingDesc((OCTypeRef)ld2);
     TEST_ASSERT(f1 && f2 && OCStringEqual(f1, f2));
-
     ok = true;
-
 cleanup:
     if (f1) OCRelease(f1);
     if (f2) OCRelease(f2);
@@ -250,11 +199,9 @@ cleanup:
     if (ld) OCRelease(ld);
     if (labels) OCRelease(labels);
     if (err) OCRelease(err);
-
     printf("LabeledDimension basic tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
-
 // ----------------------------------------------------------------------------
 // test_SIDimension
 // ----------------------------------------------------------------------------
@@ -264,78 +211,61 @@ bool test_SIDimension(void) {
     OCDictionaryRef dict = NULL;
     SIScalarRef offset = NULL;
     OCStringRef err = NULL;
-
     offset = SIScalarCreateWithDouble(
         1.0,
-        SIUnitWithSymbol(STR("m"))
-    );
+        SIUnitWithSymbol(STR("m")));
     TEST_ASSERT(offset != NULL);
-
     err = NULL;
     si = SIDimensionCreate(
-        STR("sidim"),          // label
-        STR("desc"),           // description
-        NULL,                  // metadata
-        kSIQuantityLength,         // quantityName
-        offset,                // coordinatesOffset
-        NULL,                  // originOffset
-        NULL,                  // period
-        false,                 // periodic
-        kDimensionScalingNone, // scaling
-        &err                   // outError
+        STR("sidim"),           // label
+        STR("desc"),            // description
+        NULL,                   // metadata
+        kSIQuantityLength,      // quantityName
+        offset,                 // coordinatesOffset
+        NULL,                   // originOffset
+        NULL,                   // period
+        false,                  // periodic
+        kDimensionScalingNone,  // scaling
+        &err                    // outError
     );
     TEST_ASSERT(si != NULL);
     TEST_ASSERT(err == NULL);
-
     TEST_ASSERT(OCStringEqual(
         DimensionGetType((DimensionRef)si),
-        STR("si_dimension")
-    ));
+        STR("si_dimension")));
     TEST_ASSERT(OCStringEqual(
         SIDimensionGetQuantityName(si),
-        STR("length")
-    ));
+        STR("length")));
     TEST_ASSERT(
         SIScalarDoubleValueInUnit(
             SIDimensionGetCoordinatesOffset(si),
             SIUnitWithSymbol(STR("m")),
-            NULL
-        ) == 1.0
-    );
+            NULL) == 1.0);
     TEST_ASSERT(
         SIScalarDoubleValueInUnit(
             SIDimensionGetOriginOffset(si),
             SIUnitWithSymbol(STR("m")),
-            NULL
-        ) == 0.0
-    );
+            NULL) == 0.0);
     TEST_ASSERT(!SIDimensionIsPeriodic(si));
-
     dict = SIDimensionCopyAsDictionary(si);
     TEST_ASSERT(dict);
-
     err = NULL;
     si2 = SIDimensionCreateFromDictionary(dict, &err);
     TEST_ASSERT(si2 != NULL);
     TEST_ASSERT(err == NULL);
     TEST_ASSERT(OCStringEqual(
         SIDimensionGetQuantityName(si2),
-        STR("length")
-    ));
-
+        STR("length")));
     ok = true;
-
 cleanup:
     if (si2) OCRelease(si2);
-    if (si)  OCRelease(si);
+    if (si) OCRelease(si);
     if (offset) OCRelease(offset);
     if (dict) OCRelease(dict);
     if (err) OCRelease(err);
-
     printf("SIDimension public API test %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
-
 // ----------------------------------------------------------------------------
 // test_SIMonotonic_and_SILinearDimension
 // ----------------------------------------------------------------------------
@@ -348,24 +278,20 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
     SIMonotonicDimensionRef mono = NULL;
     SILinearDimensionRef lin = NULL;
     SIDimensionRef rec = NULL;
-
     coords = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     TEST_ASSERT(coords);
-
-    s0 = SIScalarCreateWithDouble(0.0,SIUnitWithSymbol(STR("s")));
-    s1 = SIScalarCreateWithDouble(1.0,SIUnitWithSymbol(STR("s")));
+    s0 = SIScalarCreateWithDouble(0.0, SIUnitWithSymbol(STR("s")));
+    s1 = SIScalarCreateWithDouble(1.0, SIUnitWithSymbol(STR("s")));
     TEST_ASSERT(s0 && s1);
-
     OCArrayAppendValue(coords, s0);
     OCArrayAppendValue(coords, s1);
-
     // Monotonic
     err = NULL;
     mono = SIMonotonicDimensionCreate(
         STR("mono"),            // label
         STR("desc"),            // description
         NULL,                   // metadata
-        kSIQuantityTime,          // quantity
+        kSIQuantityTime,        // quantity
         s0,                     // offset
         NULL,                   // origin
         NULL,                   // period
@@ -379,19 +305,16 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
     TEST_ASSERT(err == NULL);
     TEST_ASSERT(OCStringEqual(
         DimensionGetType((DimensionRef)mono),
-        STR("monotonic")
-    ));
+        STR("monotonic")));
     TEST_ASSERT(OCArrayGetCount(
-        SIMonotonicDimensionGetCoordinates(mono)
-    ) == 2);
-
+                    SIMonotonicDimensionGetCoordinates(mono)) == 2);
     // Linear
     err = NULL;
     lin = SILinearDimensionCreate(
         STR("lin"),             // label
         STR("desc"),            // description
         NULL,                   // metadata
-    kSIQuantityTime,          // quantity
+        kSIQuantityTime,        // quantity
         s0,                     // offset
         NULL,                   // origin
         NULL,                   // period
@@ -407,45 +330,38 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
     TEST_ASSERT(err == NULL);
     TEST_ASSERT(OCStringEqual(
         DimensionGetType((DimensionRef)lin),
-        STR("linear")
-    ));
+        STR("linear")));
     TEST_ASSERT(SILinearDimensionGetCount(lin) == 3);
     TEST_ASSERT(SILinearDimensionGetIncrement(lin) != NULL);
-
     // reciprocal dimension
     {
         SIScalarRef recOff = SIScalarCreateWithDouble(
             0.0,
-            SIUnitWithSymbol(STR("Hz"))
-        );
+            SIUnitWithSymbol(STR("Hz")));
         err = NULL;
         rec = SIDimensionCreate(
-            STR("rlabel"),         // label
-            NULL,                  // description
-            NULL,                  // metadata
-            kSIQuantityFrequency,      // quantityName
-            recOff,                // offset
-            NULL,                  // origin
-            NULL,                  // period
-            false,                 // periodic
-            kDimensionScalingNone, // scaling
-            &err                   // outError
+            STR("rlabel"),          // label
+            NULL,                   // description
+            NULL,                   // metadata
+            kSIQuantityFrequency,   // quantityName
+            recOff,                 // offset
+            NULL,                   // origin
+            NULL,                   // period
+            false,                  // periodic
+            kDimensionScalingNone,  // scaling
+            &err                    // outError
         );
         OCRelease(recOff);
         TEST_ASSERT(rec != NULL);
         TEST_ASSERT(err == NULL);
     }
-
     err = NULL;
     TEST_ASSERT(SILinearDimensionSetReciprocal(lin, rec, &err));
     TEST_ASSERT(err == NULL);
-
     err = NULL;
     TEST_ASSERT(SIMonotonicDimensionSetReciprocal(mono, rec, &err));
     TEST_ASSERT(err == NULL);
-
     ok = true;
-
 cleanup:
     if (coords) OCRelease(coords);
     if (s0) OCRelease(s0);
@@ -454,17 +370,14 @@ cleanup:
     if (lin) OCRelease(lin);
     if (rec) OCRelease(rec);
     if (err) OCRelease(err);
-
     fprintf(stderr, "%s %s\n", __func__, ok ? "passed." : "FAILED!");
     return ok;
 }
-
 // ----------------------------------------------------------------------------
 // test_minimal_monotonic
 // ----------------------------------------------------------------------------
 bool test_minimal_monotonic(void) {
     OCStringRef error = NULL;
-    
     // Create coordinates array with SIScalar objects
     double values[] = {0.0, 1.5, 3.7, 8.2, 15.0};
     OCMutableArrayRef valueArray = OCArrayCreateMutable(5, &kOCTypeArrayCallBacks);
@@ -481,35 +394,29 @@ bool test_minimal_monotonic(void) {
         OCRelease(scalar);
         OCRelease(valueStr);
     }
-    
     // Test our new minimal function
     SIMonotonicDimensionRef monotonicDim = SIMonotonicDimensionCreateMinimal(
-        kSIQuantityLength, // quantityName
-        (OCArrayRef)valueArray,        // coordinates
-        NULL,              // reciprocal
-        &error);           // outError
-    
+        kSIQuantityLength,       // quantityName
+        (OCArrayRef)valueArray,  // coordinates
+        NULL,                    // reciprocal
+        &error);                 // outError
     if (!monotonicDim || error) {
-        printf("Error creating monotonic dimension: %s\n", 
+        printf("Error creating monotonic dimension: %s\n",
                error ? OCStringGetCString(error) : "unknown error");
         OCRelease(valueArray);
         if (error) OCRelease(error);
         return false;
     }
-    
     // Verify the dimension was created correctly
     OCArrayRef coords = SIMonotonicDimensionGetCoordinates(monotonicDim);
     OCIndex count = coords ? OCArrayGetCount(coords) : 0;
-    
     printf("✅ SIMonotonicDimensionCreateMinimal test passed!\n");
     printf("   - Created dimension with %ld coordinates\n", (long)count);
     printf("   - Quantity: Length\n");
     printf("   - No reciprocal dimension\n");
-    
     // Clean up
     OCRelease(valueArray);
     OCRelease(monotonicDim);
-    
     fprintf(stderr, "%s %s\n", __func__, "passed.");
     return true;
 }

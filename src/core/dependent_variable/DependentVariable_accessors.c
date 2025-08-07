@@ -296,15 +296,15 @@ bool DependentVariableSetQuantityType(DependentVariableRef dv, OCStringRef qt) {
     }
     return false;
 }
-OCDictionaryRef DependentVariableGetMetaData(DependentVariableRef dv) {
+OCDictionaryRef DependentVariableGetApplicationMetaData(DependentVariableRef dv) {
     if (!dv) return NULL;
-    return dv->metaData;
+    return dv->application;
 }
-bool DependentVariableSetMetaData(DependentVariableRef dv, OCDictionaryRef dict) {
+bool DependentVariableSetApplicationMetaData(DependentVariableRef dv, OCDictionaryRef dict) {
     if (!dv) return false;
-    OCRelease(dv->metaData);
-    dv->metaData = dict ? OCTypeDeepCopyMutable(dict) : OCDictionaryCreateMutable(0);
-    return dv->metaData != NULL;
+    OCRelease(dv->application);
+    dv->application = dict ? OCTypeDeepCopyMutable(dict) : OCDictionaryCreateMutable(0);
+    return dv->application != NULL;
 }
 OCTypeRef DependentVariableGetOwner(DependentVariableRef dv) {
     if (!dv) return NULL;

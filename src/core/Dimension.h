@@ -76,7 +76,7 @@ bool DimensionSetDescription(DimensionRef dim,
  * @param dim The Dimension instance.
  * @return A shallow-deep‐copied OCDictionaryRef.
  */
-OCMutableDictionaryRef DimensionGetMetadata(DimensionRef dim);
+OCMutableDictionaryRef DimensionGetApplicationMetaData(DimensionRef dim);
 /**
  * @brief Replace this dimension’s metadata.
  * @param dim      The Dimension instance.
@@ -84,9 +84,9 @@ OCMutableDictionaryRef DimensionGetMetadata(DimensionRef dim);
  * @param outError On failure, receives a descriptive OCStringRef.
  * @return true on success.
  */
-bool DimensionSetMetadata(DimensionRef dim,
-                          OCDictionaryRef dict,
-                          OCStringRef *outError);
+bool DimensionSetApplicationMetaData(DimensionRef dim,
+                                     OCDictionaryRef dict,
+                                     OCStringRef *outError);
 /** @} */
 /*==============================================================================
   LabeledDimension
@@ -198,16 +198,15 @@ OCTypeID SIDimensionGetTypeID(void);
  * @return New SIDimensionRef, or NULL.
  */
 SIDimensionRef SIDimensionCreate(OCStringRef label,
-                  OCStringRef description,
-                  OCDictionaryRef metadata,
-                  OCStringRef quantityName,
-                  SIScalarRef offset,
-                  SIScalarRef origin,
-                  SIScalarRef period,
-                  bool periodic,
-                  dimensionScaling scaling,
-                  OCStringRef *outError);
-
+                                 OCStringRef description,
+                                 OCDictionaryRef metadata,
+                                 OCStringRef quantityName,
+                                 SIScalarRef offset,
+                                 SIScalarRef origin,
+                                 SIScalarRef period,
+                                 bool periodic,
+                                 dimensionScaling scaling,
+                                 OCStringRef *outError);
 /**
  * @brief Create an SI-quantitative dimension with only quantityName set; all other params default.
  *        label, description, metadata are NULL; offset, origin, period are NULL; periodic is false; scaling is kDimensionScalingNone.
@@ -217,16 +216,16 @@ SIDimensionRef SIDimensionCreate(OCStringRef label,
  */
 static inline SIDimensionRef SIDimensionCreateWithQuantity(OCStringRef quantityName, OCStringRef *outError) {
     return SIDimensionCreate(
-        NULL,         // label
-        NULL,         // description
-        NULL,         // metadata
-        quantityName, // quantityName
-        NULL,         // offset
-        NULL,         // origin
-        NULL,         // period
-        false,        // periodic
-        kDimensionScalingNone, // scaling
-        outError      // outError
+        NULL,                   // label
+        NULL,                   // description
+        NULL,                   // metadata
+        quantityName,           // quantityName
+        NULL,                   // offset
+        NULL,                   // origin
+        NULL,                   // period
+        false,                  // periodic
+        kDimensionScalingNone,  // scaling
+        outError                // outError
     );
 }
 /**
@@ -378,18 +377,18 @@ SIMonotonicDimensionCreate(OCStringRef label,
                            OCStringRef *outError);
 /**
  * @brief Create a monotonic dimension with minimal parameters.
- * 
+ *
  * This is a convenience function that calls SIMonotonicDimensionCreate with
  * sensible defaults for optional parameters:
  * - label: NULL
- * - description: NULL  
+ * - description: NULL
  * - metadata: NULL
  * - offset: NULL (will be defaulted by the main function)
  * - origin: NULL (will be defaulted by the main function)
  * - period: NULL (will be defaulted by the main function)
  * - periodic: false
  * - scaling: kDimensionScalingNone
- * 
+ *
  * @param quantityName Physical quantity name.
  * @param coordinates Array of SIScalarRef at each grid point (≥2).
  * @param reciprocal Reciprocal SIDimension (for FFT, etc), or NULL.
@@ -488,7 +487,6 @@ SILinearDimensionCreate(OCStringRef label,
                         bool fft,
                         SIDimensionRef reciprocal,
                         OCStringRef *outError);
-
 /**
  * @brief Create a minimal SILinearDimension with only quantity, increment, count, and reciprocal set.
  *        All other parameters are set to NULL, false, or kDimensionScalingNone.
@@ -504,23 +502,22 @@ static inline SILinearDimensionRef SILinearDimensionCreateMinimal(
     OCIndex count,
     SIScalarRef increment,
     SIDimensionRef reciprocal,
-    OCStringRef *outError) 
-    {
+    OCStringRef *outError) {
     return SILinearDimensionCreate(
-        NULL,         // label
-        NULL,         // description
-        NULL,         // metadata
-        quantityName, // quantityName
-        NULL,         // offset
-        NULL,         // origin
-        NULL,         // period
-        false,        // periodic
-        kDimensionScalingNone, // scaling
-        count,        // count
-        increment,    // increment
-        false,        // fft
-        reciprocal,   // reciprocal
-        outError      // outError
+        NULL,                   // label
+        NULL,                   // description
+        NULL,                   // metadata
+        quantityName,           // quantityName
+        NULL,                   // offset
+        NULL,                   // origin
+        NULL,                   // period
+        false,                  // periodic
+        kDimensionScalingNone,  // scaling
+        count,                  // count
+        increment,              // increment
+        false,                  // fft
+        reciprocal,             // reciprocal
+        outError                // outError
     );
 }
 /**

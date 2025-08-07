@@ -33,7 +33,7 @@ struct impl_DependentVariable {
     // Dependent Variable Type attributes
     OCStringRef name;
     OCStringRef description;
-    OCMutableDictionaryRef metaData;
+    OCMutableDictionaryRef application;  // Meta-data dictionary
     OCStringRef quantityName;
     OCStringRef quantityType;
     // components...

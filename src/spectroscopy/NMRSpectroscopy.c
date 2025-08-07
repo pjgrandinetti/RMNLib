@@ -1,9 +1,8 @@
 #include "../RMNLibrary.h"
-
 void NMRDimensionSetDimensionless(DimensionRef dim) {
-    OCMutableDictionaryRef metaData = DimensionGetMetadata(dim);
+    OCMutableDictionaryRef metaData = DimensionGetApplicationMetaData(dim);
     if (metaData) {
-        OCMutableDictionaryRef nmrMetaData = (OCMutableDictionaryRef) OCDictionaryGetValue(metaData, STR("nmr_spectroscopy"));
+        OCMutableDictionaryRef nmrMetaData = (OCMutableDictionaryRef)OCDictionaryGetValue(metaData, STR("nmr_spectroscopy"));
         if (nmrMetaData) {
             OCDictionarySetValue(nmrMetaData, STR("dimensionless"), kOCBooleanTrue);
         } else {

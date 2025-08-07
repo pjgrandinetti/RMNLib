@@ -165,8 +165,8 @@ bool DatasetSetFocus(DatasetRef ds, DatumRef focus);
 DatumRef DatasetGetPreviousFocus(DatasetRef ds);
 bool DatasetSetPreviousFocus(DatasetRef ds, DatumRef previousFocus);
 /** @brief Get/replace arbitrary metadata dictionary. */
-OCDictionaryRef DatasetGetMetaData(DatasetRef ds);
-bool DatasetSetMetaData(DatasetRef ds, OCDictionaryRef md);
+OCDictionaryRef DatasetGetApplicationMetaData(DatasetRef ds);
+bool DatasetSetApplicationMetaData(DatasetRef ds, OCDictionaryRef md);
 /** @} */
 /** @defgroup IO Disk I/O: .csdf / .csdfe
  *  Read & write full Dataset + external blobs.

@@ -11,7 +11,7 @@ extern "C" {
 #define kDependentVariableNumericTypeKey "numeric_type"
 #define kDependentVariableNameKey "name"
 #define kDependentVariableDescriptionKey "description"
-#define kDependentVariableMetaDataKey "application"
+#define kDependentVariableApplicationKey "application"
 #define kDependentVariableQuantityNameKey "quantity_name"
 #define kDependentVariableQuantityTypeKey "quantity_type"
 #define kDependentVariableTypeKey "type"
@@ -295,8 +295,8 @@ DependentVariableGetSparseSampling(DependentVariableRef dv);
 bool DependentVariableSetSparseSampling(DependentVariableRef dv,
                                         SparseSamplingRef ss);
 /** @} end of Sparse-sampling Accessors */
-OCDictionaryRef DependentVariableGetMetaData(DependentVariableRef dv);
-bool DependentVariableSetMetaData(DependentVariableRef dv, OCDictionaryRef dict);
+OCDictionaryRef DependentVariableGetApplicationMetaData(DependentVariableRef dv);
+bool DependentVariableSetApplicationMetaData(DependentVariableRef dv, OCDictionaryRef dict);
 OCTypeRef DependentVariableGetOwner(DependentVariableRef dv);
 bool DependentVariableSetOwner(DependentVariableRef dv, OCTypeRef owner);
 /**
