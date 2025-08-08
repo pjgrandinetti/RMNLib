@@ -250,7 +250,7 @@ sitypes: $(TP_LIB_DIR)/libSITypes.a $(SIT_INCLUDE)/SITypes.h
 
 $(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/$(SIT_LIB_BIN) -o $@
+	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.1/$(SIT_LIB_BIN) -o $@
 
 $(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes headers"
@@ -442,8 +442,14 @@ synclib:
 	@$(RM) -r $(THIRD_PARTY_DIR)/lib $(THIRD_PARTY_DIR)/include
 	@$(MKDIR_P) $(THIRD_PARTY_DIR)/lib $(THIRD_PARTY_DIR)/include/OCTypes $(THIRD_PARTY_DIR)/include/SITypes
 	@cp ../OCTypes/install/lib/libOCTypes.a        $(THIRD_PARTY_DIR)/lib/
+	@if [ -f ../OCTypes/install/lib/libOCTypes.dylib ]; then cp ../OCTypes/install/lib/libOCTypes.dylib $(THIRD_PARTY_DIR)/lib/; fi
+	@if [ -f ../OCTypes/install/lib/libOCTypes.so ]; then cp ../OCTypes/install/lib/libOCTypes.so $(THIRD_PARTY_DIR)/lib/; fi
+	@if [ -f ../OCTypes/install/lib/libOCTypes.dll ]; then cp ../OCTypes/install/lib/libOCTypes.dll $(THIRD_PARTY_DIR)/lib/; fi
 	@cp ../OCTypes/install/include/OCTypes/*.h     $(THIRD_PARTY_DIR)/include/OCTypes/
 	@cp ../SITypes/install/lib/libSITypes.a        $(THIRD_PARTY_DIR)/lib/
+	@if [ -f ../SITypes/install/lib/libSITypes.dylib ]; then cp ../SITypes/install/lib/libSITypes.dylib $(THIRD_PARTY_DIR)/lib/; fi
+	@if [ -f ../SITypes/install/lib/libSITypes.so ]; then cp ../SITypes/install/lib/libSITypes.so $(THIRD_PARTY_DIR)/lib/; fi
+	@if [ -f ../SITypes/install/lib/libSITypes.dll ]; then cp ../SITypes/install/lib/libSITypes.dll $(THIRD_PARTY_DIR)/lib/; fi
 	@cp ../SITypes/install/include/SITypes/*.h     $(THIRD_PARTY_DIR)/include/SITypes/
 	@# Create dummy archives to satisfy fetch prerequisites and prevent re-fetch
 	@touch $(OCT_LIB_ARCHIVE) $(OCT_HEADERS_ARCHIVE) $(SIT_LIB_ARCHIVE) $(SIT_HEADERS_ARCHIVE)
