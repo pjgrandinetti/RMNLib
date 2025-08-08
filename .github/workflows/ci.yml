@@ -54,11 +54,13 @@ jobs:
       - name: Build & test in ARM64 container
         if: matrix.arch == 'arm64'
         run: |
-          docker run --rm --platform=linux/arm64 \
-            -v ${{ github.workspace }}:/src -w /src ubuntu:22.04 bash -lc "\
-              apt-get update && apt-get install -y curl clang make flex bison unzip libcurl4-openssl-dev libopenblas-dev liblapacke-dev libomp-dev && \
-              curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h && \
-              make clean && make fetchlibs && make all && make test && make install-shared && \
+          docker run --rm --platform=linux/arm64 
+            -v ${{ github.workspace }}:/src -w /src ubuntu:22.04 bash -lc "
+              apt-get update && apt-get install -y curl clang make flex bison unzip libcurl4-openssl-dev libopenblas-dev liblapacke-dev libomp-dev && 
+              curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h && 
+              make clean && 
+              make fetchlibs && 
+              make all && make test && make install-shared && 
               ls -la install/lib/"
 
       # On Linux (x64)
@@ -84,6 +86,7 @@ jobs:
         if: runner.os != 'Windows' && matrix.arch == 'x64'
         run: |
           make clean
+          # Fetch OCTypes and SITypes dependencies from GitHub releases
           make fetchlibs
           make all
           make test-asan
@@ -113,7 +116,8 @@ jobs:
         run: |
           curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
           make clean
-          make fetchlibs CC=gcc LEX=flex YACC="bison -y"
+          # Fetch OCTypes and SITypes dependencies from GitHub releases
+          make fetchlibs
           make CC=gcc LEX=flex YACC="bison -y"
           make test CC=gcc LEX=flex YACC="bison -y"
           make install-shared CC=gcc LEX=flex YACC="bison -y"
