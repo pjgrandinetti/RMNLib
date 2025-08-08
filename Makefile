@@ -84,23 +84,40 @@ else ifneq ($(findstring MINGW,$(UNAME_S)),)
   CPPFLAGS     += -I/mingw64/include/openblas
 endif
 
-# OS-specific library linking (prefer static linking for all platforms)
+# OS-specific library linking and shared library configuration
+ARCH := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
   # Prefer static link on macOS to avoid @rpath runtime issues
   OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
   SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+  # Shared library configuration for macOS
+  SHLIB_EXT      = .dylib
+  SHLIB_FLAGS    = -dynamiclib -fPIC
+  SHLIB_LDFLAGS  = -install_name @rpath/libRMN.dylib
 else ifeq ($(UNAME_S),Linux)
   # Prefer static link on Linux to avoid runtime loader issues with .so resolution
   OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
   SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+  # Shared library configuration for Linux
+  SHLIB_EXT      = .so
+  SHLIB_FLAGS    = -shared -fPIC
+  SHLIB_LDFLAGS  =
 else ifneq ($(findstring MINGW,$(UNAME_S)),)
   # Prefer static link on Windows to avoid DLL deployment issues
   OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
   SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+  # Shared library configuration for Windows
+  SHLIB_EXT      = .dll
+  SHLIB_FLAGS    = -shared
+  SHLIB_LDFLAGS  = -Wl,--out-implib=libRMN.dll.a
 else
   OCTYPES_LINKLIB := -lOCTypes
   SITYPES_LINKLIB := -lSITypes
+  SHLIB_EXT      = .so
+  SHLIB_FLAGS    = -shared -fPIC
+  SHLIB_LDFLAGS  =
 endif
+SHLIB = $(LIB_DIR)/libRMN$(SHLIB_EXT)
 
 # Detect OpenMP support (optional for parallel processing)
 # Test if compiler supports OpenMP by attempting compilation
@@ -147,7 +164,7 @@ OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
 SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
 SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
-.PHONY: all dirs clean prepare octypes sitypes test test-asan docs doxygen html install synclib fetchlibs
+.PHONY: all dirs clean prepare octypes sitypes test test-asan docs doxygen html install install-shared shared synclib fetchlibs
 
 fetchlibs: octypes sitypes
 	@echo "Both OCTypes and SITypes libraries are up to date."
@@ -278,6 +295,17 @@ prepare:
 $(LIB_DIR)/libRMN.a: $(OBJ)
 	$(AR) rcs $@ $^
 
+# Build shared library
+$(SHLIB): $(OBJ) | dirs octypes sitypes
+ifneq ($(findstring MINGW,$(UNAME_S)),)
+	$(CC) $(CFLAGS) $(SHLIB_FLAGS) $(SHLIB_LDFLAGS) -o $@ $(filter %.o,$^) $(OCTYPES_LINKLIB) $(SITYPES_LINKLIB) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm $(CURL_LIBS)
+else
+	$(CC) $(CFLAGS) $(SHLIB_FLAGS) $(SHLIB_LDFLAGS) -o $@ $(filter %.o,$^) -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) -lOCTypes -lSITypes $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm $(CURL_LIBS)
+endif
+
+# Convenience target for shared library
+shared: $(SHLIB)
+
 # Test sources and objects
 TEST_SRC := $(wildcard $(TEST_SRC_DIR)/*.c)
 TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(TEST_SRC))
@@ -331,7 +359,7 @@ test-asan: $(BIN_DIR)/runTests.asan
 	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
 clean:
-	$(RM) -r $(BUILD_DIR) libRMN.a
+	$(RM) -r $(BUILD_DIR) libRMN.a $(LIB_DIR)/libRMN$(SHLIB_EXT) libRMN.dll.a
 	$(RM) -rf $(THIRD_PARTY_DIR)
 
 # Determine repository root and Xcode build dir
@@ -387,6 +415,19 @@ INSTALL_INC_DIR := $(INSTALL_DIR)/include/RMNLib
 install: all
 	$(MKDIR_P) $(INSTALL_LIB_DIR) $(INSTALL_INC_DIR)
 	cp $(LIB_DIR)/libRMN.a $(INSTALL_LIB_DIR)/
+	cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
+	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
+	cp src/core/*.h $(INSTALL_INC_DIR)/core/
+	cp src/importers/*.h $(INSTALL_INC_DIR)/importers/
+	cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/spectroscopy/
+	cp src/utils/*.h $(INSTALL_INC_DIR)/utils/
+
+# Install both static and shared libraries
+.PHONY: install-shared
+install-shared: $(LIB_DIR)/libRMN.a $(SHLIB)
+	$(MKDIR_P) $(INSTALL_LIB_DIR) $(INSTALL_INC_DIR)
+	cp $(LIB_DIR)/libRMN.a $(INSTALL_LIB_DIR)/
+	cp $(SHLIB) $(INSTALL_LIB_DIR)/
 	cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
 	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
 	cp src/core/*.h $(INSTALL_INC_DIR)/core/

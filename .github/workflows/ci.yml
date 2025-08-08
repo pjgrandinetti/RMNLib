@@ -58,8 +58,8 @@ jobs:
             -v ${{ github.workspace }}:/src -w /src ubuntu:22.04 bash -lc "\
               apt-get update && apt-get install -y curl clang make flex bison unzip libcurl4-openssl-dev libopenblas-dev liblapacke-dev libomp-dev && \
               curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h && \
-              make clean && make all && make test && \
-              cp build/lib/libRMN.a libRMN.a"
+              make clean && make fetchlibs && make all && make test && make install-shared && \
+              ls -la install/lib/"
 
       # On Linux (x64)
       - name: Install dependencies on Ubuntu
@@ -84,9 +84,11 @@ jobs:
         if: runner.os != 'Windows' && matrix.arch == 'x64'
         run: |
           make clean
+          make fetchlibs
           make all
           make test-asan
-          cp build/lib/libRMN.a libRMN.a
+          make install-shared
+          ls -la install/lib/
 
       # Windows
       - name: Set up MSYS2 & MinGW (Windows)
@@ -111,15 +113,19 @@ jobs:
         run: |
           curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
           make clean
+          make fetchlibs CC=gcc LEX=flex YACC="bison -y"
           make CC=gcc LEX=flex YACC="bison -y"
           make test CC=gcc LEX=flex YACC="bison -y"
-          cp build/lib/libRMN.a libRMN.a
+          make install-shared CC=gcc LEX=flex YACC="bison -y"
+          ls -la install/lib/
 
       - name: Upload library artifact
         uses: actions/upload-artifact@v4
         with:
           name: libRMN-${{ matrix.label }}
-          path: libRMN.a
+          path: |
+            install/lib/libRMN.a
+            install/lib/libRMN.*
 
       - name: Package public headers
         if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
@@ -157,19 +163,27 @@ jobs:
         run: |
           mkdir -p packages
           for osdir in artifacts/*; do
-            lib="${osdir}/libRMN.a"
-            if [ ! -f "$lib" ]; then
-              echo "Skipping $osdir (no library to package)"
+            if [ ! -d "$osdir" ] || [[ "$osdir" == *"-headers" ]]; then
               continue
             fi
+            
             os=$(basename "$osdir")
+            # Strip the libRMN- prefix to get clean platform name
             platform=${os#libRMN-}
             zipfile="packages/libRMN-${platform}.zip"
 
+            # Check for libraries in the install/lib directory
+            libdir="${osdir}/install/lib"
+            if [ ! -d "$libdir" ]; then
+              echo "Skipping $osdir (no install/lib directory)"
+              continue
+            fi
+
+            # Package all library files (static and shared)
             if [[ "$platform" == *"windows"* ]]; then
-              pwsh -Command "Compress-Archive -Path '$lib' -DestinationPath '$zipfile'"
+              pwsh -Command "Compress-Archive -Path '${libdir}/*' -DestinationPath '${zipfile}'"
             else
-              zip -j "$zipfile" "$lib"
+              cd "${libdir}" && zip -r "../../${zipfile}" libRMN.*
             fi
           done
 
