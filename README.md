@@ -63,3 +63,4 @@ make test        # build and run all tests
 make test-debug  # run under LLDB
 make test-asan   # with AddressSanitizer
 ```
+# SITypes artifacts now use consistent naming with OCTypes
