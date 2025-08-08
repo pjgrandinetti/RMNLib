@@ -2552,9 +2552,19 @@ SILinearDimensionRef SILinearDimensionCreate(
         err = STR("SILinearDimensionCreate: need ≥2 points");
         goto Fail;
     }
-    if (!increment || OCGetTypeID((OCTypeRef)increment) != SIScalarGetTypeID() ||
-        SIQuantityIsComplexType((SIQuantityRef)increment)) {
-        err = STR("SILinearDimensionCreate: increment must be a real SIScalar");
+    if (!increment) {
+        err = STR("SILinearDimensionCreate: increment is NULL");
+        goto Fail;
+    }
+    OCTypeID incrementTypeID = OCGetTypeID((OCTypeRef)increment);
+    OCTypeID expectedTypeID = SIScalarGetTypeID();
+    if (incrementTypeID != expectedTypeID) {
+        err = OCStringCreateWithFormat(STR("SILinearDimensionCreate: increment has wrong type ID (got %lu, expected %lu)"), 
+                                       (unsigned long)incrementTypeID, (unsigned long)expectedTypeID);
+        goto Fail;
+    }
+    if (SIQuantityIsComplexType((SIQuantityRef)increment)) {
+        err = STR("SILinearDimensionCreate: increment must be real-valued, not complex");
         goto Fail;
     }
     // 2) Derive baseUnit/baseDim from increment

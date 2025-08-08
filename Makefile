@@ -84,6 +84,24 @@ else ifneq ($(findstring MINGW,$(UNAME_S)),)
   CPPFLAGS     += -I/mingw64/include/openblas
 endif
 
+# OS-specific library linking (prefer static linking for all platforms)
+ifeq ($(UNAME_S),Darwin)
+  # Prefer static link on macOS to avoid @rpath runtime issues
+  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
+  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+else ifeq ($(UNAME_S),Linux)
+  # Prefer static link on Linux to avoid runtime loader issues with .so resolution
+  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
+  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+else ifneq ($(findstring MINGW,$(UNAME_S)),)
+  # Prefer static link on Windows to avoid DLL deployment issues
+  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
+  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+else
+  OCTYPES_LINKLIB := -lOCTypes
+  SITYPES_LINKLIB := -lSITypes
+endif
+
 # Detect OpenMP support (optional for parallel processing)
 # Test if compiler supports OpenMP by attempting compilation
 OPENMP_TEST := $(shell echo 'int main(){return 0;}' | $(CC) -fopenmp -x c - -o /dev/null 2>/dev/null && echo yes)
@@ -292,7 +310,7 @@ $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c | dirs octypes sitypes
 $(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMN -lSITypes -lOCTypes $(CURL_LIBS) \
+		-lRMN $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(CURL_LIBS) \
 		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
 		-o $@
 
@@ -300,7 +318,7 @@ $(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 $(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
 		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMN -lSITypes -lOCTypes $(CURL_LIBS) \
+		-lRMN $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(CURL_LIBS) \
 		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
 		-o $@
 
