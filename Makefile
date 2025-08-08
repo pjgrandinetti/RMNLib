@@ -250,7 +250,7 @@ sitypes: $(TP_LIB_DIR)/libSITypes.a $(SIT_INCLUDE)/SITypes.h
 
 $(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.1/$(SIT_LIB_BIN) -o $@
+	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/$(SIT_LIB_BIN) -o $@
 
 $(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes headers"
