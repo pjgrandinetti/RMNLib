@@ -2992,6 +2992,20 @@ OCStringRef DimensionGetType(DimensionRef dim) {
     else
         return STR("dimension");
 }
+bool DimensionIsQuantitative(DimensionRef dim) {
+    if (!dim) return false;
+    OCTypeID tid = OCGetTypeID(dim);
+    if (tid == LabeledDimensionGetTypeID())
+        return false;
+    else if (tid == SIMonotonicDimensionGetTypeID())
+        return true;
+    else if (tid == SILinearDimensionGetTypeID())
+        return true;
+    else if (tid == SIDimensionGetTypeID())
+        return true;
+    else
+        return false;
+}
 OCIndex DimensionGetCount(DimensionRef dim) {
     if (!dim) return 0;
     OCTypeID tid = OCGetTypeID(dim);
@@ -3007,7 +3021,7 @@ OCIndex DimensionGetCount(DimensionRef dim) {
     // abstract base and any other subclasses default to a single point
     return 1;
 }
-OCStringRef CreateDimensionLongLabel(DimensionRef dim, OCIndex index) {
+OCStringRef DimensionCreateAxisLabel(DimensionRef dim, OCIndex index) {
     if (!dim)
         return NULL;
     OCTypeID tid = OCGetTypeID(dim);

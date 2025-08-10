@@ -43,7 +43,7 @@ int main(void) {
     if (!test_Datum_NULL_cases()) failures++;
     if (!test_Datum_functional()) failures++;
     fprintf(stderr, "\n=== Running Dimension Tests ===\n");
-    if (!test_CreateDimensionLongLabel()) failures++;
+    if (!test_DimensionCreateAxisLabel()) failures++;
     if (!test_Dimension_base()) failures++;
     if (!test_LabeledDimension()) failures++;
     if (!test_SIDimension()) failures++;

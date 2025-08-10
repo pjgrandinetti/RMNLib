@@ -602,6 +602,27 @@ SILinearDimensionCreateFromJSON(cJSON *json,
  * @return Constant OCStringRef (do not release), or NULL if input is NULL.
  */
 OCStringRef DimensionGetType(DimensionRef dim);
+
+/**
+ * @brief Determine whether a dimension represents quantitative or qualitative data.
+ *
+ * Quantitative dimensions contain numeric, measurable data with physical units
+ * or mathematical relationships between data points. Qualitative dimensions
+ * contain categorical, discrete labels without inherent numeric meaning.
+ *
+ * **Classification Rules:**
+ * - **LabeledDimension:** Always qualitative (false) - represents discrete categories
+ * - **SIDimension:** Always quantitative (true) - has physical units and scaling
+ * - **SIMonotonicDimension:** Always quantitative (true) - ordered numeric coordinates  
+ * - **SILinearDimension:** Always quantitative (true) - evenly spaced numeric values
+ * - **Base Dimension:** Qualitative (false) - abstract placeholder
+ *
+ *
+ * @param dim The Dimension instance to classify.
+ * @return true if the dimension represents quantitative (numeric) data,
+ *         false if qualitative (categorical) data or if dim is NULL.
+ */
+bool DimensionIsQuantitative(DimensionRef dim);
 /**
  * @brief Serialize a Dimension (any subclass) to a dictionary.
  *
@@ -651,7 +672,7 @@ OCIndex DimensionGetCount(DimensionRef dim);
  * @param index Zero-based coordinate index.
  * @return New OCStringRef (caller must release), or NULL.
  */
-OCStringRef CreateDimensionLongLabel(DimensionRef dim, OCIndex index);
+OCStringRef DimensionCreateAxisLabel(DimensionRef dim, OCIndex index);
 /** @} */
 #ifdef __cplusplus
 }

@@ -3,9 +3,9 @@
 #include "RMNLibrary.h"
 #include "test_utils.h"
 // ----------------------------------------------------------------------------
-// test_CreateDimensionLongLabel
+// test_DimensionCreateAxisLabel
 // ----------------------------------------------------------------------------
-bool test_CreateDimensionLongLabel(void) {
+bool test_DimensionCreateAxisLabel(void) {
     bool ok = false;
     OCMutableArrayRef labels = NULL;
     LabeledDimensionRef ld = NULL;
@@ -29,9 +29,9 @@ bool test_CreateDimensionLongLabel(void) {
     );
     TEST_ASSERT(ld != NULL);
     TEST_ASSERT(err == NULL);
-    longLabel = CreateDimensionLongLabel(
+    longLabel = DimensionCreateAxisLabel(
         (DimensionRef)ld,
-        1  // no outError for CreateDimensionLongLabel
+        1  // no outError for DimensionCreateAxisLabel
     );
     TEST_ASSERT(longLabel != NULL);
     expected = OCStringCreateWithFormat(STR("LD_Label-1"));
@@ -58,7 +58,7 @@ bool test_CreateDimensionLongLabel(void) {
     );
     TEST_ASSERT(sidim != NULL);
     TEST_ASSERT(err == NULL);
-    OCStringRef longLabelSI = CreateDimensionLongLabel(
+    OCStringRef longLabelSI = DimensionCreateAxisLabel(
         (DimensionRef)sidim,
         5);
     TEST_ASSERT(longLabelSI != NULL);
@@ -73,7 +73,7 @@ cleanup:
     if (ld) OCRelease(ld);
     if (labels) OCRelease(labels);
     if (err) OCRelease(err);
-    printf("CreateDimensionLongLabel test %s\n", ok ? "passed." : "FAILED!");
+    printf("DimensionCreateAxisLabel test %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 // ----------------------------------------------------------------------------
