@@ -413,6 +413,20 @@ OCArrayRef SIMonotonicDimensionGetCoordinates(SIMonotonicDimensionRef dim);
 bool SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim,
                                         OCArrayRef coords);
 /**
+ * @brief Create absolute coordinate array using CSDM convention.
+ * 
+ * Creates absolute coordinates using the formula:
+ * X^abs_k = X_k + o_k × 1
+ * 
+ * Where:
+ * - X_k = regular coordinates from SIMonotonicDimensionGetCoordinates()
+ * - o_k = origin_offset value
+ * 
+ * @param dim The SIMonotonicDimension.
+ * @return OCArrayRef containing SIScalarRef absolute coordinates, or NULL on failure.
+ */
+OCArrayRef SIMonotonicDimensionCreateAbsoluteCoordinates(SIMonotonicDimensionRef dim);
+/**
  * @brief Get reciprocal dimension.
  */
 SIDimensionRef SIMonotonicDimensionGetReciprocal(SIMonotonicDimensionRef dim);
@@ -548,6 +562,37 @@ bool SILinearDimensionSetIncrement(SILinearDimensionRef dim,
  * @brief Get reciprocal increment as SIScalar.
  */
 SIScalarRef SILinearDimensionGetReciprocalIncrement(SILinearDimensionRef dim);
+/**
+ * @brief Create coordinate array following CSDM convention.
+ * 
+ * Creates coordinates using the formula:
+ * X_k = Δx_k × (J_k - Z_k) + b_k × 1
+ * 
+ * Where:
+ * - Δx_k = increment
+ * - b_k = coordinates_offset
+ * - J_k = [0, 1, 2, ..., count-1] (index array)
+ * - Z_k = 0 if complex_fft is false, T_k/2 if complex_fft is true
+ * - T_k = count for even count, count-1 for odd count
+ * 
+ * @param dim The SILinearDimension.
+ * @return OCArrayRef containing SIScalarRef coordinates, or NULL on failure.
+ */
+OCArrayRef SILinearDimensionCreateCoordinates(SILinearDimensionRef dim);
+/**
+ * @brief Create absolute coordinate array using CSDM convention.
+ * 
+ * Creates absolute coordinates using the formula:
+ * X^abs_k = X_k + o_k × 1
+ * 
+ * Where:
+ * - X_k = regular coordinates from SILinearDimensionCreateCoordinates()
+ * - o_k = origin_offset value
+ * 
+ * @param dim The SILinearDimension.
+ * @return OCArrayRef containing SIScalarRef absolute coordinates, or NULL on failure.
+ */
+OCArrayRef SILinearDimensionCreateAbsoluteCoordinates(SILinearDimensionRef dim);
 /**
  * @brief Check whether this is marked for FFT.
  */

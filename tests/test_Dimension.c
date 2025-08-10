@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdio.h>
+#include <math.h>
 #include "RMNLibrary.h"
 #include "test_utils.h"
 // ----------------------------------------------------------------------------
@@ -419,4 +420,325 @@ bool test_minimal_monotonic(void) {
     OCRelease(monotonicDim);
     fprintf(stderr, "%s %s\n", __func__, "passed.");
     return true;
+}
+
+// ----------------------------------------------------------------------------
+// test_SILinearDimensionCreateCoordinates
+// ----------------------------------------------------------------------------
+bool test_SILinearDimensionCreateCoordinates(void) {
+    fprintf(stderr, "%s begin...\n", __func__);
+    bool ok = false;
+    OCStringRef err = NULL;
+    SILinearDimensionRef lin = NULL;
+    SIScalarRef increment = NULL, offset = NULL;
+    OCArrayRef coords = NULL;
+    
+    // Test case 1: Simple linear dimension without FFT
+    // Create increment: 0.5 seconds
+    increment = SIScalarCreateWithDouble(0.5, SIUnitWithSymbol(STR("s")));
+    TEST_ASSERT(increment != NULL);
+    
+    // Create coordinates offset: 1.0 seconds  
+    offset = SIScalarCreateWithDouble(1.0, SIUnitWithSymbol(STR("s")));
+    TEST_ASSERT(offset != NULL);
+    
+    // Create linear dimension with count=4, no FFT
+    // Expected coordinates: [1.0, 1.5, 2.0, 2.5] seconds
+    // Formula: X_k = increment × (j - 0) + offset = 0.5×j + 1.0
+    err = NULL;
+    lin = SILinearDimensionCreate(
+        STR("test_time"),        // label
+        STR("Test time dimension"), // description
+        NULL,                    // metadata
+        kSIQuantityTime,         // quantityName
+        offset,                  // offset (coordinates_offset)
+        NULL,                    // origin
+        NULL,                    // period
+        false,                   // periodic
+        kDimensionScalingNone,   // scaling
+        4,                       // count
+        increment,               // increment
+        false,                   // complex_fft (Z_k = 0)
+        NULL,                    // reciprocal
+        &err                     // outError
+    );
+    TEST_ASSERT(lin != NULL);
+    TEST_ASSERT(err == NULL);
+    
+    // Create coordinates using our new function
+    coords = SILinearDimensionCreateCoordinates(lin);
+    TEST_ASSERT(coords != NULL);
+    TEST_ASSERT(OCArrayGetCount(coords) == 4);
+    
+    // Verify coordinate values
+    // j=0: 0.5×0 + 1.0 = 1.0
+    // j=1: 0.5×1 + 1.0 = 1.5  
+    // j=2: 0.5×2 + 1.0 = 2.0
+    // j=3: 0.5×3 + 1.0 = 2.5
+    double expected_values[] = {1.0, 1.5, 2.0, 2.5};
+    for (OCIndex i = 0; i < 4; i++) {
+        SIScalarRef coord = (SIScalarRef)OCArrayGetValueAtIndex(coords, i);
+        TEST_ASSERT(coord != NULL);
+        double value = SIScalarDoubleValue(coord);
+        double expected = expected_values[i];
+        TEST_ASSERT(fabs(value - expected) < 1e-10);
+        printf("   Coordinate[%ld]: %.1f s (expected %.1f s) ✓\n", 
+               (long)i, value, expected);
+    }
+    
+    // Clean up test 1
+    OCRelease(coords);
+    OCRelease(lin);
+    OCRelease(increment);
+    OCRelease(offset);
+    
+    // Test case 2: Linear dimension with complex FFT
+    printf("   Testing with complex_fft=true...\n");
+    
+    // Create increment: 2.0 Hz
+    increment = SIScalarCreateWithDouble(2.0, SIUnitWithSymbol(STR("Hz")));
+    TEST_ASSERT(increment != NULL);
+    
+    // Create coordinates offset: 10.0 Hz
+    offset = SIScalarCreateWithDouble(10.0, SIUnitWithSymbol(STR("Hz")));
+    TEST_ASSERT(offset != NULL);
+    
+    // Create linear dimension with count=6 (even), with FFT
+    // Z_k = T_k/2 = 6/2 = 3 (since count=6 is even, T_k = count = 6)
+    // Expected coordinates with FFT shift:
+    // j=0: 2.0×(0-3) + 10.0 = 2.0×(-3) + 10.0 = 4.0
+    // j=1: 2.0×(1-3) + 10.0 = 2.0×(-2) + 10.0 = 6.0  
+    // j=2: 2.0×(2-3) + 10.0 = 2.0×(-1) + 10.0 = 8.0
+    // j=3: 2.0×(3-3) + 10.0 = 2.0×( 0) + 10.0 = 10.0
+    // j=4: 2.0×(4-3) + 10.0 = 2.0×( 1) + 10.0 = 12.0
+    // j=5: 2.0×(5-3) + 10.0 = 2.0×( 2) + 10.0 = 14.0
+    err = NULL;
+    lin = SILinearDimensionCreate(
+        STR("test_freq"),        // label
+        STR("Test frequency dimension"), // description
+        NULL,                    // metadata
+        kSIQuantityFrequency,    // quantityName
+        offset,                  // offset (coordinates_offset)
+        NULL,                    // origin
+        NULL,                    // period
+        false,                   // periodic
+        kDimensionScalingNone,   // scaling
+        6,                       // count (even)
+        increment,               // increment
+        true,                    // complex_fft (Z_k = 3)
+        NULL,                    // reciprocal
+        &err                     // outError
+    );
+    TEST_ASSERT(lin != NULL);
+    TEST_ASSERT(err == NULL);
+    
+    // Create coordinates using our new function
+    coords = SILinearDimensionCreateCoordinates(lin);
+    TEST_ASSERT(coords != NULL);
+    TEST_ASSERT(OCArrayGetCount(coords) == 6);
+    
+    // Verify FFT-shifted coordinate values
+    double expected_fft_values[] = {4.0, 6.0, 8.0, 10.0, 12.0, 14.0};
+    for (OCIndex i = 0; i < 6; i++) {
+        SIScalarRef coord = (SIScalarRef)OCArrayGetValueAtIndex(coords, i);
+        TEST_ASSERT(coord != NULL);
+        double value = SIScalarDoubleValue(coord);
+        double expected = expected_fft_values[i];
+        TEST_ASSERT(fabs(value - expected) < 1e-10);
+        printf("   FFT Coordinate[%ld]: %.1f Hz (expected %.1f Hz) ✓\n", 
+               (long)i, value, expected);
+    }
+    
+    ok = true;
+    printf("✅ SILinearDimensionCreateCoordinates test passed!\n");
+    printf("   - Verified CSDM coordinate formula implementation\n");
+    printf("   - Tested both normal and complex FFT modes\n");
+    printf("   - All coordinate values match expected results\n");
+
+cleanup:
+    if (coords) OCRelease(coords);
+    if (lin) OCRelease(lin);
+    if (increment) OCRelease(increment);
+    if (offset) OCRelease(offset);
+    if (err) OCRelease(err);
+    
+    fprintf(stderr, "%s %s\n", __func__, ok ? "passed." : "FAILED!");
+    return ok;
+}
+
+// ----------------------------------------------------------------------------
+// test_AbsoluteCoordinates
+// ----------------------------------------------------------------------------
+bool test_AbsoluteCoordinates(void) {
+    fprintf(stderr, "%s begin...\n", __func__);
+    bool ok = false;
+    OCStringRef err = NULL;
+    SILinearDimensionRef lin = NULL;
+    SIMonotonicDimensionRef mono = NULL;
+    SIScalarRef increment = NULL, origin_offset = NULL;
+    OCArrayRef coords = NULL, abs_coords = NULL;
+    OCMutableArrayRef mono_coords = NULL;
+    
+    printf("=== Testing SILinearDimension Absolute Coordinates ===\n");
+    
+    // Test case 1: SILinearDimension with origin offset
+    // Create increment: 1.0 meters
+    increment = SIScalarCreateWithDouble(1.0, SIUnitWithSymbol(STR("m")));
+    TEST_ASSERT(increment != NULL);
+    
+    // Create origin offset: 5.0 meters
+    origin_offset = SIScalarCreateWithDouble(5.0, SIUnitWithSymbol(STR("m")));
+    TEST_ASSERT(origin_offset != NULL);
+    
+    // Create linear dimension with count=4
+    // Regular coordinates will be: [0.0, 1.0, 2.0, 3.0] m
+    // Absolute coordinates should be: [5.0, 6.0, 7.0, 8.0] m (adding origin_offset)
+    err = NULL;
+    lin = SILinearDimensionCreate(
+        STR("test_distance"),    // label
+        STR("Test distance dimension"), // description
+        NULL,                    // metadata
+        kSIQuantityLength,       // quantityName
+        NULL,                    // offset (coordinates_offset) - will default to zero
+        origin_offset,           // origin (origin_offset) 
+        NULL,                    // period
+        false,                   // periodic
+        kDimensionScalingNone,   // scaling
+        4,                       // count
+        increment,               // increment
+        false,                   // complex_fft
+        NULL,                    // reciprocal
+        &err                     // outError
+    );
+    TEST_ASSERT(lin != NULL);
+    TEST_ASSERT(err == NULL);
+    
+    // Get regular coordinates
+    coords = SILinearDimensionCreateCoordinates(lin);
+    TEST_ASSERT(coords != NULL);
+    TEST_ASSERT(OCArrayGetCount(coords) == 4);
+    
+    // Verify regular coordinates: [0.0, 1.0, 2.0, 3.0]
+    double expected_regular[] = {0.0, 1.0, 2.0, 3.0};
+    for (OCIndex i = 0; i < 4; i++) {
+        SIScalarRef coord = (SIScalarRef)OCArrayGetValueAtIndex(coords, i);
+        TEST_ASSERT(coord != NULL);
+        double value = SIScalarDoubleValue(coord);
+        double expected = expected_regular[i];
+        TEST_ASSERT(fabs(value - expected) < 1e-10);
+        printf("   Regular Coordinate[%ld]: %.1f m (expected %.1f m) ✓\n", 
+               (long)i, value, expected);
+    }
+    
+    // Get absolute coordinates
+    abs_coords = SILinearDimensionCreateAbsoluteCoordinates(lin);
+    TEST_ASSERT(abs_coords != NULL);
+    TEST_ASSERT(OCArrayGetCount(abs_coords) == 4);
+    
+    // Verify absolute coordinates: [5.0, 6.0, 7.0, 8.0] (regular + 5.0 origin_offset)
+    double expected_absolute[] = {5.0, 6.0, 7.0, 8.0};
+    for (OCIndex i = 0; i < 4; i++) {
+        SIScalarRef abs_coord = (SIScalarRef)OCArrayGetValueAtIndex(abs_coords, i);
+        TEST_ASSERT(abs_coord != NULL);
+        double value = SIScalarDoubleValue(abs_coord);
+        double expected = expected_absolute[i];
+        TEST_ASSERT(fabs(value - expected) < 1e-10);
+        printf("   Absolute Coordinate[%ld]: %.1f m (expected %.1f m) ✓\n", 
+               (long)i, value, expected);
+    }
+    
+    // Clean up linear dimension test
+    OCRelease(coords);
+    OCRelease(abs_coords);
+    OCRelease(lin);
+    OCRelease(increment);
+    OCRelease(origin_offset);
+    
+    printf("=== Testing SIMonotonicDimension Absolute Coordinates ===\n");
+    
+    // Test case 2: SIMonotonicDimension with origin offset
+    // Create monotonic coordinates: [0.0, 1.5, 3.5, 6.0] seconds
+    mono_coords = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    TEST_ASSERT(mono_coords != NULL);
+    
+    double mono_values[] = {0.0, 1.5, 3.5, 6.0};
+    for (int i = 0; i < 4; i++) {
+        SIScalarRef coord = SIScalarCreateWithDouble(mono_values[i], SIUnitWithSymbol(STR("s")));
+        TEST_ASSERT(coord != NULL);
+        OCArrayAppendValue(mono_coords, coord);
+        OCRelease(coord);
+    }
+    
+    // Create origin offset: 10.0 seconds
+    origin_offset = SIScalarCreateWithDouble(10.0, SIUnitWithSymbol(STR("s")));
+    TEST_ASSERT(origin_offset != NULL);
+    
+    // Create monotonic dimension
+    // Absolute coordinates should be: [10.0, 11.5, 13.5, 16.0] s (adding origin_offset)
+    err = NULL;
+    mono = SIMonotonicDimensionCreate(
+        STR("test_time_mono"),   // label
+        STR("Test monotonic time dimension"), // description
+        NULL,                    // metadata
+        kSIQuantityTime,         // quantityName
+        NULL,                    // offset (coordinates_offset) - will default to zero
+        origin_offset,           // origin (origin_offset)
+        NULL,                    // period
+        false,                   // periodic
+        kDimensionScalingNone,   // scaling
+        (OCArrayRef)mono_coords, // coordinates
+        NULL,                    // reciprocal
+        &err                     // outError
+    );
+    TEST_ASSERT(mono != NULL);
+    TEST_ASSERT(err == NULL);
+    
+    // Get regular coordinates
+    coords = SIMonotonicDimensionGetCoordinates(mono);
+    TEST_ASSERT(coords != NULL);
+    TEST_ASSERT(OCArrayGetCount(coords) == 4);
+    
+    // Verify regular coordinates: [0.0, 1.5, 3.5, 6.0]
+    for (OCIndex i = 0; i < 4; i++) {
+        SIScalarRef coord = (SIScalarRef)OCArrayGetValueAtIndex(coords, i);
+        TEST_ASSERT(coord != NULL);
+        double value = SIScalarDoubleValue(coord);
+        double expected = mono_values[i];
+        TEST_ASSERT(fabs(value - expected) < 1e-10);
+        printf("   Regular Coordinate[%ld]: %.1f s (expected %.1f s) ✓\n", 
+               (long)i, value, expected);
+    }
+    
+    // Get absolute coordinates
+    abs_coords = SIMonotonicDimensionCreateAbsoluteCoordinates(mono);
+    TEST_ASSERT(abs_coords != NULL);
+    TEST_ASSERT(OCArrayGetCount(abs_coords) == 4);
+    
+    // Verify absolute coordinates: [10.0, 11.5, 13.5, 16.0] (regular + 10.0 origin_offset)
+    double expected_mono_absolute[] = {10.0, 11.5, 13.5, 16.0};
+    for (OCIndex i = 0; i < 4; i++) {
+        SIScalarRef abs_coord = (SIScalarRef)OCArrayGetValueAtIndex(abs_coords, i);
+        TEST_ASSERT(abs_coord != NULL);
+        double value = SIScalarDoubleValue(abs_coord);
+        double expected = expected_mono_absolute[i];
+        TEST_ASSERT(fabs(value - expected) < 1e-10);
+        printf("   Absolute Coordinate[%ld]: %.1f s (expected %.1f s) ✓\n", 
+               (long)i, value, expected);
+    }
+    
+    ok = true;
+    printf("✅ Absolute Coordinates test passed!\n");
+    printf("   - Verified CSDM absolute coordinate formula: X^abs_k = X_k + o_k\n");
+    printf("   - Tested both SILinearDimension and SIMonotonicDimension\n");
+    printf("   - All absolute coordinate values match expected results\n");
+
+cleanup:
+    if (abs_coords) OCRelease(abs_coords);
+    if (mono) OCRelease(mono);
+    if (origin_offset) OCRelease(origin_offset);
+    if (mono_coords) OCRelease(mono_coords);
+    if (err) OCRelease(err);
+    
+    fprintf(stderr, "%s %s\n", __func__, ok ? "passed." : "FAILED!");
+    return ok;
 }

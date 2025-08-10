@@ -1982,6 +1982,54 @@ bool SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim, OCArrayRef 
     dim->coordinates = OCArrayCreateMutableCopy(coords);
     return dim->coordinates != NULL;
 }
+OCArrayRef SIMonotonicDimensionCreateAbsoluteCoordinates(SIMonotonicDimensionRef dim) {
+    if (!dim) return NULL;
+    
+    // Get regular coordinates
+    OCArrayRef regular_coords = SIMonotonicDimensionGetCoordinates(dim);
+    if (!regular_coords) return NULL;
+    
+    // Get origin offset
+    SIScalarRef origin_offset = SIDimensionGetOriginOffset((SIDimensionRef)dim);
+    if (!origin_offset) {
+        // If no origin offset, return a copy of regular coordinates
+        return OCArrayCreateCopy(regular_coords);
+    }
+    
+    // Check if origin offset is zero (no transformation needed)
+    double offset_value = SIScalarDoubleValue(origin_offset);
+    if (fabs(offset_value) < 1e-15) {
+        // Origin offset is effectively zero, return copy of regular coordinates
+        return OCArrayCreateCopy(regular_coords);
+    }
+    
+    // Create absolute coordinates array
+    OCIndex count = OCArrayGetCount(regular_coords);
+    OCMutableArrayRef abs_coords = OCArrayCreateMutable(count, &kOCTypeArrayCallBacks);
+    if (!abs_coords) return NULL;
+    
+    // Apply formula: X^abs_k = X_k + o_k
+    for (OCIndex i = 0; i < count; i++) {
+        SIScalarRef regular_coord = (SIScalarRef)OCArrayGetValueAtIndex(regular_coords, i);
+        if (!regular_coord) {
+            OCRelease(abs_coords);
+            return NULL;
+        }
+        
+        // Add origin offset to regular coordinate
+        SIScalarRef abs_coord = SIScalarCreateByAdding(regular_coord, origin_offset, NULL);
+        if (!abs_coord) {
+            OCRelease(abs_coords);
+            return NULL;
+        }
+        
+        // Add to absolute coordinates array
+        OCArrayAppendValue(abs_coords, abs_coord);
+        OCRelease(abs_coord);
+    }
+    
+    return (OCArrayRef)abs_coords;
+}
 SIDimensionRef SIMonotonicDimensionGetReciprocal(SIMonotonicDimensionRef dim) {
     return dim ? dim->reciprocal : NULL;
 }
@@ -2830,6 +2878,120 @@ bool SILinearDimensionSetIncrement(SILinearDimensionRef dim, SIScalarRef inc) {
     OCRelease(dim->increment);
     dim->increment = copy;
     return true;
+}
+OCArrayRef SILinearDimensionCreateCoordinates(SILinearDimensionRef dim) {
+    if (!dim) return NULL;
+    
+    // Get dimension properties
+    OCIndex count = dim->count;
+    if (count == 0) return NULL;
+    
+    SIScalarRef increment = dim->increment;
+    if (!increment) return NULL;
+    
+    SIScalarRef coordinates_offset = SIDimensionGetCoordinatesOffset((SIDimensionRef)dim);
+    if (!coordinates_offset) return NULL;
+    
+    bool complex_fft = dim->fft;
+    
+    // Calculate Z_k according to CSDM specification
+    OCIndex Z_k = 0;
+    if (complex_fft) {
+        OCIndex T_k = (count % 2 == 0) ? count : (count - 1);
+        Z_k = T_k / 2;
+    }
+    
+    // Create coordinate array
+    OCMutableArrayRef coords = OCArrayCreateMutable(count, &kOCTypeArrayCallBacks);
+    if (!coords) return NULL;
+    
+    // For each index j in [0, 1, 2, ..., count-1]
+    for (OCIndex j = 0; j < count; j++) {
+        // Calculate (j - Z_k)
+        double index_offset = (double)((long)j - (long)Z_k);
+        
+        // Create scalar for increment * (j - Z_k)
+        SIMutableScalarRef term1 = SIScalarCreateMutableCopy(increment);
+        if (!term1) {
+            OCRelease(coords);
+            return NULL;
+        }
+        
+        // Multiply increment by (j - Z_k)
+        SIScalarMultiplyByDimensionlessRealConstant(term1, index_offset);
+        
+        // Add coordinates_offset: term1 += coordinates_offset
+        SIScalarRef result = SIScalarCreateByAdding((SIScalarRef)term1, coordinates_offset, NULL);
+        OCRelease(term1);
+        
+        if (!result) {
+            OCRelease(coords);
+            return NULL;
+        }
+        
+        // Add to coordinate array
+        OCArrayAppendValue(coords, result);
+        OCRelease(result);
+    }
+    
+    return (OCArrayRef)coords;
+}
+
+OCArrayRef SILinearDimensionCreateAbsoluteCoordinates(SILinearDimensionRef dim) {
+    if (!dim) return NULL;
+    
+    // Get regular coordinates first
+    OCArrayRef regular_coords = SILinearDimensionCreateCoordinates(dim);
+    if (!regular_coords) return NULL;
+    
+    // Get origin offset
+    SIScalarRef origin_offset = SIDimensionGetOriginOffset((SIDimensionRef)dim);
+    if (!origin_offset) {
+        // If no origin offset, just return regular coordinates
+        return regular_coords;
+    }
+    
+    // Check if origin offset is zero (no transformation needed)
+    double offset_value = SIScalarDoubleValue(origin_offset);
+    if (fabs(offset_value) < 1e-15) {
+        // Origin offset is effectively zero, return regular coordinates
+        return regular_coords;
+    }
+    
+    // Create absolute coordinates array
+    OCIndex count = OCArrayGetCount(regular_coords);
+    OCMutableArrayRef abs_coords = OCArrayCreateMutable(count, &kOCTypeArrayCallBacks);
+    if (!abs_coords) {
+        OCRelease(regular_coords);
+        return NULL;
+    }
+    
+    // Apply formula: X^abs_k = X_k + o_k
+    for (OCIndex i = 0; i < count; i++) {
+        SIScalarRef regular_coord = (SIScalarRef)OCArrayGetValueAtIndex(regular_coords, i);
+        if (!regular_coord) {
+            OCRelease(abs_coords);
+            OCRelease(regular_coords);
+            return NULL;
+        }
+        
+        // Add origin offset to regular coordinate
+        SIScalarRef abs_coord = SIScalarCreateByAdding(regular_coord, origin_offset, NULL);
+        if (!abs_coord) {
+            OCRelease(abs_coords);
+            OCRelease(regular_coords);
+            return NULL;
+        }
+        
+        // Add to absolute coordinates array
+        OCArrayAppendValue(abs_coords, abs_coord);
+        OCRelease(abs_coord);
+    }
+    
+    // Clean up regular coordinates
+    OCRelease(regular_coords);
+    
+    return (OCArrayRef)abs_coords;
 }
 SIScalarRef SILinearDimensionGetReciprocalIncrement(SILinearDimensionRef dim) {
     if (!dim || !dim->increment || dim->count < 2) {

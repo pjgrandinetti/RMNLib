@@ -49,6 +49,8 @@ int main(void) {
     if (!test_SIDimension()) failures++;
     if (!test_SIMonotonic_and_SILinearDimension()) failures++;
     if (!test_minimal_monotonic()) failures++;
+    if (!test_SILinearDimensionCreateCoordinates()) failures++;
+    if (!test_AbsoluteCoordinates()) failures++;
     fprintf(stderr, "\n=== Running DependentVariable Tests ===\n");
     if (!test_DependentVariable_base()) failures++;
     if (!test_DependentVariable_components()) failures++;
