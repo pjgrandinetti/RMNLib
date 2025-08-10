@@ -100,6 +100,16 @@ endif
 
 # OS-specific library linking and shared library configuration
 ARCH := $(shell uname -m)
+
+# Linux-specific linker grouping for circular dependencies
+ifeq ($(UNAME_S),Linux)
+  GROUP_START := -Wl,--start-group
+  GROUP_END   := -Wl,--end-group
+else
+  GROUP_START :=
+  GROUP_END   :=
+endif
+
 ifeq ($(UNAME_S),Darwin)
   # Prefer static link on macOS to avoid @rpath runtime issues
   OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
@@ -351,16 +361,14 @@ $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c | dirs octypes sitypes
 # Test binary
 $(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
-		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMN $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(CURL_LIBS) \
+		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
 		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
 		-o $@
 
 # AddressSanitizer test binary
 $(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
-		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		-lRMN $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(CURL_LIBS) \
+		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
 		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
 		-o $@
 
