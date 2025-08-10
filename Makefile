@@ -9,7 +9,21 @@ UNAME_S := $(shell uname -s)
 # Tools
 # Use LLVM Clang with OpenMP on macOS by default, but allow override via CC environment variable
 ifeq ($(origin CC),default)
-  # Default case: use LLVM clang if available on macOS
+  # Default case: us# Regular test binary
+$(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
+	$(CC) $(CFLAGS_DEBUG) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
+		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
+		$(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(CURL_LIBS) \
+		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
+		-o $@
+
+# AddressSanitizer test binary
+$(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
+	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
+		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
+		$(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(CURL_LIBS) \
+		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
+		-o $@ available on macOS
   ifeq ($(UNAME_S),Darwin)
     ifneq (,$(wildcard /opt/homebrew/opt/llvm/bin/clang))
       CC := /opt/homebrew/opt/llvm/bin/clang
