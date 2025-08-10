@@ -177,7 +177,7 @@ else
 TP_DEPS :=
 endif
 
-all: dirs $(TP_DEPS) prepare $(LIB_DIR)/libRMN.a
+all: dirs $(TP_DEPS) prepare $(LIB_DIR)/libRMN.a $(SHLIB)
 
 dirs: $(REQUIRED_DIRS)
 
@@ -415,6 +415,7 @@ INSTALL_INC_DIR := $(INSTALL_DIR)/include/RMNLib
 install: all
 	$(MKDIR_P) $(INSTALL_LIB_DIR) $(INSTALL_INC_DIR)
 	cp $(LIB_DIR)/libRMN.a $(INSTALL_LIB_DIR)/
+	cp $(SHLIB) $(INSTALL_LIB_DIR)/
 	cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
 	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
 	cp src/core/*.h $(INSTALL_INC_DIR)/core/
