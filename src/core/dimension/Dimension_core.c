@@ -838,6 +838,164 @@ bool impl_SIDimensionIsReciprocalOf(SIDimensionRef src,
     OCRelease(invDim);
     return match;
 }
+OCDictionaryRef SIDimensionCopyAsDictionary(SIDimensionRef dim) {
+    if (!dim) return NULL;
+    // 1) Start with base class fields
+    OCMutableDictionaryRef dict =
+        (OCMutableDictionaryRef)impl_DimensionCopyAsDictionary((DimensionRef)dim);
+    if (!dict) return NULL;
+    // 2) quantity_name → string
+    if (!CopyStringField(dict, STR(kSIDimensionQuantityNameKey), SIDimensionGetQuantityName(dim))) {
+        OCRelease(dict);
+        return NULL;
+    }
+    // 3) offset → string
+    {
+        OCStringRef tmp = SIScalarCreateStringValue(SIDimensionGetCoordinatesOffset(dim));
+        if (!tmp || !CopyStringField(dict, STR(kSIDimensionOffsetKey), tmp)) {
+            if (tmp) OCRelease(tmp);
+            OCRelease(dict);
+            return NULL;
+        }
+        OCRelease(tmp);
+    }
+    // 4) origin → string
+    {
+        OCStringRef tmp = SIScalarCreateStringValue(SIDimensionGetOriginOffset(dim));
+        if (!tmp || !CopyStringField(dict, STR(kSIDimensionOriginKey), tmp)) {
+            if (tmp) OCRelease(tmp);
+            OCRelease(dict);
+            return NULL;
+        }
+        OCRelease(tmp);
+    }
+    // 5) period → string
+    {
+        SIScalarRef periodScalar = SIDimensionGetPeriod(dim);
+        if (periodScalar) {
+            OCStringRef tmp = SIScalarCreateStringValue(periodScalar);
+            if (!tmp || !CopyStringField(dict, STR(kSIDimensionPeriodKey), tmp)) {
+                if (tmp) OCRelease(tmp);
+                OCRelease(dict);
+                return NULL;
+            }
+            OCRelease(tmp);
+        }
+    }
+    // 6) periodic flag
+    if (!CopyBoolField(dict, STR(kSIDimensionPeriodicKey), SIDimensionIsPeriodic(dim))) {
+        OCRelease(dict);
+        return NULL;
+    }
+    // 7) scaling enum
+    if (!CopyNumField(dict, STR(kSIDimensionScalingKey), SIDimensionGetScaling(dim))) {
+        OCRelease(dict);
+        return NULL;
+    }
+    return (OCDictionaryRef)dict;
+}
+SIDimensionRef SIDimensionCreateFromDictionary(
+    OCDictionaryRef dict,
+    OCStringRef *outError) {
+    OCStringRef parseErr = NULL;
+    OCStringRef label = NULL;
+    OCStringRef description = NULL;
+    OCDictionaryRef metadata = NULL;
+    OCStringRef quantityName = NULL;
+    SIScalarRef offset = NULL;
+    SIScalarRef origin = NULL;
+    SIScalarRef period = NULL;
+    OCBooleanRef boolObj = NULL;
+    bool periodic;
+    OCNumberRef numObj;
+    dimensionScaling scaling;
+    SIDimensionRef dim;
+    if (outError) *outError = NULL;
+    if (!dict) {
+        if (outError)
+            *outError = STR("SIDimensionCreateFromDictionary: dictionary is NULL");
+        return NULL;
+    }
+    /* 1) Base fields */
+    label = (OCStringRef)OCDictionaryGetValue(dict, STR(kDimensionLabelKey));
+    description = (OCStringRef)OCDictionaryGetValue(dict, STR(kDimensionDescriptionKey));
+    metadata = (OCDictionaryRef)OCDictionaryGetValue(dict, STR(kDimensionApplicationKey));
+    /* 2) quantity_name (required) */
+    quantityName = (OCStringRef)OCDictionaryGetValue(dict, STR(kSIDimensionQuantityNameKey));
+    /* 3) offset (string → SIScalar) */
+    OCStringRef offsetStr = (OCStringRef)OCDictionaryGetValue(dict, STR(kSIDimensionOffsetKey));
+    if (offsetStr) {
+        offset = SIScalarCreateFromExpression(offsetStr, &parseErr);
+        if (!offset) {
+            if (outError)
+                *outError = parseErr;
+            else if (parseErr)
+                OCRelease(parseErr);
+            return NULL;
+        }
+    }
+    /* 4) origin (optional) */
+    OCStringRef originStr = (OCStringRef)OCDictionaryGetValue(dict, STR(kSIDimensionOriginKey));
+    if (originStr) {
+        origin = SIScalarCreateFromExpression(originStr, &parseErr);
+        if (!origin) {
+            if (outError)
+                *outError = parseErr;
+            else if (parseErr)
+                OCRelease(parseErr);
+            OCRelease(offset);
+            return NULL;
+        }
+    }
+    /* 5) period (optional) */
+    OCStringRef periodStr = (OCStringRef)OCDictionaryGetValue(dict, STR(kSIDimensionPeriodKey));
+    if (periodStr) {
+        period = SIScalarCreateFromExpression(periodStr, &parseErr);
+        if (!period) {
+            if (outError)
+                *outError = parseErr;
+            else if (parseErr)
+                OCRelease(parseErr);
+            OCRelease(offset);
+            if (origin) OCRelease(origin);
+            return NULL;
+        }
+    }
+    /* 6) periodic flag */
+    boolObj = (OCBooleanRef)OCDictionaryGetValue(dict, STR(kSIDimensionPeriodicKey));
+    periodic = boolObj ? OCBooleanGetValue(boolObj) : false;
+    /* 7) scaling enum */
+    numObj = (OCNumberRef)OCDictionaryGetValue(dict, STR(kSIDimensionScalingKey));
+    if (numObj) {
+        int tmp = 0;
+        OCNumberTryGetInt(numObj, &tmp);
+        scaling = (dimensionScaling)tmp;
+    } else {
+        scaling = kDimensionScalingNone;
+    }
+    /* 8) call the real constructor (it deep-copies offset/origin/period internally) */
+    dim = SIDimensionCreate(
+        label,
+        description,
+        metadata,
+        quantityName,
+        offset,
+        origin,
+        period,
+        periodic,
+        scaling, outError);
+    /* 9) clean up temporaries */
+    OCRelease(offset);
+    if (origin) OCRelease(origin);
+    if (period) OCRelease(period);
+    if (!dim && outError)
+        *outError = STR("SIDimensionCreateFromDictionary: SIDimensionCreate failed");
+    return dim;
+}
+SIDimensionRef SIDimensionCreateCopy(SIDimensionRef dim)
+{
+    return impl_SIDimensionDeepCopy(dim);
+}
 #pragma endregion
 // ============================================================================
 #pragma region SIMonotonicDimension
@@ -1679,104 +1837,6 @@ Fail:
         OCRelease(err);
     return NULL;
 }
-SIDimensionRef SIDimensionCreateFromDictionary(
-    OCDictionaryRef dict,
-    OCStringRef *outError) {
-    OCStringRef parseErr = NULL;
-    OCStringRef label = NULL;
-    OCStringRef description = NULL;
-    OCDictionaryRef metadata = NULL;
-    OCStringRef quantityName = NULL;
-    SIScalarRef offset = NULL;
-    SIScalarRef origin = NULL;
-    SIScalarRef period = NULL;
-    OCBooleanRef boolObj = NULL;
-    bool periodic;
-    OCNumberRef numObj;
-    dimensionScaling scaling;
-    SIDimensionRef dim;
-    if (outError) *outError = NULL;
-    if (!dict) {
-        if (outError)
-            *outError = STR("SIDimensionCreateFromDictionary: dictionary is NULL");
-        return NULL;
-    }
-    /* 1) Base fields */
-    label = (OCStringRef)OCDictionaryGetValue(dict, STR(kDimensionLabelKey));
-    description = (OCStringRef)OCDictionaryGetValue(dict, STR(kDimensionDescriptionKey));
-    metadata = (OCDictionaryRef)OCDictionaryGetValue(dict, STR(kDimensionApplicationKey));
-    /* 2) quantity_name (required) */
-    quantityName = (OCStringRef)OCDictionaryGetValue(dict, STR(kSIDimensionQuantityNameKey));
-    /* 3) offset (string → SIScalar) */
-    OCStringRef offsetStr = (OCStringRef)OCDictionaryGetValue(dict, STR(kSIDimensionOffsetKey));
-    if (offsetStr) {
-        offset = SIScalarCreateFromExpression(offsetStr, &parseErr);
-        if (!offset) {
-            if (outError)
-                *outError = parseErr;
-            else if (parseErr)
-                OCRelease(parseErr);
-            return NULL;
-        }
-    }
-    /* 4) origin (optional) */
-    OCStringRef originStr = (OCStringRef)OCDictionaryGetValue(dict, STR(kSIDimensionOriginKey));
-    if (originStr) {
-        origin = SIScalarCreateFromExpression(originStr, &parseErr);
-        if (!origin) {
-            if (outError)
-                *outError = parseErr;
-            else if (parseErr)
-                OCRelease(parseErr);
-            OCRelease(offset);
-            return NULL;
-        }
-    }
-    /* 5) period (optional) */
-    OCStringRef periodStr = (OCStringRef)OCDictionaryGetValue(dict, STR(kSIDimensionPeriodKey));
-    if (periodStr) {
-        period = SIScalarCreateFromExpression(periodStr, &parseErr);
-        if (!period) {
-            if (outError)
-                *outError = parseErr;
-            else if (parseErr)
-                OCRelease(parseErr);
-            OCRelease(offset);
-            if (origin) OCRelease(origin);
-            return NULL;
-        }
-    }
-    /* 6) periodic flag */
-    boolObj = (OCBooleanRef)OCDictionaryGetValue(dict, STR(kSIDimensionPeriodicKey));
-    periodic = boolObj ? OCBooleanGetValue(boolObj) : false;
-    /* 7) scaling enum */
-    numObj = (OCNumberRef)OCDictionaryGetValue(dict, STR(kSIDimensionScalingKey));
-    if (numObj) {
-        int tmp = 0;
-        OCNumberTryGetInt(numObj, &tmp);
-        scaling = (dimensionScaling)tmp;
-    } else {
-        scaling = kDimensionScalingNone;
-    }
-    /* 8) call the real constructor (it deep-copies offset/origin/period internally) */
-    dim = SIDimensionCreate(
-        label,
-        description,
-        metadata,
-        quantityName,
-        offset,
-        origin,
-        period,
-        periodic,
-        scaling, outError);
-    /* 9) clean up temporaries */
-    OCRelease(offset);
-    if (origin) OCRelease(origin);
-    if (period) OCRelease(period);
-    if (!dim && outError)
-        *outError = STR("SIDimensionCreateFromDictionary: SIDimensionCreate failed");
-    return dim;
-}
 OCDictionaryRef SIDimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!json || !cJSON_IsObject(json)) {
@@ -2368,62 +2428,6 @@ OCDictionaryRef LabeledDimensionCopyAsDictionary(LabeledDimensionRef dim) {
     }
     // 3) Deep-copy coordinateLabels → "labels"
     if (!CopyArrayField(dict, STR(kLabeledDimensionCoordinateLabelsKey), LabeledDimensionGetCoordinateLabels(dim))) {
-        OCRelease(dict);
-        return NULL;
-    }
-    return (OCDictionaryRef)dict;
-}
-OCDictionaryRef SIDimensionCopyAsDictionary(SIDimensionRef dim) {
-    if (!dim) return NULL;
-    // 1) Start with base class fields
-    OCMutableDictionaryRef dict =
-        (OCMutableDictionaryRef)impl_DimensionCopyAsDictionary((DimensionRef)dim);
-    if (!dict) return NULL;
-    // 2) quantity_name → string
-    if (!CopyStringField(dict, STR(kSIDimensionQuantityNameKey), SIDimensionGetQuantityName(dim))) {
-        OCRelease(dict);
-        return NULL;
-    }
-    // 3) offset → string
-    {
-        OCStringRef tmp = SIScalarCreateStringValue(SIDimensionGetCoordinatesOffset(dim));
-        if (!tmp || !CopyStringField(dict, STR(kSIDimensionOffsetKey), tmp)) {
-            if (tmp) OCRelease(tmp);
-            OCRelease(dict);
-            return NULL;
-        }
-        OCRelease(tmp);
-    }
-    // 4) origin → string
-    {
-        OCStringRef tmp = SIScalarCreateStringValue(SIDimensionGetOriginOffset(dim));
-        if (!tmp || !CopyStringField(dict, STR(kSIDimensionOriginKey), tmp)) {
-            if (tmp) OCRelease(tmp);
-            OCRelease(dict);
-            return NULL;
-        }
-        OCRelease(tmp);
-    }
-    // 5) period → string
-    {
-        SIScalarRef periodScalar = SIDimensionGetPeriod(dim);
-        if (periodScalar) {
-            OCStringRef tmp = SIScalarCreateStringValue(periodScalar);
-            if (!tmp || !CopyStringField(dict, STR(kSIDimensionPeriodKey), tmp)) {
-                if (tmp) OCRelease(tmp);
-                OCRelease(dict);
-                return NULL;
-            }
-            OCRelease(tmp);
-        }
-    }
-    // 6) periodic flag
-    if (!CopyBoolField(dict, STR(kSIDimensionPeriodicKey), SIDimensionIsPeriodic(dim))) {
-        OCRelease(dict);
-        return NULL;
-    }
-    // 7) scaling enum
-    if (!CopyNumField(dict, STR(kSIDimensionScalingKey), SIDimensionGetScaling(dim))) {
         OCRelease(dict);
         return NULL;
     }

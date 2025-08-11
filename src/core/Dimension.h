@@ -322,6 +322,9 @@ SIDimensionCreateFromDictionary(OCDictionaryRef dict,
  */
 SIDimensionRef SIDimensionCreateFromJSON(cJSON *json,
                                          OCStringRef *outError);
+
+  SIDimensionRef SIDimensionCreateCopy(SIDimensionRef dim);
+
 /**
  * @brief Validate an SIDimension instance for internal consistency.
  * @param dim      The SIDimension to check.
@@ -690,7 +693,28 @@ bool SIMonotonicDimensionMultiplyByScalar(SIMonotonicDimensionRef dim,
 SIMonotonicDimensionRef SIMonotonicDimensionCreateByMultiplyingByScalar(SIMonotonicDimensionRef dim,
                                                                         SIScalarRef scalar,
                                                                         OCStringRef *outError);
+
+/**
+ * @brief Create a new SILinearDimension by multiplying by a scalar.
+ * @param dim The SILinearDimension to multiply
+ * @param scalar The scalar to multiply by
+ * @param outError Optional error output parameter
+ * @return New SILinearDimensionRef with scaled properties, or NULL on error
+ */
+SILinearDimensionRef SILinearDimensionCreateByMultiplyingByScalar(SILinearDimensionRef dim,
+                                                                  SIScalarRef scalar,
+                                                                  OCStringRef *outError);
+
+/**
+ * @brief Create an inverse SILinearDimension.
+ * @param dim The original SILinearDimension
+ * @param error Optional error output parameter
+ * @return New SILinearDimensionRef representing the inverse, or NULL on error
+ */
+SILinearDimensionRef SILinearDimensionCreateInverse(SILinearDimensionRef dim, OCStringRef *error);
+
 /** @} */
+
 /*==============================================================================
   Utilities
 ==============================================================================*/

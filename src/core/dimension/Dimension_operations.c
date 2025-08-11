@@ -245,3 +245,51 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreateByMultiplyingByScalar(SIMonoto
     OCRelease(copiedReciprocalDim);
     return copiedDim;
 }
+SILinearDimensionRef SILinearDimensionCreateInverse(SILinearDimensionRef dim, OCStringRef *error) {
+    if (!dim) {
+        if (error) *error = STR("Cannot create inverse of NULL dimension");
+        return NULL;
+    }
+    
+    // Copy LinearDimension using SIDimensionCreateCopy to lose extra ivars of linear dimension.
+    SIDimensionRef dimCopy = SIDimensionCreateCopy((SIDimensionRef) dim);
+
+    // Get the reciprocal increment (1/increment)
+    SIScalarRef inverseIncrement = SILinearDimensionCreateReciprocalIncrement(dim);
+    if (!inverseIncrement) {
+        OCRelease(dimCopy);
+        if (error) *error = STR("Failed to create reciprocal increment");
+        return NULL;
+    }
+    
+    // Get the existing reciprocal dimension to use as template
+    SIDimensionRef reciprocal = SILinearDimensionGetReciprocal(dim);
+    if (!reciprocal) {
+        OCRelease(dimCopy);
+        OCRelease(inverseIncrement);
+        if (error) *error = STR("No reciprocal dimension available");
+        return NULL;
+    }
+    
+    // Create the inverse linear dimension using the reciprocal's properties
+    // but with the original dimension as its reciprocal
+    SILinearDimensionRef inverse = SILinearDimensionCreate(
+        DimensionGetLabel((DimensionRef) reciprocal),
+        DimensionGetDescription((DimensionRef)reciprocal),
+        DimensionGetApplicationMetaData((DimensionRef)reciprocal),
+        SIDimensionGetQuantityName((SIDimensionRef)reciprocal),
+        SIDimensionGetCoordinatesOffset((SIDimensionRef)reciprocal),
+        SIDimensionGetOriginOffset((SIDimensionRef)reciprocal),
+        SIDimensionGetPeriod((SIDimensionRef)reciprocal),
+        SIDimensionIsPeriodic((SIDimensionRef)reciprocal),
+        SIDimensionGetScaling((SIDimensionRef) reciprocal),
+        SILinearDimensionGetCount(dim), 
+        inverseIncrement,
+        !SILinearDimensionGetComplexFFT(dim), // Invert FFT flag
+        dimCopy,
+        error);
+    
+    OCRelease(inverseIncrement);
+    OCRelease(dimCopy);
+    return inverse;
+}
