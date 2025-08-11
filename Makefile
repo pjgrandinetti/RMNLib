@@ -9,21 +9,7 @@ UNAME_S := $(shell uname -s)
 # Tools
 # Use LLVM Clang with OpenMP on macOS by default, but allow override via CC environment variable
 ifeq ($(origin CC),default)
-  # Default case: us# Regular test binary
-$(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
-	$(CC) $(CFLAGS_DEBUG) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
-		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		$(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(CURL_LIBS) \
-		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
-		-o $@
-
-# AddressSanitizer test binary
-$(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
-	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
-		-L$(LIB_DIR) -L$(SIT_LIBDIR) -L$(OCT_LIBDIR) \
-		$(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(CURL_LIBS) \
-		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
-		-o $@ available on macOS
+  # Default case: use LLVM Clang if available on macOS
   ifeq ($(UNAME_S),Darwin)
     ifneq (,$(wildcard /opt/homebrew/opt/llvm/bin/clang))
       CC := /opt/homebrew/opt/llvm/bin/clang
@@ -333,7 +319,18 @@ shared: $(SHLIB)
 
 # Test sources and objects
 TEST_SRC := $(wildcard $(TEST_SRC_DIR)/*.c)
-TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(TEST_SRC))
+
+# Core test sources (excluding import tests)
+CORE_TEST_SRC := $(filter-out $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/main_all.c, $(TEST_SRC))
+CORE_TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(CORE_TEST_SRC))
+
+# Import test sources
+IMPORT_TEST_SRC := $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/test_CSDM.c $(TEST_SRC_DIR)/test_Image.c $(TEST_SRC_DIR)/test_JCAMP.c $(TEST_SRC_DIR)/test_Tecmag.c $(TEST_SRC_DIR)/test_utils.c
+IMPORT_TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(IMPORT_TEST_SRC))
+
+# All tests sources (core + imports using main_all.c)
+ALL_TEST_SRC := $(filter-out $(TEST_SRC_DIR)/main.c $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/main_all.c, $(TEST_SRC)) $(TEST_SRC_DIR)/main_all.c
+ALL_TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(ALL_TEST_SRC))
 
 # 1) FIRST: compile tests/*.c
 $(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs octypes sitypes
@@ -362,27 +359,69 @@ $(OBJ_DIR)/spectroscopy/%.o: $(SRC_DIR)/spectroscopy/%.c | dirs octypes sitypes
 $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c | dirs octypes sitypes
 	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
 
-# Test binary
-$(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
-	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
+# Core test binary (fast tests without imports)
+$(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(CORE_TEST_OBJ) octypes sitypes
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(CORE_TEST_OBJ) \
 		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
 		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
 		-o $@
 
-# AddressSanitizer test binary
-$(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(TEST_OBJ) octypes sitypes
-	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(TEST_OBJ) \
+# Import test binary (slow import tests)
+$(BIN_DIR)/runImportTests: $(LIB_DIR)/libRMN.a $(IMPORT_TEST_OBJ) octypes sitypes
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(IMPORT_TEST_OBJ) \
+		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
+		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
+		-o $@
+
+# All tests binary (both core and import tests) - use main_all.c
+$(BIN_DIR)/runAllTests: $(LIB_DIR)/libRMN.a $(ALL_TEST_OBJ) octypes sitypes
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(ALL_TEST_OBJ) \
+		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
+		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
+		-o $@
+
+# AddressSanitizer core test binary
+$(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(CORE_TEST_OBJ) octypes sitypes
+	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(CORE_TEST_OBJ) \
+		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
+		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
+		-o $@
+
+# AddressSanitizer import test binary
+$(BIN_DIR)/runImportTests.asan: $(LIB_DIR)/libRMN.a $(IMPORT_TEST_OBJ) octypes sitypes
+	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(IMPORT_TEST_OBJ) \
 		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
 		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
 		-o $@
 
 test: $(BIN_DIR)/runTests
-	@echo "Running tests with CSDM_TEST_ROOT=$(TEST_DATA_ROOT)"
+	@echo "Running core tests (fast, no imports)"
+	$<
+
+test-imports: $(BIN_DIR)/runImportTests
+	@echo "Running import tests (slow) with TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
+	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
+
+test-all: $(BIN_DIR)/runAllTests
+	@echo "Running all tests (core + imports) with TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
 	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
 test-asan: $(BIN_DIR)/runTests.asan
-	@echo "Running ASan tests with CSDM_TEST_ROOT=$(TEST_DATA_ROOT)"
+	@echo "Running ASan core tests (fast, no imports)"
+	$<
+
+test-imports-asan: $(BIN_DIR)/runImportTests.asan
+	@echo "Running ASan import tests (slow) with TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
 	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
+
+.PHONY: help
+help:
+	@echo "Available test targets:"
+	@echo "  test          - Run core tests only (fast, no file imports)"
+	@echo "  test-imports  - Run import tests only (slow, tests file importers)"
+	@echo "  test-all      - Run all tests (core + imports, comprehensive)"
+	@echo "  test-asan     - Run core tests with AddressSanitizer"
+	@echo "  test-imports-asan - Run import tests with AddressSanitizer"
 
 clean:
 	$(RM) -r $(BUILD_DIR) libRMN.a $(LIB_DIR)/libRMN$(SHLIB_EXT) libRMN.dll.a
@@ -444,7 +483,8 @@ install: all
 	cp $(SHLIB) $(INSTALL_LIB_DIR)/
 	cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
 	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
-	cp src/core/*.h $(INSTALL_INC_DIR)/core/
+	# Copy only public headers (exclude *_private.h)
+	find src/core -name "*.h" -not -name "*_private.h" -exec cp {} $(INSTALL_INC_DIR)/core/ \;
 	cp src/importers/*.h $(INSTALL_INC_DIR)/importers/
 	cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/spectroscopy/
 	cp src/utils/*.h $(INSTALL_INC_DIR)/utils/
@@ -457,7 +497,8 @@ install-shared: $(LIB_DIR)/libRMN.a $(SHLIB)
 	cp $(SHLIB) $(INSTALL_LIB_DIR)/
 	cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
 	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
-	cp src/core/*.h $(INSTALL_INC_DIR)/core/
+	# Copy only public headers (exclude *_private.h)
+	find src/core -name "*.h" -not -name "*_private.h" -exec cp {} $(INSTALL_INC_DIR)/core/ \;
 	cp src/importers/*.h $(INSTALL_INC_DIR)/importers/
 	cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/spectroscopy/
 	cp src/utils/*.h $(INSTALL_INC_DIR)/utils/

@@ -6,12 +6,17 @@
 #include <unistd.h>
 #endif
 #include "RMNLibrary.h"
+#include "test_CSDM.h"
 #include "test_Dataset.h"
 #include "test_Datum.h"
 #include "test_DependentVariable.h"
 #include "test_Dimension.h"
+#include "test_Image.h"
+#include "test_JCAMP.h"
 #include "test_SparseSampling.h"
+#include "test_Tecmag.h"
 #include "test_utils.h"
+
 // Cross-platform setenv function
 static int cross_platform_setenv(const char *name, const char *value, int overwrite) {
 #ifdef _WIN32
@@ -33,8 +38,12 @@ static int cross_platform_setenv(const char *name, const char *value, int overwr
     return setenv(name, value, overwrite);
 #endif
 }
+
 int main(void) {
     int failures = 0;
+    
+    printf("\n=== Running ALL Tests (Core + Imports) ===\n");
+    
     printf("\n=== Running Datum Tests ===\n");
     if (!test_Datum_NULL_cases()) failures++;
     if (!test_Datum_functional()) failures++;
@@ -87,12 +96,61 @@ int main(void) {
     if (!test_Dataset_type_contract()) failures++;
     if (!test_Dataset_copy_and_roundtrip()) failures++;
     
+    fprintf(stderr, "\n=== Running CSDM Import Tests ===\n");
+    if (!getenv("CSDM_TEST_ROOT")) {
+        cross_platform_setenv("CSDM_TEST_ROOT",
+                              "/Users/philip/Github/Software/OCTypes-SITypes/RMNLib/tests/CSDM-TestFiles-1.0",
+                              1);
+        fprintf(stderr, "[INFO] Defaulted CSDM_TEST_ROOT to hardcoded path.\n");
+    }
+    fprintf(stderr, "[INFO] CSDM_TEST_ROOT = %s\n",
+            getenv("CSDM_TEST_ROOT"));
+    if (!test_Dataset_import_and_roundtrip()) failures++;
+    fprintf(stderr, "\n=== Running JCAMP Import Tests ===\n");
+    if (!getenv("JCAMP_TEST_ROOT")) {
+        cross_platform_setenv("JCAMP_TEST_ROOT",
+                              "tests/JCAMP",
+                              1);
+        fprintf(stderr, "[INFO] Defaulted JCAMP_TEST_ROOT to hardcoded path.\n");
+    }
+    fprintf(stderr, "[INFO] JCAMP_TEST_ROOT = %s\n",
+            getenv("JCAMP_TEST_ROOT"));
+    // if (!test_JCAMP_single_file()) failures++;
+    if (!test_JCAMP_import_all()) failures++;
+    fprintf(stderr, "\n=== Running Image Import Tests ===\n");
+    if (!getenv("IMAGE_TEST_ROOT")) {
+        cross_platform_setenv("IMAGE_TEST_ROOT",
+                              "tests/Images",
+                              1);
+        fprintf(stderr, "[INFO] Defaulted IMAGE_TEST_ROOT to hardcoded path.\n");
+    }
+    fprintf(stderr, "[INFO] IMAGE_TEST_ROOT = %s\n",
+            getenv("IMAGE_TEST_ROOT"));
+    if (!test_Image_dimensions()) failures++;
+    if (!test_Image_memory_management()) failures++;
+    if (!test_Image_single_file()) failures++;
+    if (!test_Image_grayscale()) failures++;
+    if (!test_Image_rgb()) failures++;
+    if (!test_Image_multiple_images()) failures++;
+    if (!test_Image_import_all()) failures++;
+    fprintf(stderr, "\n=== Running Tecmag Import Tests ===\n");
+    if (!getenv("TECMAG_TEST_ROOT")) {
+        cross_platform_setenv("TECMAG_TEST_ROOT",
+                              "tests/Tecmag",
+                              1);
+        fprintf(stderr, "[INFO] Defaulted TECMAG_TEST_ROOT to hardcoded path.\n");
+    }
+    fprintf(stderr, "[INFO] TECMAG_TEST_ROOT = %s\n",
+            getenv("TECMAG_TEST_ROOT"));
+    // if (!test_Tecmag_single_file()) failures++;
+    if (!test_Tecmag_import_all()) failures++;
+    
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",
                 failures, failures > 1 ? "s" : "");
         return EXIT_FAILURE;
     }
-    fprintf(stderr, "\nAll tests passed successfully!\n");
+    fprintf(stderr, "\nAll tests (core + imports) passed successfully!\n");
     RMNLibTypesShutdown();
     return EXIT_SUCCESS;
 }
