@@ -422,6 +422,11 @@ help:
 	@echo "  test-all      - Run all tests (core + imports, comprehensive)"
 	@echo "  test-asan     - Run core tests with AddressSanitizer"
 	@echo "  test-imports-asan - Run import tests with AddressSanitizer"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make test                         # Quick core tests"
+	@echo "  OC_LEAK_TRACKING=1 make test     # Core tests with OCTypes leak tracking"
+	@echo "  OC_LEAK_TRACKING=1 make test-all # All tests with leak tracking"
 
 clean:
 	$(RM) -r $(BUILD_DIR) libRMN.a $(LIB_DIR)/libRMN$(SHLIB_EXT) libRMN.dll.a

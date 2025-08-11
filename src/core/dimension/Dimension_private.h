@@ -15,24 +15,19 @@
  */
 #ifndef DIMENSION_PRIVATE_H
 #define DIMENSION_PRIVATE_H
-
 // Include the public header for type declarations
 #include "Dimension.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 // ============================================================================
 // Constants for dimension serialization keys
 // ============================================================================
 #define kDimensionLabelKey "label"
 #define kDimensionDescriptionKey "description"
 #define kDimensionApplicationKey "application"
-
 // LabeledDimension serialization keys
 #define kLabeledDimensionCoordinateLabelsKey "labels"
-
 // SIDimension serialization keys
 #define kSIDimensionQuantityNameKey "quantity_name"
 #define kSIDimensionOffsetKey "coordinates_offset"
@@ -41,15 +36,12 @@ extern "C" {
 #define kSIDimensionPeriodicKey "periodic"
 #define kSIDimensionScalingKey "scaling"
 #define kSIDimensionReciprocalKey "reciprocal"
-
 // SIMonotonicDimension serialization keys
 #define kSIMonotonicDimensionCoordinatesKey "coordinates"
-
 // SILinearDimension serialization keys
 #define kSILinearDimensionCountKey "count"
 #define kSILinearDimensionIncrementKey "increment"
 #define kSILinearDimensionFFTKey "complex_fft"
-
 /**
  * @brief The opaque Dimension (abstract base) implementation structure
  *
@@ -63,7 +55,6 @@ struct impl_Dimension {
     OCStringRef description;
     OCMutableDictionaryRef metadata;
 };
-
 /**
  * @brief The opaque LabeledDimension implementation structure
  *
@@ -73,7 +64,6 @@ struct impl_LabeledDimension {
     struct impl_Dimension _super;  // <-- inherit all base fields
     OCMutableArrayRef coordinateLabels;
 };
-
 /**
  * @brief The opaque SIDimension implementation structure
  *
@@ -88,7 +78,6 @@ struct impl_SIDimension {
     bool periodic;
     dimensionScaling scaling;
 };
-
 /**
  * @brief The opaque SIMonotonicDimension implementation structure
  *
@@ -100,7 +89,6 @@ struct impl_SIMonotonicDimension {
     SIDimensionRef reciprocal;
     OCMutableArrayRef coordinates;  // array of SIScalarRef (≥2 entries)
 };
-
 /**
  * @brief The opaque SILinearDimension implementation structure
  *
@@ -113,17 +101,14 @@ struct impl_SILinearDimension {
     SIScalarRef increment;           // spacing between points
     bool fft;                        // FFT flag
 };
-
 // Forward declarations for shared internal functions
 void impl_InitBaseDimensionFields(DimensionRef dim);
-
 // Core lifecycle functions (defined in Dimension_core.c)
 bool impl_DimensionEqual(const void *a, const void *b);
 void impl_DimensionFinalize(const void *obj);
 OCStringRef impl_DimensionCopyFormattingDesc(OCTypeRef cf);
 cJSON *impl_DimensionCreateJSON(const void *obj);
 void *impl_DimensionDeepCopy(const void *obj);
-
 // Core object creation functions (defined in Dimension_core.c)
 DimensionRef impl_DimensionAllocate(void);
 DimensionRef impl_DimensionCreate(OCStringRef label,
@@ -132,18 +117,15 @@ DimensionRef impl_DimensionCreate(OCStringRef label,
                                   OCStringRef *outError);
 DimensionRef impl_DimensionCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError);
 OCDictionaryRef impl_DimensionCopyAsDictionary(DimensionRef dim);
-
 // JSON infrastructure functions (defined in Dimension_core.c)
 OCDictionaryRef impl_DimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError);
 DimensionRef impl_DimensionCreateFromJSON(cJSON *json, OCStringRef *outError);
-
 // LabeledDimension core lifecycle functions (defined in Dimension_core.c)
 bool impl_LabeledDimensionEqual(const void *a, const void *b);
 void impl_LabeledDimensionFinalize(const void *obj);
 OCStringRef impl_LabeledDimensionCopyFormattingDesc(OCTypeRef cf);
 cJSON *impl_LabeledDimensionCreateJSON(const void *obj);
 void *impl_LabeledDimensionDeepCopy(const void *obj);
-
 // SIDimension core lifecycle functions (defined in Dimension_core.c)
 bool impl_SIDimensionEqual(const void *a, const void *b);
 void impl_SIDimensionFinalize(const void *obj);
@@ -151,7 +133,6 @@ OCStringRef impl_SIDimensionCopyFormattingDesc(OCTypeRef cf);
 cJSON *impl_SIDimensionCreateJSON(const void *obj);
 void *impl_SIDimensionDeepCopy(const void *obj);
 void impl_InitSIDimensionFields(SIDimensionRef dim);
-
 // SIDimension validation functions (defined in Dimension_core.c)
 bool impl_InitSIDimensionFieldsFromArgs(
     SIDimensionRef dim,
@@ -170,45 +151,56 @@ bool impl_validateOrDefaultScalar(
     SIUnitRef unit,
     SIDimensionalityRef dimensionality,
     OCStringRef *outError);
-
 // SIMonotonicDimension core lifecycle functions (defined in Dimension_core.c)
 bool impl_SIMonotonicDimensionEqual(const void *a, const void *b);
 void impl_SIMonotonicDimensionFinalize(const void *obj);
 OCStringRef impl_SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf);
 cJSON *impl_SIMonotonicDimensionCreateJSON(const void *obj);
 void *impl_SIMonotonicDimensionDeepCopy(const void *obj);
-
 // SILinearDimension core functions
 bool impl_SILinearDimensionEqual(const void *a, const void *b);
 void impl_SILinearDimensionFinalize(const void *obj);
 OCStringRef impl_SILinearDimensionCopyFormattingDesc(OCTypeRef cf);
 cJSON *impl_SILinearDimensionCreateJSON(const void *obj);
 void *impl_SILinearDimensionDeepCopy(const void *obj);
-
 // JSON helper functions (declared non-static for cross-module access)
 OCDictionaryRef SIDimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError);
-
 // Internal function declarations (defined in Dimension_core.c)
 // These are purely internal functions not exposed in public API
-
 // LabeledDimension - internal only
 LabeledDimensionRef LabeledDimensionAllocate(void);
-
-// SIDimension - internal only  
+// SIDimension - internal only
 SIDimensionRef SIDimensionAllocate(void);
-
 // SIMonotonicDimension - internal only
 SIMonotonicDimensionRef SIMonotonicDimensionAllocate(void);
 OCDictionaryRef SIMonotonicDimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError);
-
 // SILinearDimension - internal only
 SILinearDimensionRef SILinearDimensionAllocate(void);
-
 // Helper functions (defined in Dimension_core.c)
 bool impl_SIDimensionIsReciprocalOf(SIDimensionRef src, SIDimensionRef rec, OCStringRef *outError);
-
+// ============================================================================
+// Private Get accessor functions (defined in Dimension_accessors.c)
+// These return direct references to internal data and should NOT be in public API
+// ============================================================================
+// Dimension (Base Class) - Private Get functions
+OCStringRef DimensionGetLabel(DimensionRef dim);
+OCStringRef DimensionGetDescription(DimensionRef dim);
+OCMutableDictionaryRef DimensionGetApplicationMetaData(DimensionRef dim);
+// LabeledDimension - Private Get functions
+OCArrayRef LabeledDimensionGetCoordinateLabels(LabeledDimensionRef dim);
+// SIDimension - Private Get functions
+OCStringRef SIDimensionGetQuantityName(SIDimensionRef dim);
+SIScalarRef SIDimensionGetCoordinatesOffset(SIDimensionRef dim);
+SIScalarRef SIDimensionGetOriginOffset(SIDimensionRef dim);
+SIScalarRef SIDimensionGetPeriod(SIDimensionRef dim);
+// SIMonotonicDimension - Private Get functions
+OCArrayRef SIMonotonicDimensionGetCoordinates(SIMonotonicDimensionRef dim);
+SIDimensionRef SIMonotonicDimensionGetReciprocal(SIMonotonicDimensionRef dim);
+// SILinearDimension - Private Get functions
+OCIndex SILinearDimensionGetCount(SILinearDimensionRef dim);
+SIScalarRef SILinearDimensionGetIncrement(SILinearDimensionRef dim);
+SIDimensionRef SILinearDimensionGetReciprocal(SILinearDimensionRef dim);
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* DIMENSION_PRIVATE_H */

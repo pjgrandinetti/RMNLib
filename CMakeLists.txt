@@ -17,6 +17,8 @@ endif()
 file(GLOB ALL_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/core/dependent_variable/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/core/dimension/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/importers/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/spectroscopy/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.c"
@@ -29,6 +31,8 @@ add_library(RMNLib STATIC ${ALL_SOURCES})
 target_include_directories(RMNLib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/dependent_variable
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/dimension
     ${CMAKE_CURRENT_SOURCE_DIR}/src/importers
     ${CMAKE_CURRENT_SOURCE_DIR}/src/spectroscopy
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils
@@ -60,13 +64,18 @@ endif()
 
 # Tests
 enable_testing()
-file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.c")
+# Collect test files but exclude the main files we don't want
+file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_*.c")
+# Add only main_all.c as the main file (it runs all tests)
+list(APPEND TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/main_all.c")
 add_executable(RMNLib_runTests ${TEST_SOURCES})
 
 # Tests executable include paths
 target_include_directories(RMNLib_runTests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/dependent_variable
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/dimension
     ${CMAKE_CURRENT_SOURCE_DIR}/src/importers
     ${CMAKE_CURRENT_SOURCE_DIR}/src/spectroscopy
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils

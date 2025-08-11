@@ -1,5 +1,6 @@
 // RMNDUtilities.c
 #include "../RMNLibrary.h"
+#include "Dimension_private.h"
 OCIndex RMNCalculateSizeFromDimensions(OCArrayRef dimensions) {
     OCIndex size = 1;
     if (!dimensions) return size;
@@ -23,7 +24,7 @@ OCIndex RMNCalculateSizeFromDimensions(OCArrayRef dimensions) {
     return size;
 }
 OCIndex RMNCalculateSizeFromDimensionsIgnoring(OCArrayRef dimensions,
-                                       OCIndexSetRef ignored) {
+                                               OCIndexSetRef ignored) {
     OCIndex size = 1;
     if (!dimensions) return size;
     OCIndex nDims = OCArrayGetCount(dimensions);
@@ -46,7 +47,7 @@ OCIndex RMNCalculateSizeFromDimensionsIgnoring(OCArrayRef dimensions,
     }
     return size;
 }
-OCIndex RMNGridMemOffsetFromIndexes(OCArrayRef dimensions,const OCIndex indexes[]) {
+OCIndex RMNGridMemOffsetFromIndexes(OCArrayRef dimensions, const OCIndex indexes[]) {
     if (!dimensions || !indexes) return (OCIndex)-1;
     OCIndex nDims = OCArrayGetCount(dimensions);
     if (nDims == 0) return 0;
