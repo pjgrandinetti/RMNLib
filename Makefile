@@ -137,7 +137,7 @@ ifeq ($(OPENMP_TEST),yes)
   # Set OpenMP linking flags based on OS and available libraries
   ifeq ($(UNAME_S),Darwin)
     ifneq (,$(wildcard /opt/homebrew/opt/libomp/lib))
-      OPENMP_LDFLAGS := -fopenmp -L/opt/homebrew/opt/libomp/lib -lomp
+      OPENMP_LDFLAGS := -fopenmp -L/opt/homebrew/opt/libomp/lib
     else
       OPENMP_LDFLAGS := -fopenmp
     endif

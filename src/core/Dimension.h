@@ -637,6 +637,59 @@ SILinearDimensionCreateFromJSON(cJSON *json,
                                 OCStringRef *outError);
 /** @} */
 /*==============================================================================
+  Operations
+==============================================================================*/
+/**
+ * @name Dimension Operations
+ * @{
+ */
+/**
+ * @brief Multiply an SILinearDimension by a scalar, updating all dimension properties accordingly.
+ * 
+ * This operation scales the dimension's increment, offset, origin, and period by the scalar,
+ * and updates the reciprocal dimension properties with the inverse scalar. The dimension
+ * is modified in-place.
+ * 
+ * **Properties affected:**
+ * - `increment`: Multiplied by the scalar  
+ * - `offset` and `origin`: Multiplied by the scalar
+ * - `period` (if periodic): Multiplied by the scalar
+ * - `quantityName`: Updated based on the new unit
+ * - `reciprocal` (if exists): Multiplied by the inverse scalar
+ * 
+ * @param dim The SILinearDimension to multiply (must be mutable)
+ * @param scalar The scalar to multiply by (cannot be zero)
+ * @param outError Optional error output parameter
+ * @return true if successful, false on error
+ */
+bool SILinearDimensionMultiplyByScalar(SILinearDimensionRef dim, 
+                                       SIScalarRef scalar, 
+                                       OCStringRef *outError);
+
+/**
+ * @brief Multiply an SIMonotonicDimension by a scalar, updating all dimension properties accordingly.
+ * 
+ * This operation scales all coordinates, offset, origin, and period by the scalar,
+ * and updates the reciprocal dimension properties with the inverse scalar. The dimension
+ * is modified in-place.
+ * 
+ * **Properties affected:**
+ * - All `coordinates`: Each coordinate multiplied by the scalar
+ * - `offset` and `origin`: Multiplied by the scalar  
+ * - `period` (if periodic): Multiplied by the scalar
+ * - `quantityName`: Updated based on the new unit
+ * - `reciprocal` (if exists): Multiplied by the inverse scalar
+ * 
+ * @param dim The SIMonotonicDimension to multiply (must be mutable)
+ * @param scalar The scalar to multiply by (cannot be zero)
+ * @param outError Optional error output parameter
+ * @return true if successful, false on error
+ */
+bool SIMonotonicDimensionMultiplyByScalar(SIMonotonicDimensionRef dim, 
+                                          SIScalarRef scalar, 
+                                          OCStringRef *outError);
+/** @} */
+/*==============================================================================
   Utilities
 ==============================================================================*/
 /**
