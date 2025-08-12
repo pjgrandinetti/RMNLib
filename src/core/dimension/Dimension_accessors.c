@@ -417,6 +417,16 @@ bool SIDimensionSetPeriod(SIDimensionRef dim, SIScalarRef val, OCStringRef *outE
     dim->periodic = true;
     return true;
 }
+bool SIDimensionSetPeriodToInfinity(SILinearDimensionRef dim) {
+    if (!dim || !dim->increment || dim->count < 2) {
+        return false;
+    }
+    SIUnitRef unit = SIQuantityGetUnit((SIQuantityRef)dim->increment);
+    SIScalarRef period = SIScalarCreateWithDouble(INFINITY, unit);
+    SIDimensionSetPeriod((SIDimensionRef)dim, period, NULL);
+    OCRelease(period);
+    return true;
+}
 bool SIDimensionIsPeriodic(SIDimensionRef dim) {
     return dim && dim->periodic;
 }
@@ -613,6 +623,17 @@ bool SILinearDimensionSetComplexFFT(SILinearDimensionRef dim, bool fft) {
     dim->fft = fft;
     return true;
 }
+bool SILinearDimensionSetPeriodToWindow(SILinearDimensionRef dim) {
+    if (!dim || !dim->increment || dim->count < 2) {
+        return false;
+    }
+    SIMutableScalarRef window = SIScalarCreateMutableCopy(dim->increment);
+    if (!window) return false;
+    SIScalarMultiplyByDimensionlessRealConstant(window, (double)dim->count);
+    SIDimensionSetPeriod((SIDimensionRef)dim, (SIScalarRef)window, NULL);
+    OCRelease(window);
+    return true;
+}
 SIScalarRef SILinearDimensionCreateReciprocalIncrement(SILinearDimensionRef dim) {
     if (!dim || !dim->increment || dim->count < 2) {
         return NULL;
@@ -620,13 +641,11 @@ SIScalarRef SILinearDimensionCreateReciprocalIncrement(SILinearDimensionRef dim)
     // Make a mutable copy of the increment
     SIMutableScalarRef rec = SIScalarCreateMutableCopy(dim->increment);
     if (!rec) return NULL;
-    
     // Check if multiply by count succeeds
     if (!SIScalarMultiplyByDimensionlessRealConstant(rec, (double)dim->count)) {
         OCRelease(rec);
         return NULL;
     }
-    
     // rec = 1 / rec
     OCStringRef error = NULL;
     if (!SIScalarRaiseToAPowerWithoutReducingUnit(rec, -1, &error)) {

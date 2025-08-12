@@ -322,9 +322,7 @@ SIDimensionCreateFromDictionary(OCDictionaryRef dict,
  */
 SIDimensionRef SIDimensionCreateFromJSON(cJSON *json,
                                          OCStringRef *outError);
-
-  SIDimensionRef SIDimensionCreateCopy(SIDimensionRef dim);
-
+SIDimensionRef SIDimensionCreateCopy(SIDimensionRef dim);
 /**
  * @brief Validate an SIDimension instance for internal consistency.
  * @param dim      The SIDimension to check.
@@ -615,6 +613,14 @@ bool SILinearDimensionSetReciprocal(SILinearDimensionRef dim,
                                     SIDimensionRef rec,
                                     OCStringRef *outError);
 /**
+ * @brief Set period to window size (increment × count).
+ */
+bool SILinearDimensionSetPeriodToWindow(SILinearDimensionRef dim);
+/**
+ * @brief Set period to infinity (non-periodic).
+ */
+bool SIDimensionSetPeriodToInfinity(SILinearDimensionRef dim);
+/**
  * @brief Dictionary serializer for SILinearDimension.
  */
 OCDictionaryRef SILinearDimensionCopyAsDictionary(SILinearDimensionRef dim);
@@ -693,7 +699,6 @@ bool SIMonotonicDimensionMultiplyByScalar(SIMonotonicDimensionRef dim,
 SIMonotonicDimensionRef SIMonotonicDimensionCreateByMultiplyingByScalar(SIMonotonicDimensionRef dim,
                                                                         SIScalarRef scalar,
                                                                         OCStringRef *outError);
-
 /**
  * @brief Create a new SILinearDimension by multiplying by a scalar.
  * @param dim The SILinearDimension to multiply
@@ -704,7 +709,6 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreateByMultiplyingByScalar(SIMonoto
 SILinearDimensionRef SILinearDimensionCreateByMultiplyingByScalar(SILinearDimensionRef dim,
                                                                   SIScalarRef scalar,
                                                                   OCStringRef *outError);
-
 /**
  * @brief Create an inverse SILinearDimension.
  * @param dim The original SILinearDimension
@@ -712,9 +716,7 @@ SILinearDimensionRef SILinearDimensionCreateByMultiplyingByScalar(SILinearDimens
  * @return New SILinearDimensionRef representing the inverse, or NULL on error
  */
 SILinearDimensionRef SILinearDimensionCreateInverse(SILinearDimensionRef dim, OCStringRef *error);
-
 /** @} */
-
 /*==============================================================================
   Utilities
 ==============================================================================*/
