@@ -407,12 +407,12 @@ test-all: $(BIN_DIR)/runAllTests
 	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
 test-asan: $(BIN_DIR)/runTests.asan
-	@echo "Running ASan core tests (fast, no imports)"
-	$<
+	@echo "Running ASan core tests with leak tracking (fast, no imports)"
+	OC_LEAK_TRACKING=1 $<
 
 test-imports-asan: $(BIN_DIR)/runImportTests.asan
-	@echo "Running ASan import tests (slow) with TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
-	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
+	@echo "Running ASan import tests with leak tracking (slow) with TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
+	OC_LEAK_TRACKING=1 CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
 .PHONY: help
 help:
