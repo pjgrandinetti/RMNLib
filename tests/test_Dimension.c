@@ -801,6 +801,7 @@ bool test_DimensionPeriodOperations(void) {
     printf("Debug: Testing period copy consistency...\n");
     SIScalarRef copiedPeriod2 = SIDimensionCopyPeriod(siDim);
     printf("Debug: Second SIDimensionCopyPeriod returned: %p\n", (void*)copiedPeriod2);
+    if (copiedPeriod2) OCRelease(copiedPeriod2); // Release the second copy
     if (copiedPeriod == NULL) {
         printf("Debug: Period copy failed - this is the bug!\n");
         // Let's try to debug further - check if the dimension is still periodic

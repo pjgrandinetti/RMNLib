@@ -1705,6 +1705,7 @@ SIDimensionRef SIDimensionCreate(
     bool offset_was_null = (offset == NULL);
     bool origin_was_null = (origin == NULL);
     bool period_was_null = (period == NULL);
+           
     // In this function all parameters are optional.
     // 1) Determine baseUnit & baseDim (priority: offset → origin → period → quantityName → dimensionless)
     SIUnitRef baseUnit = NULL;
@@ -1755,16 +1756,28 @@ SIDimensionRef SIDimensionCreate(
     if (label &&
         !DimensionSetLabel((DimensionRef)dim, label, outError)) {
         OCRelease(dim);
+        // Release temporary SIScalar objects created by validation if they were NULL inputs
+        if (offset_was_null && offset) OCRelease(offset);
+        if (origin_was_null && origin) OCRelease(origin);
+        if (period_was_null && period) OCRelease(period);
         return NULL;
     }
     if (description &&
         !DimensionSetDescription((DimensionRef)dim, description, outError)) {
         OCRelease(dim);
+        // Release temporary SIScalar objects created by validation if they were NULL inputs
+        if (offset_was_null && offset) OCRelease(offset);
+        if (origin_was_null && origin) OCRelease(origin);
+        if (period_was_null && period) OCRelease(period);
         return NULL;
     }
     if (metadata &&
         !DimensionSetApplicationMetaData((DimensionRef)dim, metadata, outError)) {
         OCRelease(dim);
+        // Release temporary SIScalar objects created by validation if they were NULL inputs
+        if (offset_was_null && offset) OCRelease(offset);
+        if (origin_was_null && origin) OCRelease(origin);
+        if (period_was_null && period) OCRelease(period);
         return NULL;
     }
     // 9) Copy SI‐specific fields: release defaults and copy new values
@@ -1775,25 +1788,42 @@ SIDimensionRef SIDimensionCreate(
     if (!dim->quantityName) {
         if (outError) *outError = STR("SIDimensionCreate: failed to copy quantityName");
         OCRelease(dim);
+        // Release temporary SIScalar objects created by validation if they were NULL inputs
+        if (offset_was_null && offset) OCRelease(offset);
+        if (origin_was_null && origin) OCRelease(origin);
+        if (period_was_null && period) OCRelease(period);
         return NULL;
     }
     dim->offset = SIScalarCreateCopy(offset);
     if (!dim->offset) {
         if (outError) *outError = STR("SIDimensionCreate: failed to copy offset");
         OCRelease(dim);
+        // Release temporary SIScalar objects created by validation if they were NULL inputs
+        if (offset_was_null && offset) OCRelease(offset);
+        if (origin_was_null && origin) OCRelease(origin);
+        if (period_was_null && period) OCRelease(period);
         return NULL;
     }
     dim->origin = SIScalarCreateCopy(origin);
     if (!dim->origin) {
         if (outError) *outError = STR("SIDimensionCreate: failed to copy origin");
         OCRelease(dim);
+        // Release temporary SIScalar objects created by validation if they were NULL inputs
+        if (offset_was_null && offset) OCRelease(offset);
+        if (origin_was_null && origin) OCRelease(origin);
+        if (period_was_null && period) OCRelease(period);
         return NULL;
     }
     if (period) {
+        OCRelease(dim->period);  // Release the default period first!
         dim->period = SIScalarCreateCopy(period);
         if (!dim->period) {
             if (outError) *outError = STR("SIDimensionCreate: failed to copy period");
             OCRelease(dim);
+            // Release temporary SIScalar objects created by validation if they were NULL inputs
+            if (offset_was_null && offset) OCRelease(offset);
+            if (origin_was_null && origin) OCRelease(origin);
+            if (period_was_null && period) OCRelease(period);
             return NULL;
         }
     }
@@ -1811,6 +1841,16 @@ SIDimensionRef SIDimensionCreate(
     }
     return dim;
 Fail:
+    // Release temporary SIScalar objects created by validation if they were NULL inputs
+    if (offset_was_null && offset) {
+        OCRelease(offset);
+    }
+    if (origin_was_null && origin) {
+        OCRelease(origin);
+    }
+    if (period_was_null && period) {
+        OCRelease(period);
+    }
     if (outError)
         *outError = err;
     else
