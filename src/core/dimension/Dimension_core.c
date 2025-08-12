@@ -590,16 +590,11 @@ bool impl_SIDimensionEqual(const void *a, const void *b) {
     if (dimA->origin != dimB->origin &&
         !OCTypeEqual(dimA->origin, dimB->origin))
         return false;
-    // 4) periodic flag
-    if (dimA->periodic != dimB->periodic)
+    // 4) periods must be equal (both NULL or both equal)
+    if (dimA->period != dimB->period &&
+        !OCTypeEqual(dimA->period, dimB->period))
         return false;
-    // 5) if periodic, both must have a non‐NULL period and be equal
-    if (dimA->periodic) {
-        if (dimA->period != dimB->period &&
-            !OCTypeEqual(dimA->period, dimB->period))
-            return false;
-    }
-    // 6) scaling mode
+    // 5) scaling mode
     if (dimA->scaling != dimB->scaling)
         return false;
     return true;
@@ -682,7 +677,7 @@ cJSON *impl_SIDimensionCreateJSON(const void *obj) {
                   OCTypeCopyJSON((OCTypeRef)sidim->period));
 #undef ADD_JSON_ITEM
     // 3) Always include these primitives
-    cJSON_AddBoolToObject(json, kSIDimensionPeriodicKey, sidim->periodic);
+    cJSON_AddBoolToObject(json, kSIDimensionPeriodicKey, sidim->period != NULL);
     cJSON_AddNumberToObject(json, kSIDimensionScalingKey, (int)sidim->scaling);
     return json;
 }
@@ -704,9 +699,8 @@ void impl_InitSIDimensionFields(SIDimensionRef dim) {
     // Default coordinate offset & origin both zero in the same unit
     dim->offset = SIScalarCreateWithDouble(0.0, u);
     dim->origin = SIScalarCreateWithDouble(0.0, u);
-    // No period until the user explicitly makes it periodic
-    dim->period = NULL;
-    dim->periodic = false;
+    // No period until the user explicitly sets one
+    dim->period = SIScalarCreateWithDouble(INFINITY, u);
     dim->scaling = kDimensionScalingNone;
 }
 bool impl_InitSIDimensionFieldsFromArgs(
@@ -718,7 +712,6 @@ bool impl_InitSIDimensionFieldsFromArgs(
     SIScalarRef offset,
     SIScalarRef origin,
     SIScalarRef period,
-    bool periodic,
     dimensionScaling scaling) {
     DimensionRef baseDim = (DimensionRef)dim;
     bool success = true;
@@ -728,8 +721,7 @@ bool impl_InitSIDimensionFieldsFromArgs(
     success *= SIDimensionSetCoordinatesOffset(dim, offset, NULL);
     success *= SIDimensionSetQuantityName(dim, quantityName, NULL);
     success *= SIDimensionSetOriginOffset(dim, origin, NULL);
-    success *= (!periodic || SIDimensionSetPeriod(dim, period, NULL));
-    success *= SIDimensionSetPeriodic(dim, periodic, NULL);
+    success *= (!period || SIDimensionSetPeriod(dim, period, NULL));
     success *= SIDimensionSetScaling(dim, scaling);
     return success;
 }
@@ -905,8 +897,6 @@ SIDimensionRef SIDimensionCreateFromDictionary(
     SIScalarRef offset = NULL;
     SIScalarRef origin = NULL;
     SIScalarRef period = NULL;
-    OCBooleanRef boolObj = NULL;
-    bool periodic;
     OCNumberRef numObj;
     dimensionScaling scaling;
     SIDimensionRef dim;
@@ -961,10 +951,7 @@ SIDimensionRef SIDimensionCreateFromDictionary(
             return NULL;
         }
     }
-    /* 6) periodic flag */
-    boolObj = (OCBooleanRef)OCDictionaryGetValue(dict, STR(kSIDimensionPeriodicKey));
-    periodic = boolObj ? OCBooleanGetValue(boolObj) : false;
-    /* 7) scaling enum */
+    /* 6) scaling enum */
     numObj = (OCNumberRef)OCDictionaryGetValue(dict, STR(kSIDimensionScalingKey));
     if (numObj) {
         int tmp = 0;
@@ -982,7 +969,6 @@ SIDimensionRef SIDimensionCreateFromDictionary(
         offset,
         origin,
         period,
-        periodic,
         scaling, outError);
     /* 9) clean up temporaries */
     OCRelease(offset);
@@ -992,8 +978,7 @@ SIDimensionRef SIDimensionCreateFromDictionary(
         *outError = STR("SIDimensionCreateFromDictionary: SIDimensionCreate failed");
     return dim;
 }
-SIDimensionRef SIDimensionCreateCopy(SIDimensionRef dim)
-{
+SIDimensionRef SIDimensionCreateCopy(SIDimensionRef dim) {
     return impl_SIDimensionDeepCopy(dim);
 }
 #pragma endregion
@@ -1102,7 +1087,6 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
     SIScalarRef offset,
     SIScalarRef origin,
     SIScalarRef period,
-    bool periodic,
     dimensionScaling scaling,
     OCArrayRef coordinates,
     SIDimensionRef reciprocal,
@@ -1131,9 +1115,11 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
     }
     if (!impl_validateOrDefaultScalar("offset", &offset, baseUnit, baseDim, &err) ||
         !impl_validateOrDefaultScalar("origin", &origin, baseUnit, baseDim, &err) ||
-        (periodic && !impl_validateOrDefaultScalar("period", &period, baseUnit, baseDim, &err))) {
+        (!impl_validateOrDefaultScalar("period", &period, baseUnit, baseDim, &err))) {
         goto Fail;
     }
+    if (period_was_null) SIScalarSetDoubleValue(period, INFINITY);
+    // 4) Validate scaling mode
     // Ensure required fields are not NULL after validation
     if (!quantityName || !offset || !origin || !coordinates) {
         err = STR("SIMonotonicDimensionCreate: internal error — required field is NULL after validation");
@@ -1180,7 +1166,6 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
         err = STR("SIMonotonicDimensionCreate: failed to copy period");
         goto FailWithDim;
     }
-    si->periodic = periodic;
     si->scaling = scaling;
     // 7) Coordinates array (deep copy)
     OCRelease(dim->coordinates);
@@ -1236,7 +1221,6 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreateMinimal(
         NULL,                   // offset (will be defaulted)
         NULL,                   // origin (will be defaulted)
         NULL,                   // period (will be defaulted)
-        false,                  // periodic
         kDimensionScalingNone,  // scaling
         coordinates,            // coordinates
         reciprocal,             // reciprocal
@@ -1481,8 +1465,6 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreateFromDictionary(
         }
     }
     // 4) Flags & enums
-    OCBooleanRef pb = (OCBooleanRef)OCDictionaryGetValue(dict, STR(kSIDimensionPeriodicKey));
-    bool periodic = pb ? OCBooleanGetValue(pb) : false;
     OCNumberRef scn = (OCNumberRef)OCDictionaryGetValue(dict, STR(kSIDimensionScalingKey));
     int tmp = 0;
     if (scn) OCNumberTryGetInt(scn, &tmp);
@@ -1534,7 +1516,6 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreateFromDictionary(
         offset,
         origin,
         period,
-        periodic,
         scaling,
         (OCArrayRef)coords,
         reciprocal, outError);
@@ -1716,7 +1697,6 @@ SIDimensionRef SIDimensionCreate(
     SIScalarRef offset,
     SIScalarRef origin,
     SIScalarRef period,
-    bool periodic,
     dimensionScaling scaling,
     OCStringRef *outError) {
     if (outError) *outError = NULL;
@@ -1762,6 +1742,7 @@ SIDimensionRef SIDimensionCreate(
         !impl_validateOrDefaultScalar("period", &period, baseUnit, baseDim, &err)) {
         goto Fail;
     }
+    if (period_was_null) SIScalarSetDoubleValue(period, INFINITY);
     // 4) Allocate and initialize
     SIDimensionRef dim = SIDimensionAllocate();
     if (!dim) {
@@ -1817,7 +1798,6 @@ SIDimensionRef SIDimensionCreate(
         }
     }
     // 11) Flags
-    dim->periodic = periodic;
     dim->scaling = scaling;
     // 12) Release temporary SIScalar objects created by validation if they were NULL inputs
     if (offset_was_null && offset) {
@@ -2016,7 +1996,6 @@ SILinearDimensionRef SILinearDimensionCreate(
     SIScalarRef offset,
     SIScalarRef origin,
     SIScalarRef period,
-    bool periodic,
     dimensionScaling scaling,
     OCIndex count,
     SIScalarRef increment,
@@ -2094,6 +2073,7 @@ SILinearDimensionRef SILinearDimensionCreate(
         !impl_validateOrDefaultScalar("period", &period, baseUnit, baseDim, &err)) {
         goto Fail;
     }
+    if (period_was_null) SIScalarSetDoubleValue(period, INFINITY);
     // Ensure required fields are now non-NULL
     if (!quantityName || !offset || !origin || !increment) {
         err = STR("SILinearDimensionCreate: internal error — required field is NULL after validation");
@@ -2139,7 +2119,6 @@ SILinearDimensionRef SILinearDimensionCreate(
         err = STR("SILinearDimensionCreate: failed to copy period");
         goto FailWithDim;
     }
-    si->periodic = periodic;
     si->scaling = scaling;
     // 7) Linear-specific fields
     dim->count = count;
@@ -2213,7 +2192,6 @@ SILinearDimensionRef SILinearDimensionCreateFromDictionary(
     OCStringRef offStr = (OCStringRef)OCDictionaryGetValue(dict, STR(kSIDimensionOffsetKey));
     OCStringRef origStr = (OCStringRef)OCDictionaryGetValue(dict, STR(kSIDimensionOriginKey));
     OCStringRef periodStr = (OCStringRef)OCDictionaryGetValue(dict, STR(kSIDimensionPeriodKey));
-    OCBooleanRef pb = (OCBooleanRef)OCDictionaryGetValue(dict, STR(kSIDimensionPeriodicKey));
     OCNumberRef num = (OCNumberRef)OCDictionaryGetValue(dict, STR(kSIDimensionScalingKey));
     OCNumberRef cntNum = (OCNumberRef)OCDictionaryGetValue(dict, STR(kSILinearDimensionCountKey));
     OCStringRef incStr = (OCStringRef)OCDictionaryGetValue(dict, STR(kSILinearDimensionIncrementKey));
@@ -2225,8 +2203,6 @@ SILinearDimensionRef SILinearDimensionCreateFromDictionary(
     SIScalarRef origin = origStr ? SIScalarCreateFromExpression(origStr, outError) : NULL;
     SIScalarRef period = periodStr ? SIScalarCreateFromExpression(periodStr, outError) : NULL;
     if (outError && *outError) goto Cleanup;
-    // periodic flag
-    bool periodic = pb ? OCBooleanGetValue(pb) : false;
     // scaling enum: must use OCNumberTryGetInt
     int scalingInt = kDimensionScalingNone;
     if (num) {
@@ -2260,7 +2236,7 @@ SILinearDimensionRef SILinearDimensionCreateFromDictionary(
         label, desc, metadata,
         qtyName,
         offset, origin, period,
-        periodic, scaling,
+        scaling,
         count, increment,
         fft, reciprocal,
         outError);

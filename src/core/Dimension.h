@@ -193,7 +193,6 @@ OCTypeID SIDimensionGetTypeID(void);
  * @param offset       Scale offset (SIScalarRef).
  * @param origin       Reference origin (SIScalarRef).
  * @param period       Period for wrapping (SIScalarRef).
- * @param periodic     True if periodic.
  * @param scaling      dimensionScaling enum.
  * @param outError     On failure, receives a descriptive OCStringRef.
  * @return New SIDimensionRef, or NULL.
@@ -205,7 +204,6 @@ SIDimensionRef SIDimensionCreate(OCStringRef label,
                                  SIScalarRef offset,
                                  SIScalarRef origin,
                                  SIScalarRef period,
-                                 bool periodic,
                                  dimensionScaling scaling,
                                  OCStringRef *outError);
 /**
@@ -224,7 +222,6 @@ static inline SIDimensionRef SIDimensionCreateWithQuantity(OCStringRef quantityN
         NULL,                   // offset
         NULL,                   // origin
         NULL,                   // period
-        false,                  // periodic
         kDimensionScalingNone,  // scaling
         outError                // outError
     );
@@ -290,16 +287,6 @@ bool SIDimensionSetPeriod(SIDimensionRef dim,
  */
 bool SIDimensionIsPeriodic(SIDimensionRef dim);
 /**
- * @brief Mark periodic flag.
- * @param dim      The SIDimension.
- * @param flag     True to enable periodicity.
- * @param outError On failure, receives a descriptive OCStringRef.
- * @return true on success.
- */
-bool SIDimensionSetPeriodic(SIDimensionRef dim,
-                            bool flag,
-                            OCStringRef *outError);
-/**
  * @brief Set scaling type.
  * @param dim      The SIDimension.
  * @param scaling  New scaling enum.
@@ -352,7 +339,6 @@ OCTypeID SIMonotonicDimensionGetTypeID(void);
  * @param offset      SIScalar offset.
  * @param origin      SIScalar origin.
  * @param period      SIScalar period.
- * @param periodic    True if wraps around.
  * @param scaling     dimensionScaling.
  * @param coordinates Array of SIScalarRef at each grid point (≥2).
  * @param reciprocal  Reciprocal SIDimension (for FFT, etc).
@@ -366,7 +352,6 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(OCStringRef label,
                                                    SIScalarRef offset,
                                                    SIScalarRef origin,
                                                    SIScalarRef period,
-                                                   bool periodic,
                                                    dimensionScaling scaling,
                                                    OCArrayRef coordinates,
                                                    SIDimensionRef reciprocal,
@@ -382,7 +367,6 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(OCStringRef label,
  * - offset: NULL (will be defaulted by the main function)
  * - origin: NULL (will be defaulted by the main function)
  * - period: NULL (will be defaulted by the main function)
- * - periodic: false
  * - scaling: kDimensionScalingNone
  *
  * @param quantityName Physical quantity name.
@@ -473,7 +457,6 @@ OCTypeID SILinearDimensionGetTypeID(void);
  * @param offset       SIScalar offset.
  * @param origin       SIScalar origin.
  * @param period       SIScalar period.
- * @param periodic     True if wraps.
  * @param scaling      dimensionScaling.
  * @param count        Number of points (≥2).
  * @param increment    SIScalar step between points.
@@ -489,7 +472,6 @@ SILinearDimensionRef SILinearDimensionCreate(OCStringRef label,
                                              SIScalarRef offset,
                                              SIScalarRef origin,
                                              SIScalarRef period,
-                                             bool periodic,
                                              dimensionScaling scaling,
                                              OCIndex count,
                                              SIScalarRef increment,
@@ -520,7 +502,6 @@ static inline SILinearDimensionRef SILinearDimensionCreateMinimal(
         NULL,                   // offset
         NULL,                   // origin
         NULL,                   // period
-        false,                  // periodic
         kDimensionScalingNone,  // scaling
         count,                  // count
         increment,              // increment

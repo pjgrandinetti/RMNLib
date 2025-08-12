@@ -53,7 +53,6 @@ bool test_DimensionCreateAxisLabel(void) {
         offset,                 // offset
         NULL,                   // origin
         NULL,                   // period
-        false,                  // periodic
         kDimensionScalingNone,  // scaling
         &err                    // outError
     );
@@ -237,7 +236,6 @@ bool test_SIDimension(void) {
         offset,                 // coordinatesOffset
         NULL,                   // originOffset
         NULL,                   // period
-        false,                  // periodic
         kDimensionScalingNone,  // scaling
         &err                    // outError
     );
@@ -310,7 +308,6 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
         s0,                     // offset
         NULL,                   // origin
         NULL,                   // period
-        false,                  // periodic
         kDimensionScalingNone,  // scaling
         coords,                 // coordinates
         NULL,                   // reciprocal
@@ -334,7 +331,6 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
         s0,                     // offset
         NULL,                   // origin
         NULL,                   // period
-        false,                  // periodic
         kDimensionScalingNone,  // scaling
         3,                      // count
         s1,                     // increment
@@ -365,7 +361,6 @@ bool test_SIMonotonic_and_SILinearDimension(void) {
             recOff,                 // offset
             NULL,                   // origin
             NULL,                   // period
-            false,                  // periodic
             kDimensionScalingNone,  // scaling
             &err                    // outError
         );
@@ -468,7 +463,6 @@ bool test_SILinearDimensionCreateCoordinates(void) {
         offset,                      // offset (coordinates_offset)
         NULL,                        // origin
         NULL,                        // period
-        false,                       // periodic
         kDimensionScalingNone,       // scaling
         4,                           // count
         increment,                   // increment
@@ -528,7 +522,6 @@ bool test_SILinearDimensionCreateCoordinates(void) {
         offset,                           // offset (coordinates_offset)
         NULL,                             // origin
         NULL,                             // period
-        false,                            // periodic
         kDimensionScalingNone,            // scaling
         6,                                // count (even)
         increment,                        // increment
@@ -599,7 +592,6 @@ bool test_AbsoluteCoordinates(void) {
         NULL,                            // offset (coordinates_offset) - will default to zero
         origin_offset,                   // origin (origin_offset)
         NULL,                            // period
-        false,                           // periodic
         kDimensionScalingNone,           // scaling
         4,                               // count
         increment,                       // increment
@@ -671,7 +663,6 @@ bool test_AbsoluteCoordinates(void) {
         NULL,                                  // offset (coordinates_offset) - will default to zero
         origin_offset,                         // origin (origin_offset)
         NULL,                                  // period
-        false,                                 // periodic
         kDimensionScalingNone,                 // scaling
         (OCArrayRef)mono_coords,               // coordinates
         NULL,                                  // reciprocal

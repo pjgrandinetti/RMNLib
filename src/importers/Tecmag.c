@@ -554,7 +554,6 @@ DatasetRef DatasetImportTecmagCreateWithFileData(OCDataRef contents, OCStringRef
             inverseOriginOffset,    // offset
             NULL,                   // origin
             NULL,                   // period
-            false,                  // periodic
             kDimensionScalingNone,  // scaling
             &err                    // outError
         );
@@ -574,7 +573,6 @@ DatasetRef DatasetImportTecmagCreateWithFileData(OCDataRef contents, OCStringRef
             originOffset,               // offset
             NULL,                       // origin
             NULL,                       // period
-            false,                      // periodic
             kDimensionScalingNone,      // scaling
             tecmag->actual_npts[iDim],  // count
             increment,                  // increment

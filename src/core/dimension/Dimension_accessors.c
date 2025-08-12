@@ -236,13 +236,11 @@ bool SIDimensionSetQuantityName(SIDimensionRef dim, OCStringRef name, OCStringRe
             dim->origin = SIScalarCreateWithDouble(0.0, u);
         }
     }
-    // 7) If we were periodic but the period no longer matches, clear it
-    if (dim->periodic && dim->period) {
+    // 7) If the period no longer matches, clear it
+    if (dim->period) {
         SIDimensionalityRef perDim = SIQuantityGetUnitDimensionality((SIQuantityRef)dim->period);
         if (!SIDimensionalityHasSameReducedDimensionality(nameDim, perDim)) {
-            OCRelease(dim->period);
-            dim->period = NULL;
-            dim->periodic = false;
+            SIDimensionSetPeriodToInfinity(dim);
         }
     }
     return true;
@@ -306,14 +304,12 @@ bool SIDimensionSetCoordinatesOffset(SIDimensionRef dim, SIScalarRef val, OCStri
             dim->origin = SIScalarCreateWithDouble(0.0, u);
         }
     }
-    // 7) If periodic but period no longer matches, clear it
-    if (dim->periodic && dim->period) {
+    // 7) If period no longer matches, clear it
+    if (dim->period) {
         SIDimensionalityRef perDim =
             SIQuantityGetUnitDimensionality((SIQuantityRef)dim->period);
         if (!SIDimensionalityHasSameReducedDimensionality(nameDim, perDim)) {
-            OCRelease(dim->period);
-            dim->period = NULL;
-            dim->periodic = false;
+            SIDimensionSetPeriodToInfinity(dim);
         }
     }
     return true;
@@ -397,9 +393,8 @@ bool SIDimensionSetPeriod(SIDimensionRef dim, SIScalarRef val, OCStringRef *outE
         if (outError) *outError = STR("SIDimensionSetPeriod: dimensionality mismatch");
         return false;
     }
-    // 5) If it's the same object, just enable periodicity
+    // 5) If it's the same object, no change needed (already periodic)
     if (dim->period == val) {
-        dim->periodic = true;
         return true;
     }
     // 6) Convert & deep‐copy into our "relative" unit
@@ -411,10 +406,9 @@ bool SIDimensionSetPeriod(SIDimensionRef dim, SIScalarRef val, OCStringRef *outE
     }
     // 7) Normalize element type
     SIScalarSetNumericType((SIMutableScalarRef)copy, (SINumberType)kOCNumberFloat64Type);
-    // 8) Swap in the new period value and enable periodicity
+    // 8) Swap in the new period value (dimension becomes periodic)
     OCRelease(dim->period);
     dim->period = copy;
-    dim->periodic = true;
     return true;
 }
 bool SIDimensionSetPeriodToInfinity(SILinearDimensionRef dim) {
@@ -428,28 +422,7 @@ bool SIDimensionSetPeriodToInfinity(SILinearDimensionRef dim) {
     return true;
 }
 bool SIDimensionIsPeriodic(SIDimensionRef dim) {
-    return dim && dim->periodic;
-}
-bool SIDimensionSetPeriodic(SIDimensionRef dim, bool flag, OCStringRef *outError) {
-    if (outError) *outError = NULL;
-    // 1) Must have a valid dimension
-    if (!dim) {
-        if (outError) *outError = STR("SIDimensionSetPeriodic: dim is NULL");
-        return false;
-    }
-    if (flag) {
-        // Enabling periodic requires a non-NULL period
-        if (!dim->period) {
-            if (outError)
-                *outError = STR("SIDimensionSetPeriodic: can't enable periodicity without a period");
-            return false;
-        }
-        dim->periodic = true;
-    } else {
-        // Disabling periodic leaves the stored period intact
-        dim->periodic = false;
-    }
-    return true;
+    return dim && SIScalarIsInfinite(SIDimensionGetPeriod(dim)) == false;
 }
 dimensionScaling SIDimensionGetScaling(SIDimensionRef dim) {
     return dim ? dim->scaling : kDimensionScalingNone;

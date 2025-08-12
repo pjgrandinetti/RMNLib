@@ -1051,7 +1051,6 @@ static DatasetRef DatasetImportJCAMPCreatePeakTableDataset(OCDictionaryRef dicti
         NULL,                   // offset (will be defaulted)
         NULL,                   // origin (will be defaulted)
         NULL,                   // period
-        false,                  // periodic
         kDimensionScalingNone,  // scaling
         xCoordinates,           // coordinates
         NULL,                   // reciprocal
