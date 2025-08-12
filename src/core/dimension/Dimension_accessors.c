@@ -360,6 +360,7 @@ bool SIDimensionSetOriginOffset(SIDimensionRef dim, SIScalarRef val, OCStringRef
     return true;
 }
 SIScalarRef SIDimensionCopyPeriod(SIDimensionRef dim) {
+    // if(!dim->periodic) return NULL;
     return (SIScalarRef)OCTypeDeepCopy((OCTypeRef)dim->period);
 }
 SIScalarRef SIDimensionGetPeriod(SIDimensionRef dim) {
@@ -616,15 +617,24 @@ SIScalarRef SILinearDimensionCreateReciprocalIncrement(SILinearDimensionRef dim)
     if (!dim || !dim->increment || dim->count < 2) {
         return NULL;
     }
-    // Make a mutable copy of the spacing
+    // Make a mutable copy of the increment
     SIMutableScalarRef rec = SIScalarCreateMutableCopy(dim->increment);
     if (!rec) return NULL;
-    // rec *= count
-    SIScalarMultiplyByDimensionlessRealConstant(rec, (double)dim->count);
+    
+    // Check if multiply by count succeeds
+    if (!SIScalarMultiplyByDimensionlessRealConstant(rec, (double)dim->count)) {
+        OCRelease(rec);
+        return NULL;
+    }
+    
     // rec = 1 / rec
-    SIScalarRaiseToAPowerWithoutReducingUnit(rec, -1.0, NULL);
-    // normalize to double
-    SIScalarSetNumericType(rec, (SINumberType)kOCNumberFloat64Type);
+    OCStringRef error = NULL;
+    if (!SIScalarRaiseToAPowerWithoutReducingUnit(rec, -1, &error)) {
+        // Handle the error case
+        if (rec) OCRelease(rec);
+        if (error) OCRelease(error);
+        return NULL;
+    }
     return rec;
 }
 OCArrayRef SILinearDimensionCreateCoordinates(SILinearDimensionRef dim) {
