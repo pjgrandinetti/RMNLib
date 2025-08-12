@@ -714,3 +714,132 @@ cleanup:
     fprintf(stderr, "%s %s\n", __func__, ok ? "passed." : "FAILED!");
     return ok;
 }
+// ----------------------------------------------------------------------------
+// test_DimensionPeriodOperations
+// ----------------------------------------------------------------------------
+bool test_DimensionPeriodOperations(void) {
+    bool ok = false;
+    OCStringRef error = NULL;
+    SIScalarRef increment = NULL;
+    SIScalarRef coordinatesOffset = NULL;
+    SIScalarRef originOffset = NULL;
+    SIScalarRef testPeriod = NULL;
+    SIScalarRef copiedPeriod = NULL;
+    SILinearDimensionRef dim = NULL;
+    SIDimensionRef siDim = NULL;
+    printf("Testing dimension period operations...\n");
+    // Create test scalars
+    increment = SIScalarCreateWithDouble(1.0, SIUnitWithSymbol(STR("Hz")));
+    TEST_ASSERT(increment != NULL);
+    coordinatesOffset = SIScalarCreateWithDouble(0.0, SIUnitWithSymbol(STR("Hz")));
+    TEST_ASSERT(coordinatesOffset != NULL);
+    originOffset = SIScalarCreateWithDouble(0.0, SIUnitWithSymbol(STR("Hz")));
+    TEST_ASSERT(originOffset != NULL);
+    // Create test period
+    testPeriod = SIScalarCreateWithDouble(10.0, SIUnitWithSymbol(STR("Hz")));
+    TEST_ASSERT(testPeriod != NULL);
+    // Create dimension without period (should default to infinity)
+    error = NULL;
+    dim = SILinearDimensionCreate(
+        STR("test"),
+        STR("Test dimension for period operations"),
+        NULL,  // metadata
+        kSIQuantityFrequency,
+        coordinatesOffset,
+        originOffset,
+        NULL,  // period (should be infinity)
+        kDimensionScalingNone,
+        5,  // count
+        increment,
+        false,  // not complex FFT
+        NULL,   // no reciprocal
+        &error);
+    TEST_ASSERT(dim != NULL);
+    TEST_ASSERT(error == NULL);
+    // Cast to SIDimensionRef for testing period operations
+    siDim = (SIDimensionRef)dim;
+    // Test 1: Initially should not be periodic (period is infinity)
+    TEST_ASSERT(!SIDimensionIsPeriodic(siDim));
+    printf("✓ Initial dimension is not periodic\n");
+    // Test 2: Copy period should return an infinite scalar
+    copiedPeriod = SIDimensionCopyPeriod(siDim);
+    TEST_ASSERT(copiedPeriod != NULL);
+    double initialPeriodValue = SIScalarDoubleValue(copiedPeriod);
+    TEST_ASSERT(isinf(initialPeriodValue));
+    printf("✓ Initial period is infinity: %f\n", initialPeriodValue);
+    OCRelease(copiedPeriod);
+    copiedPeriod = NULL;
+    // Test 3: Set a finite period
+    error = NULL;
+    printf("Debug: About to call SIDimensionSetPeriod with period 10.0 Hz...\n");
+    printf("Debug: Input scalar value: %f\n", SIScalarDoubleValue(testPeriod));
+    bool setResult = SIDimensionSetPeriod(siDim, testPeriod, &error);
+    printf("Debug: SIDimensionSetPeriod returned: %s\n", setResult ? "true" : "false");
+    if (error) {
+        printf("Debug: Error message exists (cannot print OCString directly)\n");
+        OCRelease(error);
+        error = NULL;
+    } else {
+        printf("Debug: No error message\n");
+    }
+    // Debug: Check what period is stored internally after setting
+    printf("Debug: After setting, checking internal state...\n");
+    bool periodicAfter = SIDimensionIsPeriodic(siDim);
+    printf("Debug: SIDimensionIsPeriodic after set: %s\n", periodicAfter ? "true" : "false");
+    TEST_ASSERT(setResult == true);
+    TEST_ASSERT(error == NULL);
+    printf("✓ Successfully set finite period\n");
+    // Test 4: Now should be periodic
+    TEST_ASSERT(SIDimensionIsPeriodic(siDim));
+    printf("✓ Dimension is now periodic after setting finite period\n");
+    // Test 5: Copy period should return the finite value we set
+    printf("Debug: About to copy period...\n");
+    copiedPeriod = SIDimensionCopyPeriod(siDim);
+    printf("Debug: SIDimensionCopyPeriod returned: %p\n", copiedPeriod);
+    // Also test direct access - but note SIDimensionGetPeriod is private
+    // For testing, let's just use the copy function twice to verify it's consistent
+    printf("Debug: Testing period copy consistency...\n");
+    SIScalarRef copiedPeriod2 = SIDimensionCopyPeriod(siDim);
+    printf("Debug: Second SIDimensionCopyPeriod returned: %p\n", (void*)copiedPeriod2);
+    if (copiedPeriod == NULL) {
+        printf("Debug: Period copy failed - this is the bug!\n");
+        // Let's try to debug further - check if the dimension is still periodic
+        bool stillPeriodic = SIDimensionIsPeriodic(siDim);
+        printf("Debug: Still periodic after set: %s\n", stillPeriodic ? "true" : "false");
+        // The bug is in SIDimensionCopyPeriod itself
+        printf("Debug: Bug confirmed - SIDimensionCopyPeriod returns NULL even though dimension is periodic\n");
+    }
+    TEST_ASSERT(copiedPeriod != NULL);
+    double finePeriodValue = SIScalarDoubleValue(copiedPeriod);
+    TEST_ASSERT(!isinf(finePeriodValue));
+    TEST_ASSERT(fabs(finePeriodValue - 10.0) < 1e-10);
+    printf("✓ Retrieved period value is correct: %f\n", finePeriodValue);
+    OCRelease(copiedPeriod);
+    copiedPeriod = NULL;
+    // Test 6: Set period back to infinity using NULL
+    error = NULL;
+    setResult = SIDimensionSetPeriod(siDim, NULL, &error);
+    TEST_ASSERT(setResult == true);
+    TEST_ASSERT(error == NULL);
+    printf("✓ Successfully set period back to infinity\n");
+    // Test 7: Should not be periodic again
+    TEST_ASSERT(!SIDimensionIsPeriodic(siDim));
+    printf("✓ Dimension is not periodic after setting period to NULL\n");
+    // Test 8: Copy period should return infinity again
+    copiedPeriod = SIDimensionCopyPeriod(siDim);
+    TEST_ASSERT(copiedPeriod != NULL);
+    double finalPeriodValue = SIScalarDoubleValue(copiedPeriod);
+    TEST_ASSERT(isinf(finalPeriodValue));
+    printf("✓ Final period is infinity again: %f\n", finalPeriodValue);
+    ok = true;
+cleanup:
+    if (copiedPeriod) OCRelease(copiedPeriod);
+    if (testPeriod) OCRelease(testPeriod);
+    if (originOffset) OCRelease(originOffset);
+    if (coordinatesOffset) OCRelease(coordinatesOffset);
+    if (increment) OCRelease(increment);
+    if (dim) OCRelease(dim);
+    if (error) OCRelease(error);
+    printf("Dimension period operations test %s\n", ok ? "passed." : "FAILED!");
+    return ok;
+}

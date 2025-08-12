@@ -357,13 +357,17 @@ bool SIDimensionSetOriginOffset(SIDimensionRef dim, SIScalarRef val, OCStringRef
 }
 SIScalarRef SIDimensionCopyPeriod(SIDimensionRef dim) {
     // if(!dim->periodic) return NULL;
-    return (SIScalarRef)OCTypeDeepCopy((OCTypeRef)dim->period);
+    return SIScalarCreateCopy(dim->period);
 }
 SIScalarRef SIDimensionGetPeriod(SIDimensionRef dim) {
     return dim ? dim->period : NULL;
 }
 bool SIDimensionSetPeriod(SIDimensionRef dim, SIScalarRef val, OCStringRef *outError) {
     if (outError) *outError = NULL;
+    if (NULL == val) {
+        SIDimensionSetPeriodToInfinity(dim);
+        return true;
+    }
     // 1) Must have both a dimension and a value
     if (!dim || !val) {
         if (outError) *outError = STR("SIDimensionSetPeriod: dim and val must be non-NULL");
@@ -397,7 +401,7 @@ bool SIDimensionSetPeriod(SIDimensionRef dim, SIScalarRef val, OCStringRef *outE
     if (dim->period == val) {
         return true;
     }
-    // 6) Convert & deep‐copy into our "relative" unit
+    // 6) Convert & deep‐copy into the unit
     SIUnitRef relUnit = SIQuantityGetUnit((SIQuantityRef)dim->offset);
     SIScalarRef copy = SIScalarCreateByConvertingToUnit(val, relUnit, NULL);
     if (!copy) {
@@ -415,7 +419,8 @@ bool SIDimensionSetPeriodToInfinity(SILinearDimensionRef dim) {
     if (!dim || !dim->increment || dim->count < 2) {
         return false;
     }
-    SIUnitRef unit = SIQuantityGetUnit((SIQuantityRef)dim->increment);
+    SIScalarRef coordinatesOffset = SIDimensionGetCoordinatesOffset((SIDimensionRef) dim);
+    SIUnitRef unit = SIQuantityGetUnit((SIQuantityRef)coordinatesOffset);
     SIScalarRef period = SIScalarCreateWithDouble(INFINITY, unit);
     SIDimensionSetPeriod((SIDimensionRef)dim, period, NULL);
     OCRelease(period);

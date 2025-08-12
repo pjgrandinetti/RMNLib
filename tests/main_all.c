@@ -11,6 +11,7 @@
 #include "test_Datum.h"
 #include "test_DependentVariable.h"
 #include "test_Dimension.h"
+#include "test_dimension_operations.h"
 #include "test_Image.h"
 #include "test_JCAMP.h"
 #include "test_SparseSampling.h"
@@ -56,6 +57,12 @@ int main(void) {
     if (!test_minimal_monotonic()) failures++;
     if (!test_SILinearDimensionCreateCoordinates()) failures++;
     if (!test_AbsoluteCoordinates()) failures++;
+    if (!test_DimensionPeriodOperations()) failures++;
+    
+    fprintf(stderr, "\n=== Running Dimension Operations Tests ===\n");
+    if (!test_SILinearDimensionCreateInverse()) failures++;
+    if (!test_DimensionScalarMultiplication()) failures++;
+    
     fprintf(stderr, "\n=== Running DependentVariable Tests ===\n");
     if (!test_DependentVariable_base()) failures++;
     if (!test_DependentVariable_components()) failures++;

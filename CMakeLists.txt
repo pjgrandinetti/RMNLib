@@ -66,12 +66,15 @@ endif()
 enable_testing()
 # Collect test files but exclude the main files we don't want
 file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_*.c")
+# Collect test header files 
+file(GLOB TEST_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_*.h")
 # Add only main_all.c as the main file (it runs all tests)
 list(APPEND TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/main_all.c")
 add_executable(RMNLib_runTests ${TEST_SOURCES})
 
 # Tests executable include paths
 target_include_directories(RMNLib_runTests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/dependent_variable

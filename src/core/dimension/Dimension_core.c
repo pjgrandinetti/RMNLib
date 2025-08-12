@@ -1118,7 +1118,7 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
         (!impl_validateOrDefaultScalar("period", &period, baseUnit, baseDim, &err))) {
         goto Fail;
     }
-    if (period_was_null) SIScalarSetDoubleValue(period, INFINITY);
+    if (period_was_null) SIScalarSetDoubleValue((SIMutableScalarRef) period, INFINITY);
     // 4) Validate scaling mode
     // Ensure required fields are not NULL after validation
     if (!quantityName || !offset || !origin || !coordinates) {
@@ -2073,7 +2073,7 @@ SILinearDimensionRef SILinearDimensionCreate(
         !impl_validateOrDefaultScalar("period", &period, baseUnit, baseDim, &err)) {
         goto Fail;
     }
-    if (period_was_null) SIScalarSetDoubleValue(period, INFINITY);
+    if (period_was_null) SIScalarSetDoubleValue((SIMutableScalarRef)period, INFINITY);
     // Ensure required fields are now non-NULL
     if (!quantityName || !offset || !origin || !increment) {
         err = STR("SILinearDimensionCreate: internal error — required field is NULL after validation");
