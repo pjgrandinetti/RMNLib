@@ -45,7 +45,7 @@ jobs:
       # ARM64 builds via QEMU + Docker
       - name: Set up QEMU emulation
         if: matrix.arch == 'arm64'
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: linux/arm64
       - name: Install QEMU binfmt handlers
