@@ -240,7 +240,7 @@ bool SIDimensionSetQuantityName(SIDimensionRef dim, OCStringRef name, OCStringRe
     if (dim->period) {
         SIDimensionalityRef perDim = SIQuantityGetUnitDimensionality((SIQuantityRef)dim->period);
         if (!SIDimensionalityHasSameReducedDimensionality(nameDim, perDim)) {
-            SIDimensionSetPeriodToInfinity(dim);
+            SIDimensionSetPeriodToInfinity((SILinearDimensionRef)dim);
         }
     }
     return true;
@@ -309,7 +309,7 @@ bool SIDimensionSetCoordinatesOffset(SIDimensionRef dim, SIScalarRef val, OCStri
         SIDimensionalityRef perDim =
             SIQuantityGetUnitDimensionality((SIQuantityRef)dim->period);
         if (!SIDimensionalityHasSameReducedDimensionality(nameDim, perDim)) {
-            SIDimensionSetPeriodToInfinity(dim);
+            SIDimensionSetPeriodToInfinity((SILinearDimensionRef)dim);
         }
     }
     return true;
@@ -365,7 +365,7 @@ SIScalarRef SIDimensionGetPeriod(SIDimensionRef dim) {
 bool SIDimensionSetPeriod(SIDimensionRef dim, SIScalarRef val, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (NULL == val) {
-        SIDimensionSetPeriodToInfinity(dim);
+        SIDimensionSetPeriodToInfinity((SILinearDimensionRef)dim);
         return true;
     }
     // 1) Must have both a dimension and a value
