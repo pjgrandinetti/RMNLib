@@ -1118,7 +1118,7 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
         (!impl_validateOrDefaultScalar("period", &period, baseUnit, baseDim, &err))) {
         goto Fail;
     }
-    if (period_was_null) SIScalarSetDoubleValue((SIMutableScalarRef) period, INFINITY);
+    if (period_was_null) SIScalarSetDoubleValue((SIMutableScalarRef)period, INFINITY);
     // 4) Validate scaling mode
     // Ensure required fields are not NULL after validation
     if (!quantityName || !offset || !origin || !coordinates) {
@@ -1140,7 +1140,7 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
     OCRelease(si->_super.description);
     si->_super.description = description ? OCStringCreateCopy(description) : NULL;
     OCRelease(si->_super.metadata);
-    si->_super.metadata = metadata ? OCTypeDeepCopy(metadata) : NULL;
+    si->_super.metadata = metadata ? OCTypeDeepCopy(metadata) : OCDictionaryCreateMutable(0);
     // 6) SI-specific fields (deep copies)
     OCRelease(si->quantityName);
     si->quantityName = OCStringCreateCopy(quantityName);
@@ -1185,9 +1185,30 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
             goto FailWithDim;
         }
     } else {
-        // build default reciprocal here (if needed)
-        dim->reciprocal = NULL;
+        // build default reciprocal dimension
+        SIDimensionalityRef inverseDim = SIDimensionalityByRaisingToPowerWithoutReducing(baseDim, -1, &err);
+        if (!inverseDim) goto FailWithDim;
+        
+        OCArrayRef qnList = SIDimensionalityCreateArrayOfQuantities(inverseDim);
+        OCStringRef inverseQuantityName = (OCStringRef)OCArrayGetValueAtIndex(qnList, 0);
+        
+        dim->reciprocal = SIDimensionCreate(
+            NULL,              // label
+            NULL,              // description
+            NULL,              // metadata
+            inverseQuantityName, // quantityName
+            NULL,              // offset
+            NULL,              // origin
+            NULL,              // period
+            kDimensionScalingNone, // scaling
+            &err);
+            
+        OCRelease(qnList);
+        OCRelease(inverseDim);
+        
+        if (!dim->reciprocal) goto FailWithDim;
     }
+
     // Release temporary SIScalar objects created by validation if they were NULL inputs
     if (offset_was_null && offset) {
         OCRelease(offset);
@@ -1705,7 +1726,6 @@ SIDimensionRef SIDimensionCreate(
     bool offset_was_null = (offset == NULL);
     bool origin_was_null = (origin == NULL);
     bool period_was_null = (period == NULL);
-           
     // In this function all parameters are optional.
     // 1) Determine baseUnit & baseDim (priority: offset → origin → period → quantityName → dimensionless)
     SIUnitRef baseUnit = NULL;
@@ -2134,7 +2154,7 @@ SILinearDimensionRef SILinearDimensionCreate(
     OCRelease(si->_super.description);
     si->_super.description = description ? OCStringCreateCopy(description) : NULL;
     OCRelease(si->_super.metadata);
-    si->_super.metadata = metadata ? OCTypeDeepCopy(metadata) : NULL;
+    si->_super.metadata = metadata ? OCTypeDeepCopy(metadata) : OCDictionaryCreateMutable(0);
     OCRelease(si->quantityName);
     si->quantityName = OCStringCreateCopy(quantityName);
     if (!si->quantityName) {
@@ -2180,11 +2200,33 @@ SILinearDimensionRef SILinearDimensionCreate(
             goto FailWithDim;
         }
     } else {
-        // build default reciprocal here if applicable
-        dim->reciprocal = NULL;  // placeholder
+        // build default reciprocal dimension
+        SIDimensionalityRef inverseDim = SIDimensionalityByRaisingToPowerWithoutReducing(baseDim, -1, &err);
+        if (!inverseDim) goto FailWithDim;
+        
+        OCArrayRef qnList = SIDimensionalityCreateArrayOfQuantities(inverseDim);
+        OCStringRef inverseQuantityName = (OCStringRef)OCArrayGetValueAtIndex(qnList, 0);
+        
+        dim->reciprocal = SIDimensionCreate(
+            NULL,              // label
+            NULL,              // description  
+            NULL,              // metadata
+            inverseQuantityName, // quantityName
+            NULL,              // offset
+            NULL,              // origin
+            NULL,              // period
+            kDimensionScalingNone, // scaling
+            &err);
+        
+        OCRelease(qnList);
+        OCRelease(inverseDim);
+        
+        if (!dim->reciprocal) goto FailWithDim;
     }
+    
     // 9) Compute reciprocalIncrement
     // [Reciprocal increment logic not shown]
+    
     // 10) Release temporary SIScalar objects created by validation if they were NULL inputs
     // These were created by impl_validateOrDefaultScalar and need to be released
     // since we copied them into the dimension structure
@@ -2198,12 +2240,13 @@ SILinearDimensionRef SILinearDimensionCreate(
         OCRelease(period);  // Release the temporary one created by validation
     }
     return dim;
+
 FailWithDim:
     OCRelease(dim);
 Fail:
     if (outError)
         *outError = err;
-    else
+    else 
         OCRelease(err);
     return NULL;
 }

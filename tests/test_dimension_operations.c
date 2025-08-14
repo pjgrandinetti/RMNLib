@@ -43,13 +43,12 @@ bool test_SILinearDimensionCreateInverse(void) {
         &error);
     TEST_ASSERT(originalDim != NULL);
     TEST_ASSERT(error == NULL);
-    // Test 1: Create inverse dimension - should fail because dimension has no reciprocal
+    // Test 1: Create inverse dimension - should now succeed because reciprocal is auto-generated
     error = NULL;
     inverseDim = SILinearDimensionCreateInverse(originalDim, &error);
-    TEST_ASSERT(inverseDim == NULL);
-    TEST_ASSERT(error != NULL);
-    printf("  ✓ Dimension without reciprocal correctly rejected: %s\n", OCStringGetCString(error));
-    OCRelease(error);
+    TEST_ASSERT(inverseDim != NULL);
+    TEST_ASSERT(error == NULL);
+    printf("  ✓ Dimension with auto-generated reciprocal successfully created inverse\n");
     ok = true;
     printf("✅ SILinearDimensionCreateInverse test passed!\n");
 cleanup:
@@ -74,6 +73,8 @@ bool test_DimensionScalarMultiplication(void) {
     SILinearDimensionRef originalDim = NULL;
     SILinearDimensionRef resultDim = NULL;
     SIScalarRef newIncrement = NULL;
+    SIScalarRef zeroScalar = NULL;
+    SILinearDimensionRef zeroResult = NULL;
     printf("Testing dimension scalar multiplication operations...\n");
     // Create test dimension
     increment = SIScalarCreateWithDouble(1.0, SIUnitWithSymbol(STR("m")));
@@ -110,9 +111,9 @@ bool test_DimensionScalarMultiplication(void) {
     TEST_ASSERT(fabs(incrementValue - 2.0) < 1e-10);
     printf("  ✓ Original increment: 1.0 m, New increment: %.1f m\n", incrementValue);
     // Test error case: multiplication by zero
-    SIScalarRef zeroScalar = SIScalarCreateWithDouble(0.0, SIUnitDimensionlessAndUnderived());
+    zeroScalar = SIScalarCreateWithDouble(0.0, SIUnitDimensionlessAndUnderived());
     error = NULL;
-    SILinearDimensionRef zeroResult = SILinearDimensionCreateByMultiplyingByScalar(originalDim, zeroScalar, &error);
+    zeroResult = SILinearDimensionCreateByMultiplyingByScalar(originalDim, zeroScalar, &error);
     TEST_ASSERT(zeroResult == NULL);
     TEST_ASSERT(error != NULL);
     TEST_ASSERT(error != NULL && OCStringGetLength(error) > 0);

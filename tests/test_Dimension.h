@@ -10,4 +10,5 @@ bool test_minimal_monotonic(void);
 bool test_SILinearDimensionCreateCoordinates(void);
 bool test_AbsoluteCoordinates(void);
 bool test_DimensionPeriodOperations(void);
+bool test_monotonic_large_scale_values(void);
 #endif  // TEST_DIMENSION_H

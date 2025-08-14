@@ -49,6 +49,7 @@ int main(void) {
     if (!test_SILinearDimensionCreateCoordinates()) failures++;
     if (!test_AbsoluteCoordinates()) failures++;
     if (!test_DimensionPeriodOperations()) failures++;
+    if (!test_monotonic_large_scale_values()) failures++;
     fprintf(stderr, "\n=== Running Dimension Operations Tests ===\n");
     if (!test_SILinearDimensionCreateInverse()) failures++;
     if (!test_DimensionScalarMultiplication()) failures++;

@@ -844,3 +844,92 @@ cleanup:
     printf("Dimension period operations test %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
+
+// ----------------------------------------------------------------------------
+// test_monotonic_large_scale_values
+// Test monotonic dimensions with large-scale coordinate values
+// ----------------------------------------------------------------------------
+bool test_monotonic_large_scale_values(void) {
+    bool ok = false;
+    OCStringRef error = NULL;
+    SIMonotonicDimensionRef monotonicDim = NULL;
+    OCMutableArrayRef coordinates = NULL;
+    
+    // Test with a wide range of coordinate values including very large ones
+    double values[] = {1.0, 100.0, 1000.0, 1000000.0, 2.36518262e15};
+    int numValues = sizeof(values) / sizeof(values[0]);
+    
+    // Create coordinates array with SIScalar objects (dimensionless)
+    coordinates = OCArrayCreateMutable(numValues, &kOCTypeArrayCallBacks);
+    TEST_ASSERT(coordinates != NULL);
+    
+    for (int i = 0; i < numValues; i++) {
+        SIScalarRef scalar = SIScalarCreateWithDouble(values[i], SIUnitDimensionlessAndUnderived());
+        TEST_ASSERT(scalar != NULL);
+        OCArrayAppendValue(coordinates, scalar);
+        OCRelease(scalar); // Release our reference, array retains it
+    }
+    
+    // Test 1: Full constructor
+    error = NULL;
+    monotonicDim = SIMonotonicDimensionCreate(
+        STR("large_scale"),         // label
+        STR("Large scale values"),  // description  
+        NULL,                       // metadata
+        kSIQuantityDimensionless,   // quantity (dimensionless since no units)
+        NULL,                       // offset (NULL for default)
+        NULL,                       // origin
+        NULL,                       // period
+        kDimensionScalingNone,      // scaling
+        coordinates,                // coordinates array
+        NULL,                       // reciprocal
+        &error                      // outError
+    );
+    
+    TEST_ASSERT(monotonicDim != NULL && error == NULL);
+    
+    // Verify the dimension properties
+    OCArrayRef retrievedCoords = SIMonotonicDimensionCopyCoordinates(monotonicDim);
+    TEST_ASSERT(retrievedCoords != NULL);
+    
+    OCIndex coordCount = OCArrayGetCount(retrievedCoords);
+    TEST_ASSERT(coordCount == numValues);
+    
+    // Verify coordinate values
+    for (OCIndex i = 0; i < coordCount; i++) {
+        SIScalarRef coord = (SIScalarRef)OCArrayGetValueAtIndex(retrievedCoords, i);
+        double coordValue = SIScalarDoubleValue(coord);
+        TEST_ASSERT(fabs(coordValue - values[i]) < 1e-9);
+    }
+    OCRelease(retrievedCoords);
+    
+    // Verify dimension type
+    OCStringRef dimType = DimensionGetType((DimensionRef)monotonicDim);
+    TEST_ASSERT(OCStringEqual(dimType, STR("monotonic")));
+    
+    OCRelease(monotonicDim);
+    monotonicDim = NULL;
+    
+    // Test 2: Minimal constructor
+    error = NULL;
+    monotonicDim = SIMonotonicDimensionCreateMinimal(
+        kSIQuantityDimensionless,   // quantityName
+        coordinates,                // coordinates
+        NULL,                       // reciprocal
+        &error                      // outError
+    );
+    
+    TEST_ASSERT(monotonicDim != NULL && error == NULL);
+    OCRelease(monotonicDim);
+    monotonicDim = NULL;
+    
+    ok = true;
+    
+cleanup:
+    if (coordinates) OCRelease(coordinates);
+    if (monotonicDim) OCRelease(monotonicDim);
+    if (error) OCRelease(error);
+    
+    printf("Monotonic dimension large-scale values test %s\n", ok ? "passed." : "FAILED!");
+    return ok;
+}
