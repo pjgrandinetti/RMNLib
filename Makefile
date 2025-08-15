@@ -503,6 +503,9 @@ install-shared: $(LIB_DIR)/libRMN.a $(SHLIB)
 	$(MKDIR_P) $(INSTALL_LIB_DIR) $(INSTALL_INC_DIR)
 	cp $(LIB_DIR)/libRMN.a $(INSTALL_LIB_DIR)/
 	cp $(SHLIB) $(INSTALL_LIB_DIR)/
+ifneq ($(findstring MINGW,$(UNAME_S)),)
+	@if [ -f $(LIB_DIR)/libRMN.dll.a ]; then cp $(LIB_DIR)/libRMN.dll.a $(INSTALL_LIB_DIR)/; fi
+endif
 	cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
 	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
 	# Copy only public headers (exclude *_private.h)
