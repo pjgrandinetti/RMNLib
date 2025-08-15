@@ -35,37 +35,54 @@ static DependentVariableRef _make_internal_scalar(OCIndex length) {
 bool test_DependentVariable_base(void) {
     bool ok = false;
     DependentVariableRef dv = NULL;
+    OCStringRef name_str = NULL, desc_str = NULL, qt_str = NULL, qn_str = NULL, enc_str = NULL;
     // 1) default‐internal DV of length=4
     dv = _make_internal_scalar(4);
     TEST_ASSERT(dv != NULL);
     // defaults
-    TEST_ASSERT(OCStringGetLength(DependentVariableGetName(dv)) == 0);
-    TEST_ASSERT(OCStringGetLength(DependentVariableGetDescription(dv)) == 0);
-    TEST_ASSERT(OCStringEqual(DependentVariableGetQuantityType(dv), STR("scalar")));
+    name_str = DependentVariableCopyName(dv);
+    TEST_ASSERT(OCStringGetLength(name_str) == 0);
+    OCRelease((OCTypeRef)name_str);
+    desc_str = DependentVariableCopyDescription(dv);
+    TEST_ASSERT(OCStringGetLength(desc_str) == 0);
+    OCRelease((OCTypeRef)desc_str);
+    qt_str = DependentVariableCopyQuantityType(dv);
+    TEST_ASSERT(OCStringEqual(qt_str, STR("scalar")));
+    OCRelease((OCTypeRef)qt_str);
     TEST_ASSERT(DependentVariableGetNumericType(dv) == kOCNumberFloat64Type);
     TEST_ASSERT(OCTypeEqual(
         SIQuantityGetUnit((SIQuantityRef)dv),
         SIUnitDimensionlessAndUnderived()));
-    TEST_ASSERT(OCStringEqual(
-        DependentVariableGetQuantityName(dv),
-        kSIQuantityDimensionless));
-    TEST_ASSERT(OCStringEqual(DependentVariableGetEncoding(dv), STR("base64")));
+    qn_str = DependentVariableCopyQuantityName(dv);
+    TEST_ASSERT(OCStringEqual(qn_str, kSIQuantityDimensionless));
+    OCRelease((OCTypeRef)qn_str);
+    enc_str = DependentVariableCopyEncoding(dv);
+    TEST_ASSERT(OCStringEqual(enc_str, STR("base64")));
+    OCRelease((OCTypeRef)enc_str);
     TEST_ASSERT(DependentVariableGetComponentCount(dv) == 1);
     TEST_ASSERT(DependentVariableGetSize(dv) == 4);
     // 2) setters / getters for CSDM fields
     TEST_ASSERT(DependentVariableSetName(dv, STR("foo")));
-    TEST_ASSERT(OCStringEqual(DependentVariableGetName(dv), STR("foo")));
+    name_str = DependentVariableCopyName(dv);
+    TEST_ASSERT(OCStringEqual(name_str, STR("foo")));
+    OCRelease((OCTypeRef)name_str);
     TEST_ASSERT(DependentVariableSetDescription(dv, STR("bar")));
-    TEST_ASSERT(OCStringEqual(DependentVariableGetDescription(dv), STR("bar")));
+    desc_str = DependentVariableCopyDescription(dv);
+    TEST_ASSERT(OCStringEqual(desc_str, STR("bar")));
+    OCRelease((OCTypeRef)desc_str);
     SIUnitRef m_per_s = SIUnitWithSymbol(STR("m/s"));
     TEST_ASSERT(SIQuantitySetUnit((SIMutableQuantityRef)dv, m_per_s));
     TEST_ASSERT(OCTypeEqual(
         SIQuantityGetUnit((SIQuantityRef)dv),
         m_per_s));
     TEST_ASSERT(DependentVariableSetQuantityName(dv, STR("velocity")));
-    TEST_ASSERT(OCStringEqual(DependentVariableGetQuantityName(dv), STR("velocity")));
+    qn_str = DependentVariableCopyQuantityName(dv);
+    TEST_ASSERT(OCStringEqual(qn_str, STR("velocity")));
+    OCRelease((OCTypeRef)qn_str);
     TEST_ASSERT(DependentVariableSetEncoding(dv, STR("base64")));
-    TEST_ASSERT(OCStringEqual(DependentVariableGetEncoding(dv), STR("base64")));
+    enc_str = DependentVariableCopyEncoding(dv);
+    TEST_ASSERT(OCStringEqual(enc_str, STR("base64")));
+    OCRelease((OCTypeRef)enc_str);
     ok = true;
 cleanup:
     if (dv) OCRelease(dv);
@@ -75,13 +92,15 @@ cleanup:
 bool test_DependentVariable_internal_vs_external(void) {
     bool ok = false;
     DependentVariableRef intdv = NULL, extdv = NULL;
-    OCStringRef err = NULL;
+    OCStringRef err = NULL, enc_str = NULL;
     // ── internal: components present, no URL ──
     intdv = _make_internal_scalar(3);
     TEST_ASSERT(intdv);
     TEST_ASSERT(DependentVariableGetComponentCount(intdv) == 1);
     TEST_ASSERT(DependentVariableGetComponentsURL(intdv) == NULL);
-    TEST_ASSERT(OCStringEqual(DependentVariableGetEncoding(intdv), STR("base64")));
+    enc_str = DependentVariableCopyEncoding(intdv);
+    TEST_ASSERT(OCStringEqual(enc_str, STR("base64")));
+    OCRelease((OCTypeRef)enc_str);
     // ── external: must supply a non-NULL URL now ──
     err = NULL;
     printf("Creating external DV...\n");
@@ -110,9 +129,10 @@ bool test_DependentVariable_internal_vs_external(void) {
     }
     // encoding should be "base64" for externals too (new default)
     {
-        OCStringRef enc = DependentVariableGetEncoding(extdv);
+        OCStringRef enc = DependentVariableCopyEncoding(extdv);
         printf("External DV encoding: %s\n", enc ? OCStringGetCString(enc) : "NULL");
         TEST_ASSERT(enc && OCStringEqual(enc, STR("base64")));
+        OCRelease((OCTypeRef)enc);
     }
     ok = true;
 cleanup:
