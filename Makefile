@@ -119,7 +119,7 @@ else ifneq ($(findstring MINGW,$(UNAME_S)),)
   # Shared library configuration for Windows
   SHLIB_EXT      = .dll
   SHLIB_FLAGS    = -shared
-  SHLIB_LDFLAGS  = -Wl,--out-implib=libRMN.dll.a
+  SHLIB_LDFLAGS  = -Wl,--out-implib=$(LIB_DIR)/libRMN.dll.a
 else
   OCTYPES_LINKLIB := -lOCTypes
   SITYPES_LINKLIB := -lSITypes
@@ -429,7 +429,7 @@ help:
 	@echo "  OC_LEAK_TRACKING=1 make test-all # All tests with leak tracking"
 
 clean:
-	$(RM) -r $(BUILD_DIR) libRMN.a $(LIB_DIR)/libRMN$(SHLIB_EXT) libRMN.dll.a
+	$(RM) -r $(BUILD_DIR) libRMN.a $(LIB_DIR)/libRMN$(SHLIB_EXT) $(LIB_DIR)/libRMN.dll.a
 	$(RM) -rf $(THIRD_PARTY_DIR)
 
 # Determine repository root and Xcode build dir
@@ -487,7 +487,7 @@ install: all
 	cp $(LIB_DIR)/libRMN.a $(INSTALL_LIB_DIR)/
 	cp $(SHLIB) $(INSTALL_LIB_DIR)/
 ifneq ($(findstring MINGW,$(UNAME_S)),)
-	@if [ -f libRMN.dll.a ]; then cp libRMN.dll.a $(INSTALL_LIB_DIR)/; fi
+	@if [ -f $(LIB_DIR)/libRMN.dll.a ]; then cp $(LIB_DIR)/libRMN.dll.a $(INSTALL_LIB_DIR)/; fi
 endif
 	cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
 	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
