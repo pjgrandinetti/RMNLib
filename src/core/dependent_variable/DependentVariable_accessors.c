@@ -10,6 +10,10 @@
 OCStringRef DependentVariableGetEncoding(DependentVariableRef dv) {
     return dv ? dv->encoding : NULL;
 }
+OCStringRef DependentVariableCopyEncoding(DependentVariableRef dv) {
+    if (!dv) return NULL;
+    return dv->encoding ? OCStringCreateCopy(dv->encoding) : NULL;
+}
 bool DependentVariableSetEncoding(DependentVariableRef dv, OCStringRef newEnc) {
     if (!dv || !newEnc) return false;
     OCStringRef copy = OCStringCreateCopy(newEnc);
@@ -21,6 +25,14 @@ bool DependentVariableSetEncoding(DependentVariableRef dv, OCStringRef newEnc) {
 OCStringRef DependentVariableGetType(DependentVariableRef dv) {
     if (!dv) return NULL;
     return dv->type;
+}
+OCStringRef DependentVariableCopyType(DependentVariableRef dv) {
+    if (!dv) return NULL;
+    // Type should never be NULL - if it is, the object is corrupted
+    if (!dv->type) {
+        return NULL;
+    }
+    return OCStringCreateCopy(dv->type);
 }
 bool DependentVariableShouldSerializeExternally(DependentVariableRef dv) {
     return dv && OCStringEqual(dv->type, STR(kDependentVariableComponentTypeValueExternal));
@@ -50,12 +62,20 @@ bool DependentVariableSetComponentsURL(DependentVariableRef dv, OCStringRef url)
 }
 OCStringRef DependentVariableGetName(DependentVariableRef dv) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
-    // If the name field is NULL, return the interned empty string
-    return dv->name ? dv->name : STR("");
+    if (!dv->name) {
+        return NULL;
+    }
+    return dv->name;
+}
+OCStringRef DependentVariableCopyName(DependentVariableRef dv) {
+    IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
+    if (!dv->name) {
+        return NULL;
+    }
+    return OCStringCreateCopy(dv->name);
 }
 bool DependentVariableSetName(DependentVariableRef dv, OCStringRef newName) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, false);
-    // If it’s literally the same pointer, nothing to do
     if (dv->name == newName) {
         return true;
     }
@@ -74,8 +94,19 @@ bool DependentVariableSetName(DependentVariableRef dv, OCStringRef newName) {
 }
 OCStringRef DependentVariableGetDescription(DependentVariableRef dv) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
-    // Return the stored description, or the empty interned string if NULL
-    return dv->description ? dv->description : STR("");
+    // Description should never be NULL - if it is, the object is corrupted
+    if (!dv->description) {
+        return NULL;
+    }
+    return dv->description;
+}
+OCStringRef DependentVariableCopyDescription(DependentVariableRef dv) {
+    IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
+    // Description should never be NULL - if it is, the object is corrupted
+    if (!dv->description) {
+        return NULL;
+    }
+    return OCStringCreateCopy(dv->description);
 }
 bool DependentVariableSetDescription(DependentVariableRef dv, OCStringRef newDesc) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, false);
@@ -242,7 +273,19 @@ OCMutableArrayRef DependentVariableCreateQuantityTypesArray(DependentVariableRef
 }
 OCStringRef DependentVariableGetQuantityType(DependentVariableRef dv) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
+    // QuantityType should never be NULL - if it is, the object is corrupted
+    if (!dv->quantityType) {
+        return NULL;
+    }
     return dv->quantityType;
+}
+OCStringRef DependentVariableCopyQuantityType(DependentVariableRef dv) {
+    IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
+    // QuantityType should never be NULL - if it is, the object is corrupted
+    if (!dv->quantityType) {
+        return NULL;
+    }
+    return OCStringCreateCopy(dv->quantityType);
 }
 bool DependentVariableSetQuantityType(DependentVariableRef dv, OCStringRef qt) {
     IF_NO_OBJECT_EXISTS_RETURN(dv, false);
@@ -336,6 +379,11 @@ bool DependentVariableSetSparseSampling(DependentVariableRef dv,
 OCStringRef DependentVariableGetQuantityName(DependentVariableRef dv) {
     if (!dv) return NULL;
     return dv->quantityName;
+}
+OCStringRef DependentVariableCopyQuantityName(DependentVariableRef dv) {
+    if (!dv) return NULL;
+    // Note: quantityName can be NULL (optional field), unlike name/description/quantityType
+    return dv->quantityName ? OCStringCreateCopy(dv->quantityName) : NULL;
 }
 bool DependentVariableSetQuantityName(DependentVariableRef dv, OCStringRef quantityName) {
     if (!dv || !quantityName) return false;

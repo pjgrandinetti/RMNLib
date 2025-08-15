@@ -55,6 +55,12 @@ bool validateDependentVariableParameters(
     OCArrayRef componentLabels,
     OCIndex componentsCount,
     SparseSamplingRef sparseSampling);
+OCStringRef DependentVariableGetName(DependentVariableRef dv);
+OCStringRef DependentVariableGetDescription(DependentVariableRef dv);
+OCStringRef DependentVariableGetQuantityType(DependentVariableRef dv);
+OCStringRef DependentVariableGetQuantityName(DependentVariableRef dv);
+OCStringRef DependentVariableGetEncoding(DependentVariableRef dv);
+OCStringRef DependentVariableGetType(DependentVariableRef dv);
 #ifdef __cplusplus
 }
 #endif
