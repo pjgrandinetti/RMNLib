@@ -53,6 +53,10 @@ bool DependentVariableSetType(DependentVariableRef dv, OCStringRef newType) {
 OCStringRef DependentVariableGetComponentsURL(DependentVariableRef dv) {
     return dv ? dv->componentsURL : NULL;
 }
+OCStringRef DependentVariableCopyComponentsURL(DependentVariableRef dv) {
+    if (!dv) return NULL;
+    return dv->componentsURL ? OCStringCreateCopy(dv->componentsURL) : NULL;
+}
 bool DependentVariableSetComponentsURL(DependentVariableRef dv, OCStringRef url) {
     if (!dv) return false;
     OCStringRef copy = url ? OCStringCreateCopy(url) : NULL;

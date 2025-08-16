@@ -156,9 +156,35 @@ static bool rmnLibShutdownCalled = false;
 void RMNLibTypesShutdown(void) {
     if (rmnLibShutdownCalled) return;
     rmnLibShutdownCalled = true;
-    
-    // SITypesShutdown() will handle both SITypes cleanup and OCTypes cleanup
-    // since SITypes depends on OCTypes
+#if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
+    OCReportLeaksForTypeDetailed(DimensionGetTypeID());
+#endif
+#if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
+    OCReportLeaksForTypeDetailed(LabeledDimensionGetTypeID());
+#endif
+#if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
+    OCReportLeaksForTypeDetailed(SIDimensionGetTypeID());
+#endif
+#if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
+    OCReportLeaksForTypeDetailed(SIMonotonicDimensionGetTypeID());
+#endif
+#if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
+    OCReportLeaksForTypeDetailed(SILinearDimensionGetTypeID());
+#endif
+#if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
+    OCReportLeaksForTypeDetailed(SparseSamplingGetTypeID());
+#endif
+#if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
+    OCReportLeaksForTypeDetailed(DependentVariableGetTypeID());
+#endif
+#if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
+    OCReportLeaksForTypeDetailed(GeographicCoordinateGetTypeID());
+#endif
+#if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
+    OCReportLeaksForTypeDetailed(DatasetGetTypeID());
+#endif
+
+
     SITypesShutdown();
 }
 // If you want automatic teardown when the library is unloaded:

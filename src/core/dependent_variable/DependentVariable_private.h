@@ -67,6 +67,7 @@ OCArrayRef DependentVariableGetComponentLabels(DependentVariableRef dv);
 OCStringRef DependentVariableGetComponentLabelAtIndex(DependentVariableRef dv, OCIndex idx);
 SparseSamplingRef
 DependentVariableGetSparseSampling(DependentVariableRef dv);
+OCStringRef DependentVariableGetComponentsURL(DependentVariableRef dv);
 
 #ifdef __cplusplus
 }

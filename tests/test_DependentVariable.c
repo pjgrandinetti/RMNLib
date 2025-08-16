@@ -28,7 +28,7 @@ static DependentVariableRef _make_internal_scalar(OCIndex length) {
     if (!dv && err) {
         printf("_make_internal_scalar failed: %s\n", OCStringGetCString(err));
     }
-    OCRelease(err);
+    if (err) OCRelease(err);
     OCRelease(comps);
     return dv;
 }
@@ -97,7 +97,9 @@ bool test_DependentVariable_internal_vs_external(void) {
     intdv = _make_internal_scalar(3);
     TEST_ASSERT(intdv);
     TEST_ASSERT(DependentVariableGetComponentCount(intdv) == 1);
-    TEST_ASSERT(DependentVariableGetComponentsURL(intdv) == NULL);
+    OCStringRef url = DependentVariableCopyComponentsURL(intdv);
+    TEST_ASSERT(url == NULL);
+    if (url) OCRelease(url);
     enc_str = DependentVariableCopyEncoding(intdv);
     TEST_ASSERT(OCStringEqual(enc_str, STR("base64")));
     OCRelease((OCTypeRef)enc_str);
@@ -124,8 +126,9 @@ bool test_DependentVariable_internal_vs_external(void) {
     TEST_ASSERT(DependentVariableGetComponentCount(extdv) == 0);
     // URL should match exactly what we passed
     {
-        OCStringRef url = DependentVariableGetComponentsURL(extdv);
+        OCStringRef url = DependentVariableCopyComponentsURL(extdv);
         TEST_ASSERT(url && OCStringEqual(url, STR("file:./data.bin")));
+        OCRelease(url);
     }
     // encoding should be "base64" for externals too (new default)
     {
@@ -183,7 +186,7 @@ bool test_DependentVariable_values_and_accessors(void) {
     ok = true;
 cleanup:
     if (dv) OCRelease(dv);
-    OCRelease(err);
+    if (err) OCRelease(err);
     printf("DependentVariable values tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -232,7 +235,7 @@ bool test_DependentVariable_type_queries(void) {
     OCRelease(dv4);
     ok = true;
 cleanup:
-    OCRelease(err);
+    if (err) OCRelease(err);
     printf("DependentVariable type-queries tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -304,7 +307,7 @@ cleanup:
     if (dict) OCRelease(dict);
     if (dv2) OCRelease(dv2);
     if (dv) OCRelease(dv);
-    OCRelease(err);
+    if (err) OCRelease(err);
     printf("DependentVariable copy/roundtrip tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -331,7 +334,7 @@ bool test_DependentVariable_invalid_create(void) {
     ok = true;
 cleanup:
     OCRelease(comps);
-    OCRelease(err);
+    if (err) OCRelease(err);
     printf("DependentVariable invalid-create tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -384,7 +387,7 @@ cleanup:
     if (extra) OCRelease(extra);
     if (dv) OCRelease(dv);
     if (comps) OCRelease(comps);
-    OCRelease(err);
+    if (err) OCRelease(err);
     printf("DependentVariable components tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -417,7 +420,7 @@ bool test_DependentVariable_values(void) {
     ok = true;
 cleanup:
     if (dv) OCRelease(dv);
-    OCRelease(err);
+    if (err) OCRelease(err);
     printf("DependentVariable values tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -464,7 +467,7 @@ bool test_DependentVariable_typeQueries(void) {
     OCRelease(dv4);
     ok = true;
 cleanup:
-    OCRelease(err);
+    if (err) OCRelease(err);
     printf("DependentVariable type-queries tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -496,7 +499,7 @@ cleanup:
     if (dst) OCRelease(dst);
     if (src) OCRelease(src);
     if (comps) OCRelease(comps);
-    OCRelease(err);
+    if (err) OCRelease(err);
     printf("DependentVariable complex-copy tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -525,7 +528,7 @@ bool test_DependentVariable_invalidCreate(void) {
     ok = true;
 cleanup:
     OCRelease(oneBuf);
-    OCRelease(err);
+    if (err) OCRelease(err);
     printf("DependentVariable invalid-create tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -887,6 +890,7 @@ bool test_DependentVariable_arithmetic_operations(void) {
     TEST_ASSERT(fabs(resultData[2] - 4.5f) < 1e-6f);
     TEST_ASSERT(fabs(resultData[3] - 6.0f) < 1e-6f);
     OCRelease(result); // Release the copied component
+    result = NULL; // Reset pointer to avoid double release
     // Test subtraction: dv1 = dv1 - dv2 (should restore original values)
     TEST_ASSERT(DependentVariableSubtract(dv1, dv2, &err));
     if (err) {
@@ -944,7 +948,7 @@ cleanup:
     if (components2) OCRelease(components2);
     if (comp1) OCRelease(comp1);
     if (comp2) OCRelease(comp2);
-    OCRelease(err);
+    if (err) OCRelease(err);
     printf("DependentVariable arithmetic operations tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }

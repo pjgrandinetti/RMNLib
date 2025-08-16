@@ -273,7 +273,7 @@ bool DependentVariableSetType(DependentVariableRef dv, OCStringRef newType);
 bool DependentVariableShouldSerializeExternally(DependentVariableRef dv);
 OCStringRef DependentVariableCopyEncoding(DependentVariableRef dv);
 bool DependentVariableSetEncoding(DependentVariableRef dv, OCStringRef newEnc);
-OCStringRef DependentVariableGetComponentsURL(DependentVariableRef dv);
+OCStringRef DependentVariableCopyComponentsURL(DependentVariableRef dv);
 bool DependentVariableSetComponentsURL(DependentVariableRef dv, OCStringRef url);
 OCStringRef DependentVariableCopyName(DependentVariableRef dv);
 bool DependentVariableSetName(DependentVariableRef dv, OCStringRef newName);
