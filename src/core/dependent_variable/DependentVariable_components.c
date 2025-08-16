@@ -204,47 +204,10 @@ bool DependentVariableSetSize(DependentVariableRef dv, OCIndex newSize) {
     OCIndex nComps = OCArrayGetCount(dv->components);
     if (nComps == 0) return false;
     OCIndex oldSize = DependentVariableGetSize(dv);
-    // pick up byte‐size per element
-    size_t elemSize;
-    switch (dv->numericType) {
-        // 8-bit integers
-        case kOCNumberSInt8Type:
-        case kOCNumberUInt8Type:
-            elemSize = 1;
-            break;
-        // 16-bit integers
-        case kOCNumberSInt16Type:
-        case kOCNumberUInt16Type:
-            elemSize = 2;
-            break;
-        // 32-bit integers
-        case kOCNumberSInt32Type:
-        case kOCNumberUInt32Type:
-            elemSize = 4;
-            break;
-        // 64-bit integers
-        case kOCNumberSInt64Type:
-        case kOCNumberUInt64Type:
-            elemSize = 8;
-            break;
-        // IEEE floats
-        case kOCNumberFloat32Type:
-            elemSize = sizeof(float);
-            break;
-        case kOCNumberFloat64Type:
-            elemSize = sizeof(double);
-            break;
-        // Complex (real+imaginary)
-        case kOCNumberComplex64Type:
-            elemSize = 2 * sizeof(float);
-            break;
-        case kOCNumberComplex128Type:
-            elemSize = 2 * sizeof(double);
-            break;
-        default:
-            // Should never happen if numericType is valid
-            elemSize = 0;
-            break;
+    // get byte-size per element using OCNumberTypeSize
+    size_t elemSize = OCNumberTypeSize(dv->numericType);
+    if (elemSize == 0) {
+        return false;  // invalid numeric type
     }
     OCIndex newByteLen = newSize * elemSize;
     // if shrinking, just cut each buffer down
