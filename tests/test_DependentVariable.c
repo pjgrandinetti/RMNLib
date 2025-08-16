@@ -241,7 +241,7 @@ bool test_DependentVariable_sparse_sampling(void) {
     DependentVariableRef dv = _make_internal_scalar(10);
     TEST_ASSERT(dv);
     // initially none
-    TEST_ASSERT(DependentVariableGetSparseSampling(dv) == NULL);
+    TEST_ASSERT(DependentVariableCopySparseSampling(dv) == NULL);
     // build a sparse‐sampling object
     OCMutableIndexSetRef dims = OCIndexSetCreateMutable();
     OCIndexSetAddIndex(dims, 1);
@@ -263,12 +263,13 @@ bool test_DependentVariable_sparse_sampling(void) {
     TEST_ASSERT(ss != NULL);
     // attach to DV
     TEST_ASSERT(DependentVariableSetSparseSampling(dv, ss));
-    // retrieve and inspect
-    SparseSamplingRef got = DependentVariableGetSparseSampling(dv);
+    // retrieve and inspect (note: CopySparseSampling returns a copy that we must release)
+    SparseSamplingRef got = DependentVariableCopySparseSampling(dv);
     TEST_ASSERT(got);
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(got) == kOCNumberUInt16Type);
     TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(got), STR("base64")));
     TEST_ASSERT(OCStringEqual(SparseSamplingGetDescription(got), STR("sparse-desc")));
+    OCRelease(got);  // Release the copy returned by DependentVariableCopySparseSampling
     OCRelease(ss);
     ok = true;
 cleanup:

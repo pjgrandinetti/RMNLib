@@ -584,7 +584,7 @@ bool test_SparseSampling_with_dataset(void) {
     TEST_ASSERT(error == NULL);
     // Set sparse sampling on the dependent variable
     DependentVariableSetSparseSampling(dv, ss);
-    SparseSamplingRef retrievedSS = DependentVariableGetSparseSampling(dv);
+    SparseSamplingRef retrievedSS = DependentVariableCopySparseSampling(dv);
     TEST_ASSERT(retrievedSS != NULL);
     // TEST_ASSERT(OCTypeEqual(retrievedSS, ss)); // Skip OCTypeEqual for now
     // Verify sparse sampling properties match
@@ -599,6 +599,7 @@ cleanup:
     OCRelease(dimIndexes);
     OCRelease(vertices);
     OCRelease(ss);
+    OCRelease(retrievedSS);  // Release the copy returned by DependentVariableCopySparseSampling
     OCRelease(components);
     OCRelease(data);
     OCRelease(dv);
