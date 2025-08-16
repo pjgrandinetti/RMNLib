@@ -74,6 +74,9 @@ int main(void) {
     if (!test_DependentVariable_arithmetic_edge_cases()) failures++;
     if (!test_DependentVariable_arithmetic_large_scale()) failures++;
     if (!test_DependentVariable_arithmetic_integer_types()) failures++;
+    if (!test_DependentVariable_copy_component_labels()) failures++;
+    if (!test_DependentVariable_copy_component_label_at_index()) failures++;
+    if (!test_DependentVariable_copy_component_at_index()) failures++;
     fprintf(stderr, "\n=== Running SparseSampling Tests ===\n");
     if (!test_SparseSampling_basic_create()) failures++;
     if (!test_SparseSampling_validation()) failures++;

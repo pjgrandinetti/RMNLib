@@ -304,10 +304,9 @@ bool DependentVariableSetOwner(DependentVariableRef dv, OCTypeRef owner);
  * @{
  */
 OCIndex DependentVariableGetComponentCount(DependentVariableRef dv);
-OCMutableArrayRef DependentVariableGetComponents(DependentVariableRef dv);
 bool DependentVariableSetComponents(DependentVariableRef dv, OCArrayRef newComponents);
 OCMutableArrayRef DependentVariableCopyComponents(DependentVariableRef dv);
-OCDataRef DependentVariableGetComponentAtIndex(DependentVariableRef dv, OCIndex idx);
+OCDataRef DependentVariableCopyComponentAtIndex(DependentVariableRef dv, OCIndex idx);
 bool DependentVariableSetComponentAtIndex(DependentVariableRef dv, OCDataRef newBuf, OCIndex idx);
 bool DependentVariableInsertComponentAtIndex(DependentVariableRef dv, OCDataRef component, OCIndex idx);
 bool DependentVariableRemoveComponentAtIndex(DependentVariableRef dv, OCIndex idx);
@@ -323,10 +322,10 @@ bool DependentVariableSetSize(DependentVariableRef dv, OCIndex newSize);
  * @name Per-component Labels
  * @{
  */
-OCArrayRef DependentVariableGetComponentLabels(DependentVariableRef dv);
+OCArrayRef DependentVariableCopyComponentLabels(DependentVariableRef dv);
 bool DependentVariableSetComponentLabels(DependentVariableRef dv, OCArrayRef labels);
 OCStringRef DependentVariableCreateComponentLabelForIndex(DependentVariableRef dv, OCIndex idx);
-OCStringRef DependentVariableGetComponentLabelAtIndex(DependentVariableRef dv, OCIndex idx);
+OCStringRef DependentVariableCopyComponentLabelAtIndex(DependentVariableRef dv, OCIndex idx);
 bool DependentVariableSetComponentLabelAtIndex(DependentVariableRef dv, OCStringRef newLabel, OCIndex idx);
 /** @} end of Per-component Labels */
 /**

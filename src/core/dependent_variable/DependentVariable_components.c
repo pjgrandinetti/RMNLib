@@ -4,6 +4,10 @@ OCArrayRef DependentVariableGetComponentLabels(DependentVariableRef dv) {
     if (!dv) return NULL;
     return (OCArrayRef)dv->componentLabels;
 }
+OCArrayRef DependentVariableCopyComponentLabels(DependentVariableRef dv) {
+    if (!dv || !dv->componentLabels) return NULL;
+    return (OCArrayRef)OCTypeDeepCopy((OCTypeRef)dv->componentLabels);
+}
 bool DependentVariableSetComponentLabels(DependentVariableRef dv, OCArrayRef labels) {
     if (!dv) return false;
     // release old labels
@@ -48,6 +52,17 @@ OCStringRef DependentVariableGetComponentLabelAtIndex(DependentVariableRef dv, O
         return NULL;
     }
     return OCArrayGetValueAtIndex(labels, componentIndex);
+}
+OCStringRef DependentVariableCopyComponentLabelAtIndex(DependentVariableRef dv, OCIndex componentIndex) {
+    if (!dv) return NULL;
+    OCArrayRef labels = (OCArrayRef)dv->componentLabels;
+    if (!labels ||
+        componentIndex < 0 ||
+        componentIndex >= OCArrayGetCount(labels)) {
+        return NULL;
+    }
+    OCStringRef label = OCArrayGetValueAtIndex(labels, componentIndex);
+    return label ? (OCStringRef)OCTypeDeepCopy((OCTypeRef)label) : NULL;
 }
 bool DependentVariableSetComponentLabelAtIndex(DependentVariableRef dv, OCStringRef newLabel, OCIndex componentIndex) {
     if (!dv || !newLabel) return false;
@@ -134,6 +149,16 @@ OCDataRef DependentVariableGetComponentAtIndex(DependentVariableRef dv, OCIndex 
         return NULL;
     return (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
 }
+
+OCDataRef DependentVariableCopyComponentAtIndex(DependentVariableRef dv, OCIndex componentIndex) {
+    if (!dv || !dv->components ||
+        componentIndex < 0 ||
+        componentIndex >= OCArrayGetCount(dv->components))
+        return NULL;
+    OCDataRef component = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
+    return component ? (OCDataRef)OCTypeDeepCopy((OCTypeRef)component) : NULL;
+}
+
 bool DependentVariableSetComponentAtIndex(DependentVariableRef dv, OCDataRef newBuf, OCIndex componentIndex) {
     if (!dv || !dv->components || !newBuf) return false;
     OCIndex n = OCArrayGetCount(dv->components);

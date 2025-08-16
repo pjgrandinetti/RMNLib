@@ -61,8 +61,13 @@ OCStringRef DependentVariableGetQuantityType(DependentVariableRef dv);
 OCStringRef DependentVariableGetQuantityName(DependentVariableRef dv);
 OCStringRef DependentVariableGetEncoding(DependentVariableRef dv);
 OCStringRef DependentVariableGetType(DependentVariableRef dv);
+OCMutableArrayRef DependentVariableGetComponents(DependentVariableRef dv);
+OCDataRef DependentVariableGetComponentAtIndex(DependentVariableRef dv, OCIndex idx);
+OCArrayRef DependentVariableGetComponentLabels(DependentVariableRef dv);
+OCStringRef DependentVariableGetComponentLabelAtIndex(DependentVariableRef dv, OCIndex idx);
 SparseSamplingRef
 DependentVariableGetSparseSampling(DependentVariableRef dv);
+
 #ifdef __cplusplus
 }
 #endif
