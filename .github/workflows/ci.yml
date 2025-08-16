@@ -24,9 +24,6 @@ jobs:
           - os: ubuntu-latest
             arch: x64
             label: ubuntu-latest.x64
-          - os: ubuntu-latest
-            arch: arm64
-            label: ubuntu-latest.arm64
           - os: macos-latest
             arch: x64
             label: macos-latest
@@ -41,27 +38,6 @@ jobs:
       - name: Download stb_image.h for cross-platform image support
         run: |
           curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
-
-      # ARM64 builds via QEMU + Docker
-      - name: Set up QEMU emulation
-        if: matrix.arch == 'arm64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: linux/arm64
-      - name: Install QEMU binfmt handlers
-        if: matrix.arch == 'arm64'
-        run: docker run --rm --privileged tonistiigi/binfmt --install all
-      - name: Build & test in ARM64 container
-        if: matrix.arch == 'arm64'
-        run: |
-          docker run --rm --platform=linux/arm64 \
-            -v ${{ github.workspace }}:/src -w /src ubuntu:22.04 bash -lc "\
-              apt-get update && apt-get install -y curl clang make flex bison unzip libcurl4-openssl-dev libopenblas-dev liblapacke-dev libomp-dev && \
-              curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h && \
-              make clean && \
-              make fetchlibs && \
-              make all && make test && make install-shared && \
-              ls -la install/lib/"
 
       # On Linux (x64)
       - name: Install dependencies on Ubuntu
@@ -145,9 +121,49 @@ jobs:
           name: libRMN-headers
           path: header-pkg/libRMN-headers.zip
 
+  # ARM64 Linux build: only run on releases (tags) for faster development cycles
+  build-arm64:
+    name: Build & Test (ubuntu-latest.arm64)
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Download stb_image header
+        run: |
+          curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+
+      - name: Set up QEMU emulation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
+          
+      - name: Install QEMU binfmt handlers
+        run: docker run --rm --privileged tonistiigi/binfmt --install all
+        
+      - name: Build & test in ARM64 container
+        run: |
+          docker run --rm --platform=linux/arm64 \
+            -v ${{ github.workspace }}:/src -w /src ubuntu:22.04 bash -lc "\
+              apt-get update && apt-get install -y curl clang make flex bison unzip libcurl4-openssl-dev libopenblas-dev liblapacke-dev libomp-dev && \
+              curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h && \
+              make clean && \
+              make fetchlibs && \
+              make all && make test && make install-shared && \
+              ls -la install/lib/"
+
+      - name: Upload library artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libRMN-ubuntu-latest.arm64
+          path: |
+            install/lib/libRMN.a
+            install/lib/libRMN.*
+
   release:
     name: Package & Release
-    needs: build
+    needs: [build, build-arm64]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
