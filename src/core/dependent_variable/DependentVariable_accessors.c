@@ -361,6 +361,10 @@ bool DependentVariableSetOwner(DependentVariableRef dv, OCTypeRef owner) {
 SparseSamplingRef DependentVariableGetSparseSampling(DependentVariableRef dv) {
     return dv ? dv->sparseSampling : NULL;
 }
+SparseSamplingRef DependentVariableCopySparseSampling(DependentVariableRef dv) {
+    if (!dv || !dv->sparseSampling) return NULL;
+    return (SparseSamplingRef)OCTypeDeepCopyMutable(dv->sparseSampling);
+}
 bool DependentVariableSetSparseSampling(DependentVariableRef dv,
                                         SparseSamplingRef ss) {
     if (!dv) return false;

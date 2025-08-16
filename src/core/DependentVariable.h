@@ -291,7 +291,7 @@ bool DependentVariableSetNumericType(DependentVariableRef dv, OCNumberType newTy
  * @{
  */
 SparseSamplingRef
-DependentVariableGetSparseSampling(DependentVariableRef dv);
+DependentVariableCopySparseSampling(DependentVariableRef dv);
 bool DependentVariableSetSparseSampling(DependentVariableRef dv,
                                         SparseSamplingRef ss);
 /** @} end of Sparse-sampling Accessors */
