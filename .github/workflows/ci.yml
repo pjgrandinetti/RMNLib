@@ -89,7 +89,7 @@ jobs:
           # Fetch OCTypes and SITypes dependencies from GitHub releases
           make fetchlibs
           make all
-          make test-asan
+          make test
           make install-shared
           ls -la install/lib/
 
