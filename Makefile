@@ -3,14 +3,12 @@
 .DEFAULT_GOAL := all
 .SUFFIXES:
 
-# Detect OS early for various decisions
+#──────── OS / toolchain detection ────────
 UNAME_S := $(shell uname -s)
 ARCH    := $(shell uname -m)
 
-# Tools
-# Use LLVM Clang with OpenMP on macOS by default, but allow override via CC environment variable
+# Compiler (prefer Homebrew LLVM on macOS if present, override with CC=..)
 ifeq ($(origin CC),default)
-  # Default case: use LLVM Clang if available on macOS
   ifeq ($(UNAME_S),Darwin)
     ifneq (,$(wildcard /opt/homebrew/opt/llvm/bin/clang))
       CC := /opt/homebrew/opt/llvm/bin/clang
@@ -21,21 +19,20 @@ ifeq ($(origin CC),default)
     CC := clang
   endif
 endif
-AR      := ar
-LEX     := flex
-YACC    := bison
-YFLAGS  := -d
 
-# Prefer curl-config, fall back to pkg-config, then -lcurl
+AR     := ar
+LEX    := flex
+YACC   := bison
+YFLAGS := -d
+
+# curl (prefer curl-config, fall back to pkg-config, then -lcurl)
 CURL_CFLAGS := $(shell curl-config --cflags 2>/dev/null || pkg-config --cflags libcurl 2>/dev/null)
 CURL_LIBS   := $(shell curl-config --libs   2>/dev/null || pkg-config --libs   libcurl 2>/dev/null || echo -lcurl)
 
 RM      := rm -f
 MKDIR_P := mkdir -p
-# Xcode build directory under RMNLib
-XCODE_BUILD := $(CURDIR)/build-xcode
 
-# Directories
+#──────── Layout ────────
 SRC_DIR         := src
 TEST_SRC_DIR    := tests
 BUILD_DIR       := build
@@ -43,24 +40,28 @@ OBJ_DIR         := $(BUILD_DIR)/obj
 GEN_DIR         := $(BUILD_DIR)/gen
 BIN_DIR         := $(BUILD_DIR)/bin
 LIB_DIR         := $(BUILD_DIR)/lib
+
 THIRD_PARTY_DIR := third_party
 TP_LIB_DIR      := $(THIRD_PARTY_DIR)/lib
 INCLUDE_DIR     := $(THIRD_PARTY_DIR)/include
 OCT_INCLUDE     := $(INCLUDE_DIR)/OCTypes
 SIT_INCLUDE     := $(INCLUDE_DIR)/SITypes
+OCT_LIBDIR      := $(TP_LIB_DIR)
+SIT_LIBDIR      := $(TP_LIB_DIR)
 
-# Include and library paths
-OCT_LIBDIR  := $(TP_LIB_DIR)
-SIT_LIBDIR  := $(TP_LIB_DIR)
+REQUIRED_DIRS := \
+  $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(LIB_DIR) \
+  $(THIRD_PARTY_DIR) $(TP_LIB_DIR) $(INCLUDE_DIR) $(OCT_INCLUDE) $(SIT_INCLUDE) \
+  $(OBJ_DIR)/core $(OBJ_DIR)/core/dependent_variable $(OBJ_DIR)/core/dimension \
+  $(OBJ_DIR)/importers $(OBJ_DIR)/spectroscopy $(OBJ_DIR)/utils
 
-# All required directories
-REQUIRED_DIRS := $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(LIB_DIR) $(THIRD_PARTY_DIR) \
-                 $(OBJ_DIR)/core $(OBJ_DIR)/core/dependent_variable $(OBJ_DIR)/core/dimension $(OBJ_DIR)/importers $(OBJ_DIR)/spectroscopy $(OBJ_DIR)/utils
+#──────── Flags ────────
+CPPFLAGS := -I. -I$(SRC_DIR) -I$(SRC_DIR)/core -I$(SRC_DIR)/core/dependent_variable \
+            -I$(SRC_DIR)/core/dimension -I$(SRC_DIR)/importers -I$(SRC_DIR)/spectroscopy \
+            -I$(SRC_DIR)/utils -I$(SRC_DIR)/third_party -I$(TEST_SRC_DIR) \
+            -I$(OCT_INCLUDE) -I$(SIT_INCLUDE) $(CURL_CFLAGS)
 
-# Flags
-CPPFLAGS := -I. -I$(SRC_DIR) -I$(SRC_DIR)/core -I$(SRC_DIR)/core/dependent_variable -I$(SRC_DIR)/core/dimension -I$(SRC_DIR)/importers -I$(SRC_DIR)/spectroscopy \
-            -I$(SRC_DIR)/utils -I$(SRC_DIR)/third_party -I$(TEST_SRC_DIR) -I$(OCT_INCLUDE) -I$(SIT_INCLUDE)
-# Add LLVM/OpenMP include paths on macOS if available
+# macOS includes for LLVM/OpenMP if installed
 ifeq ($(UNAME_S),Darwin)
   ifneq (,$(wildcard /opt/homebrew/opt/llvm/include))
     CPPFLAGS += -I/opt/homebrew/opt/llvm/include
@@ -69,13 +70,12 @@ ifeq ($(UNAME_S),Darwin)
     CPPFLAGS += -I/opt/homebrew/opt/libomp/include
   endif
 endif
-CFLAGS   := -fPIC -O3 -Wall -Wextra \
-             -Wno-sign-compare -Wno-unused-parameter \
-             -Wno-missing-field-initializers -Wno-unused-function \
-             -MMD -MP -DSTB_IMAGE_AVAILABLE
+
+CFLAGS   := -fPIC -O3 -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter \
+            -Wno-missing-field-initializers -Wno-unused-function -MMD -MP -DSTB_IMAGE_AVAILABLE
 CFLAGS_DEBUG := -fPIC -O0 -g -Wall -Wextra -Werror -MMD -MP
 
-# Detect OS for BLAS/LAPACK and macOS deprecation silence
+# BLAS / LAPACK
 ifeq ($(UNAME_S),Darwin)
   CFLAGS       += -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64
   BLAS_LDFLAGS := -framework Accelerate
@@ -83,11 +83,12 @@ else ifeq ($(UNAME_S),Linux)
   BLAS_LDFLAGS := -lopenblas -llapacke
 else ifneq ($(findstring MINGW,$(UNAME_S)),)
   BLAS_LDFLAGS := -lopenblas -lm
-  # OpenBLAS headers on MSYS2 live under /mingw64/include/openblas
   CPPFLAGS     += -I/mingw64/include/openblas
+else
+  BLAS_LDFLAGS :=
 endif
 
-# Linux-specific linker grouping for circular dependencies
+# Linker group flags for Linux to resolve circular deps
 ifeq ($(UNAME_S),Linux)
   GROUP_START := -Wl,--start-group
   GROUP_END   := -Wl,--end-group
@@ -96,45 +97,10 @@ else
   GROUP_END   :=
 endif
 
-ifeq ($(UNAME_S),Darwin)
-  # Prefer static link on macOS to avoid @rpath runtime issues
-  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
-  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
-  # Shared library configuration for macOS
-  SHLIB_EXT      = .dylib
-  SHLIB_FLAGS    = -dynamiclib -fPIC
-  SHLIB_LDFLAGS  = -install_name @rpath/libRMN.dylib
-else ifeq ($(UNAME_S),Linux)
-  # Prefer static link on Linux to avoid runtime loader issues with .so resolution
-  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
-  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
-  # Shared library configuration for Linux
-  SHLIB_EXT      = .so
-  SHLIB_FLAGS    = -shared -fPIC
-  SHLIB_LDFLAGS  =
-else ifneq ($(findstring MINGW,$(UNAME_S)),)
-  # Prefer static link on Windows to avoid DLL deployment issues
-  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
-  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
-  # Shared library configuration for Windows
-  SHLIB_EXT      = .dll
-  SHLIB_FLAGS    = -shared
-  SHLIB_LDFLAGS  = -Wl,--out-implib=$(LIB_DIR)/libRMN.dll.a
-else
-  OCTYPES_LINKLIB := -lOCTypes
-  SITYPES_LINKLIB := -lSITypes
-  SHLIB_EXT      = .so
-  SHLIB_FLAGS    = -shared -fPIC
-  SHLIB_LDFLAGS  =
-endif
-SHLIB = $(LIB_DIR)/libRMN$(SHLIB_EXT)
-
-# Detect OpenMP support (optional for parallel processing)
-# Test if compiler supports OpenMP by attempting compilation
+# OpenMP detection
 OPENMP_TEST := $(shell echo 'int main(){return 0;}' | $(CC) -fopenmp -x c - -o /dev/null 2>/dev/null && echo yes)
 ifeq ($(OPENMP_TEST),yes)
-  CFLAGS       += -fopenmp
-  # Set OpenMP linking flags based on OS and available libraries
+  CFLAGS += -fopenmp
   ifeq ($(UNAME_S),Darwin)
     ifneq (,$(wildcard /opt/homebrew/opt/libomp/lib))
       OPENMP_LDFLAGS := -fopenmp -L/opt/homebrew/opt/libomp/lib
@@ -144,14 +110,52 @@ ifeq ($(OPENMP_TEST),yes)
   else
     OPENMP_LDFLAGS := -fopenmp
   endif
-  $(info OpenMP found - enabling parallel processing)
 else
   OPENMP_LDFLAGS :=
-  $(info OpenMP not found - using sequential processing)
 endif
 
-# OS-specific library ZIP selection (must come before Archives definitions)
-# Treat both aarch64 and arm64 as ARM on Linux
+#──────── Shared library settings + how to link OCTypes/SITypes ────────
+ifeq ($(UNAME_S),Darwin)
+  SHLIB_EXT     = .dylib
+  SHLIB_FLAGS   = -dynamiclib -fPIC
+  SHLIB_LDFLAGS = -install_name @rpath/libRMN.dylib
+  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
+  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+else ifeq ($(UNAME_S),Linux)
+  SHLIB_EXT     = .so
+  SHLIB_FLAGS   = -shared -fPIC
+  SHLIB_LDFLAGS =
+  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
+  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+else ifneq ($(findstring MINGW,$(UNAME_S)),)
+  SHLIB_EXT     = .dll
+  SHLIB_FLAGS   = -shared
+  SHLIB_LDFLAGS = -Wl,--out-implib=$(LIB_DIR)/libRMN.dll.a
+  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
+  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+else
+  SHLIB_EXT     = .so
+  SHLIB_FLAGS   = -shared -fPIC
+  SHLIB_LDFLAGS =
+  OCTYPES_LINKLIB := -lOCTypes
+  SITYPES_LINKLIB := -lSITypes
+endif
+
+SHLIB := $(LIB_DIR)/libRMN$(SHLIB_EXT)
+
+#──────── Source discovery ────────
+STATIC_SRC := \
+  $(wildcard $(SRC_DIR)/*.c) \
+  $(wildcard $(SRC_DIR)/core/*.c) \
+  $(wildcard $(SRC_DIR)/core/dependent_variable/*.c) \
+  $(wildcard $(SRC_DIR)/core/dimension/*.c) \
+  $(wildcard $(SRC_DIR)/importers/*.c) \
+  $(wildcard $(SRC_DIR)/spectroscopy/*.c) \
+  $(wildcard $(SRC_DIR)/utils/*.c)
+
+OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(STATIC_SRC))
+
+#──────── Release asset names for OCTypes/SITypes ────────
 ifeq ($(UNAME_S),Darwin)
   OCT_LIB_BIN := libOCTypes-macos-latest.zip
   SIT_LIB_BIN := libSITypes-macos-latest.zip
@@ -168,18 +172,18 @@ else ifneq ($(findstring MINGW,$(UNAME_S)),)
   SIT_LIB_BIN := libSITypes-windows-latest.zip
 endif
 
-# Archives
 OCT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(OCT_LIB_BIN)
 OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
 SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
 SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
-.PHONY: all dirs clean prepare octypes sitypes test test-asan docs doxygen html install install-shared shared synclib fetchlibs update-deps clean-third-party FORCE test-imports test-all test-imports-asan help
+#──────── Phony targets ────────
+.PHONY: all dirs clean clean-third-party update-deps fetchlibs octypes sitypes \
+        test test-imports test-all test-asan test-imports-asan \
+        doxygen html docs install install-shared shared synclib \
+        xcode xcode-open xcode-run help FORCE
 
-fetchlibs: octypes sitypes
-	@echo "Both OCTypes and SITypes libraries are up to date."
-
-# Only fetch third-party libs when third_party is empty
+# Only fetch third_party when empty (speedy rebuilds)
 EMPTY_TP := $(shell [ -d $(THIRD_PARTY_DIR) ] && [ -z "$(wildcard $(THIRD_PARTY_DIR)/*)" ] && echo 1)
 ifeq ($(EMPTY_TP),1)
 TP_DEPS := octypes sitypes
@@ -187,212 +191,133 @@ else
 TP_DEPS :=
 endif
 
-all: dirs $(TP_DEPS) prepare $(LIB_DIR)/libRMN.a $(SHLIB)
-
-#──────────── Dependencies refresh helpers ────────────
-clean-third-party:
-	$(RM) -r $(THIRD_PARTY_DIR)
-
-update-deps: clean-third-party
-	@echo "Purged $(THIRD_PARTY_DIR). Fetching latest OCTypes/SITypes..."
-	$(MAKE) octypes sitypes
-
-# Directories
+all: dirs $(TP_DEPS) $(LIB_DIR)/libRMN.a $(SHLIB)
 
 dirs: $(REQUIRED_DIRS)
-
 $(REQUIRED_DIRS):
 	$(MKDIR_P) $@
 
-# Define object files - collect from all subdirectories
-STATIC_SRC := $(wildcard $(SRC_DIR)/*.c) \
-              $(wildcard $(SRC_DIR)/core/*.c) \
-              $(wildcard $(SRC_DIR)/core/dependent_variable/*.c) \
-              $(wildcard $(SRC_DIR)/core/dimension/*.c) \
-              $(wildcard $(SRC_DIR)/importers/*.c) \
-              $(wildcard $(SRC_DIR)/spectroscopy/*.c) \
-              $(wildcard $(SRC_DIR)/utils/*.c)
-
-# Map all source files to object files, preserving directory structure
-OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(STATIC_SRC))
-
-# Always check for newer release assets when fetching (curl -z avoids re-download when unchanged)
+#──────── Download OCTypes/SITypes (latest releases) ────────
 FORCE:
 
-# Download and extract OCTypes
-octypes: $(TP_LIB_DIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes.h
+fetchlibs: octypes sitypes
+	@echo "Both OCTypes and SITypes libraries are up to date."
 
+update-deps: clean-third-party
+	@echo "Purged $(THIRD_PARTY_DIR). Fetching latest OCTypes/SITypes…"
+	$(MAKE) octypes sitypes
+
+clean-third-party:
+	$(RM) -r $(THIRD_PARTY_DIR)
+
+# Archives
 $(OCT_LIB_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
-	@echo "Fetching OCTypes library (latest): $(OCT_LIB_BIN)"
+	@echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
 	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
-		https://github.com/pjgrandinetti/OCTypes/releases/latest/download/$(OCT_LIB_BIN)
+	  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/$(OCT_LIB_BIN)
 
 $(OCT_HEADERS_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
-	@echo "Fetching OCTypes headers (latest)"
+	@echo "Fetching OCTypes headers"
 	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
-		https://github.com/pjgrandinetti/OCTypes/releases/latest/download/libOCTypes-headers.zip
-
-# Platform detection for shell vs PowerShell
-IS_MINGW := $(findstring MINGW,$(UNAME_S))
-
-# Ensure third-party lib and include dirs exist
-$(TP_LIB_DIR) $(OCT_INCLUDE) $(SIT_INCLUDE):
-	$(MKDIR_P) $@
-
-# ──────────────── OCTypes library ─────────────────
-$(TP_LIB_DIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE) | $(TP_LIB_DIR)
-ifeq ($(IS_MINGW),)
-	@echo "Extracting OCTypes library (linux/macOS)"
-	@unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"
-else
-	@echo "Extracting OCTypes library (Windows)"
-	@powershell -NoProfile -Command \
-	  "Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force"
-endif
-
-# ──────────────── OCTypes headers ─────────────────
-$(OCT_INCLUDE)/OCTypes.h: $(OCT_HEADERS_ARCHIVE) | $(OCT_INCLUDE)
-ifeq ($(IS_MINGW),)
-	@echo "Extracting OCTypes headers (linux/macOS)"
-	@unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"
-else
-	@echo "Extracting OCTypes headers (Windows)"
-	@powershell -NoProfile -Command \
-	  "Expand-Archive -Path '$<' -DestinationPath '$(OCT_INCLUDE)' -Force"
-endif
-
-# Download and extract SITypes
-sitypes: $(TP_LIB_DIR)/libSITypes.a $(SIT_INCLUDE)/SITypes.h
+	  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/libOCTypes-headers.zip
 
 $(SIT_LIB_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
-	@echo "Fetching SITypes library (latest): $(SIT_LIB_BIN)"
+	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
 	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
-		https://github.com/pjgrandinetti/SITypes/releases/latest/download/$(SIT_LIB_BIN)
+	  https://github.com/pjgrandinetti/SITypes/releases/latest/download/$(SIT_LIB_BIN)
 
 $(SIT_HEADERS_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
-	@echo "Fetching SITypes headers (latest)"
+	@echo "Fetching SITypes headers"
 	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
-		https://github.com/pjgrandinetti/SITypes/releases/latest/download/libSITypes-headers.zip
+	  https://github.com/pjgrandinetti/SITypes/releases/latest/download/libSITypes-headers.zip
 
-# ──────────────── SITypes library ─────────────────
-$(TP_LIB_DIR)/libSITypes.a: $(SIT_LIB_ARCHIVE) | $(TP_LIB_DIR)
+# Platform detection for extraction
+IS_MINGW := $(findstring MINGW,$(UNAME_S))
+
+# OCTypes
+octypes: $(TP_LIB_DIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes.h
+$(TP_LIB_DIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE) | $(TP_LIB_DIR)
 ifeq ($(IS_MINGW),)
-	@echo "Extracting SITypes library (linux/macOS)"
+	@echo "Extracting OCTypes library (unix unzip)"
 	@unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"
 else
-	@echo "Extracting SITypes library (Windows)"
-	@powershell -NoProfile -Command \
-	  "Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force"
+	@echo "Extracting OCTypes library (PowerShell)"
+	@powershell -NoProfile -Command "Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force"
 endif
 
-# ──────────────── SITypes headers ─────────────────
+$(OCT_INCLUDE)/OCTypes.h: $(OCT_HEADERS_ARCHIVE) | $(OCT_INCLUDE)
+ifeq ($(IS_MINGW),)
+	@echo "Extracting OCTypes headers (unix unzip)"
+	@unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"
+else
+	@echo "Extracting OCTypes headers (PowerShell)"
+	@powershell -NoProfile -Command "Expand-Archive -Path '$<' -DestinationPath '$(OCT_INCLUDE)' -Force"
+endif
+
+# SITypes
+sitypes: $(TP_LIB_DIR)/libSITypes.a $(SIT_INCLUDE)/SITypes.h
+$(TP_LIB_DIR)/libSITypes.a: $(SIT_LIB_ARCHIVE) | $(TP_LIB_DIR)
+ifeq ($(IS_MINGW),)
+	@echo "Extracting SITypes library (unix unzip)"
+	@unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"
+else
+	@echo "Extracting SITypes library (PowerShell)"
+	@powershell -NoProfile -Command "Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force"
+endif
+
 $(SIT_INCLUDE)/SITypes.h: $(SIT_HEADERS_ARCHIVE) | $(SIT_INCLUDE)
 ifeq ($(IS_MINGW),)
-	@echo "Extracting SITypes headers (linux/macOS)"
+	@echo "Extracting SITypes headers (unix unzip)"
 	@unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"
 else
-	@echo "Extracting SITypes headers (Windows)"
-	@powershell -NoProfile -Command \
-	  "Expand-Archive -Path '$<' -DestinationPath '$(SIT_INCLUDE)' -Force"
+	@echo "Extracting SITypes headers (PowerShell)"
+	@powershell -NoProfile -Command "Expand-Archive -Path '$<' -DestinationPath '$(SIT_INCLUDE)' -Force"
 endif
 
-prepare:
-	@echo "Preparing generated files"
+#──────── Build rules ────────
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs octypes sitypes
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-# Build static library
+# Static library
 $(LIB_DIR)/libRMN.a: $(OBJ)
 	$(AR) rcs $@ $^
 
-# Build shared library
+# Shared library (link against OCTypes/SITypes + BLAS/OpenMP/curl)
 $(SHLIB): $(OBJ) | dirs octypes sitypes
-ifneq ($(findstring MINGW,$(UNAME_S)),)
-	$(CC) $(CFLAGS) $(SHLIB_FLAGS) $(SHLIB_LDFLAGS) -o $@ $(filter %.o,$^) $(OCTYPES_LINKLIB) $(SITYPES_LINKLIB) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm $(CURL_LIBS)
-else
-	$(CC) $(CFLAGS) $(SHLIB_FLAGS) $(SHLIB_LDFLAGS) -o $@ $(filter %.o,$^) -L$(OCT_LIBDIR) -L$(SIT_LIBDIR) -lOCTypes -lSITypes $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm $(CURL_LIBS)
-endif
+	$(CC) $(CFLAGS) $(SHLIB_FLAGS) $(SHLIB_LDFLAGS) -o $@ \
+	  $(filter %.o,$^) $(OCTYPES_LINKLIB) $(SITYPES_LINKLIB) \
+	  $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm $(CURL_LIBS)
 
-# Convenience target for shared library
 shared: $(SHLIB)
 
-# Test sources and objects
+#──────── Tests (core, imports, all) ────────
 TEST_SRC := $(wildcard $(TEST_SRC_DIR)/*.c)
-
-# Core test sources (excluding import tests)
 CORE_TEST_SRC := $(filter-out $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/main_all.c, $(TEST_SRC))
 CORE_TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(CORE_TEST_SRC))
-
-# Import test sources
-IMPORT_TEST_SRC := $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/test_CSDM.c $(TEST_SRC_DIR)/test_Image.c $(TEST_SRC_DIR)/test_JCAMP.c $(TEST_SRC_DIR)/test_Tecmag.c $(TEST_SRC_DIR)/test_utils.c
+IMPORT_TEST_SRC := $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/test_CSDM.c $(TEST_SRC_DIR)/test_Image.c \
+                   $(TEST_SRC_DIR)/test_JCAMP.c $(TEST_SRC_DIR)/test_Tecmag.c $(TEST_SRC_DIR)/test_utils.c
 IMPORT_TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(IMPORT_TEST_SRC))
-
-# All tests sources (core + imports using main_all.c)
-ALL_TEST_SRC := $(filter-out $(TEST_SRC_DIR)/main.c $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/main_all.c, $(TEST_SRC)) $(TEST_SRC_DIR)/main_all.c
+ALL_TEST_SRC := $(filter-out $(TEST_SRC_DIR)/main.c $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/main_all.c, $(TEST_SRC)) \
+                $(TEST_SRC_DIR)/main_all.c
 ALL_TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(ALL_TEST_SRC))
 
-# 1) FIRST: compile tests/*.c
 $(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs octypes sitypes
-	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-# 2) THEN: compile src/*.c and all subdirectories
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | dirs octypes sitypes
-	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
-
-# Subdirectory compilation rules
-$(OBJ_DIR)/core/%.o: $(SRC_DIR)/core/%.c | dirs octypes sitypes
-	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
-
-$(OBJ_DIR)/core/dependent_variable/%.o: $(SRC_DIR)/core/dependent_variable/%.c | dirs octypes sitypes
-	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
-
-$(OBJ_DIR)/core/dimension/%.o: $(SRC_DIR)/core/dimension/%.c | dirs octypes sitypes
-	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
-
-$(OBJ_DIR)/importers/%.o: $(SRC_DIR)/importers/%.c | dirs octypes sitypes
-	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
-
-$(OBJ_DIR)/spectroscopy/%.o: $(SRC_DIR)/spectroscopy/%.c | dirs octypes sitypes
-	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
-
-$(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c | dirs octypes sitypes
-	$(CC) $(CPPFLAGS) $(CURL_CFLAGS) $(CFLAGS) -c -o $@ $<
-
-# Core test binary (fast tests without imports)
 $(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(CORE_TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(CORE_TEST_OBJ) \
-		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
-		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
-		-o $@
+	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
+	  $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
 
-# Import test binary (slow import tests)
 $(BIN_DIR)/runImportTests: $(LIB_DIR)/libRMN.a $(IMPORT_TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(IMPORT_TEST_OBJ) \
-		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
-		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
-		-o $@
+	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
+	  $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
 
-# All tests binary (both core and import tests) - use main_all.c
 $(BIN_DIR)/runAllTests: $(LIB_DIR)/libRMN.a $(ALL_TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(ALL_TEST_OBJ) \
-		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
-		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
-		-o $@
-
-# AddressSanitizer core test binary
-$(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(CORE_TEST_OBJ) octypes sitypes
-	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(CORE_TEST_OBJ) \
-		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
-		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
-		-o $@
-
-# AddressSanitizer import test binary
-$(BIN_DIR)/runImportTests.asan: $(LIB_DIR)/libRMN.a $(IMPORT_TEST_OBJ) octypes sitypes
-	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(IMPORT_TEST_OBJ) \
-		$(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) $(CURL_LIBS) \
-		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
-		-o $@
-
-# Test runners
-.PHONY: test test-imports test-all test-asan test-imports-asan
+	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
+	  $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
 
 test: $(BIN_DIR)/runTests
 	@echo "Running core tests (fast, no imports)"
@@ -406,86 +331,42 @@ test-all: $(BIN_DIR)/runAllTests
 	@echo "Running all tests (core + imports) with TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
 	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
+$(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(CORE_TEST_OBJ) octypes sitypes
+	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(CORE_TEST_OBJ) \
+	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
+	  $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
+
+$(BIN_DIR)/runImportTests.asan: $(LIB_DIR)/libRMN.a $(IMPORT_TEST_OBJ) octypes sitypes
+	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(IMPORT_TEST_OBJ) \
+	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
+	  $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
+
 test-asan: $(BIN_DIR)/runTests.asan
-	@echo "Running ASan core tests with leak tracking (fast, no imports)"
+	@echo "Running ASan core tests with leak tracking (fast)"
 	OC_LEAK_TRACKING=1 $<
 
 test-imports-asan: $(BIN_DIR)/runImportTests.asan
-	@echo "Running ASan import tests with leak tracking (slow) with TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
+	@echo "Running ASan import tests with leak tracking (slow) TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
 	OC_LEAK_TRACKING=1 CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
-.PHONY: help
-help:
-	@echo "Available test targets:"
-	@echo "  test                - Run core tests only (fast, no file imports)"
-	@echo "  test-imports        - Run import tests only (slow, tests file importers)"
-	@echo "  test-all            - Run all tests (core + imports, comprehensive)"
-	@echo "  test-asan           - Run core tests with AddressSanitizer"
-	@echo "  test-imports-asan   - Run import tests with AddressSanitizer"
-	@echo ""
-	@echo "Dependency helpers:"
-	@echo "  fetchlibs           - Check & fetch latest OCTypes/SITypes"
-	@echo "  update-deps         - Purge third_party and refetch latest"
-	@echo ""
-	@echo "Examples:"
-	@echo "  make test                         # Quick core tests"
-	@echo "  OC_LEAK_TRACKING=1 make test     # Core tests with OCTypes leak tracking"
-	@echo "  OC_LEAK_TRACKING=1 make test-all # All tests with leak tracking"
-
-clean:
-	$(RM) -r $(BUILD_DIR) libRMN.a $(LIB_DIR)/libRMN$(SHLIB_EXT) $(LIB_DIR)/libRMN.dll.a
-	$(RM) -rf $(THIRD_PARTY_DIR)
-
-# Determine repository root and Xcode build dir
-ROOT_DIR := $(shell cd $(dir $(firstword $(MAKEFILE_LIST))).. && pwd)
-TEST_DATA_ROOT := $(ROOT_DIR)/RMNLib/tests/CSDM-TestFiles-1.0
-
-#────────────────────────────────────────────────────────────────────────────
-# Xcode support
-#────────────────────────────────────────────────────────────────────────────
-.PHONY: xcode xcode-open xcode-run
-# Combined Xcode workspace for OCTypes, SITypes, and RMNLib
-xcode: clean dirs
-	@echo "Generating combined Xcode workspace for OCTypes, SITypes & RMNLib in $(XCODE_BUILD)"
-	@mkdir -p $(XCODE_BUILD)
-	@cmake -G "Xcode" -S $(ROOT_DIR) -B $(XCODE_BUILD)
-	@echo "✅ Xcode workspace created: $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj"
-
-xcode-open: xcode
-	@echo "Opening Xcode project..."
-	open $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj
-
-xcode-run: xcode
-	@echo "Building RMNLib (and dependencies) inside Xcode workspace..."
-	xcodebuild -project $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj \
-	           -configuration Debug \
-	           -scheme RMNLib \
-	           -destination 'platform=macOS' \
-		build | xcpretty || true
-
-#────────────────────────────────────────────────────────────────────────────
-# Documentation
-#────────────────────────────────────────────────────────────────────────────
-.PHONY: doxygen
+#──────── Docs ────────
+.PHONY: doxygen html docs
 
 doxygen:
-	@echo "Generating Doxygen XML..."
+	@echo "Generating Doxygen XML…"
 	@cd docs && doxygen Doxyfile
 
-.PHONY: html
 html: doxygen
-	@echo "Building Sphinx HTML..."
+	@echo "Building Sphinx HTML…"
 	@cd docs && sphinx-build -b html . _build/html
 
-.PHONY: docs
 docs: html
 
-# Install target: package headers and library
-INSTALL_DIR := install
-INSTALL_LIB_DIR := $(INSTALL_DIR)/lib
-INSTALL_INC_DIR := $(INSTALL_DIR)/include/RMNLib
+#──────── Install (preserve header subfolders) ────────
+INSTALL_DIR      := install
+INSTALL_LIB_DIR  := $(INSTALL_DIR)/lib
+INSTALL_INC_DIR  := $(INSTALL_DIR)/include/RMNLib
 
-.PHONY: install
 install: all
 	$(MKDIR_P) $(INSTALL_LIB_DIR) $(INSTALL_INC_DIR)
 	cp $(LIB_DIR)/libRMN.a $(INSTALL_LIB_DIR)/
@@ -493,47 +374,76 @@ install: all
 ifneq ($(findstring MINGW,$(UNAME_S)),)
 	@if [ -f $(LIB_DIR)/libRMN.dll.a ]; then cp $(LIB_DIR)/libRMN.dll.a $(INSTALL_LIB_DIR)/; fi
 endif
-	cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
-	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
-	# Copy only public headers (exclude *_private.h)
-	find src/core -name "*.h" -not -name "*_private.h" -exec cp {} $(INSTALL_INC_DIR)/core/ \;
-	 cp src/importers/*.h $(INSTALL_INC_DIR)/importers/
-	 cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/spectroscopy/
-	 cp src/utils/*.h $(INSTALL_INC_DIR)/utils/
-
-# Install both static and shared libraries
-.PHONY: install-shared
-install-shared: $(LIB_DIR)/libRMN.a $(SHLIB)
-	$(MKDIR_P) $(INSTALL_LIB_DIR) $(INSTALL_INC_DIR)
-	 cp $(LIB_DIR)/libRMN.a $(INSTALL_LIB_DIR)/
-	 cp $(SHLIB) $(INSTALL_LIB_DIR)/
-ifneq ($(findstring MINGW,$(UNAME_S)),)
-	@if [ -f $(LIB_DIR)/libRMN.dll.a ]; then cp $(LIB_DIR)/libRMN.dll.a $(INSTALL_LIB_DIR)/; fi
+	# Copy ONLY public headers (.h), keep folder structure, exclude *_private.h and internal folders
+ifeq ($(IS_MINGW),)
+	(cd src && tar cf - --exclude='*_private.h' --exclude='*/dependent_variable' --exclude='*/dimension' . | (cd ../$(INSTALL_INC_DIR) && tar xf -))
+	find $(INSTALL_INC_DIR) ! -name "*.h" ! -type d -delete
+else
+	@echo "Using PowerShell for Windows header copying..."
+	@powershell -NoProfile -Command " \
+	  Get-ChildItem -Path 'src' -Recurse -Include '*.h' | \
+	  Where-Object { $$_.Name -notlike '*_private.h' -and $$_.DirectoryName -notlike '*dependent_variable*' -and $$_.DirectoryName -notlike '*dimension*' } | \
+	  ForEach-Object { \
+	    $$relativePath = $$_.FullName.Substring((Get-Location).Path.Length + 5); \
+	    $$destPath = Join-Path '$(INSTALL_INC_DIR)' $$relativePath; \
+	    $$destDir = Split-Path $$destPath -Parent; \
+	    if (!(Test-Path $$destDir)) { New-Item -ItemType Directory -Path $$destDir -Force | Out-Null }; \
+	    Copy-Item $$_.FullName $$destPath -Force \
+	  }"
 endif
-	 cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
-	 $(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
-	# Copy only public headers (exclude *_private.h)
-	find src/core -name "*.h" -not -name "*_private.h" -exec cp {} $(INSTALL_INC_DIR)/core/ \;
-	 cp src/importers/*.h $(INSTALL_INC_DIR)/importers/
-	 cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/spectroscopy/
-	 cp src/utils/*.h $(INSTALL_INC_DIR)/utils/
 
-.PHONY: synclib
+install-shared: install
+
+#──────── Sync from local OCTypes/SITypes builds (optional, avoids downloads) ────────
 synclib:
-	@echo "Copying OCTypes and SITypes into third_party/lib and include..."
-	@$(MKDIR_P) $(THIRD_PARTY_DIR)
-	@$(RM) -r $(THIRD_PARTY_DIR)/lib $(THIRD_PARTY_DIR)/include
-	@$(MKDIR_P) $(THIRD_PARTY_DIR)/lib $(THIRD_PARTY_DIR)/include/OCTypes $(THIRD_PARTY_DIR)/include/SITypes
-	@cp ../OCTypes/install/lib/libOCTypes.a        $(THIRD_PARTY_DIR)/lib/
-	@if [ -f ../OCTypes/install/lib/libOCTypes.dylib ]; then cp ../OCTypes/install/lib/libOCTypes.dylib $(THIRD_PARTY_DIR)/lib/; fi
-	@if [ -f ../OCTypes/install/lib/libOCTypes.so ]; then cp ../OCTypes/install/lib/libOCTypes.so $(THIRD_PARTY_DIR)/lib/; fi
-	@if [ -f ../OCTypes/install/lib/libOCTypes.dll ]; then cp ../OCTypes/install/lib/libOCTypes.dll $(THIRD_PARTY_DIR)/lib/; fi
-	@cp ../OCTypes/install/include/OCTypes/*.h     $(THIRD_PARTY_DIR)/include/OCTypes/
-	@cp ../SITypes/install/lib/libSITypes.a        $(THIRD_PARTY_DIR)/lib/
-	@if [ -f ../SITypes/install/lib/libSITypes.dylib ]; then cp ../SITypes/install/lib/libSITypes.dylib $(THIRD_PARTY_DIR)/lib/; fi
-	@if [ -f ../SITypes/install/lib/libSITypes.so ]; then cp ../SITypes/install/lib/libSITypes.so $(THIRD_PARTY_DIR)/lib/; fi
-	@if [ -f ../SITypes/install/lib/libSITypes.dll ]; then cp ../SITypes/install/lib/libSITypes.dll $(THIRD_PARTY_DIR)/lib/; fi
-	@cp ../SITypes/install/include/SITypes/*.h     $(THIRD_PARTY_DIR)/include/SITypes/
-	@# Create dummy archives to satisfy fetch prerequisites and prevent re-fetch
+	@echo "Copying OCTypes and SITypes into third_party/lib and include…"
+	$(MKDIR_P) $(THIRD_PARTY_DIR) $(TP_LIB_DIR) $(INCLUDE_DIR) $(OCT_INCLUDE) $(SIT_INCLUDE)
+	@cp -f ../OCTypes/install/lib/libOCTypes.a $(TP_LIB_DIR)/ 2>/dev/null || true
+	@cp -f ../SITypes/install/lib/libSITypes.a $(TP_LIB_DIR)/ 2>/dev/null || true
+	@cp -f ../OCTypes/install/include/OCTypes/*.h $(OCT_INCLUDE)/ 2>/dev/null || true
+	@cp -f ../SITypes/install/include/SITypes/*.h $(SIT_INCLUDE)/ 2>/dev/null || true
+	# Touch archives so fetch step is skipped
 	@touch $(OCT_LIB_ARCHIVE) $(OCT_HEADERS_ARCHIVE) $(SIT_LIB_ARCHIVE) $(SIT_HEADERS_ARCHIVE)
+	@echo "✓ synclib complete."
+
+#──────── Xcode workspace (monorepo) ────────
+ROOT_DIR := $(shell cd $(dir $(firstword $(MAKEFILE_LIST))).. && pwd)
+XCODE_BUILD := $(CURDIR)/build-xcode
+
+xcode: clean dirs
+	@echo "Generating Xcode project in $(XCODE_BUILD)…"
+	@mkdir -p $(XCODE_BUILD)
+	@cmake -G "Xcode" -S $(ROOT_DIR) -B $(XCODE_BUILD)
+	@echo "✅ Xcode project: $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj"
+
+xcode-open: xcode
+	@echo "Opening Xcode project…"
+	open $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj
+
+xcode-run: xcode
+	@echo "Building RMNLib in Xcode…"
+	xcodebuild -project $(XCODE_BUILD)/$(notdir $(ROOT_DIR)).xcodeproj \
+	  -configuration Debug -scheme RMNLib -destination 'platform=macOS' \
+	  build | xcpretty || true
+
+#──────── Clean / help ────────
+clean:
+	$(RM) -r $(BUILD_DIR) $(THIRD_PARTY_DIR) $(INSTALL_DIR) \
+	  libRMN.a $(LIB_DIR)/libRMN$(SHLIB_EXT) $(LIB_DIR)/libRMN.dll.a
+
+TEST_DATA_ROOT := $(ROOT_DIR)/RMNLib/tests/CSDM-TestFiles-1.0
+
+help:
+	@echo "RMNLib Makefile targets:"
+	@echo "  all              Build static and shared libraries (default)"
+	@echo "  fetchlibs        Fetch OCTypes/SITypes from GitHub releases"
+	@echo "  synclib          Copy OCTypes/SITypes from ../OCTypes & ../SITypes install/"
+	@echo "  test             Run core tests (fast)"
+	@echo "  test-imports     Run import tests (slow)"
+	@echo "  test-all         Run core+imports (comprehensive)"
+	@echo "  test-asan        Core tests under AddressSanitizer (OC_LEAK_TRACKING=1)"
+	@echo "  docs             Build Doxygen+Sphinx HTML docs"
+	@echo "  install          Install libs + public headers into ./install"
+	@echo "  xcode            Generate Xcode workspace at build-xcode/"
+	@echo "  clean            Remove build and install artifacts"
 	
