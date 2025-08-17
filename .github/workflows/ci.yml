@@ -2,82 +2,79 @@ name: CI & Release
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*'
+    branches: [ main ]
+    tags: [ 'v*.*.*' ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
   packages: read
 
 jobs:
   build:
     name: Build & Test (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            arch: x64
             label: ubuntu-latest.x64
+            compiler: clang
           - os: macos-latest
-            arch: x64
             label: macos-latest
+            compiler: clang
           - os: windows-latest
-            arch: x64
             label: windows-latest
+            compiler: gcc
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
-      - name: Download stb_image.h for cross-platform image support
+      - name: Download stb_image.h
         run: |
-          curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+          curl -sSfL -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
 
-      # On Linux (x64)
+      # ---------- Linux deps ----------
       - name: Install dependencies on Ubuntu
-        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libcurl4-openssl-dev \
-            libopenblas-dev \
-            liblapacke-dev \
-            libomp-dev
+            clang make flex bison unzip \
+            libcurl4-openssl-dev libopenblas-dev liblapacke-dev libomp-dev \
+            ccache
 
-      # On macOS (x64)
-      - name: Install LLVM and OpenMP on macOS
-        if: matrix.os == 'macos-latest' && matrix.arch == 'x64'
+      # ---------- macOS deps ----------
+      - name: Install LLVM/OpenMP on macOS
+        if: runner.os == 'macOS'
         run: |
-          echo "Installing LLVM with OpenMP support for macOS"
-          brew install llvm libomp
-          echo "Using Accelerate.framework for BLAS/LAPACK on macOS"
+          brew update
+          brew install llvm libomp ccache
+          # Help the build find Homebrew LLVM on both Intel & Apple Silicon
+          echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH" || true
+          echo "/usr/local/opt/llvm/bin"     >> "$GITHUB_PATH" || true
+          echo "LDFLAGS=-L/opt/homebrew/opt/llvm/lib -L/usr/local/opt/llvm/lib" >> "$GITHUB_ENV"
+          echo "CPPFLAGS=-I/opt/homebrew/opt/llvm/include -I/usr/local/opt/llvm/include" >> "$GITHUB_ENV"
 
-      - name: Build & test on Linux/macOS
-        if: runner.os != 'Windows' && matrix.arch == 'x64'
-        run: |
-          make clean
-          # Fetch OCTypes and SITypes dependencies from GitHub releases
-          make fetchlibs
-          make all
-          make test
-          make install-shared
-          ls -la install/lib/
-
-      # Windows
+      # ---------- Windows deps ----------
       - name: Set up MSYS2 & MinGW (Windows)
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: true
-          install: |
+          cache: true
+          install: >
             mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-ccache
             mingw-w64-x86_64-curl
             mingw-w64-x86_64-openblas
             mingw-w64-x86_64-lapack
@@ -85,71 +82,135 @@ jobs:
             make
             flex
             bison
+            unzip
 
-      - name: Build & test on Windows (AddressSanitizer not supported)
+      # ---------- Build cache (ccache) ----------
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ runner.os }}-${{ matrix.label }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ matrix.label }}-
+
+      # ---------- Build & test (Linux/macOS) ----------
+      - name: Build & test on Linux/macOS
+        if: runner.os != 'Windows'
+        env:
+          # Use ccache + chosen compiler
+          CC: ${{ matrix.compiler == 'clang' && 'ccache clang' || 'ccache gcc' }}
+        run: |
+          set -euo pipefail
+          # Parallelism
+          CORES="$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 2)"
+          export MAKEFLAGS="-j${CORES}"
+          # Always refresh third_party to pick up latest OCTypes/SITypes
+          make clean
+          make update-deps
+          make all
+          make test
+          make install-shared
+          ls -la install/lib/
+
+      # ---------- Build & test (Windows) ----------
+      - name: Build & test on Windows (MSYS2)
         if: runner.os == 'Windows'
         shell: msys2 {0}
+        env:
+          CC: "ccache gcc"
+          MAKEFLAGS: "-j$(nproc)"
         run: |
-          curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+          set -euo pipefail
+          curl -sSfL -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
           make clean
-          # Fetch OCTypes and SITypes dependencies from GitHub releases
-          make fetchlibs
-          make CC=gcc LEX=flex YACC="bison -y"
-          make test CC=gcc LEX=flex YACC="bison -y"
-          make install-shared CC=gcc LEX=flex YACC="bison -y"
+          make update-deps
+          make LEX=flex YACC="bison -y"
+          make test LEX=flex YACC="bison -y"
+          make install-shared LEX=flex YACC="bison -y"
           ls -la install/lib/
 
       - name: Upload library artifact
         uses: actions/upload-artifact@v4
         with:
           name: libRMN-${{ matrix.label }}
-          path: |
-            install/lib/libRMN.a
-            install/lib/libRMN.*
+          path: install/lib/*
+          retention-days: 7
 
+      # Package public headers once (Ubuntu x64)
       - name: Package public headers
-        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
+        if: runner.os == 'Linux'
         run: |
           make install
           mkdir -p header-pkg
-          cd install && zip -r ../header-pkg/libRMN-headers.zip include/
+          cd install && zip -qr ../header-pkg/libRMN-headers.zip include/
 
       - name: Upload headers artifact
-        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: libRMN-headers
           path: header-pkg/libRMN-headers.zip
+          retention-days: 7
 
-  # ARM64 Linux build: only run on releases (tags) for faster development cycles
+  # Memory-sanitized tests on Linux
+  asan:
+    name: ASan (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y clang make flex bison unzip \
+            libcurl4-openssl-dev libopenblas-dev liblapacke-dev libomp-dev \
+            ccache
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-asan-${{ github.sha }}
+          restore-keys: ccache-asan-
+      - run: |
+          curl -sSfL -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+          CORES="$(getconf _NPROCESSORS_ONLN || echo 2)"
+          export MAKEFLAGS="-j${CORES}"
+          export CC="ccache clang"
+          make clean
+          make update-deps
+          make test-asan
+
+  # ARM64 Linux build: still under releases only (keeps PRs fast)
   build-arm64:
     name: Build & Test (ubuntu-latest.arm64)
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    timeout-minutes: 60
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      - name: Download stb_image header
+      - name: Download stb_image.h
         run: |
-          curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+          curl -sSfL -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
 
       - name: Set up QEMU emulation
         uses: docker/setup-qemu-action@v3
         with:
           platforms: linux/arm64
-          
+
       - name: Install QEMU binfmt handlers
         run: docker run --rm --privileged tonistiigi/binfmt --install all
-        
+
       - name: Build & test in ARM64 container
         run: |
           docker run --rm --platform=linux/arm64 \
-            -v ${{ github.workspace }}:/src -w /src ubuntu:22.04 bash -lc "\
-              apt-get update && apt-get install -y curl clang make flex bison unzip libcurl4-openssl-dev libopenblas-dev liblapacke-dev libomp-dev && \
-              curl -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h && \
+            -v "${{ github.workspace }}:/src" -w /src ubuntu:22.04 bash -lc "\
+              set -euo pipefail && \
+              apt-get update && \
+              apt-get install -y curl clang make flex bison unzip libcurl4-openssl-dev libopenblas-dev liblapacke-dev libomp-dev && \
+              curl -sSfL -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h && \
+              export MAKEFLAGS=\"-j\$(nproc)\" && \
               make clean && \
-              make fetchlibs && \
+              make update-deps && \
               make all && make test && make install-shared && \
               ls -la install/lib/"
 
@@ -157,13 +218,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: libRMN-ubuntu-latest.arm64
-          path: |
-            install/lib/libRMN.a
-            install/lib/libRMN.*
+          path: install/lib/*
+          retention-days: 7
 
   release:
     name: Package & Release
-    needs: [build, build-arm64]
+    needs: [build, asan, build-arm64]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -181,79 +241,37 @@ jobs:
 
       - name: Package libraries into ZIPs
         run: |
+          set -euo pipefail
           mkdir -p packages
-          
-          # Debug: show what artifacts we downloaded
-          echo "=== Downloaded artifacts ==="
-          ls -la artifacts/
           for osdir in artifacts/*; do
-            if [ -d "$osdir" ]; then
-              echo "Contents of $osdir:"
-              find "$osdir" -name "libRMN.*" -o -name "*.a" -o -name "*.so" -o -name "*.dylib" -o -name "*.dll"
-            fi
-          done
-          echo "========================="
-          
-          for osdir in artifacts/*; do
-            if [ ! -d "$osdir" ] || [[ "$osdir" == *"-headers" ]]; then
-              continue
-            fi
-            
-            os=$(basename "$osdir")
-            # Strip the libRMN- prefix to get clean platform name
-            platform=${os#libRMN-}
-            
-            # Map platform labels to clean names for zip files
-            case "$platform" in
-              "ubuntu-latest.x64") zipname="ubuntu-latest.x64" ;;
-              "ubuntu-latest.arm64") zipname="ubuntu-latest.arm64" ;;
-              "macos-latest") zipname="macos-latest" ;;
-              "windows-latest") zipname="windows-latest" ;;
-              *) zipname="$platform" ;;
+            [ -d "$osdir" ] || continue
+            case "$(basename "$osdir")" in
+              libRMN-ubuntu-latest.x64)  zipname="ubuntu-latest.x64" ;;
+              libRMN-ubuntu-latest.arm64) zipname="ubuntu-latest.arm64" ;;
+              libRMN-macos-latest)       zipname="macos-latest" ;;
+              libRMN-windows-latest)     zipname="windows-latest" ;;
+              libRMN-headers)            continue ;;
+              *) zipname="$(basename "$osdir" | sed 's/^libRMN-//')" ;;
             esac
-            
-            zipfile="packages/libRMN-${zipname}.zip"
-
-            # Find all library files and package them
-            files_to_zip=()
-            
-            # Try different possible locations for library files
-            for pattern in "${osdir}/libRMN.*" "${osdir}/install/lib/libRMN.*"; do
-              for lib in $pattern; do
-                if [ -f "$lib" ]; then
-                  files_to_zip+=("$lib")
-                fi
-              done
-            done
-
-            if [ ${#files_to_zip[@]} -eq 0 ]; then
-              echo "Skipping $osdir (no library files to package)"
-              continue
-            fi
-            
-            echo "Creating $zipfile with files: ${files_to_zip[@]}"
-
-            if [[ "$zipname" == "windows-latest" ]]; then
-              # Use PowerShell for Windows
-              file_list=$(printf "'%s'," "${files_to_zip[@]}")
-              file_list=${file_list%,}  # Remove trailing comma
-              pwsh -Command "Compress-Archive -Path ${file_list} -DestinationPath '${zipfile}'"
-            else
-              # Use zip for Unix-like systems
-              zip -j "${zipfile}" "${files_to_zip[@]}"
-            fi
+            files=( $(find "$osdir" -maxdepth 2 -type f \( -name 'libRMN.*' -o -name '*.a' -o -name '*.so' -o -name '*.dylib' -o -name '*.dll' \)) )
+            [ ${#files[@]} -gt 0 ] || { echo "No library files in $osdir, skipping"; continue; }
+            zip -j "packages/libRMN-${zipname}.zip" "${files[@]}"
           done
-          
-          # Debug: show what packages were created
-          echo "=== Created packages ==="
-          ls -la packages/
-          echo "========================="
+
+      - name: Generate checksums
+        run: |
+          (cd packages && sha256sum *.zip > SHA256SUMS.txt)
+          cat packages/SHA256SUMS.txt
 
       - name: Create or update GitHub Release and upload assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          files: packages/*.zip
+          files: |
+            packages/*.zip
+            packages/SHA256SUMS.txt
+          prerelease: ${{ contains(github.ref_name, '-rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
