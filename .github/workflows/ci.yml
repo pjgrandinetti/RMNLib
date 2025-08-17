@@ -156,6 +156,7 @@ jobs:
   asan:
     name: ASan (ubuntu-latest)
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')   # <-- only run on release tags
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -178,7 +179,7 @@ jobs:
           make clean
           make update-deps
           make test-asan
-
+          
   # ARM64 Linux build: still under releases only (keeps PRs fast)
   build-arm64:
     name: Build & Test (ubuntu-latest.arm64)
@@ -274,4 +275,3 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
