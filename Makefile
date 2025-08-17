@@ -5,6 +5,7 @@
 
 # Detect OS early for various decisions
 UNAME_S := $(shell uname -s)
+ARCH    := $(shell uname -m)
 
 # Tools
 # Use LLVM Clang with OpenMP on macOS by default, but allow override via CC environment variable
@@ -24,8 +25,10 @@ AR      := ar
 LEX     := flex
 YACC    := bison
 YFLAGS  := -d
-CURL_CFLAGS := $(shell curl-config --cflags)
-CURL_LIBS   := $(shell curl-config --libs)
+
+# Prefer curl-config, fall back to pkg-config, then -lcurl
+CURL_CFLAGS := $(shell curl-config --cflags 2>/dev/null || pkg-config --cflags libcurl 2>/dev/null)
+CURL_LIBS   := $(shell curl-config --libs   2>/dev/null || pkg-config --libs   libcurl 2>/dev/null || echo -lcurl)
 
 RM      := rm -f
 MKDIR_P := mkdir -p
@@ -83,9 +86,6 @@ else ifneq ($(findstring MINGW,$(UNAME_S)),)
   # OpenBLAS headers on MSYS2 live under /mingw64/include/openblas
   CPPFLAGS     += -I/mingw64/include/openblas
 endif
-
-# OS-specific library linking and shared library configuration
-ARCH := $(shell uname -m)
 
 # Linux-specific linker grouping for circular dependencies
 ifeq ($(UNAME_S),Linux)
@@ -151,12 +151,12 @@ else
 endif
 
 # OS-specific library ZIP selection (must come before Archives definitions)
-ARCH    := $(shell uname -m)
+# Treat both aarch64 and arm64 as ARM on Linux
 ifeq ($(UNAME_S),Darwin)
   OCT_LIB_BIN := libOCTypes-macos-latest.zip
   SIT_LIB_BIN := libSITypes-macos-latest.zip
 else ifeq ($(UNAME_S),Linux)
-  ifeq ($(ARCH),aarch64)
+  ifneq (,$(filter $(ARCH),aarch64 arm64))
     OCT_LIB_BIN := libOCTypes-ubuntu-latest.arm64.zip
     SIT_LIB_BIN := libSITypes-ubuntu-latest.arm64.zip
   else
@@ -174,7 +174,7 @@ OCT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libOCTypes-headers.zip
 SIT_LIB_ARCHIVE     := $(THIRD_PARTY_DIR)/$(SIT_LIB_BIN)
 SIT_HEADERS_ARCHIVE := $(THIRD_PARTY_DIR)/libSITypes-headers.zip
 
-.PHONY: all dirs clean prepare octypes sitypes test test-asan docs doxygen html install install-shared shared synclib fetchlibs
+.PHONY: all dirs clean prepare octypes sitypes test test-asan docs doxygen html install install-shared shared synclib fetchlibs update-deps clean-third-party FORCE test-imports test-all test-imports-asan help
 
 fetchlibs: octypes sitypes
 	@echo "Both OCTypes and SITypes libraries are up to date."
@@ -188,6 +188,16 @@ TP_DEPS :=
 endif
 
 all: dirs $(TP_DEPS) prepare $(LIB_DIR)/libRMN.a $(SHLIB)
+
+#──────────── Dependencies refresh helpers ────────────
+clean-third-party:
+	$(RM) -r $(THIRD_PARTY_DIR)
+
+update-deps: clean-third-party
+	@echo "Purged $(THIRD_PARTY_DIR). Fetching latest OCTypes/SITypes..."
+	$(MAKE) octypes sitypes
+
+# Directories
 
 dirs: $(REQUIRED_DIRS)
 
@@ -206,16 +216,21 @@ STATIC_SRC := $(wildcard $(SRC_DIR)/*.c) \
 # Map all source files to object files, preserving directory structure
 OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(STATIC_SRC))
 
+# Always check for newer release assets when fetching (curl -z avoids re-download when unchanged)
+FORCE:
+
 # Download and extract OCTypes
 octypes: $(TP_LIB_DIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes.h
 
-$(OCT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
-	@echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
-	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.0/$(OCT_LIB_BIN) -o $@
+$(OCT_LIB_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
+	@echo "Fetching OCTypes library (latest): $(OCT_LIB_BIN)"
+	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
+		https://github.com/pjgrandinetti/OCTypes/releases/latest/download/$(OCT_LIB_BIN)
 
-$(OCT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
-	@echo "Fetching OCTypes headers"
-	@curl -L https://github.com/pjgrandinetti/OCTypes/releases/download/v0.1.0/libOCTypes-headers.zip -o $@
+$(OCT_HEADERS_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
+	@echo "Fetching OCTypes headers (latest)"
+	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
+		https://github.com/pjgrandinetti/OCTypes/releases/latest/download/libOCTypes-headers.zip
 
 # Platform detection for shell vs PowerShell
 IS_MINGW := $(findstring MINGW,$(UNAME_S))
@@ -228,28 +243,18 @@ $(TP_LIB_DIR) $(OCT_INCLUDE) $(SIT_INCLUDE):
 $(TP_LIB_DIR)/libOCTypes.a: $(OCT_LIB_ARCHIVE) | $(TP_LIB_DIR)
 ifeq ($(IS_MINGW),)
 	@echo "Extracting OCTypes library (linux/macOS)"
-	@if [ -f "$@" ]; then \
-	  echo "  → libOCTypes.a already exists, skipping"; \
-	else \
-	  unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
-	fi
+	@unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"
 else
 	@echo "Extracting OCTypes library (Windows)"
 	@powershell -NoProfile -Command \
-	  "if (!(Test-Path '$(TP_LIB_DIR)/libOCTypes.a')) { \
-	     Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force \
-	   }"
+	  "Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force"
 endif
 
 # ──────────────── OCTypes headers ─────────────────
 $(OCT_INCLUDE)/OCTypes.h: $(OCT_HEADERS_ARCHIVE) | $(OCT_INCLUDE)
 ifeq ($(IS_MINGW),)
 	@echo "Extracting OCTypes headers (linux/macOS)"
-	@if [ -f "$@" ]; then \
-	  echo "  → OCTypes.h exists, skipping"; \
-	else \
-	  unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"; \
-	fi
+	@unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"
 else
 	@echo "Extracting OCTypes headers (Windows)"
 	@powershell -NoProfile -Command \
@@ -259,40 +264,32 @@ endif
 # Download and extract SITypes
 sitypes: $(TP_LIB_DIR)/libSITypes.a $(SIT_INCLUDE)/SITypes.h
 
-$(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
-	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/$(SIT_LIB_BIN) -o $@
+$(SIT_LIB_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
+	@echo "Fetching SITypes library (latest): $(SIT_LIB_BIN)"
+	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
+		https://github.com/pjgrandinetti/SITypes/releases/latest/download/$(SIT_LIB_BIN)
 
-$(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
-	@echo "Fetching SITypes headers"
-	@curl -L https://github.com/pjgrandinetti/SITypes/releases/download/v0.1.0/libSITypes-headers.zip -o $@
+$(SIT_HEADERS_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
+	@echo "Fetching SITypes headers (latest)"
+	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
+		https://github.com/pjgrandinetti/SITypes/releases/latest/download/libSITypes-headers.zip
 
 # ──────────────── SITypes library ─────────────────
 $(TP_LIB_DIR)/libSITypes.a: $(SIT_LIB_ARCHIVE) | $(TP_LIB_DIR)
 ifeq ($(IS_MINGW),)
 	@echo "Extracting SITypes library (linux/macOS)"
-	@if [ -f "$@" ]; then \
-	  echo "  → libSITypes.a already exists, skipping"; \
-	else \
-	  unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"; \
-	fi
+	@unzip -o -j -q "$<" -d "$(TP_LIB_DIR)"
 else
 	@echo "Extracting SITypes library (Windows)"
 	@powershell -NoProfile -Command \
-	  "if (!(Test-Path '$(TP_LIB_DIR)/libSITypes.a')) { \
-	     Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force \
-	   }"
+	  "Expand-Archive -Path '$<' -DestinationPath '$(TP_LIB_DIR)' -Force"
 endif
 
 # ──────────────── SITypes headers ─────────────────
 $(SIT_INCLUDE)/SITypes.h: $(SIT_HEADERS_ARCHIVE) | $(SIT_INCLUDE)
 ifeq ($(IS_MINGW),)
 	@echo "Extracting SITypes headers (linux/macOS)"
-	@if [ -f "$@" ]; then \
-	  echo "  → SITypes.h exists, skipping"; \
-	else \
-	  unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"; \
-	fi
+	@unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"
 else
 	@echo "Extracting SITypes headers (Windows)"
 	@powershell -NoProfile -Command \
@@ -394,6 +391,9 @@ $(BIN_DIR)/runImportTests.asan: $(LIB_DIR)/libRMN.a $(IMPORT_TEST_OBJ) octypes s
 		$(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm \
 		-o $@
 
+# Test runners
+.PHONY: test test-imports test-all test-asan test-imports-asan
+
 test: $(BIN_DIR)/runTests
 	@echo "Running core tests (fast, no imports)"
 	$<
@@ -417,11 +417,15 @@ test-imports-asan: $(BIN_DIR)/runImportTests.asan
 .PHONY: help
 help:
 	@echo "Available test targets:"
-	@echo "  test          - Run core tests only (fast, no file imports)"
-	@echo "  test-imports  - Run import tests only (slow, tests file importers)"
-	@echo "  test-all      - Run all tests (core + imports, comprehensive)"
-	@echo "  test-asan     - Run core tests with AddressSanitizer"
-	@echo "  test-imports-asan - Run import tests with AddressSanitizer"
+	@echo "  test                - Run core tests only (fast, no file imports)"
+	@echo "  test-imports        - Run import tests only (slow, tests file importers)"
+	@echo "  test-all            - Run all tests (core + imports, comprehensive)"
+	@echo "  test-asan           - Run core tests with AddressSanitizer"
+	@echo "  test-imports-asan   - Run import tests with AddressSanitizer"
+	@echo ""
+	@echo "Dependency helpers:"
+	@echo "  fetchlibs           - Check & fetch latest OCTypes/SITypes"
+	@echo "  update-deps         - Purge third_party and refetch latest"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make test                         # Quick core tests"
@@ -434,7 +438,6 @@ clean:
 
 # Determine repository root and Xcode build dir
 ROOT_DIR := $(shell cd $(dir $(firstword $(MAKEFILE_LIST))).. && pwd)
-XCODE_BUILD := $(CURDIR)/build-xcode
 TEST_DATA_ROOT := $(ROOT_DIR)/RMNLib/tests/CSDM-TestFiles-1.0
 
 #────────────────────────────────────────────────────────────────────────────
@@ -458,12 +461,13 @@ xcode-run: xcode
 	           -configuration Debug \
 	           -scheme RMNLib \
 	           -destination 'platform=macOS' \
-	build | xcpretty || true
+		build | xcpretty || true
 
 #────────────────────────────────────────────────────────────────────────────
 # Documentation
 #────────────────────────────────────────────────────────────────────────────
 .PHONY: doxygen
+
 doxygen:
 	@echo "Generating Doxygen XML..."
 	@cd docs && doxygen Doxyfile
@@ -493,26 +497,26 @@ endif
 	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
 	# Copy only public headers (exclude *_private.h)
 	find src/core -name "*.h" -not -name "*_private.h" -exec cp {} $(INSTALL_INC_DIR)/core/ \;
-	cp src/importers/*.h $(INSTALL_INC_DIR)/importers/
-	cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/spectroscopy/
-	cp src/utils/*.h $(INSTALL_INC_DIR)/utils/
+	 cp src/importers/*.h $(INSTALL_INC_DIR)/importers/
+	 cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/spectroscopy/
+	 cp src/utils/*.h $(INSTALL_INC_DIR)/utils/
 
 # Install both static and shared libraries
 .PHONY: install-shared
 install-shared: $(LIB_DIR)/libRMN.a $(SHLIB)
 	$(MKDIR_P) $(INSTALL_LIB_DIR) $(INSTALL_INC_DIR)
-	cp $(LIB_DIR)/libRMN.a $(INSTALL_LIB_DIR)/
-	cp $(SHLIB) $(INSTALL_LIB_DIR)/
+	 cp $(LIB_DIR)/libRMN.a $(INSTALL_LIB_DIR)/
+	 cp $(SHLIB) $(INSTALL_LIB_DIR)/
 ifneq ($(findstring MINGW,$(UNAME_S)),)
 	@if [ -f $(LIB_DIR)/libRMN.dll.a ]; then cp $(LIB_DIR)/libRMN.dll.a $(INSTALL_LIB_DIR)/; fi
 endif
-	cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
-	$(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
+	 cp src/RMNLibrary.h $(INSTALL_INC_DIR)/
+	 $(MKDIR_P) $(INSTALL_INC_DIR)/core $(INSTALL_INC_DIR)/importers $(INSTALL_INC_DIR)/spectroscopy $(INSTALL_INC_DIR)/utils
 	# Copy only public headers (exclude *_private.h)
 	find src/core -name "*.h" -not -name "*_private.h" -exec cp {} $(INSTALL_INC_DIR)/core/ \;
-	cp src/importers/*.h $(INSTALL_INC_DIR)/importers/
-	cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/spectroscopy/
-	cp src/utils/*.h $(INSTALL_INC_DIR)/utils/
+	 cp src/importers/*.h $(INSTALL_INC_DIR)/importers/
+	 cp src/spectroscopy/*.h $(INSTALL_INC_DIR)/spectroscopy/
+	 cp src/utils/*.h $(INSTALL_INC_DIR)/utils/
 
 .PHONY: synclib
 synclib:
@@ -532,3 +536,4 @@ synclib:
 	@cp ../SITypes/install/include/SITypes/*.h     $(THIRD_PARTY_DIR)/include/SITypes/
 	@# Create dummy archives to satisfy fetch prerequisites and prevent re-fetch
 	@touch $(OCT_LIB_ARCHIVE) $(OCT_HEADERS_ARCHIVE) $(SIT_LIB_ARCHIVE) $(SIT_HEADERS_ARCHIVE)
+	
