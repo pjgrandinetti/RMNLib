@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history and tags for version detection
 
       - name: Download stb_image.h
         run: |
@@ -160,6 +162,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history and tags for version detection
       - run: |
           sudo apt-get update
           sudo apt-get install -y clang make flex bison unzip \
@@ -188,6 +192,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history and tags for version detection
 
       - name: Download stb_image.h
         run: |
