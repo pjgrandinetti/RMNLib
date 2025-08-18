@@ -126,26 +126,30 @@ ifeq ($(UNAME_S),Darwin)
   SHLIB_EXT     = .dylib
   SHLIB_FLAGS   = -dynamiclib -fPIC
   SHLIB_LDFLAGS = -install_name @rpath/libRMN.dylib -current_version $(VERSION) -compatibility_version $(VERSION_MAJOR).$(VERSION_MINOR)
-  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
-  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+  OCTYPES_LINKLIB := -L$(OCT_LIBDIR) -lOCTypes
+  SITYPES_LINKLIB := -L$(SIT_LIBDIR) -lSITypes
+  RPATH_FLAGS   = -Wl,-rpath,$(OCT_LIBDIR) -Wl,-rpath,$(SIT_LIBDIR)
 else ifeq ($(UNAME_S),Linux)
   SHLIB_EXT     = .so
   SHLIB_FLAGS   = -shared -fPIC
   SHLIB_LDFLAGS =
-  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
-  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+  OCTYPES_LINKLIB := -L$(OCT_LIBDIR) -lOCTypes
+  SITYPES_LINKLIB := -L$(SIT_LIBDIR) -lSITypes
+  RPATH_FLAGS   = -Wl,-rpath,$(OCT_LIBDIR) -Wl,-rpath,$(SIT_LIBDIR)
 else ifneq ($(findstring MINGW,$(UNAME_S)),)
   SHLIB_EXT     = .dll
   SHLIB_FLAGS   = -shared -Wl,--export-all-symbols -Wl,--enable-auto-import
   SHLIB_LDFLAGS = -Wl,--out-implib=$(LIB_DIR)/libRMN.dll.a
-  OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
-  SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
+  OCTYPES_LINKLIB := -L$(OCT_LIBDIR) -lOCTypes
+  SITYPES_LINKLIB := -L$(SIT_LIBDIR) -lSITypes
+  RPATH_FLAGS   = 
 else
   SHLIB_EXT     = .so
   SHLIB_FLAGS   = -shared -fPIC
   SHLIB_LDFLAGS =
   OCTYPES_LINKLIB := -lOCTypes
   SITYPES_LINKLIB := -lSITypes
+  RPATH_FLAGS   = 
 endif
 
 SHLIB := $(LIB_DIR)/libRMN$(SHLIB_EXT)
@@ -293,7 +297,7 @@ $(LIB_DIR)/libRMN.a: $(OBJ)
 $(SHLIB): $(OBJ) | dirs octypes sitypes
 	$(CC) $(CFLAGS) $(SHLIB_FLAGS) $(SHLIB_LDFLAGS) -o $@ \
 	  $(filter %.o,$^) $(OCTYPES_LINKLIB) $(SITYPES_LINKLIB) \
-	  $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm $(CURL_LIBS)
+	  $(RPATH_FLAGS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm $(CURL_LIBS)
 
 shared: $(SHLIB)
 
