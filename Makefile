@@ -363,7 +363,7 @@ html: doxygen
 docs: html
 
 #──────── Install (preserve header subfolders) ────────
-INSTALL_DIR      := install
+INSTALL_DIR      ?= install
 INSTALL_LIB_DIR  := $(INSTALL_DIR)/lib
 INSTALL_INC_DIR  := $(INSTALL_DIR)/include/RMNLib
 
