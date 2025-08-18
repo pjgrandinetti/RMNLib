@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.6] - 2025-08-18
+### Fixed
+- Windows build: Copy DLLs to bin directory for tests
+- GitHub Actions test failures with missing RPATH configuration
+- Duplicate rpath warnings during linking
+
 ## [v0.1.0] - 2025-06-01
 ### Initial release
 - Added core functionality for managing scalar quantities with coordinates.
