@@ -377,7 +377,8 @@ endif
 	# Copy ONLY public headers (.h), keep folder structure, exclude *_private.h and internal folders
 ifeq ($(IS_MINGW),)
 	$(eval ROOT_DIR := $(shell pwd))
-	(cd src && tar cf - --exclude='*_private.h' --exclude='*/dependent_variable' --exclude='*/dimension' . | (cd $(ROOT_DIR)/$(INSTALL_INC_DIR) && tar xf -))
+	$(eval TAR_DEST := $(shell if [ "$$(echo '$(INSTALL_INC_DIR)' | cut -c1)" = "/" ]; then echo "$(INSTALL_INC_DIR)"; else echo "$(ROOT_DIR)/$(INSTALL_INC_DIR)"; fi))
+	(cd src && tar cf - --exclude='*_private.h' --exclude='*/dependent_variable' --exclude='*/dimension' . | (cd $(TAR_DEST) && tar xf -))
 	find $(INSTALL_INC_DIR) ! -name "*.h" ! -type d -delete
 else
 	@echo "Using PowerShell for Windows header copying..."
