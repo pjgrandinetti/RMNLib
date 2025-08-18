@@ -330,15 +330,26 @@ $(BIN_DIR)/runAllTests: $(LIB_DIR)/libRMN.a $(ALL_TEST_OBJ) octypes sitypes
 	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
 	  $(RPATH_FLAGS) $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
 
-test: $(BIN_DIR)/runTests
+# Windows: Copy required DLLs to the bin directory for test executables
+ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
+copy-dlls: octypes sitypes
+	@if [ -f $(TP_LIB_DIR)/libOCTypes.dll ]; then cp $(TP_LIB_DIR)/libOCTypes.dll $(BIN_DIR)/; fi
+	@if [ -f $(TP_LIB_DIR)/libSITypes.dll ]; then cp $(TP_LIB_DIR)/libSITypes.dll $(BIN_DIR)/; fi
+	@if [ -f $(LIB_DIR)/libRMN.dll ]; then cp $(LIB_DIR)/libRMN.dll $(BIN_DIR)/; fi
+else
+copy-dlls:
+	@# No-op on non-Windows platforms
+endif
+
+test: $(BIN_DIR)/runTests copy-dlls
 	@echo "Running core tests (fast, no imports)"
 	$<
 
-test-imports: $(BIN_DIR)/runImportTests
+test-imports: $(BIN_DIR)/runImportTests copy-dlls
 	@echo "Running import tests (slow) with TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
 	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
-test-all: $(BIN_DIR)/runAllTests
+test-all: $(BIN_DIR)/runAllTests copy-dlls
 	@echo "Running all tests (core + imports) with TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
 	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
