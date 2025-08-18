@@ -334,7 +334,9 @@ static DependentVariableRef impl_DependentVariableCreate(
         componentsCount = OCArrayGetCount(components);
         // validate OCDataRef & uniform length
         for (OCIndex i = 0; i < componentsCount; ++i) {
-            if (OCGetTypeID(OCArrayGetValueAtIndex(components, i)) != OCDataGetTypeID()) {
+            OCTypeID typeID = OCGetTypeID(OCArrayGetValueAtIndex(components, i));
+            if (typeID != OCDataGetTypeID()) {
+                fprintf(stderr, "%s is not OCData!\n", OCTypeNameFromTypeID(typeID));
                 if (outError) *outError = STR("DependentVariableCreate: component element is not OCDataRef");
                 return NULL;
             }
