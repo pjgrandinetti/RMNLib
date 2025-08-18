@@ -129,7 +129,7 @@ else ifeq ($(UNAME_S),Linux)
   SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
 else ifneq ($(findstring MINGW,$(UNAME_S)),)
   SHLIB_EXT     = .dll
-  SHLIB_FLAGS   = -shared
+  SHLIB_FLAGS   = -shared -Wl,--export-all-symbols -Wl,--enable-auto-import
   SHLIB_LDFLAGS = -Wl,--out-implib=$(LIB_DIR)/libRMN.dll.a
   OCTYPES_LINKLIB := $(OCT_LIBDIR)/libOCTypes.a
   SITYPES_LINKLIB := $(SIT_LIBDIR)/libSITypes.a
