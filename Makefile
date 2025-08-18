@@ -128,14 +128,14 @@ ifeq ($(UNAME_S),Darwin)
   SHLIB_LDFLAGS = -install_name @rpath/libRMN.dylib -current_version $(VERSION) -compatibility_version $(VERSION_MAJOR).$(VERSION_MINOR)
   OCTYPES_LINKLIB := -L$(OCT_LIBDIR) -lOCTypes
   SITYPES_LINKLIB := -L$(SIT_LIBDIR) -lSITypes
-  RPATH_FLAGS   = -Wl,-rpath,$(OCT_LIBDIR) -Wl,-rpath,$(SIT_LIBDIR)
+  RPATH_FLAGS   = -Wl,-rpath,$(TP_LIB_DIR)
 else ifeq ($(UNAME_S),Linux)
   SHLIB_EXT     = .so
   SHLIB_FLAGS   = -shared -fPIC
   SHLIB_LDFLAGS =
   OCTYPES_LINKLIB := -L$(OCT_LIBDIR) -lOCTypes
   SITYPES_LINKLIB := -L$(SIT_LIBDIR) -lSITypes
-  RPATH_FLAGS   = -Wl,-rpath,$(OCT_LIBDIR) -Wl,-rpath,$(SIT_LIBDIR)
+  RPATH_FLAGS   = -Wl,-rpath,$(TP_LIB_DIR)
 else ifneq ($(findstring MINGW,$(UNAME_S)),)
   SHLIB_EXT     = .dll
   SHLIB_FLAGS   = -shared -Wl,--export-all-symbols -Wl,--enable-auto-import
@@ -318,17 +318,17 @@ $(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs octypes sitypes
 $(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(CORE_TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(CORE_TEST_OBJ) \
 	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
-	  $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
+	  $(RPATH_FLAGS) $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
 
 $(BIN_DIR)/runImportTests: $(LIB_DIR)/libRMN.a $(IMPORT_TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(IMPORT_TEST_OBJ) \
 	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
-	  $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
+	  $(RPATH_FLAGS) $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
 
 $(BIN_DIR)/runAllTests: $(LIB_DIR)/libRMN.a $(ALL_TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(ALL_TEST_OBJ) \
 	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
-	  $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
+	  $(RPATH_FLAGS) $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
 
 test: $(BIN_DIR)/runTests
 	@echo "Running core tests (fast, no imports)"
@@ -345,12 +345,12 @@ test-all: $(BIN_DIR)/runAllTests
 $(BIN_DIR)/runTests.asan: $(LIB_DIR)/libRMN.a $(CORE_TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(CORE_TEST_OBJ) \
 	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
-	  $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
+	  $(RPATH_FLAGS) $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
 
 $(BIN_DIR)/runImportTests.asan: $(LIB_DIR)/libRMN.a $(IMPORT_TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS_DEBUG) -fsanitize=address -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(IMPORT_TEST_OBJ) \
 	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
-	  $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
+	  $(RPATH_FLAGS) $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
 
 test-asan: $(BIN_DIR)/runTests.asan
 	@echo "Running ASan core tests with leak tracking (fast)"
