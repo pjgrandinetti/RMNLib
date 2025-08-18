@@ -403,17 +403,14 @@ ifeq ($(IS_MINGW),)
 	(cd src && tar cf - --exclude='*_private.h' --exclude='*/dependent_variable' --exclude='*/dimension' . | (cd $(TAR_DEST) && tar xf -))
 	find $(INSTALL_INC_DIR) ! -name "*.h" ! -type d -delete
 else
-	@echo "Using PowerShell for Windows header copying..."
-	@powershell -NoProfile -Command " \
-	  Get-ChildItem -Path 'src' -Recurse -Include '*.h' | \
-	  Where-Object { $$_.Name -notlike '*_private.h' -and $$_.DirectoryName -notlike '*dependent_variable*' -and $$_.DirectoryName -notlike '*dimension*' } | \
-	  ForEach-Object { \
-	    $$relativePath = $$_.FullName.Substring((Get-Location).Path.Length + 5); \
-	    $$destPath = Join-Path '$(INSTALL_INC_DIR)' $$relativePath; \
-	    $$destDir = Split-Path $$destPath -Parent; \
-	    if (!(Test-Path $$destDir)) { New-Item -ItemType Directory -Path $$destDir -Force | Out-Null }; \
-	    Copy-Item $$_.FullName $$destPath -Force \
-	  }"
+	@echo "Using bash for Windows header copying (MSYS2/MinGW)..."
+	@find src -name "*.h" ! -name "*_private.h" ! -path "*/dependent_variable/*" ! -path "*/dimension/*" -exec bash -c ' \
+	  for file; do \
+	    relpath=$$(echo "$$file" | sed "s|^src/||"); \
+	    destdir="$(INSTALL_INC_DIR)/$$(dirname "$$relpath")"; \
+	    mkdir -p "$$destdir"; \
+	    cp "$$file" "$(INSTALL_INC_DIR)/$$relpath"; \
+	  done' _ {} +
 endif
 
 install-shared: install
