@@ -2546,6 +2546,49 @@ OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim) {
     else
         return impl_DimensionCopyAsDictionary(dim);  // fallback
 }
+
+// ============================================================================
+#pragma region Convenience Functions (converted from static inline)
+// ============================================================================
+
+SIDimensionRef SIDimensionCreateWithQuantity(OCStringRef quantityName, OCStringRef *outError) {
+    return SIDimensionCreate(
+        NULL,                   // label
+        NULL,                   // description
+        NULL,                   // metadata
+        quantityName,           // quantityName
+        NULL,                   // offset
+        NULL,                   // origin
+        NULL,                   // period
+        kDimensionScalingNone,  // scaling
+        outError                // outError
+    );
+}
+
+SILinearDimensionRef SILinearDimensionCreateMinimal(
+    OCStringRef quantityName,
+    OCIndex count,
+    SIScalarRef increment,
+    SIDimensionRef reciprocal,
+    OCStringRef *outError) {
+    return SILinearDimensionCreate(
+        NULL,                   // label
+        NULL,                   // description
+        NULL,                   // metadata
+        quantityName,           // quantityName
+        NULL,                   // offset
+        NULL,                   // origin
+        NULL,                   // period
+        kDimensionScalingNone,  // scaling
+        count,                  // count
+        increment,              // increment
+        false,                  // fft
+        reciprocal,             // reciprocal
+        outError                // outError
+    );
+}
+
+#pragma endregion
 #pragma endregion
 #ifdef __cplusplus
 }

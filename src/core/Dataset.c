@@ -1598,4 +1598,33 @@ DependentVariableRef DatasetAddEmptyDependentVariable(DatasetRef theDataset,
     OCRelease(theDependentVariable);
     return theDependentVariable;
 }
+
+// ============================================================================
+#pragma region Convenience Functions (converted from static inline)
+// ============================================================================
+
+DatasetRef DatasetCreateEmpty(OCStringRef *outError) {
+    return DatasetCreate(
+        NULL,  // dimensions
+        NULL,  // dimensionPrecedence
+        NULL,  // dependentVariables
+        NULL,  // tags
+        NULL,  // description
+        NULL,  // title
+        NULL,  // focus
+        NULL,  // previousFocus
+        NULL,  // metaData
+        outError);
+}
+
+DatasetRef DatasetCreateCopy(DatasetRef ds) {
+    if (!ds) return NULL;
+    OCStringRef err = NULL;
+    OCDictionaryRef d = DatasetCopyAsDictionary(ds);
+    DatasetRef c = DatasetCreateFromDictionary(d, &err);
+    OCRelease(d);
+    if (!c) OCRelease(err);
+    return c;
+}
+
 #pragma endregion

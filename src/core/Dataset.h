@@ -87,19 +87,7 @@ DatasetRef DatasetCreateMinimal(
  * @param[out] outError If non-NULL and creation fails, set to error string.
  * @return Newly allocated DatasetRef on success, or NULL on failure.
  */
-static inline DatasetRef DatasetCreateEmpty(OCStringRef *outError) {
-    return DatasetCreate(
-        NULL,  // dimensions
-        NULL,  // dimensionPrecedence
-        NULL,  // dependentVariables
-        NULL,  // tags
-        NULL,  // description
-        NULL,  // title
-        NULL,  // focus
-        NULL,  // previousFocus
-        NULL,  // metaData
-        outError);
-}
+DatasetRef DatasetCreateEmpty(OCStringRef *outError);
 /**
  * @brief Rebuild a Dataset from a deep‐copied dictionary.
  * @param dict     Dictionary produced by DatasetCopyAsDictionary().
@@ -122,15 +110,7 @@ OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds);
  * @param ds Source DatasetRef (must not be NULL).
  * @return New DatasetRef copy, or NULL if any error.
  */
-static inline DatasetRef DatasetCreateCopy(DatasetRef ds) {
-    if (!ds) return NULL;
-    OCStringRef err = NULL;
-    OCDictionaryRef d = DatasetCopyAsDictionary(ds);
-    DatasetRef c = DatasetCreateFromDictionary(d, &err);
-    OCRelease(d);
-    if (!c) OCRelease(err);
-    return c;
-}
+DatasetRef DatasetCreateCopy(DatasetRef ds);
 /** @name Accessors & Mutators
  * @{ */
 /** @brief Get mutable array of Dimensions. */

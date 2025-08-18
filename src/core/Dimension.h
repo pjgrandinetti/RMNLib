@@ -213,19 +213,7 @@ SIDimensionRef SIDimensionCreate(OCStringRef label,
  * @param outError     On failure, receives a descriptive OCStringRef.
  * @return New SIDimensionRef, or NULL.
  */
-static inline SIDimensionRef SIDimensionCreateWithQuantity(OCStringRef quantityName, OCStringRef *outError) {
-    return SIDimensionCreate(
-        NULL,                   // label
-        NULL,                   // description
-        NULL,                   // metadata
-        quantityName,           // quantityName
-        NULL,                   // offset
-        NULL,                   // origin
-        NULL,                   // period
-        kDimensionScalingNone,  // scaling
-        outError                // outError
-    );
-}
+SIDimensionRef SIDimensionCreateWithQuantity(OCStringRef quantityName, OCStringRef *outError);
 /**
  * @brief Get the physical quantity name.
  */
@@ -488,28 +476,12 @@ SILinearDimensionRef SILinearDimensionCreate(OCStringRef label,
  * @param outError    On failure, receives a descriptive OCStringRef.
  * @return New SILinearDimensionRef, or NULL.
  */
-static inline SILinearDimensionRef SILinearDimensionCreateMinimal(
+SILinearDimensionRef SILinearDimensionCreateMinimal(
     OCStringRef quantityName,
     OCIndex count,
     SIScalarRef increment,
     SIDimensionRef reciprocal,
-    OCStringRef *outError) {
-    return SILinearDimensionCreate(
-        NULL,                   // label
-        NULL,                   // description
-        NULL,                   // metadata
-        quantityName,           // quantityName
-        NULL,                   // offset
-        NULL,                   // origin
-        NULL,                   // period
-        kDimensionScalingNone,  // scaling
-        count,                  // count
-        increment,              // increment
-        false,                  // fft
-        reciprocal,             // reciprocal
-        outError                // outError
-    );
-}
+    OCStringRef *outError);
 /**
  * @brief Get the total point count.
  * @param dim   The SILinearDimension.
