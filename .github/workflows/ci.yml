@@ -121,6 +121,7 @@ jobs:
         env:
           CC: "ccache gcc"
           MAKEFLAGS: "-j$(nproc)"
+          CFLAGS: ""
         run: |
           set -euo pipefail
           curl -sSfL -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
