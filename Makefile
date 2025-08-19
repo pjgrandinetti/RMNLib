@@ -283,7 +283,7 @@ ifeq ($(IS_MINGW),)
 	@unzip -o -j -q "$<" -d "$(OCT_INCLUDE)"
 else
 	@echo "Extracting OCTypes headers (PowerShell)"
-	@powershell -NoProfile -Command "Expand-Archive -Path '$<' -DestinationPath 'temp_extract' -Force; Get-ChildItem -Path 'temp_extract' -Filter '*.h' -Recurse | Copy-Item -Destination '$(OCT_INCLUDE)'; Start-Sleep -Milliseconds 100; Remove-Item -Path 'temp_extract' -Recurse -Force -ErrorAction SilentlyContinue"
+	@powershell -NoProfile -Command "Expand-Archive -Path '$<' -DestinationPath 'temp_extract_oct' -Force; Get-ChildItem -Path 'temp_extract_oct' -Filter '*.h' -Recurse | Copy-Item -Destination '$(OCT_INCLUDE)'; Start-Sleep -Milliseconds 100; if (Test-Path 'temp_extract_oct') { Remove-Item -Path 'temp_extract_oct' -Recurse -Force -ErrorAction SilentlyContinue }"
 endif
 
 # SITypes
@@ -303,7 +303,7 @@ ifeq ($(IS_MINGW),)
 	@unzip -o -j -q "$<" -d "$(SIT_INCLUDE)"
 else
 	@echo "Extracting SITypes headers (PowerShell)"
-	@powershell -NoProfile -Command "Expand-Archive -Path '$<' -DestinationPath 'temp_extract' -Force; Get-ChildItem -Path 'temp_extract' -Filter '*.h' -Recurse | Copy-Item -Destination '$(SIT_INCLUDE)'; Start-Sleep -Milliseconds 100; Remove-Item -Path 'temp_extract' -Recurse -Force -ErrorAction SilentlyContinue"
+	@powershell -NoProfile -Command "Expand-Archive -Path '$<' -DestinationPath 'temp_extract_sit' -Force; Get-ChildItem -Path 'temp_extract_sit' -Filter '*.h' -Recurse | Copy-Item -Destination '$(SIT_INCLUDE)'; Start-Sleep -Milliseconds 100; if (Test-Path 'temp_extract_sit') { Remove-Item -Path 'temp_extract_sit' -Recurse -Force -ErrorAction SilentlyContinue }"
 endif
 
 #──────── Build rules ────────
