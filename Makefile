@@ -225,23 +225,43 @@ clean-third-party:
 # Archives
 $(OCT_LIB_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
 	@echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
+ifeq ($(IS_MINGW),)
 	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
 	  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/$(OCT_LIB_BIN)
+else
+	@curl -fL --retry 3 --retry-delay 2 -o "$@" \
+	  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/$(OCT_LIB_BIN)
+endif
 
 $(OCT_HEADERS_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
 	@echo "Fetching OCTypes headers"
+ifeq ($(IS_MINGW),)
 	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
 	  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/libOCTypes-headers.zip
+else
+	@curl -fL --retry 3 --retry-delay 2 -o "$@" \
+	  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/libOCTypes-headers.zip
+endif
 
 $(SIT_LIB_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
+ifeq ($(IS_MINGW),)
 	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
 	  https://github.com/pjgrandinetti/SITypes/releases/latest/download/$(SIT_LIB_BIN)
+else
+	@curl -fL --retry 3 --retry-delay 2 -o "$@" \
+	  https://github.com/pjgrandinetti/SITypes/releases/latest/download/$(SIT_LIB_BIN)
+endif
 
 $(SIT_HEADERS_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
 	@echo "Fetching SITypes headers"
+ifeq ($(IS_MINGW),)
 	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
 	  https://github.com/pjgrandinetti/SITypes/releases/latest/download/libSITypes-headers.zip
+else
+	@curl -fL --retry 3 --retry-delay 2 -o "$@" \
+	  https://github.com/pjgrandinetti/SITypes/releases/latest/download/libSITypes-headers.zip
+endif
 
 # Platform detection for extraction
 IS_MINGW := $(findstring MINGW,$(UNAME_S))
