@@ -125,10 +125,10 @@ jobs:
           set -euo pipefail
           curl -sSfL -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
           make clean
-          make update-deps
-          make LEX=flex YACC="bison -y"
-          make test LEX=flex YACC="bison -y"
-          make install-shared LEX=flex YACC="bison -y"
+          make update-deps CFLAGS="${CFLAGS} -Wno-unknown-pragmas"
+          make LEX=flex YACC="bison -y" CFLAGS="${CFLAGS} -Wno-unknown-pragmas"
+          make test LEX=flex YACC="bison -y" CFLAGS="${CFLAGS} -Wno-unknown-pragmas"
+          make install-shared LEX=flex YACC="bison -y" CFLAGS="${CFLAGS} -Wno-unknown-pragmas"
           ls -la install/lib/
 
       - name: Upload library artifact

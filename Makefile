@@ -84,6 +84,7 @@ else ifeq ($(UNAME_S),Linux)
 else ifneq ($(findstring MINGW,$(UNAME_S)),)
   BLAS_LDFLAGS := -lopenblas -lm
   CPPFLAGS     += -I/mingw64/include/openblas
+  CFLAGS       += -Wno-unknown-pragmas
 else
   BLAS_LDFLAGS :=
 endif

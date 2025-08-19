@@ -715,14 +715,14 @@ bool impl_InitSIDimensionFieldsFromArgs(
     dimensionScaling scaling) {
     DimensionRef baseDim = (DimensionRef)dim;
     bool success = true;
-    success *= DimensionSetLabel(baseDim, label, NULL);
-    success *= DimensionSetDescription(baseDim, description, NULL);
-    success *= DimensionSetApplicationMetaData(baseDim, metadata, NULL);
-    success *= SIDimensionSetCoordinatesOffset(dim, offset, NULL);
-    success *= SIDimensionSetQuantityName(dim, quantityName, NULL);
-    success *= SIDimensionSetOriginOffset(dim, origin, NULL);
-    success *= (!period || SIDimensionSetPeriod(dim, period, NULL));
-    success *= SIDimensionSetScaling(dim, scaling);
+    success &= DimensionSetLabel(baseDim, label, NULL);
+    success &= DimensionSetDescription(baseDim, description, NULL);
+    success &= DimensionSetApplicationMetaData(baseDim, metadata, NULL);
+    success &= SIDimensionSetCoordinatesOffset(dim, offset, NULL);
+    success &= SIDimensionSetQuantityName(dim, quantityName, NULL);
+    success &= SIDimensionSetOriginOffset(dim, origin, NULL);
+    success &= (!period || SIDimensionSetPeriod(dim, period, NULL));
+    success &= SIDimensionSetScaling(dim, scaling);
     return success;
 }
 // Helper: ensure *scalarPtr points to a real SIScalar compatible with dimensionality.
