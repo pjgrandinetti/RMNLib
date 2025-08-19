@@ -36,8 +36,13 @@ as local modules (Datum, Dimension, Dataset).
 #else
 /* CBLAS interface */
 #include <cblas.h>
-/* LAPACKE C interface to LAPACK */
+/* LAPACKE C interface to LAPACK - only if available */
+#if __has_include(<lapacke.h>)
 #include <lapacke.h>
+#define HAVE_LAPACKE 1
+#else
+#define HAVE_LAPACKE 0
+#endif
 #endif
 /*
  -------------------------------------------------------------
