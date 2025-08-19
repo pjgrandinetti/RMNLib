@@ -1,4 +1,10 @@
 #include "RMNLibrary.h"
+
+// GCC compatibility: Define __has_feature for non-Clang compilers
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+
 cJSON *OCMetadataCopyJSON(OCDictionaryRef dict) {
     if (!dict) return cJSON_CreateNull();
     cJSON *json = cJSON_CreateObject();
