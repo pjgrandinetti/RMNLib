@@ -121,15 +121,15 @@ jobs:
         env:
           CC: "ccache gcc"
           MAKEFLAGS: "-j$(nproc)"
-          CFLAGS: ""
+          CFLAGS: "-Wno-unknown-pragmas"
         run: |
           set -euo pipefail
           curl -sSfL -o src/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
           make clean
-          make update-deps CFLAGS="${CFLAGS} -Wno-unknown-pragmas"
-          make LEX=flex YACC="bison -y" CFLAGS="${CFLAGS} -Wno-unknown-pragmas"
-          make test LEX=flex YACC="bison -y" CFLAGS="${CFLAGS} -Wno-unknown-pragmas"
-          make install-shared LEX=flex YACC="bison -y" CFLAGS="${CFLAGS} -Wno-unknown-pragmas"
+          make update-deps CFLAGS="${CFLAGS}"
+          make LEX=flex YACC="bison -y" CFLAGS="${CFLAGS}"
+          make test LEX=flex YACC="bison -y" CFLAGS="${CFLAGS}"
+          make install-shared LEX=flex YACC="bison -y" CFLAGS="${CFLAGS}"
           ls -la install/lib/
 
       - name: Upload library artifact
@@ -162,7 +162,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')   # <-- only run on release tags
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history and tags for version detection
       - run: |
@@ -192,7 +193,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history and tags for version detection
 
