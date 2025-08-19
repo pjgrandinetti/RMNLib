@@ -168,6 +168,9 @@ STATIC_SRC := \
 OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(STATIC_SRC))
 
 #──────── Release asset names for OCTypes/SITypes ────────
+# Platform detection for Windows/MINGW
+IS_MINGW := $(findstring MINGW,$(UNAME_S))
+
 ifeq ($(UNAME_S),Darwin)
   OCT_LIB_BIN := libOCTypes-macos-latest.zip
   SIT_LIB_BIN := libSITypes-macos-latest.zip
@@ -262,9 +265,6 @@ else
 	@curl -fL --retry 3 --retry-delay 2 -o "$@" \
 	  https://github.com/pjgrandinetti/SITypes/releases/latest/download/libSITypes-headers.zip
 endif
-
-# Platform detection for extraction
-IS_MINGW := $(findstring MINGW,$(UNAME_S))
 
 # OCTypes
 octypes: $(TP_LIB_DIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes.h
