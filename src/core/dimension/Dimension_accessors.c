@@ -23,10 +23,15 @@ bool DimensionSetLabel(DimensionRef dim,
         if (outError) *outError = STR("DimensionSetLabel: dim is NULL");
         return false;
     }
-    OCStringRef labelCopy = label ? OCStringCreateCopy(label) : NULL;
+    OCStringRef labelCopy = label ? OCStringCreateCopy(label) : STR("");
     if (label && !labelCopy) {
         if (outError)
             *outError = STR("DimensionSetLabel: failed to copy label string");
+        return false;
+    }
+    if (!label && !labelCopy) {
+        if (outError)
+            *outError = STR("DimensionSetLabel: failed to create default empty label");
         return false;
     }
     OCRelease(dim->label);
@@ -48,10 +53,15 @@ bool DimensionSetDescription(DimensionRef dim,
             *outError = STR("DimensionSetDescription: dim is NULL");
         return false;
     }
-    OCStringRef descCopy = desc ? OCStringCreateCopy(desc) : NULL;
+    OCStringRef descCopy = desc ? OCStringCreateCopy(desc) : STR("");
     if (desc && !descCopy) {
         if (outError)
             *outError = STR("DimensionSetDescription: failed to copy description string");
+        return false;
+    }
+    if (!desc && !descCopy) {
+        if (outError)
+            *outError = STR("DimensionSetDescription: failed to create default empty description");
         return false;
     }
     OCRelease(dim->description);
