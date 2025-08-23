@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.11] - 2025-08-23
+### Fixed
+- Fixed NULL label/description handling in DimensionSetLabel and DimensionSetDescription functions
+- Prevents segfaults when RMNpy dimensions are created without explicit label/description parameters
+- Functions now create empty strings instead of storing NULL values when inputs are NULL
+- Resolves NULL label errors in LinearDimension and other RMNpy dimension classes
+- Added proper error checking for empty string creation
+
 ## [v0.1.6] - 2025-08-18
 ### Fixed
 - Windows build: Copy DLLs to bin directory for tests
