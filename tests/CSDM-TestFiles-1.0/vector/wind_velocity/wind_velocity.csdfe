@@ -26,7 +26,8 @@
         "label": "longitude",
         "count": 49,
         "coordinates_offset": "-102.5 °",
-        "increment": "0.5 °"
+        "increment": "0.5 °",
+        "period": "360 °"
       },
       {
         "type": "linear",
@@ -35,7 +36,8 @@
         "count": 49,
         "quantity_name": "plane angle",
         "coordinates_offset": "13.5 °",
-        "increment": "0.5 °"
+        "increment": "0.5 °",
+        "period": "360 °"
       },
       {
         "type": "labeled",

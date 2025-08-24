@@ -771,10 +771,7 @@ bool test_DimensionPeriodOperations(void) {
     copiedPeriod = NULL;
     // Test 3: Set a finite period
     error = NULL;
-    printf("Debug: About to call SIDimensionSetPeriod with period 10.0 Hz...\n");
-    printf("Debug: Input scalar value: %f\n", SIScalarDoubleValue(testPeriod));
     bool setResult = SIDimensionSetPeriod(siDim, testPeriod, &error);
-    printf("Debug: SIDimensionSetPeriod returned: %s\n", setResult ? "true" : "false");
     if (error) {
         printf("Debug: Error message exists (cannot print OCString directly)\n");
         OCRelease(error);
@@ -783,24 +780,16 @@ bool test_DimensionPeriodOperations(void) {
         printf("Debug: No error message\n");
     }
     // Debug: Check what period is stored internally after setting
-    printf("Debug: After setting, checking internal state...\n");
     bool periodicAfter = SIDimensionIsPeriodic(siDim);
-    printf("Debug: SIDimensionIsPeriodic after set: %s\n", periodicAfter ? "true" : "false");
     TEST_ASSERT(setResult == true);
     TEST_ASSERT(error == NULL);
-    printf("✓ Successfully set finite period\n");
     // Test 4: Now should be periodic
     TEST_ASSERT(SIDimensionIsPeriodic(siDim));
-    printf("✓ Dimension is now periodic after setting finite period\n");
     // Test 5: Copy period should return the finite value we set
-    printf("Debug: About to copy period...\n");
     copiedPeriod = SIDimensionCopyPeriod(siDim);
-    printf("Debug: SIDimensionCopyPeriod returned: %p\n", copiedPeriod);
     // Also test direct access - but note SIDimensionGetPeriod is private
     // For testing, let's just use the copy function twice to verify it's consistent
-    printf("Debug: Testing period copy consistency...\n");
     SIScalarRef copiedPeriod2 = SIDimensionCopyPeriod(siDim);
-    printf("Debug: Second SIDimensionCopyPeriod returned: %p\n", (void*)copiedPeriod2);
     if (copiedPeriod2) OCRelease(copiedPeriod2); // Release the second copy
     if (copiedPeriod == NULL) {
         printf("Debug: Period copy failed - this is the bug!\n");

@@ -846,7 +846,7 @@ SIDimensionRef SIDimensionCreate(
         !impl_validateOrDefaultScalar("period", &period, baseUnit, baseDim, &err)) {
         goto Fail;
     }
-    if (period_was_null) SIScalarSetDoubleValue(period, INFINITY);
+    if (period_was_null) SIScalarSetDoubleValue((SIMutableScalarRef) period, INFINITY);
     // 4) Allocate and initialize
     SIDimensionRef dim = SIDimensionAllocate();
     if (!dim) {
@@ -1477,9 +1477,9 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
     SIDimensionRef si = (SIDimensionRef)dim;
     // 5) Apply base fields (deep copies)
     OCRelease(si->_super.label);
-    si->_super.label = label ? OCStringCreateCopy(label) : NULL;
+    si->_super.label = label ? OCStringCreateCopy(label) : STR("");
     OCRelease(si->_super.description);
-    si->_super.description = description ? OCStringCreateCopy(description) : NULL;
+    si->_super.description = description ? OCStringCreateCopy(description) : STR("");
     OCRelease(si->_super.metadata);
     si->_super.metadata = metadata ? OCTypeDeepCopy(metadata) : OCDictionaryCreateMutable(0);
     // 6) SI-specific fields (deep copies)
@@ -2151,9 +2151,9 @@ SILinearDimensionRef SILinearDimensionCreate(
     // 6) Apply base + SI setters (with deep copies)
     SIDimensionRef si = (SIDimensionRef)dim;
     OCRelease(si->_super.label);
-    si->_super.label = label ? OCStringCreateCopy(label) : NULL;
+    si->_super.label = label ? OCStringCreateCopy(label) : STR("");
     OCRelease(si->_super.description);
-    si->_super.description = description ? OCStringCreateCopy(description) : NULL;
+    si->_super.description = description ? OCStringCreateCopy(description) : STR("");
     OCRelease(si->_super.metadata);
     si->_super.metadata = metadata ? OCTypeDeepCopy(metadata) : OCDictionaryCreateMutable(0);
     OCRelease(si->quantityName);

@@ -11,6 +11,7 @@
         "increment": "0.5 °",
         "coordinates_offset": "257.5 °",
         "quantity_name": "plane angle",
+        "period": "360 °",
         "label": "longitude"
       },
       {
@@ -20,6 +21,7 @@
         "increment": "0.5 °",
         "coordinates_offset": "13.5 °",
         "quantity_name": "plane angle",
+        "period": "360 °",
         "label": "latitude"
       },
       {
