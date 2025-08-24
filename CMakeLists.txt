@@ -17,6 +17,7 @@ endif()
 file(GLOB ALL_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/core/dataset/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/core/dependent_variable/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/core/dimension/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/importers/*.c"
@@ -31,6 +32,7 @@ add_library(RMNLib STATIC ${ALL_SOURCES})
 target_include_directories(RMNLib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/dataset
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/dependent_variable
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/dimension
     ${CMAKE_CURRENT_SOURCE_DIR}/src/importers

@@ -52,11 +52,11 @@ SIT_LIBDIR      := $(TP_LIB_DIR)
 REQUIRED_DIRS := \
   $(BUILD_DIR) $(OBJ_DIR) $(GEN_DIR) $(BIN_DIR) $(LIB_DIR) \
   $(THIRD_PARTY_DIR) $(TP_LIB_DIR) $(INCLUDE_DIR) $(OCT_INCLUDE) $(SIT_INCLUDE) \
-  $(OBJ_DIR)/core $(OBJ_DIR)/core/dependent_variable $(OBJ_DIR)/core/dimension \
+  $(OBJ_DIR)/core $(OBJ_DIR)/core/dataset $(OBJ_DIR)/core/dependent_variable $(OBJ_DIR)/core/dimension \
   $(OBJ_DIR)/importers $(OBJ_DIR)/spectroscopy $(OBJ_DIR)/utils
 
 #──────── Flags ────────
-CPPFLAGS := -I. -I$(SRC_DIR) -I$(SRC_DIR)/core -I$(SRC_DIR)/core/dependent_variable \
+CPPFLAGS := -I. -I$(SRC_DIR) -I$(SRC_DIR)/core -I$(SRC_DIR)/core/dataset -I$(SRC_DIR)/core/dependent_variable \
             -I$(SRC_DIR)/core/dimension -I$(SRC_DIR)/importers -I$(SRC_DIR)/spectroscopy \
             -I$(SRC_DIR)/utils -I$(SRC_DIR)/third_party -I$(TEST_SRC_DIR) \
             -I$(OCT_INCLUDE) -I$(SIT_INCLUDE) $(CURL_CFLAGS)
@@ -159,6 +159,7 @@ SHLIB := $(LIB_DIR)/libRMN$(SHLIB_EXT)
 STATIC_SRC := \
   $(wildcard $(SRC_DIR)/*.c) \
   $(wildcard $(SRC_DIR)/core/*.c) \
+  $(wildcard $(SRC_DIR)/core/dataset/*.c) \
   $(wildcard $(SRC_DIR)/core/dependent_variable/*.c) \
   $(wildcard $(SRC_DIR)/core/dimension/*.c) \
   $(wildcard $(SRC_DIR)/importers/*.c) \
