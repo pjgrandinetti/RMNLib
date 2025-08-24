@@ -1,14 +1,6 @@
 # RMNLib
 
-> # This repository is shared for development purposes only. Check back later for stable releases.
-
-![CI Status](https://github.com/pjgrandinetti/RMNLib/actions/workflows/ci.yml/badge.svg)
-[![Documentation Status](https://readthedocs.org/projects/RMN/badge/?version=latest)](https://RMN.readthedocs.io/en/latest/?badge=latest)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/pjgrandinetti/RMNLib)](https://github.com/pjgrandinetti/RMNLib/releases/latest)
-[![License](https://img.shields.io/github/license/pjgrandinetti/RMNLib)](https://github.com/pjgrandinetti/RMNLib/blob/main/LICENSE)
-[![GitHub issues](https://img.shields.io/github/issues/pjgrandinetti/RMNLib)](https://github.com/pjgrandinetti/RMNLib/issues)
-[![GitHub last commit](https://img.shields.io/github/last-commit/pjgrandinetti/RMNLib)](https://github.com/pjgrandinetti/RMNLib/commits/main)
-[![Platform Support](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)](https://github.com/pjgrandinetti/RMNLib#requirements) DEVELOPMENT STATUS: ALPHA - NOT READY FOR USE 🚧**
+> **🚧 DEVELOPMENT STATUS: ALPHA - NOT READY FOR USE 🚧**
 > 
 > **⚠️ WARNING: This project is in early development and is NOT suitable for production use.**
 > 
@@ -22,6 +14,11 @@
 
 ![CI Status](https://github.com/pjgrandinetti/RMNLib/actions/workflows/ci.yml/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/RMN/badge/?version=latest)](https://RMN.readthedocs.io/en/latest/?badge=latest)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/pjgrandinetti/RMNLib)](https://github.com/pjgrandinetti/RMNLib/releases/latest)
+[![License](https://img.shields.io/github/license/pjgrandinetti/RMNLib)](https://github.com/pjgrandinetti/RMNLib/blob/main/LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/pjgrandinetti/RMNLib)](https://github.com/pjgrandinetti/RMNLib/issues)
+[![GitHub last commit](https://img.shields.io/github/last-commit/pjgrandinetti/RMNLib)](https://github.com/pjgrandinetti/RMNLib/commits/main)
+[![Platform Support](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)](https://github.com/pjgrandinetti/RMNLib#requirements)
 
 ---
 
