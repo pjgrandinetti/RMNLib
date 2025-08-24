@@ -125,8 +125,6 @@ bool DatasetSetDimensionPrecedence(DatasetRef ds, OCMutableIndexArrayRef order);
 OCMutableArrayRef DatasetGetDependentVariables(DatasetRef ds);
 /** @brief Replace the dependent-variables list. */
 bool DatasetSetDependentVariables(DatasetRef ds, OCMutableArrayRef dvs);
-/** @brief How many dependent variables in this Dataset. */
-OCIndex DatasetGetDependentVariableCount(DatasetRef ds);
 /** @brief Fetch the i-th dependent variable. */
 DependentVariableRef DatasetGetDependentVariableAtIndex(DatasetRef ds, OCIndex index);
 /** @brief Get/replace tags. */
