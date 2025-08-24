@@ -225,46 +225,46 @@ update-deps: clean-third-party
 clean-third-party:
 	$(RM) -r $(THIRD_PARTY_DIR)
 
-# Archives
-$(OCT_LIB_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
-	@echo "Fetching OCTypes library: $(OCT_LIB_BIN)"
-ifeq ($(IS_MINGW),)
-	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
-	  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/$(OCT_LIB_BIN)
-else
-	@curl -fL --retry 3 --retry-delay 2 -o "$@" \
-	  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/$(OCT_LIB_BIN)
-endif
+# Archives - only download if extracted files don't exist
+$(OCT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@if [ ! -f "$(TP_LIB_DIR)/libOCTypes.a" ]; then \
+		echo "Fetching OCTypes library: $(OCT_LIB_BIN)"; \
+		curl -fL --retry 3 --retry-delay 2 -o "$@" \
+		  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/$(OCT_LIB_BIN); \
+	else \
+		echo "OCTypes library already available (skipping download)"; \
+		touch "$@"; \
+	fi
 
-$(OCT_HEADERS_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
-	@echo "Fetching OCTypes headers"
-ifeq ($(IS_MINGW),)
-	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
-	  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/libOCTypes-headers.zip
-else
-	@curl -fL --retry 3 --retry-delay 2 -o "$@" \
-	  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/libOCTypes-headers.zip
-endif
+$(OCT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@if [ ! -f "$(OCT_INCLUDE)/OCTypes.h" ]; then \
+		echo "Fetching OCTypes headers"; \
+		curl -fL --retry 3 --retry-delay 2 -o "$@" \
+		  https://github.com/pjgrandinetti/OCTypes/releases/latest/download/libOCTypes-headers.zip; \
+	else \
+		echo "OCTypes headers already available (skipping download)"; \
+		touch "$@"; \
+	fi
 
-$(SIT_LIB_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
-	@echo "Fetching SITypes library: $(SIT_LIB_BIN)"
-ifeq ($(IS_MINGW),)
-	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
-	  https://github.com/pjgrandinetti/SITypes/releases/latest/download/$(SIT_LIB_BIN)
-else
-	@curl -fL --retry 3 --retry-delay 2 -o "$@" \
-	  https://github.com/pjgrandinetti/SITypes/releases/latest/download/$(SIT_LIB_BIN)
-endif
+$(SIT_LIB_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@if [ ! -f "$(TP_LIB_DIR)/libSITypes.a" ]; then \
+		echo "Fetching SITypes library: $(SIT_LIB_BIN)"; \
+		curl -fL --retry 3 --retry-delay 2 -o "$@" \
+		  https://github.com/pjgrandinetti/SITypes/releases/latest/download/$(SIT_LIB_BIN); \
+	else \
+		echo "SITypes library already available (skipping download)"; \
+		touch "$@"; \
+	fi
 
-$(SIT_HEADERS_ARCHIVE): FORCE | $(THIRD_PARTY_DIR)
-	@echo "Fetching SITypes headers"
-ifeq ($(IS_MINGW),)
-	@curl -fL --retry 3 --retry-delay 2 -z "$@" -o "$@" \
-	  https://github.com/pjgrandinetti/SITypes/releases/latest/download/libSITypes-headers.zip
-else
-	@curl -fL --retry 3 --retry-delay 2 -o "$@" \
-	  https://github.com/pjgrandinetti/SITypes/releases/latest/download/libSITypes-headers.zip
-endif
+$(SIT_HEADERS_ARCHIVE): | $(THIRD_PARTY_DIR)
+	@if [ ! -f "$(SIT_INCLUDE)/SITypes.h" ]; then \
+		echo "Fetching SITypes headers"; \
+		curl -fL --retry 3 --retry-delay 2 -o "$@" \
+		  https://github.com/pjgrandinetti/SITypes/releases/latest/download/libSITypes-headers.zip; \
+	else \
+		echo "SITypes headers already available (skipping download)"; \
+		touch "$@"; \
+	fi
 
 # OCTypes
 octypes: $(TP_LIB_DIR)/libOCTypes.a $(OCT_INCLUDE)/OCTypes.h
