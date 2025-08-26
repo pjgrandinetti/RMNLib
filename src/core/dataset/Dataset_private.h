@@ -83,6 +83,12 @@ bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
 // Core JSON functions (Dataset_core.c)
 DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError);
 
+
+DatumRef DatasetCreateDatumFromMemOffset(DatasetRef theDataset,
+                                             OCIndex dependentVariableIndex,
+                                             OCIndex componentIndex,
+                                             OCIndex memOffset);
+
 // I/O utility functions (Dataset_io.c)
 bool ensure_directory(const char *dir, OCStringRef *outError);
 bool ensure_parent_dirs(const char *fullpath, OCStringRef *outError);

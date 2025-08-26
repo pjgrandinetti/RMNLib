@@ -19,8 +19,8 @@
 #include <string.h>
 #include <time.h>
 #include "../../RMNLibrary.h"
+#include "../utils/RMNGridUtils.h"
 #include "Dataset_private.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -417,12 +417,22 @@ DatasetRef DatasetCreate(
     
     // For focus and previousFocus, keep existing NULL values from init if parameters are NULL
     // These are conceptually optional data points that may not exist
-    if (focus) {
-        ds->focus = (DatumRef)OCRetain(focus);
+    OCIndex dependentVariableIndex = 0;
+    OCIndex componentIndex = 0;
+    OCIndex memOffset = 0;
+    DatumRef testDatum = DatasetCreateDatumFromMemOffset(ds, dependentVariableIndex, componentIndex, memOffset);
+    
+    if(focus) {
+        if(DatumHasSameReducedDimensionalities(focus, testDatum)) ds->focus = OCRetain(focus);
+        else ds->focus = OCRetain(testDatum);
     }
-    if (previousFocus) {
-        ds->previousFocus = (DatumRef)OCRetain(previousFocus);
+    else ds->focus = OCRetain(testDatum);
+    
+    if(previousFocus) {
+        if(PSDatumHasSameReducedDimensionalities(previousFocus, testDatum)) ds->previousFocus = OCRetain(previousFocus);
+        else ds->previousFocus = OCRetain(testDatum);
     }
+    else ds->previousFocus = OCRetain(testDatum);
     
     // — copy metadata if present —
     if (application) {
@@ -1024,6 +1034,31 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
     }
     return ds;
 }
+
+
+DatumRef DatasetCreateDatumFromMemOffset(DatasetRef theDataset,
+                                             OCIndex dependentVariableIndex,
+                                             OCIndex componentIndex,
+                                             OCIndex memOffset)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(theDataset,NULL);
+    
+    DependentVariableRef theDV = DatasetGetDependentVariableAtIndex(theDataset, dependentVariableIndex);
+    SIScalarRef response = DependentVariableCreateValueFromMemOffset(theDV, componentIndex, memOffset);
+
+    if(OCArrayGetCount(theDataset->dimensions)>0) {
+        OCArrayRef coordinateValues = DimensionCreateCoordinatesFromMemOffset(theDataset->dimensions,  memOffset);
+        DatumRef datum = DatumCreate(response, coordinateValues, dependentVariableIndex, componentIndex, memOffset, NULL);
+        if(coordinateValues) OCRelease(coordinateValues);
+        if(response) OCRelease(response);
+        return datum;
+    }
+    
+    DatumRef datum = DatumCreate(response, NULL, dependentVariableIndex, componentIndex, memOffset);
+    if(response) OCRelease(response);
+    return datum;
+}
+
 
 #pragma endregion
 

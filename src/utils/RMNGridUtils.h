@@ -111,6 +111,10 @@ void setIndexesForReducedMemOffsetIgnoringDimension(OCIndex memOffset, OCIndex i
  * @param dimensionIndexSet    Set of dimension‐indices to skip.
  */
 void setIndexesForReducedMemOffsetIgnoringDimensions(OCIndex memOffset, OCIndex indexes[], OCIndex dimensionsCount, const OCIndex *npts, OCIndexSetRef dimensionIndexSet);
+
+
+OCMutableArrayRef DimensionCreateCoordinateIndexesFromMemOffset(OCArrayRef dimensions, OCIndex memOffset);
+
 #ifdef __cplusplus
 }
 #endif

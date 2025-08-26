@@ -738,6 +738,8 @@ OCStringRef DimensionGetType(DimensionRef dim);
 bool SIDimensionIsPeriodic(SIDimensionRef dim);
 dimensionScaling SIDimensionGetScaling(SIDimensionRef dim);
 bool SILinearDimensionGetComplexFFT(SILinearDimensionRef dim);
+OCTypeRef DimensionCopyCoordinateAtIndex(DimensionRef dim, double index);
+
 #ifdef __cplusplus
 }
 #endif
