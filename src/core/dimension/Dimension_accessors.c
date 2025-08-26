@@ -475,7 +475,7 @@ bool SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim, OCArrayRef 
     }
     
     // Convert coordinates to SIScalar array (handles OCNumbers)
-    OCArrayRef scalarCoords = SIScalarCreateArrayFromOCNumberArray(coords, outError);
+    OCArrayRef scalarCoords = SIScalarCreateArrayFromMixedTypeArray(coords, outError);
     if (!scalarCoords) {
         if (outError && !*outError) *outError = STR("SIMonotonicDimensionSetCoordinates: failed to convert coordinates to SIScalar array");
         return false;
@@ -487,7 +487,7 @@ bool SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim, OCArrayRef 
     
     // Validate that all coordinates have the same dimensionality
     OCStringRef err = NULL;
-    if (!SIQuantityValidateArrayForDimensionality(scalarCoords, baseDim, &err)) {
+    if (!SIQuantityValidateMixedArrayForDimensionality(scalarCoords, baseDim, &err)) {
         if (outError) *outError = err;
         else if (err) OCRelease(err);
         OCRelease(scalarCoords);

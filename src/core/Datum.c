@@ -126,7 +126,7 @@ DatumRef DatumCreate(SIScalarRef response,
     }
     
     if (coordinates) {
-        OCArrayRef scalarCoords = SIScalarCreateArrayFromOCNumberArray(coordinates, outError);
+        OCArrayRef scalarCoords = SIScalarCreateArrayFromMixedTypeArray(coordinates, outError);
         if (!scalarCoords) {
             if (outError && !*outError) *outError = STR("DatumCreate: failed to convert coordinates to SIScalar array");
             goto Fail;

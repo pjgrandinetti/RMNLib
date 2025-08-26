@@ -1443,7 +1443,7 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
     }
     // All coordinates must be SIScalarRef
     // We allow OCNumbers to be passed in for convenience, but convert them to SIScalar with dimensionless unit
-    OCArrayRef scalarCoords = SIScalarCreateArrayFromOCNumberArray(coordinates, outError);
+    OCArrayRef scalarCoords = SIScalarCreateArrayFromMixedTypeArray(coordinates, outError);
     if (!scalarCoords) {
         err = STR("SIMonotonicDimensionCreate: failed to convert coordinates to SIScalar array");
         goto Fail;
@@ -1455,7 +1455,7 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
     SIDimensionalityRef baseDim = SIQuantityGetUnitDimensionality((SIQuantityRef)first);
 
     // Validate that all coordinates have the same dimensionality
-    if (!SIQuantityValidateArrayForDimensionality(scalarCoords, baseDim, &err)) {
+    if (!SIQuantityValidateMixedArrayForDimensionality(scalarCoords, baseDim, &err)) {
         goto FailWithCoords;
     }
 
