@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.14] - 2025-08-26
+### Added
+- Enhanced Dataset roundtrip tests with rigorous validation
+- Added test_Dataset_rigorous_roundtrip() function that creates Dataset with actual DependentVariable data
+- Improved C test suite to match Python test complexity for better debugging
+- Added detailed dictionary structure debugging output in tests
+
+### Fixed
+- Improved Dataset roundtrip testing to help isolate Python wrapper vs C library issues
+- Enhanced test coverage for Dataset dictionary serialization/deserialization
+
 ## [v0.1.11] - 2025-08-23
 ### Fixed
 - Fixed NULL label/description handling in DimensionSetLabel and DimensionSetDescription functions

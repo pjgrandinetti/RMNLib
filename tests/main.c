@@ -95,6 +95,7 @@ int main(void) {
     if (!test_Dataset_mutators()) failures++;
     if (!test_Dataset_type_contract()) failures++;
     if (!test_Dataset_copy_and_roundtrip()) failures++;
+    if (!test_Dataset_rigorous_roundtrip()) failures++;
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",
                 failures, failures > 1 ? "s" : "");
