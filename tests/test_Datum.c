@@ -50,7 +50,7 @@ bool test_Datum_NULL_cases(void) {
         ok = false;
         goto cleanup;
     }
-    if (DatumCreate(NULL, NULL, 0, 0, 0) != NULL) {
+    if (DatumCreate(NULL, NULL, 0, 0, 0, NULL) != NULL) {
         ok = false;
         goto cleanup;
     }
@@ -110,7 +110,7 @@ bool test_Datum_functional(void) {
     OCArrayAppendValue(coords, c0);
     OCArrayAppendValue(coords, c1);
     // Create Datum
-    datum = DatumCreate(value, coords, 1, 2, 3);
+    datum = DatumCreate(value, coords, 1, 2, 3, NULL);
     if (!datum) {
         ok = false;
         goto cleanup;

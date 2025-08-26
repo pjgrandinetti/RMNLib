@@ -1441,10 +1441,24 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
         err = STR("SIMonotonicDimensionCreate: need ≥2 coordinates");
         goto Fail;
     }
+    // All coordinates must be SIScalarRef
+    // We allow OCNumbers to be passed in for convenience, but convert them to SIScalar with dimensionless unit
+    OCArrayRef scalarCoords = SIScalarCreateArrayFromOCNumberArray(coordinates, outError);
+    if (!scalarCoords) {
+        err = STR("SIMonotonicDimensionCreate: failed to convert coordinates to SIScalar array");
+        goto Fail;
+    }
+
     // 2) Derive baseUnit/baseDim from first coordinate
-    SIScalarRef first = (SIScalarRef)OCArrayGetValueAtIndex(coordinates, 0);
+    SIScalarRef first = (SIScalarRef)OCArrayGetValueAtIndex(scalarCoords, 0);
     SIUnitRef baseUnit = SIQuantityGetUnit((SIQuantityRef)first);
     SIDimensionalityRef baseDim = SIQuantityGetUnitDimensionality((SIQuantityRef)first);
+
+    // Validate that all coordinates have the same dimensionality
+    if (!SIQuantityValidateArrayForDimensionality(scalarCoords, baseDim, &err)) {
+        goto FailWithCoords;
+    }
+
     // 3) Validate or default other params
     if (!quantityName) {
         OCArrayRef qnList = SIDimensionalityCreateArrayOfQuantities(baseDim);
@@ -1452,37 +1466,37 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
         OCRelease(qnList);
     } else if (SIDimensionalityForQuantity(quantityName, &err) == NULL) {
         err = STR("SIMonotonicDimensionCreate: invalid quantityName");
-        goto Fail;
+        goto FailWithCoords;
     }
     if (!impl_validateOrDefaultScalar("offset", &offset, baseUnit, baseDim, &err) ||
         !impl_validateOrDefaultScalar("origin", &origin, baseUnit, baseDim, &err) ||
         (!impl_validateOrDefaultScalar("period", &period, baseUnit, baseDim, &err))) {
-        goto Fail;
+        goto FailWithCoords;
     }
     if (period_was_null) SIScalarSetDoubleValue((SIMutableScalarRef)period, INFINITY);
-    // 4) Validate scaling mode
+    // 4) Validate that required fields are not NULL after validation
     // Ensure required fields are not NULL after validation
     if (!quantityName || !offset || !origin || !coordinates) {
         err = STR("SIMonotonicDimensionCreate: internal error — required field is NULL after validation");
-        goto Fail;
+        goto FailWithCoords;
     }
-    // 4) Allocate and initialize
+    // 5) Allocate and initialize
     SIMonotonicDimensionRef dim = SIMonotonicDimensionAllocate();
     if (!dim) {
         err = STR("SIMonotonicDimensionCreate: allocation failed");
-        goto Fail;
+        goto FailWithCoords;
     }
     impl_InitBaseDimensionFields((DimensionRef)&dim->_super._super);
     impl_InitSIDimensionFields((SIDimensionRef)dim);
     SIDimensionRef si = (SIDimensionRef)dim;
-    // 5) Apply base fields (deep copies)
+    // 6) Apply base fields (deep copies)
     OCRelease(si->_super.label);
     si->_super.label = label ? OCStringCreateCopy(label) : STR("");
     OCRelease(si->_super.description);
     si->_super.description = description ? OCStringCreateCopy(description) : STR("");
     OCRelease(si->_super.metadata);
     si->_super.metadata = metadata ? OCTypeDeepCopy(metadata) : OCDictionaryCreateMutable(0);
-    // 6) SI-specific fields (deep copies)
+    // 7) SI-specific fields (deep copies)
     OCRelease(si->quantityName);
     si->quantityName = OCStringCreateCopy(quantityName);
     if (!si->quantityName) {
@@ -1508,14 +1522,14 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
         goto FailWithDim;
     }
     si->scaling = scaling;
-    // 7) Coordinates array (deep copy)
+    // 8) Coordinates array (deep copy)
     OCRelease(dim->coordinates);
-    dim->coordinates = OCArrayCreateMutableCopy(coordinates);
+    dim->coordinates = OCArrayCreateMutableCopy(scalarCoords);
     if (!dim->coordinates) {
         err = STR("SIMonotonicDimensionCreate: failed to copy coordinates array");
         goto FailWithDim;
     }
-    // 8) Reciprocal
+    // 9) Reciprocal
     if (reciprocal) {
         if (!impl_SIDimensionIsReciprocalOf((SIDimensionRef)dim, reciprocal, &err)) {
             goto FailWithDim;
@@ -1545,6 +1559,7 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
         OCRelease(inverseDim);
         if (!dim->reciprocal) goto FailWithDim;
     }
+    OCRelease(scalarCoords);
     // Release temporary SIScalar objects created by validation if they were NULL inputs
     if (offset_was_null && offset) {
         OCRelease(offset);
@@ -1558,6 +1573,19 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
     return dim;
 FailWithDim:
     OCRelease(dim);
+FailWithCoords:
+    OCRelease(scalarCoords);
+    // Release temporary SIScalar objects created by validation if they were NULL inputs
+    if (offset_was_null && offset) {
+        OCRelease(offset);
+    }
+    if (origin_was_null && origin) {
+        OCRelease(origin);
+    }
+    if (period_was_null && period) {
+        OCRelease(period);
+    }
+    goto Fail;
 Fail:
     if (outError)
         *outError = err;

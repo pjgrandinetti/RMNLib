@@ -374,7 +374,8 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreateMinimal(OCStringRef quantityNa
  * @return true on success.
  */
 bool SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim,
-                                        OCArrayRef coords);
+                                        OCArrayRef coords,
+                                        OCStringRef *outError);
 /**
  * @brief Create a copy of the coordinate array.
  * @param dim The SIMonotonicDimension.

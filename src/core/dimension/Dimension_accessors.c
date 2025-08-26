@@ -461,10 +461,52 @@ SIDimensionRef SIMonotonicDimensionCopyReciprocal(SIMonotonicDimensionRef dim) {
 SIDimensionRef SIMonotonicDimensionGetReciprocal(SIMonotonicDimensionRef dim) {
     return dim ? dim->reciprocal : NULL;
 }
-bool SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim, OCArrayRef coords) {
-    if (!dim || !coords || OCArrayGetCount(coords) < 2) return false;
+bool SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim, OCArrayRef coords, OCStringRef *outError) {
+    if (outError) *outError = NULL;
+    
+    if (!dim) {
+        if (outError) *outError = STR("SIMonotonicDimensionSetCoordinates: dim is NULL");
+        return false;
+    }
+    
+    if (!coords || OCArrayGetCount(coords) < 2) {
+        if (outError) *outError = STR("SIMonotonicDimensionSetCoordinates: need ≥2 coordinates");
+        return false;
+    }
+    
+    // Convert coordinates to SIScalar array (handles OCNumbers)
+    OCArrayRef scalarCoords = SIScalarCreateArrayFromOCNumberArray(coords, outError);
+    if (!scalarCoords) {
+        if (outError && !*outError) *outError = STR("SIMonotonicDimensionSetCoordinates: failed to convert coordinates to SIScalar array");
+        return false;
+    }
+    
+    // Derive dimensionality from first coordinate
+    SIScalarRef first = (SIScalarRef)OCArrayGetValueAtIndex(scalarCoords, 0);
+    SIDimensionalityRef baseDim = SIQuantityGetUnitDimensionality((SIQuantityRef)first);
+    
+    // Validate that all coordinates have the same dimensionality
+    OCStringRef err = NULL;
+    if (!SIQuantityValidateArrayForDimensionality(scalarCoords, baseDim, &err)) {
+        if (outError) *outError = err;
+        else if (err) OCRelease(err);
+        OCRelease(scalarCoords);
+        return false;
+    }
+    
+    // Validate dimensionality matches the dimension's quantity
+    SIDimensionalityRef dimDim = SIQuantityGetUnitDimensionality((SIQuantityRef)SIDimensionGetCoordinatesOffset((SIDimensionRef)dim));
+    if (!SIDimensionalityHasSameReducedDimensionality(baseDim, dimDim)) {
+        if (outError) *outError = STR("SIMonotonicDimensionSetCoordinates: coordinate dimensionality does not match dimension's quantity");
+        OCRelease(scalarCoords);
+        return false;
+    }
+    
+    // All validation passed - update coordinates
     OCRelease(dim->coordinates);
-    dim->coordinates = OCArrayCreateMutableCopy(coords);
+    dim->coordinates = OCArrayCreateMutableCopy(scalarCoords);
+    OCRelease(scalarCoords);
+    
     return dim->coordinates != NULL;
 }
 bool SIMonotonicDimensionSetReciprocal(

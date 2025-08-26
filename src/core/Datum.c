@@ -105,15 +105,53 @@ DatumRef DatumCreate(SIScalarRef response,
                      OCArrayRef coordinates,
                      OCIndex dependentVariableIndex,
                      OCIndex componentIndex,
-                     OCIndex memOffset) {
-    if (NULL == response) return NULL;
+                     OCIndex memOffset, 
+                     OCStringRef *outError) {
+    if (outError) *outError = NULL;
+    if (NULL == response) {
+        if (outError) *outError = STR("DatumCreate: response cannot be NULL");
+        return NULL;
+    }
+    
     struct impl_Datum *newDatum = DatumAllocate();
+    if (!newDatum) {
+        if (outError) *outError = STR("DatumCreate: failed to allocate Datum");
+        return NULL;
+    }
+    
     newDatum->response = SIScalarCreateCopy(response);
-    if (coordinates) newDatum->coordinates = OCArrayCreateCopy(coordinates);
+    if (!newDatum->response) {
+        if (outError) *outError = STR("DatumCreate: failed to copy response");
+        goto Fail;
+    }
+    
+    if (coordinates) {
+        OCArrayRef scalarCoords = SIScalarCreateArrayFromOCNumberArray(coordinates, outError);
+        if (!scalarCoords) {
+            if (outError && !*outError) *outError = STR("DatumCreate: failed to convert coordinates to SIScalar array");
+            goto Fail;
+        }
+
+        newDatum->coordinates = OCArrayCreateCopy(scalarCoords);
+        OCRelease(scalarCoords);
+        if (!newDatum->coordinates) {
+            if (outError) *outError = STR("DatumCreate: failed to copy coordinates array");
+            goto Fail;
+        }
+    } else {
+        newDatum->coordinates = NULL;
+    }
+    
     newDatum->dependentVariableIndex = dependentVariableIndex;
     newDatum->componentIndex = componentIndex;
     newDatum->memOffset = memOffset;
     return (DatumRef)newDatum;
+
+Fail:
+    if (newDatum) {
+        OCRelease(newDatum);
+    }
+    return NULL;
 }
 DatumRef DatumCopy(DatumRef theDatum) {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
@@ -206,7 +244,7 @@ DatumRef DatumCreateFromDictionary(OCDictionaryRef dictionary, OCStringRef *erro
     if (OCDictionaryContainsKey(dictionary, STR(kDatumResponseKey))) {
         response = SIScalarCreateFromExpression(OCDictionaryGetValue(dictionary, STR(kDatumResponseKey)), error);
     }
-    DatumRef datum = DatumCreate(response, coordinates, dependentVariableIndex, componentIndex, memOffset);
+    DatumRef datum = DatumCreate(response, coordinates, dependentVariableIndex, componentIndex, memOffset, error);
     if (response) OCRelease(response);
     if (coordinates) OCRelease(coordinates);
     return datum;

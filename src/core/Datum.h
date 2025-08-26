@@ -53,10 +53,11 @@ OCTypeID DatumGetTypeID(void);
 DatumRef
 DatumCreate(
     SIScalarRef response,
-    OCArrayRef  coordinates,
-    OCIndex     dependentVariableIndex,
-    OCIndex     componentIndex,
-    OCIndex     memOffset);
+                     OCArrayRef coordinates,
+                     OCIndex dependentVariableIndex,
+                     OCIndex componentIndex,
+                     OCIndex memOffset, 
+                     OCStringRef *outError);
 
 /**
  * @brief Deep-copy an existing Datum.
