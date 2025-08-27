@@ -19,7 +19,6 @@
 #include <string.h>
 #include <time.h>
 #include "../../RMNLibrary.h"
-#include "../utils/RMNGridUtils.h"
 #include "Dataset_private.h"
 #ifdef __cplusplus
 extern "C" {
@@ -417,22 +416,35 @@ DatasetRef DatasetCreate(
     
     // For focus and previousFocus, keep existing NULL values from init if parameters are NULL
     // These are conceptually optional data points that may not exist
-    OCIndex dependentVariableIndex = 0;
-    OCIndex componentIndex = 0;
-    OCIndex memOffset = 0;
-    DatumRef testDatum = DatasetCreateDatumFromMemOffset(ds, dependentVariableIndex, componentIndex, memOffset);
-    
     if(focus) {
-        if(DatumHasSameReducedDimensionalities(focus, testDatum)) ds->focus = OCRetain(focus);
-        else ds->focus = OCRetain(testDatum);
+        OCIndex dependentVariableIndex = 0;
+        OCIndex componentIndex = 0;
+        OCIndex memOffset = 0;
+        DatumRef testDatum = DatasetCreateDatumFromMemOffset(ds, dependentVariableIndex, componentIndex, memOffset);
+        
+        if(DatumHasSameReducedDimensionalities(focus, testDatum)) {
+            ds->focus = (DatumRef) OCRetain(focus);
+        } else {
+            ds->focus = (DatumRef) OCRetain(testDatum);
+        }
+        OCRelease(testDatum);
     }
-    else ds->focus = OCRetain(testDatum);
+    // If focus is NULL, keep ds->focus as NULL (already initialized to NULL)
     
     if(previousFocus) {
-        if(PSDatumHasSameReducedDimensionalities(previousFocus, testDatum)) ds->previousFocus = OCRetain(previousFocus);
-        else ds->previousFocus = OCRetain(testDatum);
+        OCIndex dependentVariableIndex = 0;
+        OCIndex componentIndex = 0;
+        OCIndex memOffset = 0;
+        DatumRef testDatum = DatasetCreateDatumFromMemOffset(ds, dependentVariableIndex, componentIndex, memOffset);
+        
+        if(DatumHasSameReducedDimensionalities(previousFocus, testDatum)) {
+            ds->previousFocus = (DatumRef) OCRetain(previousFocus);
+        } else {
+            ds->previousFocus = (DatumRef) OCRetain(testDatum);
+        }
+        OCRelease(testDatum);
     }
-    else ds->previousFocus = OCRetain(testDatum);
+    // If previousFocus is NULL, keep ds->previousFocus as NULL (already initialized to NULL)
     
     // — copy metadata if present —
     if (application) {
@@ -1042,19 +1054,12 @@ DatumRef DatasetCreateDatumFromMemOffset(DatasetRef theDataset,
                                              OCIndex memOffset)
 {
     IF_NO_OBJECT_EXISTS_RETURN(theDataset,NULL);
-    
-    DependentVariableRef theDV = DatasetGetDependentVariableAtIndex(theDataset, dependentVariableIndex);
+    DependentVariableRef theDV = (DependentVariableRef) OCArrayGetValueAtIndex(theDataset->dependentVariables, dependentVariableIndex);
+    if (!theDV) return NULL;
     SIScalarRef response = DependentVariableCreateValueFromMemOffset(theDV, componentIndex, memOffset);
-
-    if(OCArrayGetCount(theDataset->dimensions)>0) {
-        OCArrayRef coordinateValues = DimensionCreateCoordinatesFromMemOffset(theDataset->dimensions,  memOffset);
-        DatumRef datum = DatumCreate(response, coordinateValues, dependentVariableIndex, componentIndex, memOffset, NULL);
-        if(coordinateValues) OCRelease(coordinateValues);
-        if(response) OCRelease(response);
-        return datum;
-    }
+    if (!response) return NULL;
     
-    DatumRef datum = DatumCreate(response, NULL, dependentVariableIndex, componentIndex, memOffset);
+    DatumRef datum = DatumCreate(response, dependentVariableIndex, componentIndex, memOffset, (OCTypeRef)theDataset, NULL);
     if(response) OCRelease(response);
     return datum;
 }

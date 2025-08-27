@@ -141,7 +141,7 @@ void setIndexesForReducedMemOffsetIgnoringDimensions(const OCIndex memOffset, OC
 OCMutableArrayRef DimensionCreateCoordinateIndexesFromMemOffset(OCArrayRef dimensions, OCIndex memOffset)
 {
    	IF_NO_OBJECT_EXISTS_RETURN(dimensions,NULL);
-    OCIndex dimensionsCount = CFArrayGetCount(dimensions);
+    OCIndex dimensionsCount = OCArrayGetCount(dimensions);
     if(dimensionsCount==0) return NULL;
     
     OCMutableIndexArrayRef indexValues = OCIndexArrayCreateMutable(dimensionsCount);
@@ -153,13 +153,13 @@ OCMutableArrayRef DimensionCreateCoordinateIndexesFromMemOffset(OCArrayRef dimen
         OCIndexArraySetValueAtIndex(indexValues, idim, coordinateIndex);
         hyperVolume *= npts;
     }
-    return indexValues;
+    return (OCMutableArrayRef)indexValues;
 }
 
 OCArrayRef DimensionCreateCoordinatesFromIndexes(OCArrayRef dimensions, OCIndexArrayRef theIndexes)
 {
   	IF_NO_OBJECT_EXISTS_RETURN(dimensions,NULL);
-    OCIndex dimensionsCount = CFArrayGetCount(dimensions);
+    OCIndex dimensionsCount = OCArrayGetCount(dimensions);
     if(dimensionsCount==0) return NULL;
     
     OCMutableArrayRef coordinateValues = OCArrayCreateMutable(sizeof(SIScalarRef)*dimensionsCount,&kOCTypeArrayCallBacks);

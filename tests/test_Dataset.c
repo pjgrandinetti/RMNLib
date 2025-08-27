@@ -260,6 +260,7 @@ bool test_Dataset_rigorous_roundtrip(void) {
     OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCDictionaryRef dict = NULL;
     DatasetRef ds = NULL, rt = NULL;
+    OCStringRef err_str = NULL; // Declare early to avoid uninitialized warnings
     
     // Create a DependentVariable with actual data (like Python test)
     DependentVariableRef dv = _make_mock_dv_with_data();
@@ -302,7 +303,7 @@ bool test_Dataset_rigorous_roundtrip(void) {
     
     OCArrayRef debug_deps = (OCArrayRef)OCDictionaryGetValue(dict, STR("dependent_variables"));
     if (debug_deps) {
-        printf("  dependent_variables: array with %ld items\n", OCArrayGetCount(debug_deps));
+        printf("  dependent_variables: array with %llu items\n", (unsigned long long)OCArrayGetCount(debug_deps));
         if (OCArrayGetCount(debug_deps) > 0) {
             OCDictionaryRef dv_dict = (OCDictionaryRef)OCArrayGetValueAtIndex(debug_deps, 0);
             if (dv_dict) {
@@ -315,14 +316,13 @@ bool test_Dataset_rigorous_roundtrip(void) {
     }
     
     OCArrayRef debug_dims = (OCArrayRef)OCDictionaryGetValue(dict, STR("dimensions"));
-    if (debug_dims) printf("  dimensions: array with %ld items\n", OCArrayGetCount(debug_dims));
+    if (debug_dims) printf("  dimensions: array with %llu items\n", (unsigned long long)OCArrayGetCount(debug_dims));
     
     OCArrayRef debug_prec = (OCArrayRef)OCDictionaryGetValue(dict, STR("dimension_precedence"));
-    if (debug_prec) printf("  dimension_precedence: array with %ld items\n", OCArrayGetCount(debug_prec));
+    if (debug_prec) printf("  dimension_precedence: array with %llu items\n", (unsigned long long)OCArrayGetCount(debug_prec));
     printf("=== End C Dictionary Debug ===\n");
     
     // Create from dictionary
-    OCStringRef err_str = NULL;
     rt = DatasetCreateFromDictionary(dict, &err_str);
     if (rt == NULL) {
         if (err_str) {

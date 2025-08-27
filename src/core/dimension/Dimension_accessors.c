@@ -881,19 +881,79 @@ OCTypeRef DimensionCopyCoordinateAtIndex(DimensionRef dim, double index)
     OCTypeID tid = OCGetTypeID(dim);
 
     if (tid == SILinearDimensionGetTypeID()) {
-        return SILinearDimensionCreateCoordinateAtIndex((SILinearDimensionRef) dim, index);
+        return (OCTypeRef)SILinearDimensionCreateCoordinateAtIndex((SILinearDimensionRef) dim, index);
     }
     if (tid == SIMonotonicDimensionGetTypeID()) {
         OCArrayRef coords = SIMonotonicDimensionGetCoordinates((SIMonotonicDimensionRef)dim);
-        return SIScalarCreateCopy(OCArrayGetValueAtIndex(coords, index));
+        return (OCTypeRef)SIScalarCreateCopy(OCArrayGetValueAtIndex(coords, index));
     }
     if (tid == LabeledDimensionGetTypeID()) {
-        OCArrayRef coords = SIMonotonicDimensionGetCoordinates((LabeledDimensionRef)dim);
-        return OCStringCreateCopy(OCArrayGetValueAtIndex(coords, index));
+        OCArrayRef coords = SIMonotonicDimensionGetCoordinates((SIMonotonicDimensionRef)dim);
+        return (OCTypeRef)OCStringCreateCopy(OCArrayGetValueAtIndex(coords, index));
     }
     return NULL;
 }
 
+
+OCTypeRef DimensionCreateInterpolatedCoordinateAtIndex(SILinearDimensionRef dim, double dIndex) {
+    // Input validation
+    if (!dim) return NULL;
+    if (dim->count == 0) return NULL;
+    
+    // Handle bounds consistently
+    if (dIndex <= 0.0) {
+        return DimensionCopyCoordinateAtIndex((DimensionRef)dim, 0);
+    }
+    if (dIndex >= (double)(dim->count - 1)) {
+        return DimensionCopyCoordinateAtIndex((DimensionRef)dim, dim->count - 1);
+    }
+    
+    OCIndex index_before = (OCIndex)floor(dIndex);
+    OCIndex index_after = (OCIndex)ceil(dIndex);
+    OCIndex index_closest = (OCIndex)round(dIndex);
+    OCTypeID tid = OCGetTypeID(dim);
+    if (tid == LabeledDimensionGetTypeID()) {
+        OCArrayRef coords = SIMonotonicDimensionGetCoordinates((SIMonotonicDimensionRef)dim);
+        return (OCTypeRef)OCStringCreateCopy(OCArrayGetValueAtIndex(coords, index_closest));
+    }
+    if (tid != SILinearDimensionGetTypeID() && tid != SIMonotonicDimensionGetTypeID()) {
+        return NULL;
+    }
+
+    // For exact indices, no interpolation needed
+    if (index_before == index_after) {
+        return DimensionCopyCoordinateAtIndex((DimensionRef)dim, index_before);
+    }
+    
+    // Get coordinate values for interpolation
+    SIScalarRef before = (SIScalarRef)DimensionCopyCoordinateAtIndex((DimensionRef)dim, index_before);
+    SIScalarRef after = (SIScalarRef)DimensionCopyCoordinateAtIndex((DimensionRef)dim, index_after);
+    if (!before || !after) {
+        if (before) OCRelease(before);
+        if (after) OCRelease(after);
+        return NULL;
+    }
+    
+    // Calculate interpolated value: before + fraction * (after - before)
+    double fraction = dIndex - (double)index_before;
+    SIMutableScalarRef diff = SIScalarCreateMutableCopy(after);
+    if (!diff) {
+        OCRelease(before);
+        OCRelease(after);
+        return NULL;
+    }
+    
+    SIScalarSubtract(diff, before, NULL);
+    SIScalarMultiplyByDimensionlessRealConstant(diff, fraction);
+    SIScalarRef result = SIScalarCreateByAdding(before, (SIScalarRef)diff, NULL);
+    
+    // Clean up resources
+    OCRelease(before);
+    OCRelease(after);
+    OCRelease(diff);
+    
+    return (OCTypeRef) result;
+}
 
 
 #pragma endregion

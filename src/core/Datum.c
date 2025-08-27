@@ -1,18 +1,26 @@
 #include "../RMNLibrary.h"
 #include "cJSON.h"
-#define kDatumCoordinatesKey "coordinates"
 #define kDatumResponseKey "response"
 #define kDatumDependentVariableIndexKey "dependent_variable_index"
 #define kDatumComponentIndexKey "component_index"
 #define kDatumMemOffsetKey "mem_offset"
 static OCTypeID kDatumID = kOCNotATypeID;
+// Inherits base structure from SIScalar and SIQuantity
+// Can be cast to SIScalarRef or SIQuantityRef
 struct impl_Datum {
     OCBase base;
-    SIScalarRef response;
+    // impl_SIQuantity Type attributes
+    SIUnitRef unit;
+    SINumberType type;
+    // impl_SIScalar Type attributes
+    impl_SINumber responseValue;
+
+    // Indexes tells us where this datum came from in the parent DependentVariable
     OCIndex dependentVariableIndex;
     OCIndex componentIndex;
     OCIndex memOffset;
-    OCArrayRef coordinates;
+
+    OCTypeRef owner;          // weak reference to owning Dataset object, if any
 };
 OCTypeID DatumGetTypeID(void) {
     if (kDatumID == kOCNotATypeID) kDatumID = OCRegisterType("Datum");
@@ -25,30 +33,7 @@ static bool impl_DatumEqual(const void *theType1, const void *theType2) {
     if (NULL == input1 || NULL == input2) return false;
     if (input1 == input2) return true;
     // Compare response
-    if (!SIScalarEqual(input1->response, input2->response)) return false;
-    // Compare coordinate arrays - handle NULL coordinates
-    if (input1->coordinates == NULL && input2->coordinates == NULL) {
-        // Both NULL, coordinates are equal, skip coordinate comparison
-    } else if (input1->coordinates == NULL || input2->coordinates == NULL) {
-        // One is NULL, the other isn't - not equal
-        return false;
-    } else {
-        // Both non-NULL, compare normally
-        if (OCArrayGetCount(input1->coordinates) != OCArrayGetCount(input2->coordinates)) return false;
-        OCIndex coordinateCount = OCArrayGetCount(input1->coordinates);
-        for (OCIndex idim = 0; idim < coordinateCount; idim++) {
-            OCTypeRef coord1 = OCArrayGetValueAtIndex(input1->coordinates, idim);
-            OCTypeRef coord2 = OCArrayGetValueAtIndex(input2->coordinates, idim);
-            OCTypeID type1 = OCGetTypeID(coord1);
-            OCTypeID type2 = OCGetTypeID(coord2);
-            if (type1 != type2) return false;
-            if (type1 == SIScalarGetTypeID()) {
-                if (SIScalarCompare((SIScalarRef)coord1, (SIScalarRef)coord2) != kOCCompareEqualTo) return false;
-            } else if (type1 == OCStringGetTypeID()) {
-                if (!OCStringEqual((OCStringRef)coord1, (OCStringRef)coord2)) return false;
-            }
-        }
-    }
+    if (!SIScalarEqual((SIScalarRef) input1, (SIScalarRef)  input2)) return false;
     // Compare indices
     if (input1->dependentVariableIndex != input2->dependentVariableIndex) return false;
     if (input1->componentIndex != input2->componentIndex) return false;
@@ -58,18 +43,16 @@ static bool impl_DatumEqual(const void *theType1, const void *theType2) {
 static void impl_DatumFinalize(const void *theType) {
     if (NULL == theType) return;
     DatumRef theDatum = (DatumRef)theType;
-    if (theDatum->response) {
-        OCRelease(theDatum->response);
-        ((struct impl_Datum *)theDatum)->response = NULL;
+    if (theDatum->unit) {
+        OCRelease(theDatum->unit);
+        // Cast away const to allow nulling the field
+        ((struct impl_Datum *)theDatum)->unit = NULL;
     }
-    if (theDatum->coordinates) {
-        OCRelease(theDatum->coordinates);
-        ((struct impl_Datum *)theDatum)->coordinates = NULL;
-    }
+    // Note: owner is a weak reference, so we don't release it
 }
 static OCStringRef impl_DatumCopyFormattingDescription(OCTypeRef theType) {
     DatumRef datum = (DatumRef)theType;
-    return SIScalarCopyFormattingDescription(datum->response);
+    return SIScalarCopyFormattingDescription((SIScalarRef) datum);
 }
 // cJSON serialization for Datum now entirely via OCDictionary → JSON
 static cJSON *impl_DatumCreateJSON(const void *obj) {
@@ -115,10 +98,10 @@ static struct impl_Datum *DatumAllocate(void) {
                        impl_DatumDeepCopyMutable);
 }
 DatumRef DatumCreate(SIScalarRef response,
-                     OCArrayRef coordinates,
                      OCIndex dependentVariableIndex,
                      OCIndex componentIndex,
                      OCIndex memOffset,
+                     OCTypeRef owner,
                      OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (NULL == response) {
@@ -130,30 +113,17 @@ DatumRef DatumCreate(SIScalarRef response,
         if (outError) *outError = STR("DatumCreate: failed to allocate Datum");
         return NULL;
     }
-    newDatum->response = SIScalarCreateCopy(response);
-    if (!newDatum->response) {
-        if (outError) *outError = STR("DatumCreate: failed to copy response");
-        goto Fail;
-    }
-    if (coordinates) {
-        // We need to allow mix of SIScalar and OCString, since coordinates can come from Labeled, Monotonic, or Linear Dimension.
-        newDatum->coordinates = OCTypeDeepCopy(coordinates);
-        if (!newDatum->coordinates) {
-            if (outError) *outError = STR("DatumCreate: failed to copy coordinates array");
-            goto Fail;
-        }
-    } else {
-        newDatum->coordinates = OCMutableArrayCreate(0);
-    }
+    newDatum->unit = SIQuantityGetUnit((SIQuantityRef)response);
+    newDatum->type = SIQuantityGetNumericType((SIQuantityRef)response);
+    newDatum->responseValue = SIScalarGetValue(response);
     newDatum->dependentVariableIndex = dependentVariableIndex;
     newDatum->componentIndex = componentIndex;
     newDatum->memOffset = memOffset;
+    newDatum->owner = owner;  // Store the weak reference to the owner
     return (DatumRef)newDatum;
-Fail:
-    if (newDatum) {
-        OCRelease(newDatum);
-    }
-    return NULL;
+    
+    // Note: Error handling removed as it's currently unused
+    // This could be added back if validation logic is needed in the future
 }
 DatumRef DatumCopy(DatumRef theDatum) {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
@@ -162,17 +132,9 @@ DatumRef DatumCopy(DatumRef theDatum) {
 bool DatumHasSameReducedDimensionalities(DatumRef input1, DatumRef input2) {
     IF_NO_OBJECT_EXISTS_RETURN(input1, false);
     IF_NO_OBJECT_EXISTS_RETURN(input2, false);
-    OCIndex coordinateCount1 = 0, coordinateCount2 = 0;
-    if (!SIQuantityHasSameReducedDimensionality((SIQuantityRef)input1->response, (SIQuantityRef)input2->response)) return false;
-    if (input1->coordinates) coordinateCount1 = OCArrayGetCount(input1->coordinates);
-    if (input2->coordinates) coordinateCount2 = OCArrayGetCount(input2->coordinates);
-    if (coordinateCount1 != coordinateCount2) return false;
-    for (OCIndex idim = 0; idim < coordinateCount1; idim++) {
-        if (!SIQuantityHasSameReducedDimensionality(
-                OCArrayGetValueAtIndex(input1->coordinates, idim),
-                OCArrayGetValueAtIndex(input2->coordinates, idim)))
-            return false;
-    }
+    // Note: coordinate counting logic removed as it was unused
+    // This function currently only checks dimensional compatibility
+    if (!SIDimensionalityHasSameReducedDimensionality(SIUnitGetDimensionality(input1->unit), SIUnitGetDimensionality(input2->unit))) return false;
     return true;
 }
 OCIndex DatumGetComponentIndex(DatumRef theDatum) {
@@ -196,20 +158,46 @@ OCIndex DatumGetMemOffset(DatumRef theDatum) {
 void DatumSetMemOffset(DatumRef theDatum, OCIndex memOffset) {
     if (theDatum) theDatum->memOffset = memOffset;
 }
-SIScalarRef DatumGetCoordinateAtIndex(DatumRef theDatum, OCIndex index) {
+OCTypeRef DatumGetCoordinateAtIndex(DatumRef theDatum, OCIndex index) {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
-    IF_NO_OBJECT_EXISTS_RETURN(theDatum->coordinates, NULL);
-    return OCArrayGetValueAtIndex(theDatum->coordinates, index);
+    IF_NO_OBJECT_EXISTS_RETURN(theDatum->owner, NULL);
+    OCArrayRef dimensions = DatasetGetDimensions((DatasetRef)theDatum->owner);
+    IF_NO_OBJECT_EXISTS_RETURN(dimensions, NULL);
+    if (index < 0 || index >= OCArrayGetCount(dimensions)) return NULL;
+    DimensionRef dimension = (DimensionRef)OCArrayGetValueAtIndex(dimensions, index);
+    if (!dimension) return NULL;
+    return DimensionCopyCoordinateAtIndex(dimension, theDatum->memOffset);
 }
+
 SIScalarRef DatumCreateResponse(DatumRef theDatum) {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
-    if (!theDatum->response) return NULL;
-    return SIScalarCreateCopy(theDatum->response);
+    return SIScalarCreateCopy((SIScalarRef)theDatum);
 }
 OCIndex DatumCoordinatesCount(DatumRef theDatum) {
     IF_NO_OBJECT_EXISTS_RETURN(theDatum, 0);
-    if (theDatum->coordinates) return OCArrayGetCount(theDatum->coordinates);
+    if(theDatum->owner) {
+        OCArrayRef dimensions = DatasetGetDimensions((DatasetRef)theDatum->owner);
+        if(dimensions) return OCArrayGetCount(dimensions);
+    }
     return 0;
+}
+OCDictionaryRef DatumCopyAsDictionary(DatumRef theDatum) {
+    IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
+    OCMutableDictionaryRef dictionary = OCDictionaryCreateMutable(0);
+    OCNumberRef number = OCNumberCreateWithOCIndex(theDatum->dependentVariableIndex);
+    OCDictionarySetValue(dictionary, STR(kDatumDependentVariableIndexKey), number);
+    OCRelease(number);
+    number = OCNumberCreateWithOCIndex(theDatum->componentIndex);
+    OCDictionarySetValue(dictionary, STR(kDatumComponentIndexKey), number);
+    OCRelease(number);
+    number = OCNumberCreateWithOCIndex(theDatum->memOffset);
+    OCDictionarySetValue(dictionary, STR(kDatumMemOffsetKey), number);
+    OCRelease(number);
+    OCStringRef stringValue = SIScalarCreateStringValue((SIScalarRef)theDatum);
+    OCDictionarySetValue(dictionary, STR(kDatumResponseKey), stringValue);
+    OCRelease(stringValue);
+
+    return dictionary;
 }
 DatumRef DatumCreateFromDictionary(OCDictionaryRef dictionary, OCStringRef *error) {
     if (error && *error) {
@@ -231,55 +219,13 @@ DatumRef DatumCreateFromDictionary(OCDictionaryRef dictionary, OCStringRef *erro
         OCNumberTryGetOCIndex(OCDictionaryGetValue(dictionary, STR(kDatumMemOffsetKey)), &memOffset);
     else
         return NULL;
-    OCMutableArrayRef coordinates = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    if (OCDictionaryContainsKey(dictionary, STR(kDatumCoordinatesKey))) {
-        OCMutableArrayRef stringValues = (OCMutableArrayRef)OCDictionaryGetValue(dictionary, STR(kDatumCoordinatesKey));
-        OCIndex coordinatesCount = OCArrayGetCount(stringValues);
-        for (OCIndex index = 0; index < coordinatesCount; index++) {
-            OCStringRef stringValue = OCArrayGetValueAtIndex(stringValues, index);
-            SIScalarRef coordinate = SIScalarCreateFromExpression(stringValue, error);
-            OCArrayAppendValue(coordinates, coordinate);
-            OCRelease(coordinate);
-        }
-    }
     SIScalarRef response = NULL;
     if (OCDictionaryContainsKey(dictionary, STR(kDatumResponseKey))) {
         response = SIScalarCreateFromExpression(OCDictionaryGetValue(dictionary, STR(kDatumResponseKey)), error);
     }
-    DatumRef datum = DatumCreate(response, coordinates, dependentVariableIndex, componentIndex, memOffset, error);
+    DatumRef datum = DatumCreate(response, dependentVariableIndex, componentIndex, memOffset, NULL, error);
     if (response) OCRelease(response);
-    if (coordinates) OCRelease(coordinates);
     return datum;
-}
-OCDictionaryRef DatumCopyAsDictionary(DatumRef theDatum) {
-    IF_NO_OBJECT_EXISTS_RETURN(theDatum, NULL);
-    OCMutableDictionaryRef dictionary = OCDictionaryCreateMutable(0);
-    OCNumberRef number = OCNumberCreateWithOCIndex(theDatum->dependentVariableIndex);
-    OCDictionarySetValue(dictionary, STR(kDatumDependentVariableIndexKey), number);
-    OCRelease(number);
-    number = OCNumberCreateWithOCIndex(theDatum->componentIndex);
-    OCDictionarySetValue(dictionary, STR(kDatumComponentIndexKey), number);
-    OCRelease(number);
-    number = OCNumberCreateWithOCIndex(theDatum->memOffset);
-    OCDictionarySetValue(dictionary, STR(kDatumMemOffsetKey), number);
-    OCRelease(number);
-    if (theDatum->response) {
-        OCStringRef stringValue = SIScalarCreateStringValue(theDatum->response);
-        OCDictionarySetValue(dictionary, STR(kDatumResponseKey), stringValue);
-        OCRelease(stringValue);
-    }
-    if (theDatum->coordinates) {
-        OCIndex coordinatesCount = OCArrayGetCount(theDatum->coordinates);
-        OCMutableArrayRef coordinates = OCArrayCreateMutable(coordinatesCount, &kOCTypeArrayCallBacks);
-        for (OCIndex index = 0; index < coordinatesCount; index++) {
-            OCStringRef stringValue = SIScalarCreateStringValue(OCArrayGetValueAtIndex(theDatum->coordinates, index));
-            OCArrayAppendValue(coordinates, stringValue);
-            OCRelease(stringValue);
-        }
-        OCDictionarySetValue(dictionary, STR(kDatumCoordinatesKey), coordinates);
-        OCRelease(coordinates);
-    }
-    return dictionary;
 }
 static OCDictionaryRef DatumDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
@@ -325,21 +271,6 @@ static OCDictionaryRef DatumDictionaryCreateFromJSON(cJSON *json, OCStringRef *o
         OCStringRef response = OCStringCreateWithCString(item->valuestring);
         OCDictionarySetValue(dict, STR(kDatumResponseKey), response);
         OCRelease(response);
-    }
-    // Optional: coordinates
-    item = cJSON_GetObjectItemCaseSensitive(json, kDatumCoordinatesKey);
-    if (cJSON_IsArray(item)) {
-        OCMutableArrayRef coords = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
-        cJSON *coord = NULL;
-        cJSON_ArrayForEach(coord, item) {
-            if (cJSON_IsString(coord)) {
-                OCStringRef coordStr = OCStringCreateWithCString(coord->valuestring);
-                OCArrayAppendValue(coords, coordStr);
-                OCRelease(coordStr);
-            }
-        }
-        OCDictionarySetValue(dict, STR(kDatumCoordinatesKey), coords);
-        OCRelease(coords);
     }
     return dict;
 }

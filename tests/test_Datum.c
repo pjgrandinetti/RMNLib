@@ -50,7 +50,7 @@ bool test_Datum_NULL_cases(void) {
         ok = false;
         goto cleanup;
     }
-    if (DatumCreate(NULL, NULL, 0, 0, 0, NULL) != NULL) {
+    if (DatumCreate(NULL, 0, 0, 0, NULL, NULL) != NULL) {
         ok = false;
         goto cleanup;
     }
@@ -99,18 +99,8 @@ bool test_Datum_functional(void) {
         ok = false;
         goto cleanup;
     }
-    // Create coordinates array
-    coords = OCArrayCreateMutable(2, &kOCTypeArrayCallBacks);
-    c0 = SIScalarCreateWithDouble(1.1, SIUnitDimensionlessAndUnderived());
-    c1 = SIScalarCreateWithDouble(2.2, SIUnitDimensionlessAndUnderived());
-    if (!coords || !c0 || !c1) {
-        ok = false;
-        goto cleanup;
-    }
-    OCArrayAppendValue(coords, c0);
-    OCArrayAppendValue(coords, c1);
     // Create Datum
-    datum = DatumCreate(value, coords, 1, 2, 3, NULL);
+    datum = DatumCreate(value, 1, 2, 3, NULL, NULL);
     if (!datum) {
         ok = false;
         goto cleanup;
@@ -128,18 +118,14 @@ bool test_Datum_functional(void) {
         ok = false;
         goto cleanup;
     }
-    if (DatumCoordinatesCount(datum) != 2) {
+    // Note: DatumCoordinatesCount returns 0 when owner is NULL
+    if (DatumCoordinatesCount(datum) != 0) {
         ok = false;
         goto cleanup;
     }
-    SIScalarRef fetched = DatumGetCoordinateAtIndex(datum, 1);
-    if (!fetched) {
-        ok = false;
-        goto cleanup;
-    }
-    if (SIScalarGetValue(fetched).doubleValue != 2.2) {
-        fprintf(stderr, "[ERROR] Coordinate value mismatch: got %.3f\n",
-                SIScalarGetValue(fetched).doubleValue);
+    // Note: DatumGetCoordinateAtIndex returns NULL when owner is NULL
+    SIScalarRef fetched = (SIScalarRef) DatumGetCoordinateAtIndex(datum, 1);
+    if (fetched != NULL) {  // Should be NULL since no owner Dataset
         ok = false;
         goto cleanup;
     }
@@ -171,7 +157,7 @@ bool test_Datum_functional(void) {
     if (DatumGetDependentVariableIndex(fromDict) != 1 ||
         DatumGetComponentIndex(fromDict) != 2 ||
         DatumGetMemOffset(fromDict) != 3 ||
-        DatumCoordinatesCount(fromDict) != 2) {
+        DatumCoordinatesCount(fromDict) != 0) {  // Should be 0 since no owner Dataset
         fprintf(stderr, "[ERROR] Round-trip field mismatch\n");
         ok = false;
     }

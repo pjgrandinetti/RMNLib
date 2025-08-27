@@ -91,8 +91,6 @@ typedef struct impl_Dataset *DatasetRef;
 #include "core/Dimension.h"
 #include "core/GeographicCoordinate.h"
 #include "core/SparseSampling.h"
-// Utility headers
-#include "utils/RMNGridUtils.h"
 // Import/Export headers
 #include "importers/Image.h"
 #include "importers/JCAMP.h"

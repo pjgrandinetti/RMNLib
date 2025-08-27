@@ -779,8 +779,7 @@ bool test_DimensionPeriodOperations(void) {
     } else {
         printf("Debug: No error message\n");
     }
-    // Debug: Check what period is stored internally after setting
-    bool periodicAfter = SIDimensionIsPeriodic(siDim);
+    // Test that setting the period was successful
     TEST_ASSERT(setResult == true);
     TEST_ASSERT(error == NULL);
     // Test 4: Now should be periodic
