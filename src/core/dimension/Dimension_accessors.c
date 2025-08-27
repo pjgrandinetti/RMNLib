@@ -730,12 +730,51 @@ OCArrayRef SILinearDimensionCreateCoordinates(SILinearDimensionRef dim) {
     }
     return (OCArrayRef)coords;
 }
+SIScalarRef SILinearDimensionCreateCoordinateAtIndex(SILinearDimensionRef dim, OCIndex index) {
+    if (!dim) return NULL;
+    // Get dimension properties
+    OCIndex count = dim->count;
+    if (count == 0) return NULL;
+    SIScalarRef increment = dim->increment;
+    if (!increment) return NULL;
+    SIScalarRef coordinates_offset = SIDimensionGetCoordinatesOffset((SIDimensionRef)dim);
+    if (!coordinates_offset) return NULL;
+    bool complex_fft = dim->fft;
+    // Calculate Z_k according to CSDM specification
+    OCIndex Z_k = 0;
+    if (complex_fft) {
+        OCIndex T_k = (count % 2 == 0) ? count : (count - 1);
+        Z_k = T_k / 2;
+    }
+    // Create coordinate array
+    OCMutableArrayRef coords = OCArrayCreateMutable(count, &kOCTypeArrayCallBacks);
+    if (!coords) return NULL;
+    // For each index in [0, 1, 2, ..., count-1]
+    // Calculate (index - Z_k)
+    double index_offset = (double)((long)index - (long)Z_k);
+    // Create scalar for increment * (index - Z_k)
+    SIMutableScalarRef term1 = SIScalarCreateMutableCopy(increment);
+    if (!term1) {
+        OCRelease(coords);
+        return NULL;
+    }
+    // Multiply increment by (index - Z_k)
+    SIScalarMultiplyByDimensionlessRealConstant(term1, index_offset);
+    // Add coordinates_offset: term1 += coordinates_offset
+    SIScalarRef result = SIScalarCreateByAdding((SIScalarRef)term1, coordinates_offset, NULL);
+    OCRelease(term1);
+    if (!result) {
+        OCRelease(coords);
+        return NULL;
+    }
+    return(result);
+}
 OCArrayRef SILinearDimensionCreateAbsoluteCoordinates(SILinearDimensionRef dim) {
     if (!dim) return NULL;
     // Get regular coordinates first
     OCArrayRef regular_coords = SILinearDimensionCreateCoordinates(dim);
     if (!regular_coords) return NULL;
-    // Get origin offset
+    // Get origin offsetcoordinate
     SIScalarRef origin_offset = SIDimensionGetOriginOffset((SIDimensionRef)dim);
     if (!origin_offset) {
         // If no origin offset, just return regular coordinates
@@ -833,4 +872,28 @@ OCStringRef DimensionCreateAxisLabel(DimensionRef dim, OCIndex index) {
     }
     return out;
 }
+
+OCTypeRef DimensionCopyCoordinateAtIndex(DimensionRef dim, double index)
+{
+    IF_NO_OBJECT_EXISTS_RETURN(dim,NULL);
+        if (!dim)
+        return NULL;
+    OCTypeID tid = OCGetTypeID(dim);
+
+    if (tid == SILinearDimensionGetTypeID()) {
+        return SILinearDimensionCreateCoordinateAtIndex((SILinearDimensionRef) dim, index);
+    }
+    if (tid == SIMonotonicDimensionGetTypeID()) {
+        OCArrayRef coords = SIMonotonicDimensionGetCoordinates((SIMonotonicDimensionRef)dim);
+        return SIScalarCreateCopy(OCArrayGetValueAtIndex(coords, index));
+    }
+    if (tid == LabeledDimensionGetTypeID()) {
+        OCArrayRef coords = SIMonotonicDimensionGetCoordinates((LabeledDimensionRef)dim);
+        return OCStringCreateCopy(OCArrayGetValueAtIndex(coords, index));
+    }
+    return NULL;
+}
+
+
+
 #pragma endregion
