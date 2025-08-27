@@ -1,12 +1,10 @@
 #include "../RMNLibrary.h"
 #include "cJSON.h"
-
 #define kDatumCoordinatesKey "coordinates"
 #define kDatumResponseKey "response"
 #define kDatumDependentVariableIndexKey "dependent_variable_index"
 #define kDatumComponentIndexKey "component_index"
 #define kDatumMemOffsetKey "mem_offset"
-
 static OCTypeID kDatumID = kOCNotATypeID;
 struct impl_Datum {
     OCBase base;
@@ -28,13 +26,28 @@ static bool impl_DatumEqual(const void *theType1, const void *theType2) {
     if (input1 == input2) return true;
     // Compare response
     if (!SIScalarEqual(input1->response, input2->response)) return false;
-    // Compare coordinate arrays
-    if (OCArrayGetCount(input1->coordinates) != OCArrayGetCount(input2->coordinates)) return false;
-    OCIndex coordinateCount = OCArrayGetCount(input1->coordinates);
-    for (OCIndex idim = 0; idim < coordinateCount; idim++) {
-        if (SIScalarCompare(
-                OCArrayGetValueAtIndex(input1->coordinates, idim),
-                OCArrayGetValueAtIndex(input2->coordinates, idim)) != kOCCompareEqualTo) return false;
+    // Compare coordinate arrays - handle NULL coordinates
+    if (input1->coordinates == NULL && input2->coordinates == NULL) {
+        // Both NULL, coordinates are equal, skip coordinate comparison
+    } else if (input1->coordinates == NULL || input2->coordinates == NULL) {
+        // One is NULL, the other isn't - not equal
+        return false;
+    } else {
+        // Both non-NULL, compare normally
+        if (OCArrayGetCount(input1->coordinates) != OCArrayGetCount(input2->coordinates)) return false;
+        OCIndex coordinateCount = OCArrayGetCount(input1->coordinates);
+        for (OCIndex idim = 0; idim < coordinateCount; idim++) {
+            OCTypeRef coord1 = OCArrayGetValueAtIndex(input1->coordinates, idim);
+            OCTypeRef coord2 = OCArrayGetValueAtIndex(input2->coordinates, idim);
+            OCTypeID type1 = OCGetTypeID(coord1);
+            OCTypeID type2 = OCGetTypeID(coord2);
+            if (type1 != type2) return false;
+            if (type1 == SIScalarGetTypeID()) {
+                if (SIScalarCompare((SIScalarRef)coord1, (SIScalarRef)coord2) != kOCCompareEqualTo) return false;
+            } else if (type1 == OCStringGetTypeID()) {
+                if (!OCStringEqual((OCStringRef)coord1, (OCStringRef)coord2)) return false;
+            }
+        }
     }
     // Compare indices
     if (input1->dependentVariableIndex != input2->dependentVariableIndex) return false;
@@ -105,48 +118,37 @@ DatumRef DatumCreate(SIScalarRef response,
                      OCArrayRef coordinates,
                      OCIndex dependentVariableIndex,
                      OCIndex componentIndex,
-                     OCIndex memOffset, 
+                     OCIndex memOffset,
                      OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (NULL == response) {
         if (outError) *outError = STR("DatumCreate: response cannot be NULL");
         return NULL;
     }
-    
     struct impl_Datum *newDatum = DatumAllocate();
     if (!newDatum) {
         if (outError) *outError = STR("DatumCreate: failed to allocate Datum");
         return NULL;
     }
-    
     newDatum->response = SIScalarCreateCopy(response);
     if (!newDatum->response) {
         if (outError) *outError = STR("DatumCreate: failed to copy response");
         goto Fail;
     }
-    
     if (coordinates) {
-        OCArrayRef scalarCoords = SIScalarCreateArrayFromMixedTypeArray(coordinates, outError);
-        if (!scalarCoords) {
-            if (outError && !*outError) *outError = STR("DatumCreate: failed to convert coordinates to SIScalar array");
-            goto Fail;
-        }
-
-        newDatum->coordinates = OCArrayCreateCopy(scalarCoords);
-        OCRelease(scalarCoords);
+        // We need to allow mix of SIScalar and OCString, since coordinates can come from Labeled, Monotonic, or Linear Dimension.
+        newDatum->coordinates = OCTypeDeepCopy(coordinates);
         if (!newDatum->coordinates) {
             if (outError) *outError = STR("DatumCreate: failed to copy coordinates array");
             goto Fail;
         }
     } else {
-        newDatum->coordinates = NULL;
+        newDatum->coordinates = OCMutableArrayCreate(0);
     }
-    
     newDatum->dependentVariableIndex = dependentVariableIndex;
     newDatum->componentIndex = componentIndex;
     newDatum->memOffset = memOffset;
     return (DatumRef)newDatum;
-
 Fail:
     if (newDatum) {
         OCRelease(newDatum);
