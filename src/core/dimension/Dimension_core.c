@@ -379,6 +379,10 @@ cJSON *impl_LabeledDimensionCreateJSON(const void *obj) {
     // First, serialize the base fields using impl_DimensionCreateJSON
     cJSON *json = impl_DimensionCreateJSON(&ldim->_super);
     if (!json) return NULL;
+    
+    // Add type discriminator
+    cJSON_AddStringToObject(json, "type", "labeled");
+    
     // Now, add the subclass field: coordinateLabels (OCMutableArrayRef)
     if (ldim->coordinateLabels) {
         cJSON *labels_json = OCTypeCopyJSON((OCTypeRef)ldim->coordinateLabels);
@@ -1380,6 +1384,10 @@ cJSON *impl_SIMonotonicDimensionCreateJSON(const void *obj) {
     // Serialize base fields using impl_SIDimensionCreateJSON
     cJSON *json = impl_SIDimensionCreateJSON(&mono->_super);
     if (!json) return NULL;
+    
+    // Add type discriminator
+    cJSON_AddStringToObject(json, "type", "monotonic");
+    
     // reciprocal (SIDimensionRef, i.e., struct impl_SIDimension *)
     if (mono->reciprocal) {
         cJSON *recip_json = impl_SIDimensionCreateJSON(mono->reciprocal);
@@ -2037,6 +2045,10 @@ cJSON *impl_SILinearDimensionCreateJSON(const void *obj) {
     // Serialize base fields using impl_SIDimensionCreateJSON
     cJSON *json = impl_SIDimensionCreateJSON(&lin->_super);
     if (!json) return NULL;
+    
+    // Add type discriminator
+    cJSON_AddStringToObject(json, "type", "linear");
+    
     // reciprocal (SIDimensionRef)
     if (lin->reciprocal) {
         cJSON *recip_json = impl_SIDimensionCreateJSON(lin->reciprocal);

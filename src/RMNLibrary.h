@@ -71,6 +71,11 @@ as local modules (Datum, Dimension, Dataset).
 // Include the core SITypes definitions and utilities
 #include <SITypes.h>
 /** @cond INTERNAL */
+
+typedef struct impl_RMNBase {
+      void *(*copyAsDictionary)(const void *);
+} RMNBase;
+
 // Centralized Ref typedefs
 typedef struct impl_GeographicCoordinate *GeographicCoordinateRef;
 typedef struct impl_Datum *DatumRef;
