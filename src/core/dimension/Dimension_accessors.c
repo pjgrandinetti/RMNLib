@@ -69,7 +69,7 @@ bool DimensionSetDescription(DimensionRef dim,
     return true;
 }
 OCMutableDictionaryRef DimensionGetApplicationMetaData(DimensionRef dim) {
-    return dim ? dim->metadata : NULL;
+    return dim ? dim->application : NULL;
 }
 bool DimensionSetApplicationMetaData(DimensionRef dim,
                                      OCDictionaryRef dict,
@@ -96,8 +96,8 @@ bool DimensionSetApplicationMetaData(DimensionRef dim,
             return false;
         }
     }
-    OCRelease(dim->metadata);
-    dim->metadata = dictCopy;
+    OCRelease(dim->application);
+    dim->application = dictCopy;
     return true;
 }
 #pragma endregion

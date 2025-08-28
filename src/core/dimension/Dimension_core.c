@@ -125,8 +125,8 @@ bool impl_DimensionEqual(const void *a, const void *b) {
         !OCTypeEqual(dimA->label, dimB->label)) return false;
     if (dimA->description != dimB->description &&
         !OCTypeEqual(dimA->description, dimB->description)) return false;
-    if (dimA->metadata != dimB->metadata &&
-        !OCTypeEqual(dimA->metadata, dimB->metadata)) return false;
+    if (dimA->application != dimB->application &&
+        !OCTypeEqual(dimA->application, dimB->application)) return false;
     return true;
 }
 void impl_DimensionFinalize(const void *obj) {
@@ -134,10 +134,10 @@ void impl_DimensionFinalize(const void *obj) {
     if (!dim) return;
     OCRelease(dim->label);
     OCRelease(dim->description);
-    OCRelease(dim->metadata);
+    OCRelease(dim->application);
     dim->label = NULL;
     dim->description = NULL;
-    dim->metadata = NULL;
+    dim->application = NULL;
 }
 OCStringRef impl_DimensionCopyFormattingDesc(OCTypeRef cf) {
     DimensionRef dim = (DimensionRef)cf;
@@ -267,7 +267,7 @@ OCDictionaryRef impl_DimensionCopyAsDictionary(DimensionRef dim) {
 void impl_InitBaseDimensionFields(DimensionRef dim) {
     dim->label = STR("");
     dim->description = STR("");
-    dim->metadata = OCDictionaryCreateMutable(0);
+    dim->application = OCDictionaryCreateMutable(0);
 }
 OCDictionaryRef impl_DimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
@@ -294,7 +294,7 @@ OCDictionaryRef impl_DimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef 
     // Optional: metadata
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (item && cJSON_IsObject(item)) {
-        OCDictionaryRef metadata = OCMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef metadata = SIMetadataCreateFromJSON(item, outError);
         if (!metadata) {
             OCRelease(dict);
             return NULL;
@@ -524,7 +524,7 @@ static OCDictionaryRef LabeledDimensionDictionaryCreateFromJSON(cJSON *json, OCS
     // Optional: metadata
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (cJSON_IsObject(item)) {
-        OCDictionaryRef metadata = OCMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef metadata = SIMetadataCreateFromJSON(item, outError);
         if (!metadata) {
             OCRelease(dict);
             return NULL;
@@ -989,7 +989,7 @@ OCDictionaryRef SIDimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef *ou
     // Optional: metadata
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (item && cJSON_IsObject(item)) {
-        OCDictionaryRef metadata = OCMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef metadata = SIMetadataCreateFromJSON(item, outError);
         if (!metadata) {
             OCRelease(dict);
             return NULL;
@@ -1502,8 +1502,8 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
     si->_super.label = label ? OCStringCreateCopy(label) : STR("");
     OCRelease(si->_super.description);
     si->_super.description = description ? OCStringCreateCopy(description) : STR("");
-    OCRelease(si->_super.metadata);
-    si->_super.metadata = metadata ? OCTypeDeepCopy(metadata) : OCDictionaryCreateMutable(0);
+    OCRelease(si->_super.application);
+    si->_super.application = metadata ? OCTypeDeepCopy(metadata) : OCDictionaryCreateMutable(0);
     // 7) SI-specific fields (deep copies)
     OCRelease(si->quantityName);
     si->quantityName = OCStringCreateCopy(quantityName);
@@ -1655,7 +1655,7 @@ OCDictionaryRef SIMonotonicDimensionDictionaryCreateFromJSON(cJSON *json,
     }
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (cJSON_IsObject(item)) {
-        OCDictionaryRef md = OCMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef md = SIMetadataCreateFromJSON(item, outError);
         if (!md) {
             OCRelease(dict);
             return NULL;
@@ -2194,8 +2194,8 @@ SILinearDimensionRef SILinearDimensionCreate(
     si->_super.label = label ? OCStringCreateCopy(label) : STR("");
     OCRelease(si->_super.description);
     si->_super.description = description ? OCStringCreateCopy(description) : STR("");
-    OCRelease(si->_super.metadata);
-    si->_super.metadata = metadata ? OCTypeDeepCopy(metadata) : OCDictionaryCreateMutable(0);
+    OCRelease(si->_super.application);
+    si->_super.application = metadata ? OCTypeDeepCopy(metadata) : OCDictionaryCreateMutable(0);
     OCRelease(si->quantityName);
     si->quantityName = OCStringCreateCopy(quantityName);
     if (!si->quantityName) {
@@ -2417,9 +2417,9 @@ static OCDictionaryRef SILinearDimensionDictionaryCreateFromJSON(
     COPY_NUM_FIELD(kSIDimensionScalingKey);
     COPY_NUM_FIELD(kSILinearDimensionCountKey);
     COPY_BOOL_FIELD(kSILinearDimensionFFTKey);
-    // --- Metadata sub-object via your OCMetadataCreateFromJSON ---
+    // --- Metadata sub-object via your SIMetadataCreateFromJSON ---
     if ((item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey)) && cJSON_IsObject(item)) {
-        OCDictionaryRef md = OCMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef md = SIMetadataCreateFromJSON(item, outError);
         if (!md) {
             OCRelease(dict);
             return NULL;

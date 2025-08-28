@@ -26,7 +26,7 @@ struct impl_SparseSampling {
     OCNumberType unsignedIntegerType;      // UInt8/16/32/64 only
     OCStringRef encoding;                  // "none" or "base64"
     OCStringRef description;
-    OCDictionaryRef application;
+    OCMutableDictionaryRef application;
 };
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // Finalize & Equal
@@ -131,7 +131,7 @@ impl_SparseSamplingDeepCopy(const void *ptr) {
                            ? (OCStringRef)OCTypeDeepCopy(src->description)
                            : NULL;
     dst->application = src->application
-                           ? (OCDictionaryRef)OCTypeDeepCopy(src->application)
+                           ? (OCMutableDictionaryRef)OCTypeDeepCopy(src->application)
                            : NULL;
     return dst;
 }
@@ -279,7 +279,7 @@ SparseSamplingRef SparseSamplingCreate(
                           : OCStringCreateCopy(STR(""));
     OCRelease(ss->application);
     ss->application = metadata
-                          ? (OCDictionaryRef)OCTypeDeepCopyMutable(metadata)
+                          ? (OCMutableDictionaryRef)OCTypeDeepCopyMutable(metadata)
                           : OCDictionaryCreateMutable(0);
     // 5. Final structural validation
     if (!validateSparseSampling((SparseSamplingRef)ss, outError)) {
@@ -797,7 +797,7 @@ bool SparseSamplingSetApplicationMetaData(SparseSamplingRef ss, OCDictionaryRef 
     if (!ss) return false;
     OCRelease(ss->application);
     ss->application = md
-                          ? (OCDictionaryRef)OCTypeDeepCopyMutable(md)
+                          ? (OCMutableDictionaryRef)OCTypeDeepCopyMutable(md)
                           : OCDictionaryCreateMutable(0);
     return ss->application != NULL;
 }

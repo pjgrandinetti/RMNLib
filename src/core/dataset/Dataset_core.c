@@ -167,7 +167,7 @@ static void *impl_DatasetDeepCopy(const void *ptr) {
                                    ? (OCMutableIndexArrayRef)OCTypeDeepCopy(src->dimensionPrecedence)
                                    : NULL;
     dst->application = src->application
-                           ? (OCDictionaryRef)OCTypeDeepCopy(src->application)
+                           ? (OCMutableDictionaryRef)OCTypeDeepCopy(src->application)
                            : NULL;
     return dst;
 }

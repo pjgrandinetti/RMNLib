@@ -1,164 +1,153 @@
 #include "RMNLibrary.h"
-
 // GCC compatibility: Define __has_feature for non-Clang compilers
 #ifndef __has_feature
 #define __has_feature(x) 0
 #endif
-
-cJSON *OCMetadataCopyJSON(OCDictionaryRef dict) {
-    if (!dict) return cJSON_CreateNull();
-    cJSON *json = cJSON_CreateObject();
-    OCArrayRef keys = OCDictionaryCreateArrayWithAllKeys(dict);
-    if (!keys) return json;
-    for (OCIndex i = 0; i < OCArrayGetCount(keys); ++i) {
-        OCStringRef key = (OCStringRef)OCArrayGetValueAtIndex(keys, i);
-        OCTypeRef val = OCDictionaryGetValue(dict, key);
-        if (!key || !val) continue;
-        cJSON *entry = cJSON_CreateObject();
-        OCTypeID tid = OCGetTypeID(val);
-        if (tid == OCStringGetTypeID()) {
-            cJSON_AddStringToObject(entry, "type", "string");
-            cJSON_AddStringToObject(entry, "value", OCStringGetCString((OCStringRef)val));
-        } else if (tid == OCNumberGetTypeID()) {
-            double f = 0.0;
-            OCNumberTryGetDouble((OCNumberRef)val, &f);
-            cJSON_AddStringToObject(entry, "type", "float64");
-            cJSON_AddNumberToObject(entry, "value", f);
-        } else if (tid == OCBooleanGetTypeID()) {
-            cJSON_AddStringToObject(entry, "type", "bool");
-            cJSON_AddBoolToObject(entry, "value", OCBooleanGetValue((OCBooleanRef)val));
-        } else if (tid == OCDataGetTypeID()) {
-            OCStringRef b64 = OCDataCreateBase64EncodedString((OCDataRef)val, 0);
-            cJSON_AddStringToObject(entry, "type", "binary");
-            cJSON_AddStringToObject(entry, "value", OCStringGetCString(b64));
-            OCRelease(b64);
-        } else if (tid == SIScalarGetTypeID()) {
-            OCStringRef s = SIScalarCreateStringValue((SIScalarRef)val);
-            cJSON_AddStringToObject(entry, "type", "scalar");
-            cJSON_AddStringToObject(entry, "value", OCStringGetCString(s));
-            OCRelease(s);
-        } else if (tid == SIUnitGetTypeID()) {
-            OCStringRef s = SIUnitCopySymbol((SIUnitRef)val);
-            cJSON_AddStringToObject(entry, "type", "unit");
-            cJSON_AddStringToObject(entry, "value", OCStringGetCString(s));
-            OCRelease(s);
-        } else if (tid == OCDictionaryGetTypeID()) {
-            cJSON *nested = OCMetadataCopyJSON((OCDictionaryRef)val);
-            cJSON_AddStringToObject(entry, "type", "dictionary");
-            cJSON_AddItemToObject(entry, "value", nested);
-        } else if (tid == OCArrayGetTypeID()) {
-            cJSON *arrJSON = cJSON_CreateArray();
-            OCArrayRef array = (OCArrayRef)val;
-            for (OCIndex j = 0; j < OCArrayGetCount(array); ++j) {
-                OCTypeRef elem = OCArrayGetValueAtIndex(array, j);
-                OCMutableDictionaryRef singleton = OCDictionaryCreateMutable(0);
-                OCDictionarySetValue(singleton, STR("elem"), elem);
-                cJSON *wrapped = OCMetadataCopyJSON(singleton);
-                OCRelease(singleton);
-                if (wrapped) {
-                    cJSON *e = cJSON_GetObjectItem(wrapped, "elem");
-                    if (e) cJSON_AddItemToArray(arrJSON, cJSON_Duplicate(e, 1));
-                    cJSON_Delete(wrapped);
-                }
-            }
-            cJSON_AddStringToObject(entry, "type", "array");
-            cJSON_AddItemToObject(entry, "value", arrJSON);
-        }
-        cJSON_AddItemToObject(json, OCStringGetCString(key), entry);
-    }
-    OCRelease(keys);
-    return json;
-}
-OCDictionaryRef OCMetadataCreateFromJSON(cJSON *json, OCStringRef *outError) {
+bool RMNLibSetDescription(OCTypeRef theType, OCStringRef description, OCStringRef *outError) {
     if (outError) *outError = NULL;
-    if (!json || !cJSON_IsObject(json)) {
-        if (outError) *outError = STR("Expected JSON object for metadata");
+    
+    if (!theType || !description) {
+        if (outError) *outError = STR("Invalid parameters: theType and description cannot be NULL");
+        return false;
+    }
+    
+    OCTypeID typeID = OCGetTypeID(theType);
+    if (typeID == DimensionGetTypeID() || typeID == LabeledDimensionGetTypeID() || typeID == SIDimensionGetTypeID() || typeID == SIMonotonicDimensionGetTypeID() || typeID == SILinearDimensionGetTypeID()) {
+        return DimensionSetDescription((DimensionRef)theType, description, outError);
+    }
+    else if (typeID == DependentVariableGetTypeID()) {
+        return DependentVariableSetDescription((DependentVariableRef)theType, description);
+    }
+    else if (typeID == SparseSamplingGetTypeID()) {
+        return SparseSamplingSetDescription((SparseSamplingRef)theType, description);
+    }
+    else if (typeID == DatasetGetTypeID()) {
+        return DatasetSetDescription((DatasetRef)theType, description);
+    }
+    else if (typeID == DatumGetTypeID()) {
+        // Datum doesn't have a description field
+        if (outError) *outError = STR("Datum type does not support description field");
+        return false;
+    }
+    else if (typeID == GeographicCoordinateGetTypeID()) {
+        // GeographicCoordinate doesn't have a description field
+        if (outError) *outError = STR("GeographicCoordinate type does not support description field");
+        return false;
+    }
+    
+    // Unknown type
+    if (outError) *outError = STR("Unknown or unsupported type");
+    return false;
+}
+
+OCStringRef RMNLibGetDescription(OCTypeRef theType, OCStringRef *outError) {
+    if (outError) *outError = NULL;
+    
+    if (!theType) {
+        if (outError) *outError = STR("Invalid parameter: theType cannot be NULL");
         return NULL;
     }
-    OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
-    cJSON *entry = NULL;
-    cJSON_ArrayForEach(entry, json) {
-        const char *key = entry->string;
-        if (!cJSON_IsObject(entry)) continue;
-        cJSON *type = cJSON_GetObjectItem(entry, "type");
-        cJSON *value = cJSON_GetObjectItem(entry, "value");
-        if (!cJSON_IsString(type) || !value) continue;
-        OCStringRef k = OCStringCreateWithCString(key);
-        OCTypeRef v = NULL;
-        if (strcmp(type->valuestring, "string") == 0 && cJSON_IsString(value)) {
-            v = (OCTypeRef)OCStringCreateWithCString(value->valuestring);
-        } else if (strcmp(type->valuestring, "float64") == 0 && cJSON_IsNumber(value)) {
-            v = (OCTypeRef)OCNumberCreateWithDouble(value->valuedouble);
-        } else if (strcmp(type->valuestring, "bool") == 0 && cJSON_IsBool(value)) {
-            v = (OCTypeRef)OCBooleanGetWithBool(cJSON_IsTrue(value));
-        } else if (strcmp(type->valuestring, "binary") == 0 && cJSON_IsString(value)) {
-            OCStringRef b64 = OCStringCreateWithCString(value->valuestring);
-            v = (OCTypeRef)OCDataCreateFromBase64EncodedString(b64);
-            OCRelease(b64);
-        } else if (strcmp(type->valuestring, "scalar") == 0 && cJSON_IsString(value)) {
-            OCStringRef s = OCStringCreateWithCString(value->valuestring);
-            v = (OCTypeRef)SIScalarCreateFromExpression(s, outError);
-            OCRelease(s);
-            if (!v) {
-                OCRelease(k);
-                OCRelease(dict);
-                return NULL;
-            }
-        } else if (strcmp(type->valuestring, "unit") == 0 && cJSON_IsString(value)) {
-            OCStringRef s = OCStringCreateWithCString(value->valuestring);
-            SIScalarRef tmpScalar = SIScalarCreateFromExpression(s, outError);
-            OCRelease(s);
-            if (!tmpScalar) {
-                OCRelease(k);
-                OCRelease(dict);
-                return NULL;
-            }
-            v = (OCTypeRef)SIQuantityGetUnit((SIQuantityRef)tmpScalar);
-            v = (OCTypeRef)OCRetain(v);
-            OCRelease(tmpScalar);
-        } else if (strcmp(type->valuestring, "dictionary") == 0 && cJSON_IsObject(value)) {
-            v = (OCTypeRef)OCMetadataCreateFromJSON(value, outError);
-            if (!v) {
-                OCRelease(k);
-                OCRelease(dict);
-                return NULL;
-            }
-        } else if (strcmp(type->valuestring, "array") == 0 && cJSON_IsArray(value)) {
-            OCMutableArrayRef arr = OCArrayCreateMutable(cJSON_GetArraySize(value), &kOCTypeArrayCallBacks);
-            cJSON *elem = NULL;
-            cJSON_ArrayForEach(elem, value) {
-                cJSON *wrap = cJSON_CreateObject();
-                cJSON_AddItemToObject(wrap, "elem", cJSON_Duplicate(elem, 1));
-                OCDictionaryRef tmp = OCMetadataCreateFromJSON(wrap, outError);
-                cJSON_Delete(wrap);
-                if (!tmp) {
-                    OCRelease(arr);
-                    OCRelease(k);
-                    OCRelease(dict);
-                    return NULL;
-                }
-                OCTypeRef item = OCDictionaryGetValue(tmp, STR("elem"));
-                if (item) OCArrayAppendValue(arr, item);
-                OCRelease(tmp);
-            }
-            v = (OCTypeRef)arr;
-        }
-        if (v) {
-            OCDictionarySetValue(dict, k, v);
-            OCRelease(v);
-            OCRelease(k);
-        } else {
-            // no valid branch matched
-            OCRelease(k);
-            OCRelease(dict);
-            return NULL;
-        }
+    
+    OCTypeID typeID = OCGetTypeID(theType);
+    if (typeID == DimensionGetTypeID() || typeID == LabeledDimensionGetTypeID() || typeID == SIDimensionGetTypeID() || typeID == SIMonotonicDimensionGetTypeID() || typeID == SILinearDimensionGetTypeID()) {
+        return DimensionCopyDescription((DimensionRef)theType);
     }
-    return dict;
+    else if (typeID == DependentVariableGetTypeID()) {
+        return DependentVariableCopyDescription((DependentVariableRef)theType);
+    }
+    else if (typeID == SparseSamplingGetTypeID()) {
+        return SparseSamplingGetDescription((SparseSamplingRef)theType);
+    }
+    else if (typeID == DatasetGetTypeID()) {
+        return DatasetGetDescription((DatasetRef)theType);
+    }
+    else if (typeID == DatumGetTypeID()) {
+        // Datum doesn't have a description field
+        if (outError) *outError = STR("Datum type does not support description field");
+        return NULL;
+    }
+    else if (typeID == GeographicCoordinateGetTypeID()) {
+        // GeographicCoordinate doesn't have a description field
+        if (outError) *outError = STR("GeographicCoordinate type does not support description field");
+        return NULL;
+    }
+    
+    // Unknown type
+    if (outError) *outError = STR("Unknown or unsupported type");
+    return NULL;
+}
+
+bool RMNLibSetApplicationMetaData(OCTypeRef theType, OCDictionaryRef metadata, OCStringRef *outError) {
+    if (outError) *outError = NULL;
+    
+    if (!theType) {
+        if (outError) *outError = STR("Invalid parameter: theType cannot be NULL");
+        return false;
+    }
+    
+    OCTypeID typeID = OCGetTypeID(theType);
+    if (typeID == DimensionGetTypeID() || typeID == LabeledDimensionGetTypeID() || typeID == SIDimensionGetTypeID() || typeID == SIMonotonicDimensionGetTypeID() || typeID == SILinearDimensionGetTypeID()) {
+        return DimensionSetApplicationMetaData((DimensionRef)theType, metadata, outError);
+    }
+    else if (typeID == DependentVariableGetTypeID()) {
+        return DependentVariableSetApplicationMetaData((DependentVariableRef)theType, metadata);
+    }
+    else if (typeID == SparseSamplingGetTypeID()) {
+        return SparseSamplingSetApplicationMetaData((SparseSamplingRef)theType, metadata);
+    }
+    else if (typeID == DatasetGetTypeID()) {
+        return DatasetSetApplicationMetaData((DatasetRef)theType, metadata);
+    }
+    else if (typeID == GeographicCoordinateGetTypeID()) {
+        return GeographicCoordinateSetApplicationMetaData((GeographicCoordinateRef)theType, metadata);
+    }
+    else if (typeID == DatumGetTypeID()) {
+        // Datum doesn't have an application metadata field
+        if (outError) *outError = STR("Datum type does not support application metadata field");
+        return false;
+    }
+    
+    // Unknown type
+    if (outError) *outError = STR("Unknown or unsupported type");
+    return false;
+}
+
+OCDictionaryRef RMNLibGetApplicationMetaData(OCTypeRef theType, OCStringRef *outError) {
+    if (outError) *outError = NULL;
+    
+    if (!theType) {
+        if (outError) *outError = STR("Invalid parameter: theType cannot be NULL");
+        return NULL;
+    }
+    
+    OCTypeID typeID = OCGetTypeID(theType);
+    if (typeID == DimensionGetTypeID() || typeID == LabeledDimensionGetTypeID() || typeID == SIDimensionGetTypeID() || typeID == SIMonotonicDimensionGetTypeID() || typeID == SILinearDimensionGetTypeID()) {
+        return DimensionGetApplicationMetaData((DimensionRef)theType);
+    }
+    else if (typeID == DependentVariableGetTypeID()) {
+        return DependentVariableGetApplicationMetaData((DependentVariableRef)theType);
+    }
+    else if (typeID == SparseSamplingGetTypeID()) {
+        return SparseSamplingGetApplicationMetaData((SparseSamplingRef)theType);
+    }
+    else if (typeID == DatasetGetTypeID()) {
+        return DatasetGetApplicationMetaData((DatasetRef)theType);
+    }
+    else if (typeID == GeographicCoordinateGetTypeID()) {
+        return GeographicCoordinateGetApplicationMetaData((GeographicCoordinateRef)theType);
+    }
+    else if (typeID == DatumGetTypeID()) {
+        // Datum doesn't have an application metadata field
+        if (outError) *outError = STR("Datum type does not support application metadata field");
+        return NULL;
+    }
+    
+    // Unknown type
+    if (outError) *outError = STR("Unknown or unsupported type");
+    return NULL;
 }
 
 static bool rmnLibShutdownCalled = false;
-
 void RMNLibTypesShutdown(void) {
     if (rmnLibShutdownCalled) return;
     rmnLibShutdownCalled = true;
@@ -189,8 +178,6 @@ void RMNLibTypesShutdown(void) {
 #if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
     OCReportLeaksForTypeDetailed(DatasetGetTypeID());
 #endif
-
-
     SITypesShutdown();
 }
 // If you want automatic teardown when the library is unloaded:

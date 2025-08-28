@@ -155,7 +155,7 @@ bool DatasetSetApplicationMetaData(DatasetRef ds, OCDictionaryRef md) {
     if (!ds) return false;
     OCRelease(ds->application);
     // Convert NULL to empty dictionary to avoid NULL ivars
-    ds->application = md ? (OCDictionaryRef)OCRetain(md)
+    ds->application = md ? (OCMutableDictionaryRef)OCRetain(md)
                          : OCDictionaryCreateMutable(0);
     return true;
 }

@@ -66,7 +66,7 @@ struct impl_Dataset {
     DatumRef focus;
     DatumRef previousFocus;
     OCMutableIndexArrayRef dimensionPrecedence;
-    OCDictionaryRef application;
+    OCMutableDictionaryRef application;
 };
 
 // ============================================================================

@@ -64,7 +64,7 @@ struct impl_Dimension {
     OCBase base;                      // OCTypes base object
     OCStringRef label;                // Human-readable label
     OCStringRef description;          // Extended description
-    OCMutableDictionaryRef metadata;  // Application-specific metadata
+    OCMutableDictionaryRef application;  // Application-specific metadata
 };
 // ----------------------------------------------------------------------------
 // FIRST-LEVEL INHERITANCE: Types that inherit directly from Dimension

@@ -18,7 +18,7 @@ struct impl_GeographicCoordinate {
     SIScalarRef latitude;
     SIScalarRef longitude;
     SIScalarRef altitude;  // optional
-    OCDictionaryRef metadata;
+    OCMutableDictionaryRef application;
 };
 // Finalize & Equal
 static void impl_GeographicCoordinateFinalize(const void *ptr) {
@@ -27,7 +27,7 @@ static void impl_GeographicCoordinateFinalize(const void *ptr) {
     OCRelease(gc->latitude);
     OCRelease(gc->longitude);
     OCRelease(gc->altitude);
-    OCRelease(gc->metadata);
+    OCRelease(gc->application);
 }
 static bool impl_GeographicCoordinateEqual(const void *a, const void *b) {
     const struct impl_GeographicCoordinate *A = a, *B = b;
@@ -39,7 +39,7 @@ static bool impl_GeographicCoordinateEqual(const void *a, const void *b) {
         if (!(A->altitude && B->altitude && OCTypeEqual(A->altitude, B->altitude)))
             return false;
     }
-    if (!OCTypeEqual(A->metadata, B->metadata)) return false;
+    if (!OCTypeEqual(A->application, B->application)) return false;
     return true;
 }
 // Copy-formatting description
@@ -88,7 +88,7 @@ static void impl_InitGeographicCoordinateFields(GeographicCoordinateRef gc) {
     gc->latitude = NULL;
     gc->longitude = NULL;
     gc->altitude = NULL;
-    gc->metadata = OCDictionaryCreateMutable(0);
+    gc->application = OCDictionaryCreateMutable(0);
 }
 // Validation
 static bool validateGeographicCoordinate(GeographicCoordinateRef gc, OCStringRef *outError) {
@@ -116,9 +116,9 @@ GeographicCoordinateRef GeographicCoordinateCreate(
     if (altitude) {
         gc->altitude = (SIScalarRef)OCTypeDeepCopy((OCTypeRef)altitude);
     }
-    OCRelease(gc->metadata);
-    gc->metadata = metadata
-                       ? (OCDictionaryRef)OCTypeDeepCopyMutable(metadata)
+    OCRelease(gc->application);
+    gc->application = metadata
+                       ? (OCMutableDictionaryRef)OCTypeDeepCopyMutable(metadata)
                        : OCDictionaryCreateMutable(0);
     if (!validateGeographicCoordinate((GeographicCoordinateRef)gc, NULL)) {
         OCRelease(gc);
@@ -195,8 +195,8 @@ OCDictionaryRef GeographicCoordinateCopyAsDictionary(GeographicCoordinateRef gc)
         OCRelease(s);
     }
     // metadata (optional)
-    if (gc->metadata) {
-        OCDictionaryRef copyMd = (OCDictionaryRef)OCTypeDeepCopyMutable(gc->metadata);
+    if (gc->application) {
+        OCDictionaryRef copyMd = (OCDictionaryRef)OCTypeDeepCopyMutable(gc->application);
         OCDictionarySetValue(dict, STR(kGeoCoordApplicationKey), copyMd);
         OCRelease(copyMd);
     }
@@ -252,7 +252,7 @@ static OCDictionaryRef GeographicCoordinateDictionaryCreateFromJSON(cJSON *json,
     // nested metadata (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kGeoCoordApplicationKey);
     if (entry && cJSON_IsObject(entry)) {
-        OCDictionaryRef md = OCMetadataCreateFromJSON(entry, outError);
+        OCDictionaryRef md = SIMetadataCreateFromJSON(entry, outError);
         if (!md) {
             OCRelease(dict);
             return NULL;
@@ -281,7 +281,7 @@ SIScalarRef GeographicCoordinateGetAltitude(GeographicCoordinateRef gc) {
     return gc ? gc->altitude : NULL;
 }
 OCDictionaryRef GeographicCoordinateGetApplicationMetaData(GeographicCoordinateRef gc) {
-    return gc ? gc->metadata : NULL;
+    return gc ? gc->application : NULL;
 }
 // Setters
 bool GeographicCoordinateSetLatitude(GeographicCoordinateRef gc, SIScalarRef latitude) {
@@ -308,9 +308,9 @@ bool GeographicCoordinateSetAltitude(GeographicCoordinateRef gc, SIScalarRef alt
 }
 bool GeographicCoordinateSetApplicationMetaData(GeographicCoordinateRef gc, OCDictionaryRef metadata) {
     if (!gc) return false;
-    OCRelease(gc->metadata);
-    gc->metadata = metadata
-                       ? (OCDictionaryRef)OCTypeDeepCopyMutable(metadata)
+    OCRelease(gc->application);
+    gc->application = metadata
+                       ? (OCMutableDictionaryRef)OCTypeDeepCopyMutable(metadata)
                        : OCDictionaryCreateMutable(0);
     return true;
 }
