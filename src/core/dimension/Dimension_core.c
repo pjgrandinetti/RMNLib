@@ -1147,7 +1147,7 @@ bool impl_SIDimensionIsReciprocalOf(SIDimensionRef src,
     // 3) Invert dimensionality
     OCStringRef err = NULL;
     SIDimensionalityRef invDim =
-        SIDimensionalityByRaisingToPower(srcDim, -1.0, &err);
+        SIDimensionalityByRaisingToPower(srcDim, -1.0);
     if (!invDim) {
         if (outError) {
             // take ownership of err if provided, else use generic message
@@ -1549,7 +1549,7 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreate(
         }
     } else {
         // build default reciprocal dimension
-        SIDimensionalityRef inverseDim = SIDimensionalityByRaisingToPowerWithoutReducing(baseDim, -1, &err);
+        SIDimensionalityRef inverseDim = SIDimensionalityByRaisingToPowerWithoutReducing(baseDim, -1);
         if (!inverseDim) goto FailWithDim;
         OCArrayRef qnList = SIDimensionalityCreateArrayOfQuantities(inverseDim);
         OCStringRef inverseQuantityName = (OCStringRef)OCArrayGetValueAtIndex(qnList, 0);
@@ -2242,7 +2242,7 @@ SILinearDimensionRef SILinearDimensionCreate(
         }
     } else {
         // build default reciprocal dimension
-        SIDimensionalityRef inverseDim = SIDimensionalityByRaisingToPowerWithoutReducing(baseDim, -1, &err);
+        SIDimensionalityRef inverseDim = SIDimensionalityByRaisingToPowerWithoutReducing(baseDim, -1);
         if (!inverseDim) goto FailWithDim;
         OCArrayRef qnList = SIDimensionalityCreateArrayOfQuantities(inverseDim);
         OCStringRef inverseQuantityName = (OCStringRef)OCArrayGetValueAtIndex(qnList, 0);
