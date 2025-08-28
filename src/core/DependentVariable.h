@@ -1,6 +1,7 @@
 #ifndef DEPENDENTVARIABLE_H
 #define DEPENDENTVARIABLE_H
 #include "../RMNLibrary.h"
+#include "cJSON.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

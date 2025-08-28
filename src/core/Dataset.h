@@ -8,6 +8,7 @@
 #include "OCIndexArray.h"
 #include "OCString.h"
 #include "OCType.h"
+#include "cJSON.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -96,6 +97,18 @@ DatasetRef DatasetCreateEmpty(OCStringRef *outError);
  */
 DatasetRef
 DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError);
+/**
+ * @brief Create a Dataset from a cJSON object.
+ *
+ * This is the preferred method for creating Datasets from JSON data,
+ * providing better performance and error handling than dictionary conversion.
+ *
+ * @param json cJSON object with dataset definition.
+ * @param outError On error, set to a brief description string.
+ * @return DatasetRef or NULL on parse/factory failure.
+ */
+DatasetRef
+DatasetCreateFromJSON(cJSON *json, OCStringRef *outError);
 /**
  * @brief Serialize a Dataset into a deep‐copyable dictionary.
  *
