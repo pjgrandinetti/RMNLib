@@ -188,6 +188,67 @@ cJSON *OCMetadataCopyJSON(OCDictionaryRef dict);
  */
 OCDictionaryRef OCMetadataCreateFromJSON(cJSON *json, OCStringRef *outError);
 /** @} */  // end of MetadataJSON group
+
+/**
+ * @defgroup UniversalAccessors Universal Property Accessors
+ * @brief Universal getter and setter functions for RMNLib object properties.
+ *
+ * These functions provide a unified interface for accessing common properties
+ * across different RMNLib types, automatically dispatching to the appropriate
+ * type-specific implementation based on the object's type ID.
+ * @{
+ */
+
+/**
+ * @brief Universal getter for description property across RMNLib types.
+ *
+ * @param theType The RMNLib object to get description from
+ * @param outError Optional error output parameter
+ * @return The description string, or NULL if not supported or on error
+ * 
+ * @note Supported types: Dimension, DependentVariable, SparseSampling, Dataset
+ * @note Not supported: Datum, GeographicCoordinate
+ */
+OCStringRef RMNLibGetDescription(OCTypeRef theType, OCStringRef *outError);
+
+/**
+ * @brief Universal setter for description property across RMNLib types.
+ *
+ * @param theType The RMNLib object to set description on
+ * @param description The description string to set
+ * @param outError Optional error output parameter
+ * @return true on success, false on error
+ * 
+ * @note Supported types: Dimension, DependentVariable, SparseSampling, Dataset
+ * @note Not supported: Datum, GeographicCoordinate
+ */
+bool RMNLibSetDescription(OCTypeRef theType, OCStringRef description, OCStringRef *outError);
+
+/**
+ * @brief Universal getter for application metadata across RMNLib types.
+ *
+ * @param theType The RMNLib object to get metadata from
+ * @param outError Optional error output parameter
+ * @return The application metadata dictionary, or NULL if not supported or on error
+ * 
+ * @note Supported types: All RMNLib types except Datum
+ */
+OCDictionaryRef RMNLibGetApplicationMetaData(OCTypeRef theType, OCStringRef *outError);
+
+/**
+ * @brief Universal setter for application metadata across RMNLib types.
+ *
+ * @param theType The RMNLib object to set metadata on
+ * @param metadata The metadata dictionary to set (can be NULL)
+ * @param outError Optional error output parameter
+ * @return true on success, false on error
+ * 
+ * @note Supported types: All RMNLib types except Datum
+ */
+bool RMNLibSetApplicationMetaData(OCTypeRef theType, OCDictionaryRef metadata, OCStringRef *outError);
+
+/** @} */  // end of UniversalAccessors group
+
 /**
  * @defgroup LibraryManagement Library Management Functions
  * @brief Functions for managing the lifecycle of the RMNLib library.
