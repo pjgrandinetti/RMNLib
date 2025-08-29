@@ -294,7 +294,7 @@ OCDictionaryRef impl_DimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef 
     // Optional: metadata
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (item && cJSON_IsObject(item)) {
-        OCDictionaryRef metadata = SIMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef metadata = SITypesMetadataCreateFromJSON(item, outError);
         if (!metadata) {
             OCRelease(dict);
             return NULL;
@@ -524,7 +524,7 @@ static OCDictionaryRef LabeledDimensionDictionaryCreateFromJSON(cJSON *json, OCS
     // Optional: metadata
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (cJSON_IsObject(item)) {
-        OCDictionaryRef metadata = SIMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef metadata = SITypesMetadataCreateFromJSON(item, outError);
         if (!metadata) {
             OCRelease(dict);
             return NULL;
@@ -989,7 +989,7 @@ OCDictionaryRef SIDimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef *ou
     // Optional: metadata
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (item && cJSON_IsObject(item)) {
-        OCDictionaryRef metadata = SIMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef metadata = SITypesMetadataCreateFromJSON(item, outError);
         if (!metadata) {
             OCRelease(dict);
             return NULL;
@@ -1655,7 +1655,7 @@ OCDictionaryRef SIMonotonicDimensionDictionaryCreateFromJSON(cJSON *json,
     }
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (cJSON_IsObject(item)) {
-        OCDictionaryRef md = SIMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef md = SITypesMetadataCreateFromJSON(item, outError);
         if (!md) {
             OCRelease(dict);
             return NULL;
@@ -2417,9 +2417,9 @@ static OCDictionaryRef SILinearDimensionDictionaryCreateFromJSON(
     COPY_NUM_FIELD(kSIDimensionScalingKey);
     COPY_NUM_FIELD(kSILinearDimensionCountKey);
     COPY_BOOL_FIELD(kSILinearDimensionFFTKey);
-    // --- Metadata sub-object via your SIMetadataCreateFromJSON ---
+    // --- Metadata sub-object via your SITypesMetadataCreateFromJSON ---
     if ((item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey)) && cJSON_IsObject(item)) {
-        OCDictionaryRef md = SIMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef md = SITypesMetadataCreateFromJSON(item, outError);
         if (!md) {
             OCRelease(dict);
             return NULL;

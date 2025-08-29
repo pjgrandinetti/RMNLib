@@ -153,7 +153,7 @@ GeographicCoordinateRef GeographicCoordinateCreateFromDictionary(OCDictionaryRef
         alt = SIScalarCreateFromExpression(altStr, outError);
         if (!alt) goto fail;
     }
-    // metadata
+    // metadata (optional)
     OCDictionaryRef md = OCDictionaryGetValue(dict, STR(kGeoCoordApplicationKey));
     // required: lat/lon
     if (!lat || !lon) {
@@ -252,7 +252,7 @@ static OCDictionaryRef GeographicCoordinateDictionaryCreateFromJSON(cJSON *json,
     // nested metadata (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kGeoCoordApplicationKey);
     if (entry && cJSON_IsObject(entry)) {
-        OCDictionaryRef md = SIMetadataCreateFromJSON(entry, outError);
+        OCDictionaryRef md = SITypesMetadataCreateFromJSON(entry, outError);
         if (!md) {
             OCRelease(dict);
             return NULL;
