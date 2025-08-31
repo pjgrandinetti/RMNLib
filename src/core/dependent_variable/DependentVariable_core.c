@@ -5,7 +5,7 @@
 static OCTypeID kDependentVariableID = kOCNotATypeID;
 OCTypeID DependentVariableGetTypeID(void) {
     if (kDependentVariableID == kOCNotATypeID)
-        kDependentVariableID = OCRegisterType("DependentVariable");
+        kDependentVariableID = OCRegisterType("DependentVariable",NULL);
     return kDependentVariableID;
 }
 static void impl_DependentVariableFinalize(const void *ptr) {
@@ -111,6 +111,21 @@ cJSON *impl_DependentVariableCreateJSON(const void *obj) {
     OCRelease(dict);
     return json;
 }
+cJSON *impl_DependentVariableCreateJSONTyped(const void *obj) {
+    if (!obj) return cJSON_CreateNull();
+    // 1) Copy to an OCDictionary
+    //    — we pass NULL for dimensions (no context),
+    //      external = false (embed components inline),
+    //      base64Encoding = false (emit JSON arrays)
+    OCDictionaryRef dict = DependentVariableCopyAsDictionary(
+        (DependentVariableRef)obj);
+    if (!dict) return NULL;
+    // 2) Use the generic OCType → cJSON converter
+    cJSON *json = OCTypeCopyJSONTyped((OCTypeRef)dict);
+    // 3) Clean up
+    OCRelease(dict);
+    return json;
+}
 static void *impl_DependentVariableDeepCopy(const void *ptr) {
     if (!ptr) return NULL;
     const struct impl_DependentVariable *src = (const struct impl_DependentVariable *)ptr;
@@ -193,6 +208,7 @@ static struct impl_DependentVariable *DependentVariableAllocate(void) {
         impl_DependentVariableEqual,
         impl_DependentVariableCopyFormattingDesc,
         impl_DependentVariableCreateJSON,
+        impl_DependentVariableCreateJSONTyped,
         impl_DependentVariableDeepCopy,
         impl_DependentVariableDeepCopy);
 }

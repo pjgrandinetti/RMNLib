@@ -32,7 +32,7 @@ static OCTypeID kDatasetID = kOCNotATypeID;
 
 OCTypeID DatasetGetTypeID(void) {
     if (kDatasetID == kOCNotATypeID)
-        kDatasetID = OCRegisterType("Dataset");
+        kDatasetID = OCRegisterType("Dataset",NULL);
     return kDatasetID;
 }
 
@@ -115,6 +115,21 @@ static cJSON *impl_DatasetCreateJSON(const void *obj) {
     OCRelease(core);
     return root;
 }
+static cJSON *impl_DatasetCreateJSONTyped(const void *obj) {
+    if (!obj) return cJSON_CreateNull();
+    DatasetRef ds = (DatasetRef)obj;
+    // Build the "core" dictionary
+    OCDictionaryRef core = DatasetCopyAsDictionary(ds);
+    if (!core) return cJSON_CreateNull();
+    // Wrap under the "csdm" envelope
+    cJSON *root = cJSON_CreateObject();
+    cJSON *inner = OCTypeCopyJSONTyped((OCTypeRef)core);
+    cJSON_AddItemToObject(root,
+                          kDatasetCsdmEnvelopeKey,
+                          inner);
+    OCRelease(core);
+    return root;
+}
 
 static void *impl_DatasetDeepCopy(const void *ptr) {
     if (ptr == NULL) {
@@ -184,6 +199,7 @@ struct impl_Dataset *DatasetAllocate(void) {
         impl_DatasetEqual,
         impl_DatasetCopyFormattingDesc,
         impl_DatasetCreateJSON,
+        impl_DatasetCreateJSONTyped,
         impl_DatasetDeepCopy,
         impl_DatasetDeepCopy);
 }

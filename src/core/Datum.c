@@ -23,7 +23,7 @@ struct impl_Datum {
     OCTypeRef owner;          // weak reference to owning Dataset object, if any
 };
 OCTypeID DatumGetTypeID(void) {
-    if (kDatumID == kOCNotATypeID) kDatumID = OCRegisterType("Datum");
+    if (kDatumID == kOCNotATypeID) kDatumID = OCRegisterType("Datum",NULL);
     return kDatumID;
 }
 static bool impl_DatumEqual(const void *theType1, const void *theType2) {
@@ -54,21 +54,49 @@ static OCStringRef impl_DatumCopyFormattingDescription(OCTypeRef theType) {
     DatumRef datum = (DatumRef)theType;
     return SIScalarCopyFormattingDescription((SIScalarRef) datum);
 }
-// cJSON serialization for Datum now entirely via OCDictionary → JSON
-static cJSON *impl_DatumCreateJSON(const void *obj) {
+// cJSON serialization for Datum - create cJSON object directly
+static cJSON *impl_DatumCreateJSON(const void *obj, bool typed) {
     DatumRef datum = (DatumRef)obj;
     if (!datum)
         return cJSON_CreateNull();
-    // 1) Get a plain OC‐dictionary of all fields
-    OCDictionaryRef dict = DatumCopyAsDictionary(datum);
-    if (!dict)
+    
+    cJSON *json = cJSON_CreateObject();
+    if (!json)
         return cJSON_CreateNull();
-    // 2) Convert that dictionary to cJSON in one shot
-    cJSON *json = OCDictionaryCreateJSON(dict);
-    // 3) Clean up
-    OCRelease(dict);
-    // 4) In case your OCDictionaryCreateJSON can return NULL on failure:
-    return json ? json : cJSON_CreateNull();
+    
+    // Add dependent_variable_index
+    cJSON *dvIndex = cJSON_CreateNumber(datum->dependentVariableIndex);
+    if (dvIndex) cJSON_AddItemToObject(json, kDatumDependentVariableIndexKey, dvIndex);
+    
+    // Add component_index
+    cJSON *compIndex = cJSON_CreateNumber(datum->componentIndex);
+    if (compIndex) cJSON_AddItemToObject(json, kDatumComponentIndexKey, compIndex);
+    
+    // Add mem_offset
+    cJSON *memOffset = cJSON_CreateNumber(datum->memOffset);
+    if (memOffset) cJSON_AddItemToObject(json, kDatumMemOffsetKey, memOffset);
+    
+    // Add response value using SIScalar's JSON serialization
+    // Create a proper SIScalar copy to avoid infinite recursion
+    SIScalarRef scalarCopy = SIScalarCreateCopy((SIScalarRef)datum);
+    cJSON *response = OCTypeCopyJSON((OCTypeRef)scalarCopy, typed);
+    if (response) cJSON_AddItemToObject(json, kDatumResponseKey, response);
+    OCRelease(scalarCopy);
+    
+    if (typed) {
+        // Wrap in typed object format
+        cJSON *wrapper = cJSON_CreateObject();
+        if (wrapper) {
+            cJSON_AddStringToObject(wrapper, "type", "Datum");
+            cJSON_AddItemToObject(wrapper, "value", json);
+            return wrapper;
+        } else {
+            cJSON_Delete(json);
+            return cJSON_CreateNull();
+        }
+    }
+    
+    return json;
 }
 static void *impl_DatumDeepCopy(const void *theType) {
     if (!theType) return NULL;
@@ -227,64 +255,89 @@ DatumRef DatumCreateFromDictionary(OCDictionaryRef dictionary, OCStringRef *erro
     if (response) OCRelease(response);
     return datum;
 }
-static OCDictionaryRef DatumDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
-    if (outError) *outError = NULL;
-    if (!json || !cJSON_IsObject(json)) {
-        if (outError) *outError = STR("Expected JSON object for Datum");
-        return NULL;
-    }
-    OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
-    cJSON *item = NULL;
-    // Required: dependent_variable_index
-    item = cJSON_GetObjectItemCaseSensitive(json, kDatumDependentVariableIndexKey);
-    if (!cJSON_IsNumber(item)) {
-        if (outError) *outError = STR("Missing or invalid \"dependent_variable_index\"");
-        OCRelease(dict);
-        return NULL;
-    }
-    OCNumberRef dvIdx = OCNumberCreateWithOCIndex(item->valueint);
-    OCDictionarySetValue(dict, STR(kDatumDependentVariableIndexKey), dvIdx);
-    OCRelease(dvIdx);
-    // Required: component_index
-    item = cJSON_GetObjectItemCaseSensitive(json, kDatumComponentIndexKey);
-    if (!cJSON_IsNumber(item)) {
-        if (outError) *outError = STR("Missing or invalid \"component_index\"");
-        OCRelease(dict);
-        return NULL;
-    }
-    OCNumberRef compIdx = OCNumberCreateWithOCIndex(item->valueint);
-    OCDictionarySetValue(dict, STR(kDatumComponentIndexKey), compIdx);
-    OCRelease(compIdx);
-    // Required: mem_offset
-    item = cJSON_GetObjectItemCaseSensitive(json, kDatumMemOffsetKey);
-    if (!cJSON_IsNumber(item)) {
-        if (outError) *outError = STR("Missing or invalid \"mem_offset\"");
-        OCRelease(dict);
-        return NULL;
-    }
-    OCNumberRef memOffset = OCNumberCreateWithOCIndex(item->valueint);
-    OCDictionarySetValue(dict, STR(kDatumMemOffsetKey), memOffset);
-    OCRelease(memOffset);
-    // Optional: response
-    item = cJSON_GetObjectItemCaseSensitive(json, kDatumResponseKey);
-    if (cJSON_IsString(item)) {
-        OCStringRef response = OCStringCreateWithCString(item->valuestring);
-        OCDictionarySetValue(dict, STR(kDatumResponseKey), response);
-        OCRelease(response);
-    }
-    return dict;
-}
 DatumRef DatumCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
-    if (!json || !cJSON_IsObject(json)) {
+    if (!json) {
+        if (outError) *outError = STR("JSON is NULL");
+        return NULL;
+    }
+    
+    cJSON *actualJson = json;
+    
+    // Check if this is a typed JSON object (has "type" and "value" fields)
+    if (cJSON_IsObject(json)) {
+        cJSON *typeItem = cJSON_GetObjectItemCaseSensitive(json, "type");
+        cJSON *valueItem = cJSON_GetObjectItemCaseSensitive(json, "value");
+        
+        if (typeItem && cJSON_IsString(typeItem) && 
+            strcmp(typeItem->valuestring, "Datum") == 0 && 
+            valueItem && cJSON_IsObject(valueItem)) {
+            // This is a typed JSON, use the value part
+            actualJson = valueItem;
+        }
+    }
+    
+    if (!cJSON_IsObject(actualJson)) {
         if (outError) *outError = STR("Expected a JSON object");
         return NULL;
     }
-    // Step 1: Convert JSON → OCDictionary
-    OCDictionaryRef dict = DatumDictionaryCreateFromJSON(json, outError);
-    if (!dict) return NULL;
-    // Step 2: Convert dictionary → Datum
-    DatumRef datum = DatumCreateFromDictionary(dict, outError);
-    OCRelease(dict);
+    
+    // Parse fields directly from JSON
+    cJSON *item = NULL;
+    
+    // Required: dependent_variable_index
+    item = cJSON_GetObjectItemCaseSensitive(actualJson, kDatumDependentVariableIndexKey);
+    if (!cJSON_IsNumber(item)) {
+        if (outError) *outError = STR("Missing or invalid \"dependent_variable_index\"");
+        return NULL;
+    }
+    OCIndex dependentVariableIndex = item->valueint;
+    
+    // Required: component_index
+    item = cJSON_GetObjectItemCaseSensitive(actualJson, kDatumComponentIndexKey);
+    if (!cJSON_IsNumber(item)) {
+        if (outError) *outError = STR("Missing or invalid \"component_index\"");
+        return NULL;
+    }
+    OCIndex componentIndex = item->valueint;
+    
+    // Required: mem_offset
+    item = cJSON_GetObjectItemCaseSensitive(actualJson, kDatumMemOffsetKey);
+    if (!cJSON_IsNumber(item)) {
+        if (outError) *outError = STR("Missing or invalid \"mem_offset\"");
+        return NULL;
+    }
+    OCIndex memOffset = item->valueint;
+    
+    // Required: response (can be string or object depending on how it was serialized)
+    item = cJSON_GetObjectItemCaseSensitive(actualJson, kDatumResponseKey);
+    if (!item) {
+        if (outError) *outError = STR("Missing \"response\"");
+        return NULL;
+    }
+    
+    SIScalarRef response = NULL;
+    if (cJSON_IsString(item)) {
+        // Simple string representation - parse as expression
+        OCStringRef responseStr = OCStringCreateWithCString(item->valuestring);
+        response = SIScalarCreateFromExpression(responseStr, outError);
+        OCRelease(responseStr);
+    } else if (cJSON_IsObject(item)) {
+        // Complex JSON object - parse using SIScalar's JSON parser
+        response = OCTypeCreateFromJSON(item, outError);
+        if (response && !SIScalarIsType(response)) {
+            if (outError) *outError = STR("Response is not a SIScalar");
+            OCRelease(response);
+            response = NULL;
+        }
+    } else {
+        if (outError) *outError = STR("Invalid response format");
+        return NULL;
+    }
+    
+    if (!response) return NULL;
+    
+    DatumRef datum = DatumCreate(response, dependentVariableIndex, componentIndex, memOffset, NULL, outError);
+    OCRelease(response);
     return datum;
 }

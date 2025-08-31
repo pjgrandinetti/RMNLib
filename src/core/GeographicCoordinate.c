@@ -8,7 +8,7 @@
 static OCTypeID kGeographicCoordinateID = kOCNotATypeID;
 OCTypeID GeographicCoordinateGetTypeID(void) {
     if (kGeographicCoordinateID == kOCNotATypeID) {
-        kGeographicCoordinateID = OCRegisterType("GeographicCoordinate");
+        kGeographicCoordinateID = OCRegisterType("GeographicCoordinate",NULL);
     }
     return kGeographicCoordinateID;
 }
@@ -61,6 +61,15 @@ static cJSON *impl_GeographicCoordinateCreateJSON(const void *obj) {
     OCRelease(dict);
     return json;
 }
+static cJSON *impl_GeographicCoordinateCreateJSONTyped(const void *obj) {
+    if (!obj) return cJSON_CreateNull();
+    GeographicCoordinateRef gc = (GeographicCoordinateRef)obj;
+    OCDictionaryRef dict = GeographicCoordinateCopyAsDictionary(gc);
+    if (!dict) return cJSON_CreateNull();
+    cJSON *json = OCTypeCopyJSONTyped((OCTypeRef)dict);
+    OCRelease(dict);
+    return json;
+}
 // Deep-copy
 static void *impl_GeographicCoordinateDeepCopy(const void *ptr) {
     if (!ptr) return NULL;
@@ -81,6 +90,7 @@ static struct impl_GeographicCoordinate *GeographicCoordinateAllocate(void) {
         impl_GeographicCoordinateEqual,
         impl_GeographicCoordinateCopyFormattingDesc,
         impl_GeographicCoordinateCreateJSON,
+        impl_GeographicCoordinateCreateJSONTyped,
         impl_GeographicCoordinateDeepCopy,
         impl_GeographicCoordinateDeepCopy);
 }
@@ -252,7 +262,7 @@ static OCDictionaryRef GeographicCoordinateDictionaryCreateFromJSON(cJSON *json,
     // nested metadata (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kGeoCoordApplicationKey);
     if (entry && cJSON_IsObject(entry)) {
-        OCDictionaryRef md = SITypesMetadataCreateFromJSON(entry, outError);
+        OCDictionaryRef md = OCTypeCreateFromJSONTyped(entry);
         if (!md) {
             OCRelease(dict);
             return NULL;

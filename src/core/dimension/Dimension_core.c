@@ -30,7 +30,7 @@ static OCTypeID _kSILinearDimensionTypeID = kOCNotATypeID;
 // Type registration functions
 OCTypeID DimensionGetTypeID(void) {
     if (_kDimensionTypeID == kOCNotATypeID) {
-        _kDimensionTypeID = OCRegisterType("Dimension");
+        _kDimensionTypeID = OCRegisterType("Dimension",NULL);
     }
     return _kDimensionTypeID;
 }
@@ -173,6 +173,18 @@ cJSON *impl_DimensionCreateJSON(const void *obj) {
     OCRelease(dict);
     return json;
 }
+cJSON *impl_DimensionCreateJSONTyped(const void *obj) {
+    DimensionRef dim = (DimensionRef)obj;
+    if (!dim) return cJSON_CreateNull();
+    // 1) Serialize to an OC-dictionary
+    OCDictionaryRef dict = impl_DimensionCopyAsDictionary(dim);
+    if (!dict) return cJSON_CreateNull();
+    // 2) Convert that entire dictionary to JSON
+    cJSON *json = OCDictionaryCreateJSONTyped(dict);
+    // 3) Clean up
+    OCRelease(dict);
+    return json;
+}
 void *impl_DimensionDeepCopy(const void *obj) {
     if (!obj) return NULL;
     // Serialize to a dictionary
@@ -191,6 +203,7 @@ DimensionRef impl_DimensionAllocate(void) {
         impl_DimensionEqual,
         impl_DimensionCopyFormattingDesc,
         impl_DimensionCreateJSON,
+        impl_DimensionCreateJSONTyped,
         impl_DimensionDeepCopy,
         impl_DimensionDeepCopy);
 }
@@ -294,7 +307,7 @@ OCDictionaryRef impl_DimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef 
     // Optional: metadata
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (item && cJSON_IsObject(item)) {
-        OCDictionaryRef metadata = SITypesMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef metadata = OCTypeCreateFromJSONTyped(item);
         if (!metadata) {
             OCRelease(dict);
             return NULL;
@@ -391,6 +404,24 @@ cJSON *impl_LabeledDimensionCreateJSON(const void *obj) {
     }
     return json;
 }
+cJSON *impl_LabeledDimensionCreateJSONTyped(const void *obj) {
+    const LabeledDimensionRef ldim = (const LabeledDimensionRef)obj;
+    if (!ldim) return cJSON_CreateNull();
+    // First, serialize the base fields using impl_DimensionCreateJSON
+    cJSON *json = impl_DimensionCreateJSONTyped(&ldim->_super);
+    if (!json) return NULL;
+    
+    // Add type discriminator
+    cJSON_AddStringToObject(json, "type", "labeled");
+    
+    // Now, add the subclass field: coordinateLabels (OCMutableArrayRef)
+    if (ldim->coordinateLabels) {
+        cJSON *labels_json = OCTypeCopyJSONTyped((OCTypeRef)ldim->coordinateLabels);
+        if (labels_json)
+            cJSON_AddItemToObject(json, kLabeledDimensionCoordinateLabelsKey, labels_json);
+    }
+    return json;
+}
 void *impl_LabeledDimensionDeepCopy(const void *obj) {
     if (!obj) return NULL;
     OCDictionaryRef dict = LabeledDimensionCopyAsDictionary((LabeledDimensionRef)obj);
@@ -407,6 +438,7 @@ LabeledDimensionRef LabeledDimensionAllocate(void) {
         impl_LabeledDimensionEqual,
         impl_LabeledDimensionCopyFormattingDesc,
         impl_LabeledDimensionCreateJSON,
+        impl_LabeledDimensionCreateJSONTyped,
         impl_LabeledDimensionDeepCopy,
         impl_LabeledDimensionDeepCopy);
 }
@@ -524,7 +556,7 @@ static OCDictionaryRef LabeledDimensionDictionaryCreateFromJSON(cJSON *json, OCS
     // Optional: metadata
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (cJSON_IsObject(item)) {
-        OCDictionaryRef metadata = SITypesMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef metadata = OCTypeCreateFromJSONTyped(item);
         if (!metadata) {
             OCRelease(dict);
             return NULL;
@@ -685,6 +717,38 @@ cJSON *impl_SIDimensionCreateJSON(const void *obj) {
     cJSON_AddNumberToObject(json, kSIDimensionScalingKey, (int)sidim->scaling);
     return json;
 }
+cJSON *impl_SIDimensionCreateJSONTyped(const void *obj) {
+    const SIDimensionRef sidim = (const SIDimensionRef)obj;
+    if (!sidim) return cJSON_CreateNull();
+    // 1) Serialize base fields
+    cJSON *json = impl_DimensionCreateJSONTyped(&sidim->_super);
+    if (!json) return cJSON_CreateNull();
+// 2) Helper to add optional items
+#define ADD_JSON_ITEM(key, cond, make_item)                 \
+    do {                                                    \
+        if (cond) {                                         \
+            cJSON *itm = (make_item);                       \
+            if (itm) cJSON_AddItemToObject(json, key, itm); \
+        }                                                   \
+    } while (0)
+    ADD_JSON_ITEM(kSIDimensionQuantityNameKey,
+                  sidim->quantityName != NULL,
+                  OCTypeCopyJSONTyped((OCTypeRef)sidim->quantityName));
+    ADD_JSON_ITEM(kSIDimensionOffsetKey,
+                  sidim->offset != NULL,
+                  OCTypeCopyJSONTyped((OCTypeRef)sidim->offset));
+    ADD_JSON_ITEM(kSIDimensionOriginKey,
+                  sidim->origin != NULL,
+                  OCTypeCopyJSONTyped((OCTypeRef)sidim->origin));
+    ADD_JSON_ITEM(kSIDimensionPeriodKey,
+                  sidim->period != NULL,
+                  OCTypeCopyJSONTyped((OCTypeRef)sidim->period));
+#undef ADD_JSON_ITEM
+    // 3) Always include these primitives
+    cJSON_AddBoolToObject(json, kSIDimensionPeriodicKey, sidim->period != NULL);
+    cJSON_AddNumberToObject(json, kSIDimensionScalingKey, (int)sidim->scaling);
+    return json;
+}
 void *impl_SIDimensionDeepCopy(const void *obj) {
     if (!obj) return NULL;
     // Serialize to a dictionary
@@ -794,6 +858,7 @@ SIDimensionRef SIDimensionAllocate(void) {
         impl_SIDimensionEqual,
         impl_SIDimensionCopyFormattingDesc,
         impl_SIDimensionCreateJSON,
+        impl_SIDimensionCreateJSONTyped,
         impl_SIDimensionDeepCopy,
         impl_SIDimensionDeepCopy);
 }
@@ -989,7 +1054,7 @@ OCDictionaryRef SIDimensionDictionaryCreateFromJSON(cJSON *json, OCStringRef *ou
     // Optional: metadata
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (item && cJSON_IsObject(item)) {
-        OCDictionaryRef metadata = SITypesMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef metadata = OCTypeCreateFromJSONTyped(item);
         if (!metadata) {
             OCRelease(dict);
             return NULL;
@@ -1402,6 +1467,30 @@ cJSON *impl_SIMonotonicDimensionCreateJSON(const void *obj) {
     }
     return json;
 }
+cJSON *impl_SIMonotonicDimensionCreateJSONTyped(const void *obj) {
+    const SIMonotonicDimensionRef mono = (const SIMonotonicDimensionRef)obj;
+    if (!mono) return cJSON_CreateNull();
+    // Serialize base fields using impl_SIDimensionCreateJSON
+    cJSON *json = impl_SIDimensionCreateJSON(&mono->_super);
+    if (!json) return NULL;
+    
+    // Add type discriminator
+    cJSON_AddStringToObject(json, "type", "monotonic");
+    
+    // reciprocal (SIDimensionRef, i.e., struct impl_SIDimension *)
+    if (mono->reciprocal) {
+        cJSON *recip_json = impl_SIDimensionCreateJSONTyped(mono->reciprocal);
+        if (recip_json)
+            cJSON_AddItemToObject(json, kSIDimensionReciprocalKey, recip_json);
+    }
+    // coordinates (OCMutableArrayRef)
+    if (mono->coordinates) {
+        cJSON *coords_json = OCTypeCopyJSONTyped((OCTypeRef)mono->coordinates);
+        if (coords_json)
+            cJSON_AddItemToObject(json, kSIMonotonicDimensionCoordinatesKey, coords_json);
+    }
+    return json;
+}
 void *impl_SIMonotonicDimensionDeepCopy(const void *obj) {
     if (!obj) return NULL;
     // 1) Serialize to a dictionary
@@ -1422,6 +1511,7 @@ SIMonotonicDimensionRef SIMonotonicDimensionAllocate(void) {
         impl_SIMonotonicDimensionEqual,
         impl_SIMonotonicDimensionCopyFormattingDesc,
         impl_SIMonotonicDimensionCreateJSON,
+        impl_SIMonotonicDimensionCreateJSONTyped,
         impl_SIMonotonicDimensionDeepCopy,
         impl_SIMonotonicDimensionDeepCopy);
 }
@@ -1655,7 +1745,7 @@ OCDictionaryRef SIMonotonicDimensionDictionaryCreateFromJSON(cJSON *json,
     }
     item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey);
     if (cJSON_IsObject(item)) {
-        OCDictionaryRef md = SITypesMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef md = OCTypeCreateFromJSONTyped(item);
         if (!md) {
             OCRelease(dict);
             return NULL;
@@ -2067,6 +2157,34 @@ cJSON *impl_SILinearDimensionCreateJSON(const void *obj) {
     cJSON_AddBoolToObject(json, kSILinearDimensionFFTKey, lin->fft);
     return json;
 }
+cJSON *impl_SILinearDimensionCreateJSONTyped(const void *obj) {
+    const SILinearDimensionRef lin = (const SILinearDimensionRef)obj;
+    if (!lin) return cJSON_CreateNull();
+    // Serialize base fields using impl_SIDimensionCreateJSON
+    cJSON *json = impl_SIDimensionCreateJSON(&lin->_super);
+    if (!json) return NULL;
+    
+    // Add type discriminator
+    cJSON_AddStringToObject(json, "type", "linear");
+    
+    // reciprocal (SIDimensionRef)
+    if (lin->reciprocal) {
+        cJSON *recip_json = impl_SIDimensionCreateJSONTyped(lin->reciprocal);
+        if (recip_json)
+            cJSON_AddItemToObject(json, kSIDimensionReciprocalKey, recip_json);
+    }
+    // count (OCIndex, presumably integer)
+    cJSON_AddNumberToObject(json, kSILinearDimensionCountKey, (int)lin->count);
+    // increment (SIScalarRef)
+    if (lin->increment) {
+        cJSON *inc_json = OCTypeCopyJSONTyped((OCTypeRef)lin->increment);
+        if (inc_json)
+            cJSON_AddItemToObject(json, kSILinearDimensionIncrementKey, inc_json);
+    }
+    // fft (bool)
+    cJSON_AddBoolToObject(json, kSILinearDimensionFFTKey, lin->fft);
+    return json;
+}
 void *impl_SILinearDimensionDeepCopy(const void *obj) {
     if (!obj) return NULL;
     OCDictionaryRef dict = SILinearDimensionCopyAsDictionary((SILinearDimensionRef)obj);
@@ -2083,6 +2201,7 @@ SILinearDimensionRef SILinearDimensionAllocate(void) {
         impl_SILinearDimensionEqual,
         impl_SILinearDimensionCopyFormattingDesc,
         impl_SILinearDimensionCreateJSON,
+        impl_SILinearDimensionCreateJSONTyped,
         impl_SILinearDimensionDeepCopy,
         impl_SILinearDimensionDeepCopy);
 }
@@ -2417,9 +2536,9 @@ static OCDictionaryRef SILinearDimensionDictionaryCreateFromJSON(
     COPY_NUM_FIELD(kSIDimensionScalingKey);
     COPY_NUM_FIELD(kSILinearDimensionCountKey);
     COPY_BOOL_FIELD(kSILinearDimensionFFTKey);
-    // --- Metadata sub-object via your SITypesMetadataCreateFromJSON ---
+    // --- Metadata sub-object via your OCTypeCreateFromJSONTyped ---
     if ((item = cJSON_GetObjectItemCaseSensitive(json, kDimensionApplicationKey)) && cJSON_IsObject(item)) {
-        OCDictionaryRef md = SITypesMetadataCreateFromJSON(item, outError);
+        OCDictionaryRef md = OCTypeCreateFromJSONTyped(item);
         if (!md) {
             OCRelease(dict);
             return NULL;

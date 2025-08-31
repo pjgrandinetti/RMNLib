@@ -13,7 +13,7 @@
 static OCTypeID kSparseSamplingID = kOCNotATypeID;
 OCTypeID SparseSamplingGetTypeID(void) {
     if (kSparseSamplingID == kOCNotATypeID) {
-        kSparseSamplingID = OCRegisterType("SparseSampling");
+        kSparseSamplingID = OCRegisterType("SparseSampling",NULL);
     }
     return kSparseSamplingID;
 }
@@ -97,6 +97,15 @@ static cJSON *impl_SparseSamplingCreateJSON(const void *obj) {
     OCRelease(dict);
     return json;
 }
+static cJSON *impl_SparseSamplingCreateJSONTyped(const void *obj) {
+    if (!obj) return cJSON_CreateNull();
+    SparseSamplingRef ss = (SparseSamplingRef)obj;
+    OCDictionaryRef dict = SparseSamplingCopyAsDictionary(ss);
+    if (!dict) return cJSON_CreateNull();
+    cJSON *json = OCTypeCopyJSONTyped((OCTypeRef)dict);
+    OCRelease(dict);
+    return json;
+}
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // Deep‐copy
 static void *
@@ -145,6 +154,7 @@ static struct impl_SparseSampling *SparseSamplingAllocate(void) {
         impl_SparseSamplingEqual,
         impl_SparseSamplingCopyFormattingDesc,
         impl_SparseSamplingCreateJSON,
+        impl_SparseSamplingCreateJSONTyped,
         impl_SparseSamplingDeepCopy,
         impl_SparseSamplingDeepCopy);
 }
