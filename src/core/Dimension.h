@@ -15,19 +15,6 @@ extern "C" {
  * SIMonotonicDimension, and SILinearDimension.  All can
  * be serialized to/from JSON or dictionaries.
  */
-#ifdef __cplusplus
-extern "C" {
-#endif
-/**
- * @file Dimension.h
- * @brief Public interface for all Dimension types.
- *
- * This module defines the abstract base Dimension, plus
- * concrete subclasses: LabeledDimension, SIDimension,
- * SIMonotonicDimension, and SILinearDimension.  All can
- * be serialized to/from JSON or dictiOCStringRef DimensionGetType(DimensionRef dim);
-bool SIDimensionIsPeriodic(SIDimensionRef dim);
-dimensionScaling SIDimensionGetScaling(SIDimensionRef dim);
 
 /**
  * @defgroup Dimension Dimension

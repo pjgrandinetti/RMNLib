@@ -334,6 +334,7 @@ DimensionRef impl_DimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     OCStringRef label = NULL;
     OCStringRef description = NULL;
     OCDictionaryRef application = NULL;
+    DimensionRef dim = NULL;
     cJSON *item = NULL;
     
     // Optional: label
@@ -374,7 +375,7 @@ DimensionRef impl_DimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     }
     
     // Create the Dimension directly
-    DimensionRef dim = impl_DimensionCreate(label, description, application, outError);
+    dim = impl_DimensionCreate(label, description, application, outError);
     
 cleanup:
     // Release all temporary objects
@@ -1138,6 +1139,7 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     }
     
     // Step 3: Parse SIDimension-specific fields
+    SIDimensionRef sidim = NULL;
     OCStringRef quantityName = NULL;
     SIScalarRef offset = NULL;
     SIScalarRef origin = NULL;
@@ -1155,7 +1157,7 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (offsetItem) {
         if (cJSON_IsObject(offsetItem)) {
             // This is an OCTypes-wrapped SIScalar
-            offset = (SIScalarRef)OCTypeCreateFromJSON(offsetItem, outError);
+            offset = (SIScalarRef)OCTypeCreateFromJSONTyped(offsetItem, outError);
             if (!offset || OCGetTypeID((OCTypeRef)offset) != SIScalarGetTypeID()) {
                 if (outError && !*outError) *outError = STR("SIDimension: offset must be a SIScalar");
                 goto cleanup;
@@ -1172,7 +1174,7 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (originItem) {
         if (cJSON_IsObject(originItem)) {
             // This is an OCTypes-wrapped SIScalar
-            origin = (SIScalarRef)OCTypeCreateFromJSON(originItem, outError);
+            origin = (SIScalarRef)OCTypeCreateFromJSONTyped(originItem, outError);
             if (!origin || OCGetTypeID((OCTypeRef)origin) != SIScalarGetTypeID()) {
                 if (outError && !*outError) *outError = STR("SIDimension: origin must be a SIScalar");
                 goto cleanup;
@@ -1189,7 +1191,7 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (periodItem) {
         if (cJSON_IsObject(periodItem)) {
             // This is an OCTypes-wrapped SIScalar
-            period = (SIScalarRef)OCTypeCreateFromJSON(periodItem, outError);
+            period = (SIScalarRef)OCTypeCreateFromJSONTyped(periodItem, outError);
             if (!period || OCGetTypeID((OCTypeRef)period) != SIScalarGetTypeID()) {
                 if (outError && !*outError) *outError = STR("SIDimension: period must be a SIScalar");
                 goto cleanup;
@@ -1208,7 +1210,7 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     }
     
     // Step 3: Create SIDimension using base fields + SIDimension-specific fields
-    SIDimensionRef sidim = SIDimensionCreate(
+    sidim = SIDimensionCreate(
         DimensionGetLabel(baseDim),
         DimensionGetDescription(baseDim),
         DimensionGetApplicationMetaData(baseDim),
@@ -1869,7 +1871,7 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreateFromJSON(cJSON *json, OCString
     cJSON_ArrayForEach(coordEntry, coordsItem) {
         if (cJSON_IsObject(coordEntry)) {
             // This is an OCTypes-wrapped SIScalar
-            SIScalarRef coord = (SIScalarRef)OCTypeCreateFromJSON(coordEntry, outError);
+            SIScalarRef coord = (SIScalarRef)OCTypeCreateFromJSONTyped(coordEntry, outError);
             if (!coord || OCGetTypeID((OCTypeRef)coord) != SIScalarGetTypeID()) {
                 if (outError && !*outError) *outError = STR("SIMonotonicDimension: coordinate must be a SIScalar");
                 OCRelease(coordinates);
@@ -2597,7 +2599,7 @@ SILinearDimensionRef SILinearDimensionCreateFromJSON(cJSON *json, OCStringRef *o
     SIScalarRef increment = NULL;
     if (cJSON_IsObject(incrementItem)) {
         // OCTypes-wrapped SIScalar
-        increment = (SIScalarRef)OCTypeCreateFromJSON((cJSON*)incrementItem, outError);
+        increment = (SIScalarRef)OCTypeCreateFromJSONTyped((cJSON*)incrementItem, outError);
         if (!increment) {
             OCRelease(baseDim);
             if (reciprocal) OCRelease(reciprocal);
@@ -2651,6 +2653,15 @@ SILinearDimensionRef SILinearDimensionCreateFromJSON(cJSON *json, OCStringRef *o
     
     return linDim;
 }
+
+// Public wrapper function for base Dimension creation
+DimensionRef DimensionCreate(OCStringRef label,
+                             OCStringRef description,
+                             OCDictionaryRef metadata,
+                             OCStringRef *outError) {
+    return impl_DimensionCreate(label, description, metadata, outError);
+}
+
 DimensionRef DimensionCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!dict) {
