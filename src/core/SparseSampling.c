@@ -456,7 +456,9 @@ cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed) {
     
     // 6. application metadata
     if (ss->application) {
-        // Always serialize application metadata with typed = true
+        // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded 
+        // into JSON as typed=true, NO EXCEPTIONS. Even if the rest of the JSON is untyped,
+        // application must always remain typed to preserve complex nested type information.
         cJSON *app = OCTypeCopyJSON((OCTypeRef)ss->application, true);
         if (app) {
             cJSON_AddItemToObject(json, kSparseSamplingApplicationKey, app);
@@ -676,6 +678,10 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
     
     // Parse dimension_indexes
     OCMutableIndexSetRef dimensionIndexes = OCIndexSetCreateMutable();
+    if (!dimensionIndexes) {
+        if (outError) *outError = STR("Failed to create dimension indexes set");
+        return NULL;
+    }
     item = cJSON_GetObjectItemCaseSensitive(actualJson, kSparseSamplingDimensionIndexesKey);
     if (cJSON_IsArray(item)) {
         cJSON *elem;
@@ -692,6 +698,11 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
     item = cJSON_GetObjectItemCaseSensitive(actualJson, kSparseSamplingEncodingKey);
     if (cJSON_IsString(item)) {
         encoding = OCStringCreateWithCString(item->valuestring);
+        if (!encoding) {
+            if (outError) *outError = STR("Failed to create encoding string");
+            OCRelease(dimensionIndexes);
+            return NULL;
+        }
     } else {
         OCRetain(encoding); // Retain the default value for consistency
     }
@@ -737,10 +748,22 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
         // Parse base64 data - this would typically be decoded into sparse grid vertexes
         // For now, create empty array and handle base64 decoding elsewhere
         sparseGridVertexes = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+        if (!sparseGridVertexes) {
+            if (outError) *outError = STR("Failed to create sparse grid vertexes array");
+            OCRelease(dimensionIndexes);
+            OCRelease(encoding);
+            return NULL;
+        }
     } else if (cJSON_IsArray(item)) {
         // Array format
         int arraySize = cJSON_GetArraySize(item);
         sparseGridVertexes = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+        if (!sparseGridVertexes) {
+            if (outError) *outError = STR("Failed to create sparse grid vertexes array");
+            OCRelease(dimensionIndexes);
+            OCRelease(encoding);
+            return NULL;
+        }
         
         // Count valid numbers
         cJSON *elem;
@@ -777,6 +800,13 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
         
         for (OCIndex v = 0; v < numVertices; v++) {
             OCMutableIndexPairSetRef vertex = OCIndexPairSetCreateMutable();
+            if (!vertex) {
+                if (outError) *outError = STR("Failed to create vertex index pair set");
+                OCRelease(dimensionIndexes);
+                OCRelease(encoding);
+                OCRelease(sparseGridVertexes);
+                return NULL;
+            }
             
             for (OCIndex d = 0; d < ndim; d++) {
                 // Find the next valid number
@@ -798,28 +828,77 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
     } else {
         // Default empty array
         sparseGridVertexes = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+        if (!sparseGridVertexes) {
+            if (outError) *outError = STR("Failed to create default sparse grid vertexes array");
+            OCRelease(dimensionIndexes);
+            OCRelease(encoding);
+            return NULL;
+        }
     }
     
-    // Parse description
+    // Parse optional description
     OCStringRef description = NULL;
     item = cJSON_GetObjectItemCaseSensitive(actualJson, kSparseSamplingDescriptionKey);
     if (cJSON_IsString(item)) {
         description = OCStringCreateWithCString(item->valuestring);
+        if (!description) {
+            if (outError) *outError = STR("Failed to create description string");
+            OCRelease(dimensionIndexes);
+            OCRelease(encoding);
+            OCRelease(sparseGridVertexes);
+            return NULL;
+        }
+    } else if (item) {
+        // Field is present but not a string - this is an error
+        if (outError) *outError = STR("description field must be a string");
+        OCRelease(dimensionIndexes);
+        OCRelease(encoding);
+        OCRelease(sparseGridVertexes);
+        return NULL;
     }
     
-    // Parse application metadata
+    // Parse optional application metadata
     OCMutableDictionaryRef application = NULL;
     item = cJSON_GetObjectItemCaseSensitive(actualJson, kSparseSamplingApplicationKey);
     if (cJSON_IsObject(item)) {
         // Use OCDictionary's native JSON deserialization to handle typed data properly
-        OCDictionaryRef parsedDict = (OCDictionaryRef)OCTypeCreateFromJSONTyped(item, NULL);
-        if (parsedDict && OCGetTypeID(parsedDict) == OCDictionaryGetTypeID()) {
-            application = (OCMutableDictionaryRef)OCTypeDeepCopyMutable(parsedDict);
+        OCStringRef parseError = NULL;
+        OCDictionaryRef parsedDict = (OCDictionaryRef)OCTypeCreateFromJSONTyped(item, &parseError);
+        if (!parsedDict) {
+            if (outError) {
+                *outError = parseError ? parseError : STR("Failed to parse application metadata");
+            }
+            OCRelease(dimensionIndexes);
+            OCRelease(encoding);
+            OCRelease(sparseGridVertexes);
+            OCRelease(description);
+            return NULL;
         }
-        if (parsedDict) OCRelease(parsedDict);
+        if (OCGetTypeID(parsedDict) == OCDictionaryGetTypeID()) {
+            application = (OCMutableDictionaryRef)OCTypeDeepCopyMutable(parsedDict);
+            if (!application) {
+                if (outError) *outError = STR("Failed to create mutable copy of application metadata");
+                OCRelease(parsedDict);
+                OCRelease(dimensionIndexes);
+                OCRelease(encoding);
+                OCRelease(sparseGridVertexes);
+                OCRelease(description);
+                return NULL;
+            }
+        }
+        OCRelease(parsedDict);
+    } else if (item) {
+        // Field is present but not an object - this is an error
+        if (outError) *outError = STR("application field must be an object");
+        OCRelease(dimensionIndexes);
+        OCRelease(encoding);
+        OCRelease(sparseGridVertexes);
+        OCRelease(description);
+        return NULL;
     }
     
     // Create the SparseSampling object
+    OCStringRef createError = NULL;
     SparseSamplingRef ss = SparseSamplingCreate(
         dimensionIndexes,
         sparseGridVertexes,
@@ -827,7 +906,7 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
         encoding,
         description,
         application,
-        outError
+        &createError
     );
     
     // Clean up
@@ -836,6 +915,11 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
     OCRelease(encoding);
     OCRelease(description);
     OCRelease(application);
+    
+    // Propagate creation error if object creation failed
+    if (!ss && outError && createError) {
+        *outError = createError;
+    }
     
     return ss;
 }

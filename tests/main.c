@@ -10,6 +10,7 @@
 #include "test_Datum.h"
 #include "test_DependentVariable.h"
 #include "test_Dimension.h"
+#include "test_Dimension_JSON.h"
 #include "test_SparseSampling.h"
 #include "test_dimension_operations.h"
 #include "test_utils.h"
@@ -51,6 +52,16 @@ int main(void) {
     if (!test_DimensionPeriodOperations()) failures++;
     if (!test_monotonic_large_scale_values()) failures++;
     if (!test_DimensionMetadataRoundTrip()) failures++;
+    fprintf(stderr, "\n=== Running Dimension JSON Tests ===\n");
+    if (!test_Dimension_JSON_roundtrip()) failures++;
+    if (!test_LabeledDimension_JSON_roundtrip()) failures++;
+    if (!test_SIDimension_JSON_roundtrip()) failures++;
+    if (!test_SIMonotonicDimension_JSON_roundtrip()) failures++;
+    if (!test_SILinearDimension_JSON_roundtrip()) failures++;
+    if (!test_Dimension_JSON_typed_vs_untyped()) failures++;
+    if (!test_Dimension_JSON_application_metadata_always_typed()) failures++;
+    if (!test_Dimension_JSON_error_handling()) failures++;
+    if (!test_Dimension_JSON_inheritance_patterns()) failures++;
     fprintf(stderr, "\n=== Running Dimension Operations Tests ===\n");
     if (!test_SILinearDimensionCreateInverse()) failures++;
     if (!test_DimensionScalarMultiplication()) failures++;

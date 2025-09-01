@@ -223,7 +223,9 @@ cJSON *GeographicCoordinateCopyAsJSON(GeographicCoordinateRef gc, bool typed) {
     
     // Add application metadata (optional)
     if (gc->application) {
-        // Always serialize application metadata with typed = true for consistency
+        // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded 
+        // into JSON as typed=true, NO EXCEPTIONS. Even if the rest of the JSON is untyped,
+        // application must always remain typed to preserve complex nested type information.
         cJSON *app = OCTypeCopyJSON((OCTypeRef)gc->application, true);
         if (app) cJSON_AddItemToObject(json, kGeoCoordApplicationKey, app);
     }
@@ -252,7 +254,6 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
     }
     
     cJSON *actualJson = json;
-    bool wasTyped = false;
     
     // Check if this is a typed JSON object (has "type" and "value" fields)
     if (cJSON_IsObject(json)) {
@@ -264,7 +265,6 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
             valueItem && cJSON_IsObject(valueItem)) {
             // This is a typed JSON, use the value part
             actualJson = valueItem;
-            wasTyped = true;
         }
     }
     
@@ -287,10 +287,11 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
             OCStringRef latStr = OCStringCreateWithCString(entry->valuestring);
             lat = SIScalarCreateFromExpression(latStr, outError);
             OCRelease(latStr);
-        } else if (cJSON_IsNumber(entry)) {
-            lat = SIScalarCreateWithDouble(entry->valuedouble, SIUnitWithSymbol(STR("°")));
         } else if (cJSON_IsObject(entry)) {
-            lat = SIScalarCreateFromJSON(entry, NULL);
+            lat = SIScalarCreateFromJSON(entry, outError);
+        } else {
+            if (outError) *outError = STR("Latitude must be a string expression or typed object, not a bare number");
+            goto fail;
         }
         if (!lat) {
             if (outError && !*outError) *outError = STR("Failed to parse latitude");
@@ -305,10 +306,11 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
             OCStringRef lonStr = OCStringCreateWithCString(entry->valuestring);
             lon = SIScalarCreateFromExpression(lonStr, outError);
             OCRelease(lonStr);
-        } else if (cJSON_IsNumber(entry)) {
-            lon = SIScalarCreateWithDouble(entry->valuedouble, SIUnitWithSymbol(STR("°")));
         } else if (cJSON_IsObject(entry)) {
-            lon = SIScalarCreateFromJSON(entry, NULL);
+            lon = SIScalarCreateFromJSON(entry, outError);
+        } else {
+            if (outError) *outError = STR("Longitude must be a string expression or typed object, not a bare number");
+            goto fail;
         }
         if (!lon) {
             if (outError && !*outError) *outError = STR("Failed to parse longitude");
@@ -323,10 +325,11 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
             OCStringRef altStr = OCStringCreateWithCString(entry->valuestring);
             alt = SIScalarCreateFromExpression(altStr, outError);
             OCRelease(altStr);
-        } else if (cJSON_IsNumber(entry)) {
-            alt = SIScalarCreateWithDouble(entry->valuedouble, SIUnitWithSymbol(STR("m")));
         } else if (cJSON_IsObject(entry)) {
-            alt = SIScalarCreateFromJSON(entry, NULL);
+            alt = SIScalarCreateFromJSON(entry, outError);
+        } else {
+            if (outError) *outError = STR("Altitude must be a string expression or typed object, not a bare number");
+            goto fail;
         }
         // Note: altitude parsing failure is not fatal, just skip it
     }

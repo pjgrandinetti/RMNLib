@@ -5,7 +5,7 @@
 static OCTypeID kDependentVariableID = kOCNotATypeID;
 OCTypeID DependentVariableGetTypeID(void) {
     if (kDependentVariableID == kOCNotATypeID)
-        kDependentVariableID = OCRegisterType("DependentVariable",NULL);
+        kDependentVariableID = OCRegisterType("DependentVariable",(OCTypeRef (*)(cJSON *, OCStringRef *))DependentVariableCreateFromJSON );
     return kDependentVariableID;
 }
 static void impl_DependentVariableFinalize(const void *ptr) {
@@ -1381,7 +1381,10 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
     
     // 8) application
     if (dv->application && OCDictionaryGetCount(dv->application) > 0) {
-        cJSON *appJson = OCTypeCopyJSON((OCTypeRef)dv->application, typed);
+        // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded 
+        // into JSON as typed=true, NO EXCEPTIONS. Even if the rest of the JSON is untyped,
+        // application must always remain typed to preserve complex nested type information.
+        cJSON *appJson = OCTypeCopyJSON((OCTypeRef)dv->application, true);
         if (appJson) {
             cJSON_AddItemToObject(json, kDependentVariableApplicationKey, appJson);
         }
@@ -1402,73 +1405,125 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
     
     return json;
 }
-// Note: DependentVariableDictionaryCreateFromJSON was removed to eliminate intermediate functions
-// JSON parsing is now done directly in DependentVariableCreateFromJSON
 DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!json || !cJSON_IsObject(json)) {
-        if (outError)
-            *outError = STR("Expected top-level JSON object for DependentVariable");
+        if (outError) *outError = STR("Expected top-level JSON object for DependentVariable");
         return NULL;
     }
-    OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
-    if (!dict) {
-        if (outError) *outError = STR("Failed to allocate dictionary");
-        return NULL;
-    }
-    // 1) Required: "type"
-    cJSON *item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableTypeKey);
-    if (!cJSON_IsString(item)) {
-        if (outError) *outError = STR("Missing or invalid \"type\"");
-        OCRelease(dict);
-        return NULL;
-    }
-    bool isExternal = (strcmp(item->valuestring, kDependentVariableComponentTypeValueExternal) == 0);
-    {
-        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
-        OCDictionarySetValue(dict, STR(kDependentVariableTypeKey), tmp);
-        OCRelease(tmp);
-    }
-    // 2) Optional: "components_url"
-    item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsURLKey);
-    if (isExternal && !cJSON_IsString(item)) {
-        if (outError) *outError = STR("External DependentVariable requires \"components_url\"");
-        OCRelease(dict);
-        return NULL;
-    }
-    if (cJSON_IsString(item)) {
-        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
-        OCDictionarySetValue(dict, STR(kDependentVariableComponentsURLKey), tmp);
-        OCRelease(tmp);
-    }
-    // 3) Optional: "encoding"
-    item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableEncodingKey);
-    if (cJSON_IsString(item)) {
-        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
-        OCDictionarySetValue(dict, STR(kDependentVariableEncodingKey), tmp);
-        OCRelease(tmp);
-    }
-    // 4) "components" — required for internal only
-    if (!isExternal) {
-        item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentsKey);
-        if (!cJSON_IsArray(item)) {
-            if (outError) *outError = STR("Missing or invalid \"components\" for internal DependentVariable");
-            OCRelease(dict);
+
+    // Handle typed JSON format: {"type": "DependentVariable", "value": {...}}
+    cJSON *valueJson = json;
+    cJSON *typeField = cJSON_GetObjectItemCaseSensitive(json, "type");
+    if (typeField && cJSON_IsString(typeField) && 
+        strcmp(typeField->valuestring, "DependentVariable") == 0) {
+        valueJson = cJSON_GetObjectItemCaseSensitive(json, "value");
+        if (!valueJson || !cJSON_IsObject(valueJson)) {
+            if (outError) *outError = STR("Invalid typed JSON format for DependentVariable");
             return NULL;
         }
-        OCMutableArrayRef components = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
+    }
+
+    // Initialize all variables for cleanup
+    OCMutableDictionaryRef dict = NULL;
+    OCMutableArrayRef components = NULL;
+    OCMutableArrayRef labels = NULL;
+    OCStringRef tmp = NULL;
+    SparseSamplingRef ss = NULL;
+    OCDictionaryRef spDict = NULL;
+    DependentVariableRef dv = NULL;
+    
+    dict = OCDictionaryCreateMutable(0);
+    if (!dict) {
+        if (outError) *outError = STR("Failed to allocate dictionary");
+        goto cleanup;
+    }
+
+    // 1) Required: "type"
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableTypeKey);
+    if (!cJSON_IsString(item)) {
+        if (outError) *outError = STR("Missing or invalid \"type\"");
+        goto cleanup;
+    }
+    bool isExternal = (strcmp(item->valuestring, kDependentVariableComponentTypeValueExternal) == 0);
+    tmp = OCStringCreateWithCString(item->valuestring);
+    if (!tmp) {
+        if (outError) *outError = STR("Failed to create type string");
+        goto cleanup;
+    }
+    OCDictionarySetValue(dict, STR(kDependentVariableTypeKey), tmp);
+    OCRelease(tmp);
+    tmp = NULL;
+
+    // 2) Optional: "components_url"
+    item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableComponentsURLKey);
+    if (isExternal && !cJSON_IsString(item)) {
+        if (outError) *outError = STR("External DependentVariable requires \"components_url\"");
+        goto cleanup;
+    }
+    if (cJSON_IsString(item)) {
+        tmp = OCStringCreateWithCString(item->valuestring);
+        if (!tmp) {
+            if (outError) *outError = STR("Failed to create components_url string");
+            goto cleanup;
+        }
+        OCDictionarySetValue(dict, STR(kDependentVariableComponentsURLKey), tmp);
+        OCRelease(tmp);
+        tmp = NULL;
+    }
+
+    // 3) Optional: "encoding"
+    item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableEncodingKey);
+    if (cJSON_IsString(item)) {
+        tmp = OCStringCreateWithCString(item->valuestring);
+        if (!tmp) {
+            if (outError) *outError = STR("Failed to create encoding string");
+            goto cleanup;
+        }
+        OCDictionarySetValue(dict, STR(kDependentVariableEncodingKey), tmp);
+        OCRelease(tmp);
+        tmp = NULL;
+    }
+
+    // 4) "components" — required for internal only
+    if (!isExternal) {
+        item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableComponentsKey);
+        if (!cJSON_IsArray(item)) {
+            if (outError) *outError = STR("Missing or invalid \"components\" for internal DependentVariable");
+            goto cleanup;
+        }
+        components = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
+        if (!components) {
+            if (outError) *outError = STR("Failed to create components array");
+            goto cleanup;
+        }
+        
         cJSON *comp = NULL;
         cJSON_ArrayForEach(comp, item) {
             if (cJSON_IsString(comp)) {
                 OCStringRef s = OCStringCreateWithCString(comp->valuestring);
+                if (!s) {
+                    if (outError) *outError = STR("Failed to create component string");
+                    goto cleanup;
+                }
                 OCArrayAppendValue(components, s);
                 OCRelease(s);
             } else if (cJSON_IsArray(comp)) {
                 OCMutableArrayRef numArr = OCArrayCreateMutable(cJSON_GetArraySize(comp), &kOCTypeArrayCallBacks);
+                if (!numArr) {
+                    if (outError) *outError = STR("Failed to create component number array");
+                    goto cleanup;
+                }
+                
                 cJSON *val = NULL;
                 cJSON_ArrayForEach(val, comp) {
                     if (cJSON_IsNumber(val)) {
                         OCNumberRef n = OCNumberCreateWithDouble(val->valuedouble);
+                        if (!n) {
+                            if (outError) *outError = STR("Failed to create component number");
+                            OCRelease(numArr);
+                            goto cleanup;
+                        }
                         OCArrayAppendValue(numArr, n);
                         OCRelease(n);
                     }
@@ -1479,119 +1534,195 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
         }
         OCDictionarySetValue(dict, STR(kDependentVariableComponentsKey), components);
         OCRelease(components);
+        components = NULL;
     }
-    // 5) Optional: name, description
-    item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNameKey);
+
+    // 5) Optional: name
+    item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableNameKey);
     if (cJSON_IsString(item)) {
-        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        tmp = OCStringCreateWithCString(item->valuestring);
+        if (!tmp) {
+            if (outError) *outError = STR("Failed to create name string");
+            goto cleanup;
+        }
         OCDictionarySetValue(dict, STR(kDependentVariableNameKey), tmp);
         OCRelease(tmp);
+        tmp = NULL;
     }
-    item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableDescriptionKey);
+
+    // Optional: description
+    item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableDescriptionKey);
     if (cJSON_IsString(item)) {
-        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        tmp = OCStringCreateWithCString(item->valuestring);
+        if (!tmp) {
+            if (outError) *outError = STR("Failed to create description string");
+            goto cleanup;
+        }
         OCDictionarySetValue(dict, STR(kDependentVariableDescriptionKey), tmp);
         OCRelease(tmp);
+        tmp = NULL;
     }
+
     // 6) Optional: quantity_name
-    item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityNameKey);
+    item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableQuantityNameKey);
     if (cJSON_IsString(item) && item->valuestring[0] != '\0') {
-        OCStringRef qname = OCStringCreateWithCString(item->valuestring);
-        OCDictionarySetValue(dict, STR(kDependentVariableQuantityNameKey), qname);
-        OCRelease(qname);
+        tmp = OCStringCreateWithCString(item->valuestring);
+        if (!tmp) {
+            if (outError) *outError = STR("Failed to create quantity_name string");
+            goto cleanup;
+        }
+        OCDictionarySetValue(dict, STR(kDependentVariableQuantityNameKey), tmp);
+        OCRelease(tmp);
+        tmp = NULL;
     }
+
     // 7) Required: quantity_type
-    item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableQuantityTypeKey);
+    item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableQuantityTypeKey);
     if (!cJSON_IsString(item)) {
         if (outError) *outError = STR("Missing or invalid \"quantity_type\"");
-        OCRelease(dict);
-        return NULL;
+        goto cleanup;
     }
-    {
-        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
-        OCDictionarySetValue(dict, STR(kDependentVariableQuantityTypeKey), tmp);
-        OCRelease(tmp);
+    tmp = OCStringCreateWithCString(item->valuestring);
+    if (!tmp) {
+        if (outError) *outError = STR("Failed to create quantity_type string");
+        goto cleanup;
     }
+    OCDictionarySetValue(dict, STR(kDependentVariableQuantityTypeKey), tmp);
+    OCRelease(tmp);
+    tmp = NULL;
+
     // 8) Optional: unit
-    item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableUnitKey);
+    item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableUnitKey);
     if (cJSON_IsString(item)) {
-        OCStringRef tmp = OCStringCreateWithCString(item->valuestring);
+        tmp = OCStringCreateWithCString(item->valuestring);
+        if (!tmp) {
+            if (outError) *outError = STR("Failed to create unit string");
+            goto cleanup;
+        }
         OCDictionarySetValue(dict, STR(kDependentVariableUnitKey), tmp);
         OCRelease(tmp);
+        tmp = NULL;
     } else {
         OCStringRef qname = (OCStringRef)OCDictionaryGetValue(dict, STR(kDependentVariableQuantityNameKey));
         if (qname && OCStringEqual(qname, kSIQuantityDimensionless)) {
             SIUnitRef u = SIUnitDimensionlessAndUnderived();
             OCStringRef sym = SIUnitCopySymbol(u);
+            if (!sym) {
+                if (outError) *outError = STR("Failed to create unit symbol");
+                goto cleanup;
+            }
             OCDictionarySetValue(dict, STR(kDependentVariableUnitKey), sym);
             OCRelease(sym);
         }
     }
+
     // 9) Required: numeric_type
-    item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableNumericTypeKey);
+    item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableNumericTypeKey);
     if (!cJSON_IsString(item)) {
         if (outError) *outError = STR("Missing or invalid \"numeric_type\"");
-        OCRelease(dict);
-        return NULL;
+        goto cleanup;
     }
-    {
-        const char *ts = item->valuestring;
-        OCNumberType code = OCNumberTypeFromName(ts);
-        if (code == -1) {
-            if (outError)
-                *outError = STR("Unrecognized \"numeric_type\"");
-            OCRelease(dict);
-            return NULL;
-        }
-        OCStringRef typeStr = OCStringCreateWithCString(ts);
-        OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), typeStr);
-        OCRelease(typeStr);
+    const char *ts = item->valuestring;
+    OCNumberType code = OCNumberTypeFromName(ts);
+    if (code == -1) {
+        if (outError) *outError = STR("Unrecognized \"numeric_type\"");
+        goto cleanup;
     }
+    tmp = OCStringCreateWithCString(ts);
+    if (!tmp) {
+        if (outError) *outError = STR("Failed to create numeric_type string");
+        goto cleanup;
+    }
+    OCDictionarySetValue(dict, STR(kDependentVariableNumericTypeKey), tmp);
+    OCRelease(tmp);
+    tmp = NULL;
+
     // 10) Optional: component_labels
-    item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableComponentLabelsKey);
+    item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableComponentLabelsKey);
     if (cJSON_IsArray(item)) {
-        OCMutableArrayRef labels = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
+        labels = OCArrayCreateMutable(cJSON_GetArraySize(item), &kOCTypeArrayCallBacks);
+        if (!labels) {
+            if (outError) *outError = STR("Failed to create component labels array");
+            goto cleanup;
+        }
+        
         cJSON *label = NULL;
         cJSON_ArrayForEach(label, item) {
             if (cJSON_IsString(label)) {
                 OCStringRef lbl = OCStringCreateWithCString(label->valuestring);
+                if (!lbl) {
+                    if (outError) *outError = STR("Failed to create component label string");
+                    goto cleanup;
+                }
                 OCArrayAppendValue(labels, lbl);
                 OCRelease(lbl);
             }
         }
         OCDictionarySetValue(dict, STR(kDependentVariableComponentLabelsKey), labels);
         OCRelease(labels);
+        labels = NULL;
     } else {
         // default: N empty labels based on quantity type
         OCStringRef qt = (OCStringRef)OCDictionaryGetValue(dict, STR(kDependentVariableQuantityTypeKey));
         OCIndex n = DependentVariableComponentsCountFromQuantityType(qt);
-        OCMutableArrayRef labels = OCArrayCreateMutable(n, &kOCTypeArrayCallBacks);
+        labels = OCArrayCreateMutable(n, &kOCTypeArrayCallBacks);
+        if (!labels) {
+            if (outError) *outError = STR("Failed to create default component labels array");
+            goto cleanup;
+        }
+        
         for (OCIndex i = 0; i < n; ++i) {
             OCArrayAppendValue(labels, STR(""));
         }
         OCDictionarySetValue(dict, STR(kDependentVariableComponentLabelsKey), labels);
         OCRelease(labels);
+        labels = NULL;
     }
+
     // 11) Optional: sparse_sampling
-    item = cJSON_GetObjectItemCaseSensitive(json, kDependentVariableSparseSamplingKey);
+    item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableSparseSamplingKey);
     if (cJSON_IsObject(item)) {
-        SparseSamplingRef ss = SparseSamplingCreateFromJSON(item, outError);
+        ss = SparseSamplingCreateFromJSON(item, outError);
         if (!ss) {
-            OCRelease(dict);
-            return NULL;
+            // outError already set by SparseSamplingCreateFromJSON
+            goto cleanup;
         }
-        OCDictionaryRef spDict = SparseSamplingCopyAsDictionary(ss);
-        OCRelease(ss);
+        spDict = SparseSamplingCopyAsDictionary(ss);
         if (!spDict) {
-            OCRelease(dict);
-            return NULL;
+            if (outError) *outError = STR("Failed to convert sparse sampling to dictionary");
+            goto cleanup;
         }
         OCDictionarySetValue(dict, STR(kDependentVariableSparseSamplingKey), spDict);
         OCRelease(spDict);
+        spDict = NULL;
+        OCRelease(ss);
+        ss = NULL;
     }
-    
+
+    // 12) Optional: application
+    item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableApplicationKey);
+    if (cJSON_IsObject(item)) {
+        // Convert JSON object to OCDictionary using OCTypes framework
+        OCDictionaryRef appDict = (OCDictionaryRef)OCTypeCreateFromJSONTyped(item, outError);
+        if (!appDict) {
+            if (outError && !*outError) *outError = STR("Failed to parse application dictionary");
+            goto cleanup;
+        }
+        OCDictionarySetValue(dict, STR(kDependentVariableApplicationKey), appDict);
+        OCRelease(appDict);
+    }
+
     // Now create the DependentVariable directly from the dictionary
-    DependentVariableRef dv = DependentVariableCreateFromDictionary(dict, outError);
+    dv = DependentVariableCreateFromDictionary(dict, outError);
+    // Note: dv can be NULL if creation failed, outError will be set
+
+cleanup:
+    // cleanup temporary allocations (OCRelease safely handles NULL)
     OCRelease(dict);
+    OCRelease(components);
+    OCRelease(labels);
+    OCRelease(tmp);
+    OCRelease(ss);
+    OCRelease(spDict);
     return dv;
 }

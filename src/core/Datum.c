@@ -327,7 +327,7 @@ DatumRef DatumCreateFromJSON(cJSON *json, OCStringRef *outError) {
         OCRelease(responseStr);
     } else if (cJSON_IsObject(item)) {
         // Complex JSON object - parse using SIScalar's JSON parser
-        response = SIScalarCreateFromJSON(item, NULL);
+        response = SIScalarCreateFromJSON(item, outError);
         if (response && OCGetTypeID(response) != SIScalarGetTypeID()) {
             if (outError) *outError = STR("Response is not a SIScalar");
             OCRelease(response);

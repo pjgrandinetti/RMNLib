@@ -740,7 +740,9 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed) {
     
     // application metadata
     if (ds->application && OCDictionaryGetCount(ds->application) > 0) {
-        // Always serialize application metadata with typed = true for consistency
+        // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded 
+        // into JSON as typed=true, NO EXCEPTIONS. Even if the rest of the JSON is untyped,
+        // application must always remain typed to preserve complex nested type information.
         cJSON *appJson = OCTypeCopyJSON((OCTypeRef)ds->application, true);
         if (appJson) {
             cJSON_AddItemToObject(core, kDatasetApplicationKey, appJson);
@@ -975,6 +977,22 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         return NULL;
     }
     cJSON *json = inner;
+
+    // Initialize all local variables for cleanup
+    OCStringRef version = NULL;
+    OCStringRef timestamp = NULL;
+    GeographicCoordinateRef geographicCoordinate = NULL;
+    OCMutableArrayRef dimensions = NULL;
+    OCMutableArrayRef dependentVariables = NULL;
+    OCMutableArrayRef tags = NULL;
+    OCStringRef description = NULL;
+    OCStringRef title = NULL;
+    DatumRef focus = NULL;
+    DatumRef previousFocus = NULL;
+    OCMutableIndexArrayRef dimensionPrecedence = NULL;
+    OCMutableDictionaryRef application = NULL;
+    DatasetRef ds = NULL;
+    bool readOnly = false;
     
     // Parse fields directly from JSON
     cJSON *entry = NULL;
@@ -983,222 +1001,270 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetVersionKey);
     if (!entry || !cJSON_IsString(entry)) {
         if (outError) *outError = STR("Dataset import failed: missing required \"version\" field");
-        return NULL;
+        goto cleanup;
     }
-    OCStringRef version = OCStringCreateWithCString(entry->valuestring);
+    version = OCStringCreateWithCString(entry->valuestring);
+    if (!version) {
+        if (outError) *outError = STR("Failed to create version string");
+        goto cleanup;
+    }
     
-    // timestamp
-    OCStringRef timestamp = NULL;
+    // timestamp (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetTimestampKey);
     if (cJSON_IsString(entry)) {
         timestamp = OCStringCreateWithCString(entry->valuestring);
+        if (!timestamp) {
+            if (outError) *outError = STR("Failed to create timestamp string");
+            goto cleanup;
+        }
+    } else if (entry) {
+        // Field is present but not a string - this is an error
+        if (outError) *outError = STR("timestamp field must be a string");
+        goto cleanup;
     }
     
-    // read_only
-    bool readOnly = false;
+    // read_only (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetReadOnlyKey);
     if (cJSON_IsBool(entry)) {
         readOnly = cJSON_IsTrue(entry);
+    } else if (entry) {
+        // Field is present but not a boolean - this is an error
+        if (outError) *outError = STR("read_only field must be a boolean");
+        goto cleanup;
     }
     
-    // geographic_coordinate
-    GeographicCoordinateRef geographicCoordinate = NULL;
+    // geographic_coordinate (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetGeoCoordinateKey);
-    if (entry && cJSON_IsObject(entry)) {
+    if (cJSON_IsObject(entry)) {
         OCStringRef gcErr = NULL;
         geographicCoordinate = GeographicCoordinateCreateFromJSON(entry, &gcErr);
         if (!geographicCoordinate) {
             if (outError) *outError = gcErr ? OCStringCreateCopy(gcErr) : STR("Failed to parse geographic_coordinate");
             OCRelease(gcErr);
-            OCRelease(version);
-            OCRelease(timestamp);
-            return NULL;
+            goto cleanup;
         }
+    } else if (entry) {
+        // Field is present but not an object - this is an error
+        if (outError) *outError = STR("geographic_coordinate field must be an object");
+        goto cleanup;
     }
     
-    // dimensions
-    OCMutableArrayRef dimensions = NULL;
+    // dimensions (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDimensionsKey);
-    if (entry && cJSON_IsArray(entry)) {
+    if (cJSON_IsArray(entry)) {
         dimensions = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-        if (dimensions) {
-            cJSON *item = NULL;
-            cJSON_ArrayForEach(item, entry) {
-                if (cJSON_IsObject(item)) {
-                    OCStringRef dimErr = NULL;
-                    DimensionRef dim = DimensionCreateFromJSON(item, &dimErr);
-                    if (dim) {
-                        OCArrayAppendValue(dimensions, dim);
-                        OCRelease(dim);
-                    } else if (dimErr) {
-                        if (outError && !*outError) *outError = OCStringCreateCopy(dimErr);
-                        OCRelease(dimErr);
-                        OCRelease(dimensions);
-                        OCRelease(version);
-                        OCRelease(timestamp);
-                        OCRelease(geographicCoordinate);
-                        return NULL;
-                    }
+        if (!dimensions) {
+            if (outError) *outError = STR("Failed to create dimensions array");
+            goto cleanup;
+        }
+        cJSON *item = NULL;
+        cJSON_ArrayForEach(item, entry) {
+            if (cJSON_IsObject(item)) {
+                OCStringRef dimErr = NULL;
+                DimensionRef dim = DimensionCreateFromJSON(item, &dimErr);
+                if (dim) {
+                    OCArrayAppendValue(dimensions, dim);
+                    OCRelease(dim);
+                } else if (dimErr) {
+                    if (outError && !*outError) *outError = OCStringCreateCopy(dimErr);
+                    OCRelease(dimErr);
+                    goto cleanup;
                 }
             }
         }
+    } else if (entry) {
+        // Field is present but not an array - this is an error
+        if (outError) *outError = STR("dimensions field must be an array");
+        goto cleanup;
     }
     
-    // dependent_variables
-    OCMutableArrayRef dependentVariables = NULL;
+    // dependent_variables (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDependentVariablesKey);
-    if (entry && cJSON_IsArray(entry)) {
+    if (cJSON_IsArray(entry)) {
         dependentVariables = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-        if (dependentVariables) {
-            cJSON *item = NULL;
-            cJSON_ArrayForEach(item, entry) {
-                if (cJSON_IsObject(item)) {
-                    OCStringRef dvErr = NULL;
-                    DependentVariableRef dv = DependentVariableCreateFromJSON(item, &dvErr);
-                    if (dv) {
-                        OCArrayAppendValue(dependentVariables, dv);
-                        OCRelease(dv);
-                    } else if (dvErr) {
-                        if (outError && !*outError) *outError = OCStringCreateCopy(dvErr);
-                        OCRelease(dvErr);
-                        OCRelease(dependentVariables);
-                        OCRelease(dimensions);
-                        OCRelease(version);
-                        OCRelease(timestamp);
-                        OCRelease(geographicCoordinate);
-                        return NULL;
-                    }
+        if (!dependentVariables) {
+            if (outError) *outError = STR("Failed to create dependent variables array");
+            goto cleanup;
+        }
+        cJSON *item = NULL;
+        cJSON_ArrayForEach(item, entry) {
+            if (cJSON_IsObject(item)) {
+                OCStringRef dvErr = NULL;
+                DependentVariableRef dv = DependentVariableCreateFromJSON(item, &dvErr);
+                if (dv) {
+                    OCArrayAppendValue(dependentVariables, dv);
+                    OCRelease(dv);
+                } else if (dvErr) {
+                    if (outError && !*outError) *outError = OCStringCreateCopy(dvErr);
+                    OCRelease(dvErr);
+                    goto cleanup;
                 }
             }
         }
+    } else if (entry) {
+        // Field is present but not an array - this is an error
+        if (outError) *outError = STR("dependent_variables field must be an array");
+        goto cleanup;
     }
     
-    // tags
-    OCMutableArrayRef tags = NULL;
+    // tags (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetTagsKey);
-    if (entry && cJSON_IsArray(entry)) {
+    if (cJSON_IsArray(entry)) {
         tags = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-        if (tags) {
-            cJSON *item = NULL;
-            cJSON_ArrayForEach(item, entry) {
-                if (cJSON_IsString(item)) {
-                    OCStringRef tag = OCStringCreateWithCString(item->valuestring);
-                    OCArrayAppendValue(tags, tag);
-                    OCRelease(tag);
+        if (!tags) {
+            if (outError) *outError = STR("Failed to create tags array");
+            goto cleanup;
+        }
+        cJSON *item = NULL;
+        cJSON_ArrayForEach(item, entry) {
+            if (cJSON_IsString(item)) {
+                OCStringRef tag = OCStringCreateWithCString(item->valuestring);
+                if (!tag) {
+                    if (outError) *outError = STR("Failed to create tag string");
+                    goto cleanup;
                 }
+                OCArrayAppendValue(tags, tag);
+                OCRelease(tag);
             }
         }
+    } else if (entry) {
+        // Field is present but not an array - this is an error
+        if (outError) *outError = STR("tags field must be an array");
+        goto cleanup;
     }
     
-    // description & title
-    OCStringRef description = NULL;
+    // description (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDescriptionKey);
-    if (entry && cJSON_IsString(entry)) {
+    if (cJSON_IsString(entry)) {
         description = OCStringCreateWithCString(entry->valuestring);
+        if (!description) {
+            if (outError) *outError = STR("Failed to create description string");
+            goto cleanup;
+        }
+    } else if (entry) {
+        // Field is present but not a string - this is an error
+        if (outError) *outError = STR("description field must be a string");
+        goto cleanup;
     }
     
-    OCStringRef title = NULL;
+    // title (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetTitleKey);
-    if (entry && cJSON_IsString(entry)) {
+    if (cJSON_IsString(entry)) {
         title = OCStringCreateWithCString(entry->valuestring);
+        if (!title) {
+            if (outError) *outError = STR("Failed to create title string");
+            goto cleanup;
+        }
+    } else if (entry) {
+        // Field is present but not a string - this is an error
+        if (outError) *outError = STR("title field must be a string");
+        goto cleanup;
     }
     
-    // focus
-    DatumRef focus = NULL;
+    // focus (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetFocusKey);
-    if (entry && cJSON_IsObject(entry)) {
+    if (cJSON_IsObject(entry)) {
         OCStringRef fErr = NULL;
         focus = DatumCreateFromJSON(entry, &fErr);
         if (!focus && fErr) {
             if (outError) *outError = fErr ? OCStringCreateCopy(fErr) : STR("Failed to parse focus");
             OCRelease(fErr);
-            OCRelease(dependentVariables);
-            OCRelease(dimensions);
-            OCRelease(tags);
-            OCRelease(description);
-            OCRelease(title);
-            OCRelease(version);
-            OCRelease(timestamp);
-            OCRelease(geographicCoordinate);
-            return NULL;
+            goto cleanup;
         }
         OCRelease(fErr);
+    } else if (entry) {
+        // Field is present but not an object - this is an error
+        if (outError) *outError = STR("focus field must be an object");
+        goto cleanup;
     }
     
-    // previous_focus
-    DatumRef previousFocus = NULL;
+    // previous_focus (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetPreviousFocusKey);
-    if (entry && cJSON_IsObject(entry)) {
+    if (cJSON_IsObject(entry)) {
         OCStringRef pfErr = NULL;
         previousFocus = DatumCreateFromJSON(entry, &pfErr);
         if (!previousFocus && pfErr) {
             if (outError) *outError = pfErr ? OCStringCreateCopy(pfErr) : STR("Failed to parse previous_focus");
             OCRelease(pfErr);
-            OCRelease(focus);
-            OCRelease(dependentVariables);
-            OCRelease(dimensions);
-            OCRelease(tags);
-            OCRelease(description);
-            OCRelease(title);
-            OCRelease(version);
-            OCRelease(timestamp);
-            OCRelease(geographicCoordinate);
-            return NULL;
+            goto cleanup;
         }
         OCRelease(pfErr);
+    } else if (entry) {
+        // Field is present but not an object - this is an error
+        if (outError) *outError = STR("previous_focus field must be an object");
+        goto cleanup;
     }
     
-    // dimension_precedence (array of integers)
-    OCMutableIndexArrayRef dimensionPrecedence = NULL;
+    // dimension_precedence (optional array of integers)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDimensionPrecedenceKey);
-    if (entry && cJSON_IsArray(entry)) {
+    if (cJSON_IsArray(entry)) {
         dimensionPrecedence = OCIndexArrayCreateMutable(0);
-        if (dimensionPrecedence) {
-            cJSON *item = NULL;
-            cJSON_ArrayForEach(item, entry) {
-                if (cJSON_IsNumber(item)) {
-                    OCIndexArrayAppendValue(dimensionPrecedence, (OCIndex)item->valueint);
-                }
+        if (!dimensionPrecedence) {
+            if (outError) *outError = STR("Failed to create dimension precedence array");
+            goto cleanup;
+        }
+        cJSON *item = NULL;
+        cJSON_ArrayForEach(item, entry) {
+            if (cJSON_IsNumber(item)) {
+                OCIndexArrayAppendValue(dimensionPrecedence, (OCIndex)item->valueint);
             }
         }
+    } else if (entry) {
+        // Field is present but not an array - this is an error
+        if (outError) *outError = STR("dimension_precedence field must be an array");
+        goto cleanup;
     }
     
-    // application metadata (generic object)
-    OCMutableDictionaryRef application = NULL;
+    // application metadata (optional generic object)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetApplicationKey);
-    if (entry && cJSON_IsObject(entry)) {
-        // Use OCDictionary's native JSON deserialization to handle typed data properly
-        // Since we always serialize application metadata with typed=true, always use OCTypeCreateFromJSONTyped
-        OCDictionaryRef parsedDict = (OCDictionaryRef)OCTypeCreateFromJSONTyped(entry, NULL);
-        if (parsedDict && OCGetTypeID(parsedDict) == OCDictionaryGetTypeID()) {
-            application = (OCMutableDictionaryRef)OCTypeDeepCopyMutable(parsedDict);
+    if (cJSON_IsObject(entry)) {
+        // Since we ALWAYS serialize application metadata with typed=true, always use OCTypeCreateFromJSONTyped
+        OCStringRef parseError = NULL;
+        OCDictionaryRef parsedDict = (OCDictionaryRef)OCTypeCreateFromJSONTyped(entry, &parseError);
+        
+        if (!parsedDict) {
+            if (outError) *outError = parseError ? parseError : STR("Failed to parse application metadata");
+            goto cleanup;
         }
-        if (parsedDict) OCRelease(parsedDict);
+        if (OCGetTypeID(parsedDict) == OCDictionaryGetTypeID()) {
+            application = (OCMutableDictionaryRef)OCTypeDeepCopyMutable(parsedDict);
+            if (!application) {
+                if (outError) *outError = STR("Failed to create mutable copy of application metadata");
+                OCRelease(parsedDict);
+                goto cleanup;
+            }
+        }
+        OCRelease(parsedDict);
+    } else if (entry) {
+        // Field is present but not an object - this is an error
+        if (outError) *outError = STR("application field must be an object");
+        goto cleanup;
     }
     
     // Create the Dataset
-    DatasetRef ds = DatasetCreate(
-        dimensions, dimensionPrecedence, dependentVariables, tags,
-        description, title, focus, previousFocus, application, outError);
-    
-    if (ds) {
-        // Override envelope fields that were parsed from JSON
-        if (version) {
-            OCRelease(ds->version);
-            ds->version = OCStringCreateCopy(version);
-        }
-        if (timestamp) {
-            OCRelease(ds->timestamp);
-            ds->timestamp = OCStringCreateCopy(timestamp);
-        }
-        ds->readOnly = readOnly;
-        if (geographicCoordinate) {
-            OCRelease(ds->geographicCoordinate);
-            ds->geographicCoordinate = (GeographicCoordinateRef)OCRetain(geographicCoordinate);
-        }
+    ds = DatasetCreate(dimensions, dimensionPrecedence, dependentVariables, tags,
+                      description, title, focus, previousFocus, application, outError);
+    if (!ds) {
+        goto cleanup;
     }
     
-    // Clean up
+    // Override envelope fields that were parsed from JSON
+    if (version) {
+        OCRelease(ds->version);
+        ds->version = OCStringCreateCopy(version);
+    }
+    if (timestamp) {
+        OCRelease(ds->timestamp);
+        ds->timestamp = OCStringCreateCopy(timestamp);
+    }
+    ds->readOnly = readOnly;
+    if (geographicCoordinate) {
+        OCRelease(ds->geographicCoordinate);
+        ds->geographicCoordinate = (GeographicCoordinateRef)OCRetain(geographicCoordinate);
+    }
+
+cleanup:
+    // cleanup temporary allocations (OCRelease safely handles NULL)
     OCRelease(version);
     OCRelease(timestamp);
     OCRelease(geographicCoordinate);
@@ -1211,7 +1277,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
     OCRelease(previousFocus);
     OCRelease(dimensionPrecedence);
     OCRelease(application);
-    
     return ds;
 }
 

@@ -25,8 +25,10 @@ extern "C" {
  * This module defines the abstract base Dimension, plus
  * concrete subclasses: LabeledDimension, SIDimension,
  * SIMonotonicDimension, and SILinearDimension.  All can
- * be serialized to/from JSON or dictionaries.
- */
+ * be serialized to/from JSON or dictiOCStringRef DimensionGetType(DimensionRef dim);
+bool SIDimensionIsPeriodic(SIDimensionRef dim);
+dimensionScaling SIDimensionGetScaling(SIDimensionRef dim);
+
 /**
  * @defgroup Dimension Dimension
  * @brief Core types for axes and coordinate spaces.
@@ -51,6 +53,20 @@ typedef enum dimensionScaling {
  * @brief Get the OCTypeID for the base Dimension class.
  */
 OCTypeID DimensionGetTypeID(void);
+
+/**
+ * @brief Create a basic Dimension instance.
+ * @param label       Human-readable label for this dimension.
+ * @param description Optional description (can be NULL).
+ * @param metadata    Optional application metadata dictionary (can be NULL).
+ * @param outError    On failure, receives a descriptive OCStringRef.
+ * @return A new DimensionRef on success, NULL on failure.
+ */
+DimensionRef DimensionCreate(OCStringRef label,
+                             OCStringRef description,
+                             OCDictionaryRef metadata,
+                             OCStringRef *outError);
+
 /**
  * @brief Retrieve a human-readable label for this dimension.
  * @param dim The Dimension instance.
@@ -737,6 +753,14 @@ OCIndex DimensionGetCount(DimensionRef dim);
 OCStringRef DimensionGetType(DimensionRef dim);
 bool SIDimensionIsPeriodic(SIDimensionRef dim);
 dimensionScaling SIDimensionGetScaling(SIDimensionRef dim);
+
+/**
+ * @brief Get the quantity name for this SI dimension.
+ * @param dim The SIDimension instance.
+ * @return The quantity name string.
+ */
+OCStringRef SIDimensionGetQuantityName(SIDimensionRef dim);
+
 bool SILinearDimensionGetComplexFFT(SILinearDimensionRef dim);
 OCTypeRef DimensionCopyCoordinateAtIndex(DimensionRef dim, double index);
 OCTypeRef DimensionCreateInterpolatedCoordinateAtIndex(SILinearDimensionRef dim, double dIndex);
