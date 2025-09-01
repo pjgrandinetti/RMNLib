@@ -32,7 +32,7 @@ static OCTypeID kDatasetID = kOCNotATypeID;
 
 OCTypeID DatasetGetTypeID(void) {
     if (kDatasetID == kOCNotATypeID)
-        kDatasetID = OCRegisterType("Dataset",NULL);
+        kDatasetID = OCRegisterType("Dataset", (OCTypeRef (*)(cJSON *, OCStringRef *))DatasetCreateFromJSON);
     return kDatasetID;
 }
 
@@ -740,7 +740,8 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed) {
     
     // application metadata
     if (ds->application && OCDictionaryGetCount(ds->application) > 0) {
-        cJSON *appJson = OCTypeCopyJSON((OCTypeRef)ds->application, typed);
+        // Always serialize application metadata with typed = true for consistency
+        cJSON *appJson = OCTypeCopyJSON((OCTypeRef)ds->application, true);
         if (appJson) {
             cJSON_AddItemToObject(core, kDatasetApplicationKey, appJson);
         }
@@ -1166,19 +1167,13 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
     OCMutableDictionaryRef application = NULL;
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetApplicationKey);
     if (entry && cJSON_IsObject(entry)) {
-        application = OCDictionaryCreateMutable(0);
-        if (application) {
-            cJSON *appItem = NULL;
-            cJSON_ArrayForEach(appItem, entry) {
-                if (appItem->string && cJSON_IsString(appItem)) {
-                    OCStringRef key = OCStringCreateWithCString(appItem->string);
-                    OCStringRef value = OCStringCreateWithCString(appItem->valuestring);
-                    OCDictionarySetValue(application, key, value);
-                    OCRelease(key);
-                    OCRelease(value);
-                }
-            }
+        // Use OCDictionary's native JSON deserialization to handle typed data properly
+        // Since we always serialize application metadata with typed=true, always use OCTypeCreateFromJSONTyped
+        OCDictionaryRef parsedDict = (OCDictionaryRef)OCTypeCreateFromJSONTyped(entry, NULL);
+        if (parsedDict && OCGetTypeID(parsedDict) == OCDictionaryGetTypeID()) {
+            application = (OCMutableDictionaryRef)OCTypeDeepCopyMutable(parsedDict);
         }
+        if (parsedDict) OCRelease(parsedDict);
     }
     
     // Create the Dataset

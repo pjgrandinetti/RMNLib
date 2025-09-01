@@ -23,7 +23,7 @@ struct impl_Datum {
     OCTypeRef owner;          // weak reference to owning Dataset object, if any
 };
 OCTypeID DatumGetTypeID(void) {
-    if (kDatumID == kOCNotATypeID) kDatumID = OCRegisterType("Datum",NULL);
+    if (kDatumID == kOCNotATypeID) kDatumID = OCRegisterType("Datum", (OCTypeRef (*)(cJSON *, OCStringRef *))DatumCreateFromJSON);
     return kDatumID;
 }
 static bool impl_DatumEqual(const void *theType1, const void *theType2) {
@@ -327,7 +327,7 @@ DatumRef DatumCreateFromJSON(cJSON *json, OCStringRef *outError) {
         OCRelease(responseStr);
     } else if (cJSON_IsObject(item)) {
         // Complex JSON object - parse using SIScalar's JSON parser
-        response = SIScalarCreateFromJSON(item);
+        response = SIScalarCreateFromJSON(item, NULL);
         if (response && OCGetTypeID(response) != SIScalarGetTypeID()) {
             if (outError) *outError = STR("Response is not a SIScalar");
             OCRelease(response);

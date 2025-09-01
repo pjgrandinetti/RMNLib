@@ -8,7 +8,7 @@
 static OCTypeID kGeographicCoordinateID = kOCNotATypeID;
 OCTypeID GeographicCoordinateGetTypeID(void) {
     if (kGeographicCoordinateID == kOCNotATypeID) {
-        kGeographicCoordinateID = OCRegisterType("GeographicCoordinate",NULL);
+        kGeographicCoordinateID = OCRegisterType("GeographicCoordinate", (OCTypeRef (*)(cJSON *, OCStringRef *))GeographicCoordinateCreateFromJSON);
     }
     return kGeographicCoordinateID;
 }
@@ -223,7 +223,8 @@ cJSON *GeographicCoordinateCopyAsJSON(GeographicCoordinateRef gc, bool typed) {
     
     // Add application metadata (optional)
     if (gc->application) {
-        cJSON *app = OCTypeCopyJSON((OCTypeRef)gc->application, typed);
+        // Always serialize application metadata with typed = true for consistency
+        cJSON *app = OCTypeCopyJSON((OCTypeRef)gc->application, true);
         if (app) cJSON_AddItemToObject(json, kGeoCoordApplicationKey, app);
     }
     
@@ -245,7 +246,29 @@ cJSON *GeographicCoordinateCopyAsJSON(GeographicCoordinateRef gc, bool typed) {
 
 GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
-    if (!json || !cJSON_IsObject(json)) {
+    if (!json) {
+        if (outError) *outError = STR("Expected a JSON object for GeographicCoordinate");
+        return NULL;
+    }
+    
+    cJSON *actualJson = json;
+    bool wasTyped = false;
+    
+    // Check if this is a typed JSON object (has "type" and "value" fields)
+    if (cJSON_IsObject(json)) {
+        cJSON *typeItem = cJSON_GetObjectItemCaseSensitive(json, "type");
+        cJSON *valueItem = cJSON_GetObjectItemCaseSensitive(json, "value");
+        
+        if (typeItem && cJSON_IsString(typeItem) && 
+            strcmp(typeItem->valuestring, "GeographicCoordinate") == 0 && 
+            valueItem && cJSON_IsObject(valueItem)) {
+            // This is a typed JSON, use the value part
+            actualJson = valueItem;
+            wasTyped = true;
+        }
+    }
+    
+    if (!cJSON_IsObject(actualJson)) {
         if (outError) *outError = STR("Expected a JSON object for GeographicCoordinate");
         return NULL;
     }
@@ -258,7 +281,7 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
     cJSON *entry;
     
     // Parse latitude
-    entry = cJSON_GetObjectItemCaseSensitive(json, kGeoCoordLatitudeKey);
+    entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordLatitudeKey);
     if (entry) {
         if (cJSON_IsString(entry)) {
             OCStringRef latStr = OCStringCreateWithCString(entry->valuestring);
@@ -267,7 +290,7 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
         } else if (cJSON_IsNumber(entry)) {
             lat = SIScalarCreateWithDouble(entry->valuedouble, SIUnitWithSymbol(STR("°")));
         } else if (cJSON_IsObject(entry)) {
-            lat = SIScalarCreateFromJSON(entry);
+            lat = SIScalarCreateFromJSON(entry, NULL);
         }
         if (!lat) {
             if (outError && !*outError) *outError = STR("Failed to parse latitude");
@@ -276,7 +299,7 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
     }
     
     // Parse longitude
-    entry = cJSON_GetObjectItemCaseSensitive(json, kGeoCoordLongitudeKey);
+    entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordLongitudeKey);
     if (entry) {
         if (cJSON_IsString(entry)) {
             OCStringRef lonStr = OCStringCreateWithCString(entry->valuestring);
@@ -285,7 +308,7 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
         } else if (cJSON_IsNumber(entry)) {
             lon = SIScalarCreateWithDouble(entry->valuedouble, SIUnitWithSymbol(STR("°")));
         } else if (cJSON_IsObject(entry)) {
-            lon = SIScalarCreateFromJSON(entry);
+            lon = SIScalarCreateFromJSON(entry, NULL);
         }
         if (!lon) {
             if (outError && !*outError) *outError = STR("Failed to parse longitude");
@@ -294,7 +317,7 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
     }
     
     // Parse altitude (optional)
-    entry = cJSON_GetObjectItemCaseSensitive(json, kGeoCoordAltitudeKey);
+    entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordAltitudeKey);
     if (entry) {
         if (cJSON_IsString(entry)) {
             OCStringRef altStr = OCStringCreateWithCString(entry->valuestring);
@@ -303,17 +326,22 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
         } else if (cJSON_IsNumber(entry)) {
             alt = SIScalarCreateWithDouble(entry->valuedouble, SIUnitWithSymbol(STR("m")));
         } else if (cJSON_IsObject(entry)) {
-            alt = SIScalarCreateFromJSON(entry);
+            alt = SIScalarCreateFromJSON(entry, NULL);
         }
         // Note: altitude parsing failure is not fatal, just skip it
     }
     
     // Parse application metadata (optional)
-    entry = cJSON_GetObjectItemCaseSensitive(json, kGeoCoordApplicationKey);
+    entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordApplicationKey);
     if (entry && cJSON_IsObject(entry)) {
-        // Use OCDictionaryCreateFromJSON if available, or create from the cJSON object
-        // For now, we'll leave this as NULL since we don't have a reliable way to parse arbitrary JSON to OCDictionary
-        // TODO: Implement proper JSON to OCDictionary conversion when needed
+        // Use OCDictionary's native JSON deserialization to handle typed data properly
+        // Since we always serialize application metadata with typed=true, always use OCTypeCreateFromJSONTyped
+        OCDictionaryRef parsedDict = (OCDictionaryRef)OCTypeCreateFromJSONTyped(entry, NULL);
+        if (parsedDict && OCGetTypeID(parsedDict) == OCDictionaryGetTypeID()) {
+            metadata = parsedDict;  // Transfer ownership
+        } else {
+            if (parsedDict) OCRelease(parsedDict);
+        }
     }
     
     // Validate required fields

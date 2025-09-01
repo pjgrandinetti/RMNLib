@@ -13,7 +13,7 @@
 static OCTypeID kSparseSamplingID = kOCNotATypeID;
 OCTypeID SparseSamplingGetTypeID(void) {
     if (kSparseSamplingID == kOCNotATypeID) {
-        kSparseSamplingID = OCRegisterType("SparseSampling",NULL);
+        kSparseSamplingID = OCRegisterType("SparseSampling", (OCTypeRef (*)(cJSON *, OCStringRef *))SparseSamplingCreateFromJSON);
     }
     return kSparseSamplingID;
 }
@@ -456,7 +456,8 @@ cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed) {
     
     // 6. application metadata
     if (ss->application) {
-        cJSON *app = OCTypeCopyJSON((OCTypeRef)ss->application, typed);
+        // Always serialize application metadata with typed = true
+        cJSON *app = OCTypeCopyJSON((OCTypeRef)ss->application, true);
         if (app) {
             cJSON_AddItemToObject(json, kSparseSamplingApplicationKey, app);
         }
@@ -810,17 +811,12 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
     OCMutableDictionaryRef application = NULL;
     item = cJSON_GetObjectItemCaseSensitive(actualJson, kSparseSamplingApplicationKey);
     if (cJSON_IsObject(item)) {
-        application = OCDictionaryCreateMutable(0);
-        cJSON *mdField;
-        cJSON_ArrayForEach(mdField, item) {
-            if (cJSON_IsString(mdField)) {
-                OCStringRef keyStr = OCStringCreateWithCString(mdField->string);
-                OCStringRef valStr = OCStringCreateWithCString(mdField->valuestring);
-                OCDictionarySetValue(application, keyStr, valStr);
-                OCRelease(keyStr);
-                OCRelease(valStr);
-            }
+        // Use OCDictionary's native JSON deserialization to handle typed data properly
+        OCDictionaryRef parsedDict = (OCDictionaryRef)OCTypeCreateFromJSONTyped(item, NULL);
+        if (parsedDict && OCGetTypeID(parsedDict) == OCDictionaryGetTypeID()) {
+            application = (OCMutableDictionaryRef)OCTypeDeepCopyMutable(parsedDict);
         }
+        if (parsedDict) OCRelease(parsedDict);
     }
     
     // Create the SparseSampling object
