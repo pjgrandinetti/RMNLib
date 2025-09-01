@@ -169,6 +169,14 @@ DatumCreateFromDictionary(OCDictionaryRef dictionary,
  * @{
  */
 /**
+ * @brief Convert a DatumRef to cJSON representation.
+ * @param theDatum The Datum to convert.
+ * @param typed Whether to include type information in the JSON.
+ * @return cJSON object or NULL on error.
+ */
+cJSON *DatumCopyAsJSON(DatumRef theDatum, bool typed);
+
+/**
  * @brief Construct a DatumRef directly from cJSON.
  *
  * Implements:

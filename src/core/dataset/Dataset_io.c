@@ -282,7 +282,7 @@ bool DatasetExport(DatasetRef ds,
     OCDictionarySetValue(root, STR(kDatasetCsdmEnvelopeKey), core);
     OCRelease(core);
     // 4) serialize JSON → file
-    cJSON *json = OCTypeCopyJSON((OCTypeRef)root);
+    cJSON *json = OCTypeCopyJSON((OCTypeRef)root, false);
     OCRelease(root);
     if (!json) {
         if (outError) *outError = STR("Failed to convert dictionary to JSON");

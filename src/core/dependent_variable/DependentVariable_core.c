@@ -96,35 +96,8 @@ static OCStringRef impl_DependentVariableCopyFormattingDesc(OCTypeRef cf) {
     if (dv->sparseSampling) OCRelease(sparseDesc);
     return desc;
 }
-cJSON *impl_DependentVariableCreateJSON(const void *obj) {
-    if (!obj) return cJSON_CreateNull();
-    // 1) Copy to an OCDictionary
-    //    — we pass NULL for dimensions (no context),
-    //      external = false (embed components inline),
-    //      base64Encoding = false (emit JSON arrays)
-    OCDictionaryRef dict = DependentVariableCopyAsDictionary(
-        (DependentVariableRef)obj);
-    if (!dict) return NULL;
-    // 2) Use the generic OCType → cJSON converter
-    cJSON *json = OCTypeCopyJSON((OCTypeRef)dict);
-    // 3) Clean up
-    OCRelease(dict);
-    return json;
-}
-cJSON *impl_DependentVariableCreateJSONTyped(const void *obj) {
-    if (!obj) return cJSON_CreateNull();
-    // 1) Copy to an OCDictionary
-    //    — we pass NULL for dimensions (no context),
-    //      external = false (embed components inline),
-    //      base64Encoding = false (emit JSON arrays)
-    OCDictionaryRef dict = DependentVariableCopyAsDictionary(
-        (DependentVariableRef)obj);
-    if (!dict) return NULL;
-    // 2) Use the generic OCType → cJSON converter
-    cJSON *json = OCTypeCopyJSONTyped((OCTypeRef)dict);
-    // 3) Clean up
-    OCRelease(dict);
-    return json;
+cJSON *impl_DependentVariableCopyJSON(const void *obj, bool typed) {
+    return DependentVariableCopyAsJSON((DependentVariableRef)obj, typed);
 }
 static void *impl_DependentVariableDeepCopy(const void *ptr) {
     if (!ptr) return NULL;
@@ -207,8 +180,7 @@ static struct impl_DependentVariable *DependentVariableAllocate(void) {
         impl_DependentVariableFinalize,
         impl_DependentVariableEqual,
         impl_DependentVariableCopyFormattingDesc,
-        impl_DependentVariableCreateJSON,
-        impl_DependentVariableCreateJSONTyped,
+        impl_DependentVariableCopyJSON,
         impl_DependentVariableDeepCopy,
         impl_DependentVariableDeepCopy);
 }
@@ -1165,25 +1137,274 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
     if (sparseSampling) OCRelease(sparseSampling);
     return dv;
 }
-cJSON *DependentVariableCreateJSON(DependentVariableRef dv) {
+cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
     if (!dv) {
-        // if you prefer, return NULL here instead of cJSON null
         return cJSON_CreateNull();
     }
-    // 1) Turn the DV into an OCDictionary (no I/O, just in-memory)
-    OCDictionaryRef dict = DependentVariableCopyAsDictionary(dv);
-    if (!dict) {
-        // serialization-to-dictionary failed
-        return cJSON_CreateNull();
+    
+    cJSON *json = cJSON_CreateObject();
+    if (!json) return cJSON_CreateNull();
+    
+    // 1) type (external vs. internal)
+    if (dv->type) {
+        const char *typeStr = OCStringGetCString(dv->type);
+        if (typeStr) {
+            cJSON_AddStringToObject(json, kDependentVariableTypeKey, typeStr);
+        }
+    } else {
+        cJSON_AddStringToObject(json, kDependentVariableTypeKey, kDependentVariableComponentTypeValueInternal);
     }
-    // 2) Convert that dictionary into a cJSON tree
-    cJSON *json = OCTypeCopyJSON((OCTypeRef)dict);
-    // 3) Clean up
-    OCRelease(dict);
-    // 4) Return the cJSON object (caller is responsible for cJSON_Delete)
+    
+    bool isExternal = dv->type && OCStringEqual(dv->type, STR(kDependentVariableComponentTypeValueExternal));
+    
+    // 1a) if external, record the URL hint
+    if (isExternal && dv->componentsURL) {
+        const char *urlStr = OCStringGetCString(dv->componentsURL);
+        if (urlStr) {
+            cJSON_AddStringToObject(json, kDependentVariableComponentsURLKey, urlStr);
+        }
+    }
+    
+    // 2) encoding (base64, none, or raw)
+    if (dv->encoding) {
+        const char *encStr = OCStringGetCString(dv->encoding);
+        if (encStr) {
+            cJSON_AddStringToObject(json, kDependentVariableEncodingKey, encStr);
+        }
+    } else {
+        cJSON_AddStringToObject(json, kDependentVariableEncodingKey, kDependentVariableEncodingValueBase64);
+    }
+    
+    // 3) components (always embed raw data for round-trip)
+    if (dv->components) {
+        OCNumberType et = DependentVariableGetNumericType(dv);
+        bool isBase64 = dv->encoding && OCStringEqual(dv->encoding, STR(kDependentVariableEncodingValueBase64));
+        bool isRaw = dv->encoding && OCStringEqual(dv->encoding, STR(kDependentVariableEncodingValueRaw));
+        bool isComplex = (et == kOCNumberComplex64Type || et == kOCNumberComplex128Type);
+        OCIndex ncomps = DependentVariableGetComponentCount(dv);
+        
+        cJSON *compsArray = cJSON_CreateArray();
+        if (compsArray) {
+            for (OCIndex i = 0; i < ncomps; ++i) {
+                OCDataRef blob = DependentVariableGetComponentAtIndex(dv, i);
+                if (!blob) continue;
+                
+                if (isRaw) {
+                    // If raw, we convert OCData to JSON using OCTypes framework
+                    cJSON *dataJson = OCTypeCopyJSON((OCTypeRef)blob, typed);
+                    if (dataJson) {
+                        cJSON_AddItemToArray(compsArray, dataJson);
+                    }
+                } else if (isBase64) {
+                    OCStringRef b64 = OCDataCreateBase64EncodedString(blob, OCBase64EncodingOptionsNone);
+                    if (b64) {
+                        const char *b64Str = OCStringGetCString(b64);
+                        if (b64Str) {
+                            cJSON_AddItemToArray(compsArray, cJSON_CreateString(b64Str));
+                        }
+                        OCRelease(b64);
+                    }
+                } else {
+                    // Convert to number array
+                    const void *bytes = OCDataGetBytesPtr(blob);
+                    size_t stride = OCNumberTypeSize(et);
+                    OCIndex count = (OCIndex)(OCDataGetLength(blob) / stride);
+                    
+                    cJSON *numArray = cJSON_CreateArray();
+                    if (numArray) {
+                        if (!isComplex) {
+                            switch (et) {
+                                case kOCNumberSInt8Type: {
+                                    int8_t *arr = (int8_t *)bytes;
+                                    for (OCIndex j = 0; j < count; ++j) {
+                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
+                                    }
+                                    break;
+                                }
+                                case kOCNumberSInt16Type: {
+                                    int16_t *arr = (int16_t *)bytes;
+                                    for (OCIndex j = 0; j < count; ++j) {
+                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
+                                    }
+                                    break;
+                                }
+                                case kOCNumberSInt32Type: {
+                                    int32_t *arr = (int32_t *)bytes;
+                                    for (OCIndex j = 0; j < count; ++j) {
+                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
+                                    }
+                                    break;
+                                }
+                                case kOCNumberSInt64Type: {
+                                    int64_t *arr = (int64_t *)bytes;
+                                    for (OCIndex j = 0; j < count; ++j) {
+                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber((double)arr[j]));
+                                    }
+                                    break;
+                                }
+                                case kOCNumberUInt8Type: {
+                                    uint8_t *arr = (uint8_t *)bytes;
+                                    for (OCIndex j = 0; j < count; ++j) {
+                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
+                                    }
+                                    break;
+                                }
+                                case kOCNumberUInt16Type: {
+                                    uint16_t *arr = (uint16_t *)bytes;
+                                    for (OCIndex j = 0; j < count; ++j) {
+                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
+                                    }
+                                    break;
+                                }
+                                case kOCNumberUInt32Type: {
+                                    uint32_t *arr = (uint32_t *)bytes;
+                                    for (OCIndex j = 0; j < count; ++j) {
+                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
+                                    }
+                                    break;
+                                }
+                                case kOCNumberUInt64Type: {
+                                    uint64_t *arr = (uint64_t *)bytes;
+                                    for (OCIndex j = 0; j < count; ++j) {
+                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber((double)arr[j]));
+                                    }
+                                    break;
+                                }
+                                case kOCNumberFloat32Type: {
+                                    float *arr = (float *)bytes;
+                                    for (OCIndex j = 0; j < count; ++j) {
+                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
+                                    }
+                                    break;
+                                }
+                                case kOCNumberFloat64Type: {
+                                    double *arr = (double *)bytes;
+                                    for (OCIndex j = 0; j < count; ++j) {
+                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
+                                    }
+                                    break;
+                                }
+                                default:
+                                    break;
+                            }
+                        } else {
+                            if (et == kOCNumberComplex64Type) {
+                                float complex *arr = (float complex *)bytes;
+                                for (OCIndex j = 0; j < count; ++j) {
+                                    cJSON_AddItemToArray(numArray, cJSON_CreateNumber(crealf(arr[j])));
+                                    cJSON_AddItemToArray(numArray, cJSON_CreateNumber(cimagf(arr[j])));
+                                }
+                            } else {
+                                double complex *arr = (double complex *)bytes;
+                                for (OCIndex j = 0; j < count; ++j) {
+                                    cJSON_AddItemToArray(numArray, cJSON_CreateNumber(creal(arr[j])));
+                                    cJSON_AddItemToArray(numArray, cJSON_CreateNumber(cimag(arr[j])));
+                                }
+                            }
+                        }
+                        cJSON_AddItemToArray(compsArray, numArray);
+                    }
+                }
+            }
+            cJSON_AddItemToObject(json, kDependentVariableComponentsKey, compsArray);
+        }
+    }
+    
+    // 4) name, description
+    if (dv->name) {
+        const char *nameStr = OCStringGetCString(dv->name);
+        if (nameStr && nameStr[0] != '\0') {
+            cJSON_AddStringToObject(json, kDependentVariableNameKey, nameStr);
+        }
+    }
+    if (dv->description) {
+        const char *descStr = OCStringGetCString(dv->description);
+        if (descStr && descStr[0] != '\0') {
+            cJSON_AddStringToObject(json, kDependentVariableDescriptionKey, descStr);
+        }
+    }
+    
+    // 5) quantity_name, quantity_type, unit, numeric_type
+    if (dv->quantityName) {
+        const char *qnameStr = OCStringGetCString(dv->quantityName);
+        if (qnameStr && qnameStr[0] != '\0') {
+            cJSON_AddStringToObject(json, kDependentVariableQuantityNameKey, qnameStr);
+        }
+    }
+    if (dv->quantityType) {
+        const char *qtypeStr = OCStringGetCString(dv->quantityType);
+        if (qtypeStr) {
+            cJSON_AddStringToObject(json, kDependentVariableQuantityTypeKey, qtypeStr);
+        }
+    }
+    if (dv->unit) {
+        OCStringRef unitSymbol = SIUnitCopySymbol(dv->unit);
+        if (unitSymbol) {
+            const char *unitStr = OCStringGetCString(unitSymbol);
+            if (unitStr) {
+                cJSON_AddStringToObject(json, kDependentVariableUnitKey, unitStr);
+            }
+            OCRelease(unitSymbol);
+        }
+    }
+    
+    const char *typeName = OCNumberGetTypeName(DependentVariableGetNumericType(dv));
+    if (typeName) {
+        cJSON_AddStringToObject(json, kDependentVariableNumericTypeKey, typeName);
+    }
+    
+    // 6) component_labels
+    if (dv->componentLabels) {
+        OCIndex nlab = OCArrayGetCount(dv->componentLabels);
+        cJSON *labelsArray = cJSON_CreateArray();
+        if (labelsArray) {
+            for (OCIndex i = 0; i < nlab; ++i) {
+                OCStringRef lbl = (OCStringRef)OCArrayGetValueAtIndex(dv->componentLabels, i);
+                if (lbl) {
+                    const char *lblStr = OCStringGetCString(lbl);
+                    if (lblStr) {
+                        cJSON_AddItemToArray(labelsArray, cJSON_CreateString(lblStr));
+                    }
+                }
+            }
+            cJSON_AddItemToObject(json, kDependentVariableComponentLabelsKey, labelsArray);
+        }
+    }
+    
+    // 7) sparse_sampling
+    if (dv->sparseSampling) {
+        cJSON *spJson = OCTypeCopyJSON((OCTypeRef)dv->sparseSampling, typed);
+        if (spJson) {
+            cJSON_AddItemToObject(json, kDependentVariableSparseSamplingKey, spJson);
+        }
+    }
+    
+    // 8) application
+    if (dv->application && OCDictionaryGetCount(dv->application) > 0) {
+        cJSON *appJson = OCTypeCopyJSON((OCTypeRef)dv->application, typed);
+        if (appJson) {
+            cJSON_AddItemToObject(json, kDependentVariableApplicationKey, appJson);
+        }
+    }
+    
+    if (typed) {
+        // Wrap in typed object format
+        cJSON *wrapper = cJSON_CreateObject();
+        if (wrapper) {
+            cJSON_AddStringToObject(wrapper, "type", "DependentVariable");
+            cJSON_AddItemToObject(wrapper, "value", json);
+            return wrapper;
+        } else {
+            cJSON_Delete(json);
+            return cJSON_CreateNull();
+        }
+    }
+    
     return json;
 }
-OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError) {
+// Note: DependentVariableDictionaryCreateFromJSON was removed to eliminate intermediate functions
+// JSON parsing is now done directly in DependentVariableCreateFromJSON
+DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!json || !cJSON_IsObject(json)) {
         if (outError)
@@ -1368,11 +1589,8 @@ OCDictionaryRef DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringR
         OCDictionarySetValue(dict, STR(kDependentVariableSparseSamplingKey), spDict);
         OCRelease(spDict);
     }
-    return dict;
-}
-DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *outError) {
-    OCDictionaryRef dict = DependentVariableDictionaryCreateFromJSON(json, outError);
-    if (!dict) return NULL;
+    
+    // Now create the DependentVariable directly from the dictionary
     DependentVariableRef dv = DependentVariableCreateFromDictionary(dict, outError);
     OCRelease(dict);
     return dv;

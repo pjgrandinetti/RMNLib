@@ -128,6 +128,14 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss);
 SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict,
                                                      OCStringRef *outError);
 /**
+ * @brief Convert a SparseSamplingRef to cJSON representation.
+ * @param ss The SparseSampling to convert.
+ * @param typed Whether to include type information in the JSON.
+ * @return cJSON object or NULL on error.
+ */
+cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed);
+
+/**
  * @brief Deserialize a SparseSampling from a cJSON object.
  *
  * @param json      cJSON object representing sparse_sampling.

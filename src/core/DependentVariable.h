@@ -236,6 +236,10 @@ bool DependentVariableAppend(
  * @{
  */
 /**
+ * @brief Create cJSON object from DependentVariable.
+ */
+cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed);
+/**
  * @brief Serialize into a deep-copyable OCDictionary (for JSON, tests).
  */
 OCDictionaryRef
@@ -247,11 +251,6 @@ DependentVariableRef
 DependentVariableCreateFromDictionary(
     OCDictionaryRef dict,
     OCStringRef *outError);
-/**
- * @brief Create a dictionary from cJSON for DependentVariable deserialization.
- */
-OCDictionaryRef
-DependentVariableDictionaryCreateFromJSON(cJSON *json, OCStringRef *outError);
 /**
  * @brief Create a packed binary data blob for CSDM serialization.
  */
