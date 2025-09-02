@@ -1130,22 +1130,26 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     }
     
     // Step 2: Verify this is actually a SIDimension or subclass (check inner type discriminator)
+    // The type field is optional for untyped serialization (e.g., reciprocal values)
     cJSON *innerTypeItem = cJSON_GetObjectItemCaseSensitive(workingJson, "type");
-    if (!innerTypeItem || !cJSON_IsString(innerTypeItem)) {
-        if (outError) *outError = STR("SIDimension: missing inner \"type\" field");
-        OCRelease(baseDim);
-        return NULL;
+    if (innerTypeItem) {
+        if (!cJSON_IsString(innerTypeItem)) {
+            if (outError) *outError = STR("SIDimension: \"type\" field must be a string");
+            OCRelease(baseDim);
+            return NULL;
+        }
+        
+        // Accept valid SIDimension types: si_dimension, monotonic, linear
+        const char *innerType = innerTypeItem->valuestring;
+        if (strcmp(innerType, "si_dimension") != 0 && 
+            strcmp(innerType, "monotonic") != 0 && 
+            strcmp(innerType, "linear") != 0) {
+            if (outError) *outError = STR("SIDimension: invalid inner type - must be si_dimension, monotonic, or linear");
+            OCRelease(baseDim);
+            return NULL;
+        }
     }
-    
-    // Accept valid SIDimension types: si_dimension, monotonic, linear
-    const char *innerType = innerTypeItem->valuestring;
-    if (strcmp(innerType, "si_dimension") != 0 && 
-        strcmp(innerType, "monotonic") != 0 && 
-        strcmp(innerType, "linear") != 0) {
-        if (outError) *outError = STR("SIDimension: invalid inner type - must be si_dimension, monotonic, or linear");
-        OCRelease(baseDim);
-        return NULL;
-    }
+    // If no type field, assume this is untyped serialization and proceed
     
     // Step 3: Parse SIDimension-specific fields
     SIDimensionRef sidim = NULL;
@@ -1166,7 +1170,7 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (offsetItem) {
         if (cJSON_IsObject(offsetItem)) {
             // This is an OCTypes-wrapped SIScalar
-            offset = (SIScalarRef)OCTypeCreateFromJSONTyped(offsetItem, outError);
+            offset = SIScalarCreateFromJSON(offsetItem, outError);
             if (!offset || OCGetTypeID((OCTypeRef)offset) != SIScalarGetTypeID()) {
                 if (outError && !*outError) *outError = STR("SIDimension: offset must be a SIScalar");
                 goto cleanup;
@@ -1183,7 +1187,7 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (originItem) {
         if (cJSON_IsObject(originItem)) {
             // This is an OCTypes-wrapped SIScalar
-            origin = (SIScalarRef)OCTypeCreateFromJSONTyped(originItem, outError);
+            origin = SIScalarCreateFromJSON(originItem, outError);
             if (!origin || OCGetTypeID((OCTypeRef)origin) != SIScalarGetTypeID()) {
                 if (outError && !*outError) *outError = STR("SIDimension: origin must be a SIScalar");
                 goto cleanup;
@@ -1200,7 +1204,7 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (periodItem) {
         if (cJSON_IsObject(periodItem)) {
             // This is an OCTypes-wrapped SIScalar
-            period = (SIScalarRef)OCTypeCreateFromJSONTyped(periodItem, outError);
+            period = SIScalarCreateFromJSON(periodItem, outError);
             if (!period || OCGetTypeID((OCTypeRef)period) != SIScalarGetTypeID()) {
                 if (outError && !*outError) *outError = STR("SIDimension: period must be a SIScalar");
                 goto cleanup;
@@ -1880,7 +1884,7 @@ SIMonotonicDimensionRef SIMonotonicDimensionCreateFromJSON(cJSON *json, OCString
     cJSON_ArrayForEach(coordEntry, coordsItem) {
         if (cJSON_IsObject(coordEntry)) {
             // This is an OCTypes-wrapped SIScalar
-            SIScalarRef coord = (SIScalarRef)OCTypeCreateFromJSONTyped(coordEntry, outError);
+            SIScalarRef coord = SIScalarCreateFromJSON(coordEntry, outError);
             if (!coord || OCGetTypeID((OCTypeRef)coord) != SIScalarGetTypeID()) {
                 if (outError && !*outError) *outError = STR("SIMonotonicDimension: coordinate must be a SIScalar");
                 OCRelease(coordinates);
@@ -2558,60 +2562,25 @@ SILinearDimensionRef SILinearDimensionCreateFromJSON(cJSON *json, OCStringRef *o
         workingJson = valueItem;
     }
     
-    // Step 1: Parse base fields using SIDimension parser
-    SIDimensionRef baseDim = SIDimensionCreateFromJSON(workingJson, outError);
-    if (!baseDim) {
-        return NULL;
-    }
-    
-    // Step 2: Verify this is actually a SILinearDimension (check inner type discriminator)
+    // Step 1: Verify this is actually a SILinearDimension (check inner type discriminator)
     cJSON *innerTypeItem = cJSON_GetObjectItemCaseSensitive(workingJson, "type");
     if (!innerTypeItem || !cJSON_IsString(innerTypeItem) || 
         strcmp(innerTypeItem->valuestring, "linear") != 0) {
         if (outError) *outError = STR("SILinearDimension: missing or invalid inner \"type\":\"linear\"");
-        OCRelease(baseDim);
         return NULL;
     }
     
-    // Step 3: Parse SILinearDimension-specific fields
-    
-    // reciprocal (optional)
-    SIDimensionRef reciprocal = NULL;
-    cJSON *reciprocalItem = cJSON_GetObjectItemCaseSensitive(workingJson, kSIDimensionReciprocalKey);
-    if (reciprocalItem && cJSON_IsObject(reciprocalItem)) {
-        reciprocal = SIDimensionCreateFromJSON(reciprocalItem, outError);
-        if (!reciprocal) {
-            OCRelease(baseDim);
-            return NULL;
-        }
-    }
-    
-    // count (required)
-    cJSON *countItem = cJSON_GetObjectItemCaseSensitive(workingJson, kSILinearDimensionCountKey);
-    if (!countItem || !cJSON_IsNumber(countItem)) {
-        if (outError) *outError = STR("SILinearDimension: missing or invalid \"count\"");
-        OCRelease(baseDim);
-        if (reciprocal) OCRelease(reciprocal);
-        return NULL;
-    }
-    OCIndex count = (OCIndex)countItem->valueint;
-    
-    // increment (required)
+    // Step 2: Parse increment FIRST to establish base unit and dimensionality
     cJSON *incrementItem = cJSON_GetObjectItemCaseSensitive(workingJson, kSILinearDimensionIncrementKey);
     if (!incrementItem) {
         if (outError) *outError = STR("SILinearDimension: missing \"increment\"");
-        OCRelease(baseDim);
-        if (reciprocal) OCRelease(reciprocal);
         return NULL;
     }
     
     SIScalarRef increment = NULL;
     if (cJSON_IsObject(incrementItem)) {
-        // OCTypes-wrapped SIScalar
-        increment = (SIScalarRef)OCTypeCreateFromJSONTyped((cJSON*)incrementItem, outError);
+        increment = SIScalarCreateFromJSON((cJSON*)incrementItem, outError);
         if (!increment) {
-            OCRelease(baseDim);
-            if (reciprocal) OCRelease(reciprocal);
             return NULL;
         }
     } else if (cJSON_IsString(incrementItem)) {
@@ -2620,16 +2589,105 @@ SILinearDimensionRef SILinearDimensionCreateFromJSON(cJSON *json, OCStringRef *o
         increment = SIScalarCreateFromExpression(incStr, outError);
         OCRelease(incStr);
         if (!increment) {
-            OCRelease(baseDim);
-            if (reciprocal) OCRelease(reciprocal);
             return NULL;
         }
     } else {
         if (outError) *outError = STR("SILinearDimension: \"increment\" must be object or string");
-        OCRelease(baseDim);
-        if (reciprocal) OCRelease(reciprocal);
         return NULL;
     }
+    
+    // Step 3: Parse base dimension fields directly (duplicated from SIDimensionCreateFromJSON)
+    
+    // Base dimension fields
+    OCStringRef label = NULL;
+    OCStringRef description = NULL;
+    OCDictionaryRef metadata = NULL;
+    
+    cJSON *labelItem = cJSON_GetObjectItemCaseSensitive(workingJson, kDimensionLabelKey);
+    if (labelItem && cJSON_IsString(labelItem)) {
+        label = OCStringCreateWithCString(labelItem->valuestring);
+    }
+    
+    cJSON *descItem = cJSON_GetObjectItemCaseSensitive(workingJson, kDimensionDescriptionKey);
+    if (descItem && cJSON_IsString(descItem)) {
+        description = OCStringCreateWithCString(descItem->valuestring);
+    }
+    
+    cJSON *metadataItem = cJSON_GetObjectItemCaseSensitive(workingJson, kDimensionApplicationKey);
+    if (metadataItem && cJSON_IsObject(metadataItem)) {
+        metadata = (OCDictionaryRef)OCTypeCreateFromJSONTyped(metadataItem, outError);
+        if (outError && *outError) {
+            goto Cleanup;
+        }
+    }
+    
+    // SI-specific fields
+    OCStringRef quantityName = NULL;
+    cJSON *quantityItem = cJSON_GetObjectItemCaseSensitive(workingJson, kSIDimensionQuantityNameKey);
+    if (quantityItem && cJSON_IsString(quantityItem)) {
+        quantityName = OCStringCreateWithCString(quantityItem->valuestring);
+    }
+    
+    SIScalarRef offset = NULL;
+    cJSON *offsetItem = cJSON_GetObjectItemCaseSensitive(workingJson, kSIDimensionOffsetKey);
+    if (offsetItem) {
+        if (cJSON_IsObject(offsetItem)) {
+            offset = SIScalarCreateFromJSON(offsetItem, outError);
+        } else if (cJSON_IsString(offsetItem)) {
+            OCStringRef offsetStr = OCStringCreateWithCString(offsetItem->valuestring);
+            offset = SIScalarCreateFromExpression(offsetStr, outError);
+            OCRelease(offsetStr);
+        }
+        if (outError && *outError) {
+            goto Cleanup;
+        }
+    }
+    
+    SIScalarRef origin = NULL;
+    cJSON *originItem = cJSON_GetObjectItemCaseSensitive(workingJson, kSIDimensionOriginKey);
+    if (originItem) {
+        if (cJSON_IsObject(originItem)) {
+            origin = SIScalarCreateFromJSON(originItem, outError);
+        } else if (cJSON_IsString(originItem)) {
+            OCStringRef originStr = OCStringCreateWithCString(originItem->valuestring);
+            origin = SIScalarCreateFromExpression(originStr, outError);
+            OCRelease(originStr);
+        }
+        if (outError && *outError) {
+            goto Cleanup;
+        }
+    }
+    
+    SIScalarRef period = NULL;
+    cJSON *periodItem = cJSON_GetObjectItemCaseSensitive(workingJson, kSIDimensionPeriodKey);
+    if (periodItem) {
+        if (cJSON_IsObject(periodItem)) {
+            period = SIScalarCreateFromJSON(periodItem, outError);
+        } else if (cJSON_IsString(periodItem)) {
+            OCStringRef periodStr = OCStringCreateWithCString(periodItem->valuestring);
+            period = SIScalarCreateFromExpression(periodStr, outError);
+            OCRelease(periodStr);
+        }
+        if (outError && *outError) {
+            goto Cleanup;
+        }
+    }
+    
+    dimensionScaling scaling = kDimensionScalingNone;
+    cJSON *scalingItem = cJSON_GetObjectItemCaseSensitive(workingJson, kSIDimensionScalingKey);
+    if (scalingItem && cJSON_IsNumber(scalingItem)) {
+        scaling = (dimensionScaling)scalingItem->valueint;
+    }
+    
+    // Step 4: Parse SILinearDimension-specific fields
+    
+    // count (required)
+    cJSON *countItem = cJSON_GetObjectItemCaseSensitive(workingJson, kSILinearDimensionCountKey);
+    if (!countItem || !cJSON_IsNumber(countItem)) {
+        if (outError) *outError = STR("SILinearDimension: missing or invalid \"count\"");
+        goto Cleanup;
+    }
+    OCIndex count = (OCIndex)countItem->valueint;
     
     // fft (optional, default false)
     bool fft = false;
@@ -2638,16 +2696,26 @@ SILinearDimensionRef SILinearDimensionCreateFromJSON(cJSON *json, OCStringRef *o
         fft = cJSON_IsTrue(fftItem);
     }
     
-    // Step 4: Create SILinearDimension using base fields + SILinearDimension-specific fields
+    // reciprocal (optional)
+    SIDimensionRef reciprocal = NULL;
+    cJSON *reciprocalItem = cJSON_GetObjectItemCaseSensitive(workingJson, kSIDimensionReciprocalKey);
+    if (reciprocalItem && cJSON_IsObject(reciprocalItem)) {
+        reciprocal = SIDimensionCreateFromJSON(reciprocalItem, outError);
+        if (!reciprocal) {
+            goto Cleanup;
+        }
+    }
+    
+    // Step 5: Create SILinearDimension directly
     SILinearDimensionRef linDim = SILinearDimensionCreate(
-        DimensionGetLabel((DimensionRef)baseDim),
-        DimensionGetDescription((DimensionRef)baseDim),
-        DimensionGetApplicationMetaData((DimensionRef)baseDim),
-        SIDimensionGetQuantityName(baseDim),
-        SIDimensionGetCoordinatesOffset(baseDim),
-        SIDimensionGetOriginOffset(baseDim),
-        SIDimensionGetPeriod(baseDim),
-        SIDimensionGetScaling(baseDim),
+        label,
+        description,
+        metadata,
+        quantityName,
+        offset,
+        origin,
+        period,
+        scaling,
         count,
         increment,
         fft,
@@ -2655,12 +2723,35 @@ SILinearDimensionRef SILinearDimensionCreateFromJSON(cJSON *json, OCStringRef *o
         outError
     );
     
-    // Step 5: Release temporary objects
-    OCRelease(baseDim);
+    // Check if creation failed
+    if (!linDim) {
+        goto Cleanup;
+    }
+    
+    // Step 6: Release temporary objects and return
+    OCRelease(label);
+    OCRelease(description);
+    OCRelease(metadata);
+    OCRelease(quantityName);
+    OCRelease(offset);
+    OCRelease(origin);
+    OCRelease(period);
     OCRelease(increment);
     if (reciprocal) OCRelease(reciprocal);
     
     return linDim;
+
+Cleanup:
+    OCRelease(label);
+    OCRelease(description);
+    OCRelease(metadata);
+    OCRelease(quantityName);
+    OCRelease(offset);
+    OCRelease(origin);
+    OCRelease(period);
+    OCRelease(increment);
+    if (reciprocal) OCRelease(reciprocal);
+    return NULL;
 }
 
 // Public wrapper function for base Dimension creation

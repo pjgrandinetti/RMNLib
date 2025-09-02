@@ -970,13 +970,8 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         return NULL;
     }
     
-    // Unwrap the "csdm" envelope
-    cJSON *inner = cJSON_GetObjectItemCaseSensitive(actualJson, kDatasetCsdmEnvelopeKey);
-    if (!inner || !cJSON_IsObject(inner)) {
-        if (outError) *outError = STR("Missing or invalid \"csdm\" envelope");
-        return NULL;
-    }
-    cJSON *json = inner;
+    // Use the actualJson directly (envelope should be handled by caller)
+    cJSON *json = actualJson;
 
     // Initialize all local variables for cleanup
     OCStringRef version = NULL;

@@ -227,65 +227,59 @@ bool DatasetExport(DatasetRef ds,
         }
         return false;
     }
-    // 1) build full in-memory dictionary
-    OCDictionaryRef core = DatasetCopyAsDictionary(ds);
+    // 1) build full JSON directly
+    cJSON *core = OCTypeCopyJSON((OCTypeRef)ds, false);
     if (!core) {
-        if (outError) *outError = STR("Failed to create dictionary from Dataset");
+        if (outError) *outError = STR("Failed to create JSON from Dataset");
         return false;
     }
     // 1a) strip inline components/encoding on externals
     {
-        OCStringRef keyDVList = STR(kDatasetDependentVariablesKey);
-        OCStringRef keyType = STR(kDependentVariableTypeKey);
-        OCStringRef keyExternal = STR(kDependentVariableComponentTypeValueExternal);
-        OCStringRef keyComp = STR(kDependentVariableComponentsKey);
-        OCStringRef keyEnc = STR(kDependentVariableEncodingKey);
-        OCMutableDictionaryRef mcore = (OCMutableDictionaryRef)core;
-        OCArrayRef dvDicts = OCDictionaryGetValue(mcore, keyDVList);
-        if (dvDicts) {
-            OCIndex n = OCArrayGetCount(dvDicts);
-            for (OCIndex i = 0; i < n; ++i) {
-                OCDictionaryRef dvDict =
-                    (OCDictionaryRef)OCArrayGetValueAtIndex(dvDicts, i);
-                OCStringRef type =
-                    OCDictionaryGetValue(dvDict, keyType);
-                if (type && OCStringEqual(type, keyExternal)) {
-                    OCDictionaryRemoveValue((OCMutableDictionaryRef)dvDict, keyComp);
-                    OCDictionaryRemoveValue((OCMutableDictionaryRef)dvDict, keyEnc);
+        cJSON *dvList = cJSON_GetObjectItemCaseSensitive(core, kDatasetDependentVariablesKey);
+        if (dvList && cJSON_IsArray(dvList)) {
+            cJSON *dv_item;
+            cJSON_ArrayForEach(dv_item, dvList) {
+                if (!cJSON_IsObject(dv_item)) continue;
+                cJSON *type_item = cJSON_GetObjectItemCaseSensitive(dv_item, kDependentVariableTypeKey);
+                if (type_item && cJSON_IsString(type_item) && 
+                    strcmp(type_item->valuestring, kDependentVariableComponentTypeValueExternal) == 0) {
+                    cJSON_DeleteItemFromObject(dv_item, kDependentVariableComponentsKey);
+                    cJSON_DeleteItemFromObject(dv_item, kDependentVariableEncodingKey);
                 }
             }
         }
     }
-    // 2) envelope fields
+    // 2) add envelope fields
     {
-        OCMutableDictionaryRef mcore = (OCMutableDictionaryRef)core;
-        OCDictionarySetValue(mcore, STR(kDatasetVersionKey), STR("1.0"));
+        cJSON_AddStringToObject(core, kDatasetVersionKey, "1.0");
         {
             OCStringRef ts = OCCreateISO8601Timestamp();
-            OCDictionarySetValue(mcore, STR(kDatasetTimestampKey), ts);
+            cJSON_AddStringToObject(core, kDatasetTimestampKey, OCStringGetCString(ts));
             OCRelease(ts);
         }
         if (DatasetGetReadOnly(ds)) {
-            OCDictionarySetValue(mcore,
-                                 STR(kDatasetReadOnlyKey),
-                                 OCBooleanGetWithBool(true));
+            cJSON_AddBoolToObject(core, kDatasetReadOnlyKey, true);
         }
         if (DatasetGetGeographicCoordinate(ds)) {
             GeographicCoordinateRef gc = DatasetGetGeographicCoordinate(ds);
-            OCDictionaryRef gcDict = GeographicCoordinateCopyAsDictionary(gc);
-            OCDictionarySetValue(mcore, STR(kDatasetGeoCoordinateKey), gcDict);
-            OCRelease(gcDict);
+            cJSON *gcJson = OCTypeCopyJSON((OCTypeRef)gc, false);
+            if (gcJson) {
+                cJSON_AddItemToObject(core, kDatasetGeoCoordinateKey, gcJson);
+            }
         }
     }
     // 3) wrap under "csdm"
-    OCMutableDictionaryRef root = OCDictionaryCreateMutable(1);
-    OCDictionarySetValue(root, STR(kDatasetCsdmEnvelopeKey), core);
-    OCRelease(core);
-    // 4) serialize JSON → file
-    cJSON *json = OCTypeCopyJSON((OCTypeRef)root, false);
-    OCRelease(root);
+    cJSON *json = cJSON_CreateObject();
     if (!json) {
-        if (outError) *outError = STR("Failed to convert dictionary to JSON");
+        cJSON_Delete(core);
+        if (outError) *outError = STR("Failed to create root JSON object");
+        return false;
+    }
+    cJSON_AddItemToObject(json, kDatasetCsdmEnvelopeKey, core);
+    // 4) serialize JSON → file
+    // (json object is already created above)
+    if (!json) {
+        if (outError) *outError = STR("Failed to convert dataset to JSON");
         return false;
     }
     char *json_text = cJSON_Print(json);
@@ -429,14 +423,37 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         }
         return NULL;
     }
-    // 2) JSON → dictionary → Dataset
-    DatasetRef ds = DatasetCreateFromJSON(root, outError);
+    
+    // 2) Extract dataset JSON from CSDM envelope
+    cJSON *csdm_envelope = cJSON_GetObjectItemCaseSensitive(root, kDatasetCsdmEnvelopeKey);
+    if (!csdm_envelope) {
+        cJSON_Delete(root);
+        if (outError) *outError = STR("Dataset import failed: missing CSDM envelope");
+        return NULL;
+    }
+    
+    // Create a copy of the dataset content and remove envelope-specific fields
+    cJSON *dataset_json = cJSON_Duplicate(csdm_envelope, true);
+    if (!dataset_json) {
+        cJSON_Delete(root);
+        if (outError) *outError = STR("Dataset import failed: cannot extract dataset from envelope");
+        return NULL;
+    }
+    
+    // Remove only envelope-specific fields, keep dataset core fields
+    cJSON_DeleteItemFromObject(dataset_json, kDatasetTimestampKey);
+    cJSON_DeleteItemFromObject(dataset_json, kDatasetReadOnlyKey);
+    cJSON_DeleteItemFromObject(dataset_json, kDatasetGeoCoordinateKey);
+    
+    // 3) Create Dataset from cleaned JSON (without envelope)
+    DatasetRef ds = DatasetCreateFromJSON(dataset_json, outError);
     cJSON_Delete(root);
+    cJSON_Delete(dataset_json);
     if (!ds) return NULL;
-    // 3) compute expected number of points from the dataset's dimensions
+    // 4) compute expected number of points from the dataset's dimensions
     OCArrayRef dims = DatasetGetDimensions(ds);
     OCIndex expectedSize = RMNCalculateSizeFromDimensions(dims);
-    // 4) process dependent variables
+    // 5) process dependent variables
     OCArrayRef dvsArray = DatasetGetDependentVariables(ds);
     OCIndex dvCount = dvsArray ? OCArrayGetCount(dvsArray) : 0;
     OCStringRef keyInternal = STR(kDependentVariableComponentTypeValueInternal);

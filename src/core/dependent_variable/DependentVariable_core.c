@@ -1533,6 +1533,19 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             }
         }
         OCDictionarySetValue(dict, STR(kDependentVariableComponentsKey), components);
+        
+        // Validate component count against quantity_type
+        OCStringRef qt = (OCStringRef)OCDictionaryGetValue(dict, STR(kDependentVariableQuantityTypeKey));
+        if (qt) {
+            OCIndex expectedCount = DependentVariableComponentsCountFromQuantityType(qt);
+            OCIndex actualCount = OCArrayGetCount(components);
+            if (expectedCount != kOCNotFound && actualCount != expectedCount) {
+                if (outError) *outError = STR("Components count and components array are inconsistent");
+                OCRelease(components);
+                goto cleanup;
+            }
+        }
+        
         OCRelease(components);
         components = NULL;
     }
@@ -1587,7 +1600,30 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
         if (outError) *outError = STR("Failed to create quantity_type string");
         goto cleanup;
     }
+    
+    // Validate quantity_type before storing
+    OCIndex componentCount = DependentVariableComponentsCountFromQuantityType(tmp);
+    if (componentCount == kOCNotFound) {
+        if (outError) *outError = STR("illegal quantity_type key found");
+        OCRelease(tmp);
+        goto cleanup;
+    }
+    
     OCDictionarySetValue(dict, STR(kDependentVariableQuantityTypeKey), tmp);
+    
+    // Validate component count for internal dependent variables
+    if (!isExternal) {
+        OCArrayRef storedComponents = (OCArrayRef)OCDictionaryGetValue(dict, STR(kDependentVariableComponentsKey));
+        if (storedComponents) {
+            OCIndex actualCount = OCArrayGetCount(storedComponents);
+            if (actualCount != componentCount) {
+                if (outError) *outError = STR("Components count and components array are inconsistent");
+                OCRelease(tmp);
+                goto cleanup;
+            }
+        }
+    }
+    
     OCRelease(tmp);
     tmp = NULL;
 
@@ -1665,6 +1701,10 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
         // default: N empty labels based on quantity type
         OCStringRef qt = (OCStringRef)OCDictionaryGetValue(dict, STR(kDependentVariableQuantityTypeKey));
         OCIndex n = DependentVariableComponentsCountFromQuantityType(qt);
+        if (n == kOCNotFound) {
+            if (outError) *outError = STR("illegal quantity_type key found");
+            goto cleanup;
+        }
         labels = OCArrayCreateMutable(n, &kOCTypeArrayCallBacks);
         if (!labels) {
             if (outError) *outError = STR("Failed to create default component labels array");

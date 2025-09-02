@@ -334,6 +334,10 @@ ALL_TEST_SRC := $(filter-out $(TEST_SRC_DIR)/main.c $(TEST_SRC_DIR)/main_imports
                 $(TEST_SRC_DIR)/main_all.c
 ALL_TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(ALL_TEST_SRC))
 
+# CSDM-only test sources and objects
+CSDM_TEST_SRC := $(TEST_SRC_DIR)/main_csdm_only.c $(TEST_SRC_DIR)/test_CSDM.c $(TEST_SRC_DIR)/test_utils.c
+CSDM_TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(CSDM_TEST_SRC))
+
 $(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.c | dirs octypes sitypes
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
@@ -344,6 +348,11 @@ $(BIN_DIR)/runTests: $(LIB_DIR)/libRMN.a $(CORE_TEST_OBJ) octypes sitypes
 
 $(BIN_DIR)/runImportTests: $(LIB_DIR)/libRMN.a $(IMPORT_TEST_OBJ) octypes sitypes
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(IMPORT_TEST_OBJ) \
+	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
+	  $(RPATH_FLAGS) $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
+
+$(BIN_DIR)/runCSDMTests: $(LIB_DIR)/libRMN.a $(CSDM_TEST_OBJ) octypes sitypes
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_SRC_DIR) $(CSDM_TEST_OBJ) \
 	  $(GROUP_START) $(LIB_DIR)/libRMN.a $(SITYPES_LINKLIB) $(OCTYPES_LINKLIB) $(GROUP_END) \
 	  $(RPATH_FLAGS) $(CURL_LIBS) $(BLAS_LDFLAGS) $(OPENMP_LDFLAGS) -lm -o $@
 
@@ -369,6 +378,10 @@ test: $(BIN_DIR)/runTests copy-dlls
 
 test-imports: $(BIN_DIR)/runImportTests copy-dlls
 	@echo "Running import tests (slow) with TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
+	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
+
+test-csdm: $(BIN_DIR)/runCSDMTests copy-dlls
+	@echo "Running CSDM import and roundtrip test only with TEST_DATA_ROOT=$(TEST_DATA_ROOT)"
 	CSDM_TEST_ROOT="$(TEST_DATA_ROOT)" $<
 
 test-all: $(BIN_DIR)/runAllTests copy-dlls
