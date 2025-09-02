@@ -1129,11 +1129,20 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
         return NULL;
     }
     
-    // Step 2: Verify this is actually a SIDimension (check inner type discriminator)
+    // Step 2: Verify this is actually a SIDimension or subclass (check inner type discriminator)
     cJSON *innerTypeItem = cJSON_GetObjectItemCaseSensitive(workingJson, "type");
-    if (!innerTypeItem || !cJSON_IsString(innerTypeItem) || 
-        strcmp(innerTypeItem->valuestring, "si_dimension") != 0) {
-        if (outError) *outError = STR("SIDimension: missing or invalid inner \"type\":\"si_dimension\"");
+    if (!innerTypeItem || !cJSON_IsString(innerTypeItem)) {
+        if (outError) *outError = STR("SIDimension: missing inner \"type\" field");
+        OCRelease(baseDim);
+        return NULL;
+    }
+    
+    // Accept valid SIDimension types: si_dimension, monotonic, linear
+    const char *innerType = innerTypeItem->valuestring;
+    if (strcmp(innerType, "si_dimension") != 0 && 
+        strcmp(innerType, "monotonic") != 0 && 
+        strcmp(innerType, "linear") != 0) {
+        if (outError) *outError = STR("SIDimension: invalid inner type - must be si_dimension, monotonic, or linear");
         OCRelease(baseDim);
         return NULL;
     }
