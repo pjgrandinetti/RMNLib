@@ -679,3 +679,238 @@ cleanup:
     }
     return ok;
 }
+
+bool test_SparseSampling_json_untyped_roundtrip(void) {
+    printf("test_SparseSampling_json_untyped_roundtrip...\n");
+    bool ok = false;
+    
+    // Create SparseSampling with various encodings
+    OCIndex dims[] = {0, 1};
+    OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 2);
+    OCArrayRef vertices = _create_sparse_vertices_2d(3);
+    OCStringRef error = NULL;
+    
+    // Test with "none" encoding
+    SparseSamplingRef ss_none = SparseSamplingCreate(
+        dimIndexes, vertices, kOCNumberUInt32Type, STR("none"), 
+        STR("JSON test"), NULL, &error);
+    TEST_ASSERT(ss_none != NULL);
+    
+    // Test untyped JSON serialization
+    cJSON *json_none = SparseSamplingCopyAsJSON(ss_none, false);
+    TEST_ASSERT(json_none != NULL);
+    TEST_ASSERT(cJSON_IsObject(json_none));
+    
+    // Verify encoding field is present in untyped JSON
+    cJSON *encItem = cJSON_GetObjectItemCaseSensitive(json_none, "encoding");
+    TEST_ASSERT(cJSON_IsString(encItem));
+    TEST_ASSERT(strcmp(encItem->valuestring, "none") == 0);
+    
+    // Test deserialization
+    SparseSamplingRef restored_none = SparseSamplingCreateFromJSON(json_none, &error);
+    TEST_ASSERT(restored_none != NULL);
+    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored_none), STR("none")));
+    
+    // Test with "base64" encoding
+    SparseSamplingRef ss_b64 = SparseSamplingCreate(
+        dimIndexes, vertices, kOCNumberUInt32Type, STR("base64"), 
+        STR("JSON test"), NULL, &error);
+    TEST_ASSERT(ss_b64 != NULL);
+    
+    cJSON *json_b64 = SparseSamplingCopyAsJSON(ss_b64, false);
+    TEST_ASSERT(json_b64 != NULL);
+    
+    encItem = cJSON_GetObjectItemCaseSensitive(json_b64, "encoding");
+    TEST_ASSERT(cJSON_IsString(encItem));
+    TEST_ASSERT(strcmp(encItem->valuestring, "base64") == 0);
+    
+    SparseSamplingRef restored_b64 = SparseSamplingCreateFromJSON(json_b64, &error);
+    TEST_ASSERT(restored_b64 != NULL);
+    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored_b64), STR("base64")));
+    
+    ok = true;
+    
+cleanup:
+    OCRelease(dimIndexes);
+    OCRelease(vertices);
+    OCRelease(ss_none);
+    OCRelease(ss_b64);
+    OCRelease(restored_none);
+    OCRelease(restored_b64);
+    cJSON_Delete(json_none);
+    cJSON_Delete(json_b64);
+    OCRelease(error);
+    
+    if (ok) {
+        printf("test_SparseSampling_json_untyped_roundtrip passed.\n");
+    } else {
+        printf("test_SparseSampling_json_untyped_roundtrip failed.\n");
+    }
+    return ok;
+}
+
+bool test_SparseSampling_json_typed_roundtrip(void) {
+    printf("test_SparseSampling_json_typed_roundtrip...\n");
+    bool ok = false;
+    
+    OCIndex dims[] = {0, 1};
+    OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 2);
+    OCArrayRef vertices = _create_sparse_vertices_2d(3);
+    OCStringRef error = NULL;
+    
+    SparseSamplingRef ss = SparseSamplingCreate(
+        dimIndexes, vertices, kOCNumberUInt32Type, STR("base64"), 
+        STR("Typed JSON test"), NULL, &error);
+    TEST_ASSERT(ss != NULL);
+    
+    // Test typed JSON serialization
+    cJSON *json = SparseSamplingCopyAsJSON(ss, true);
+    TEST_ASSERT(json != NULL);
+    TEST_ASSERT(cJSON_IsObject(json));
+    
+    // Verify typed format structure
+    cJSON *typeItem = cJSON_GetObjectItemCaseSensitive(json, "type");
+    cJSON *valueItem = cJSON_GetObjectItemCaseSensitive(json, "value");
+    TEST_ASSERT(cJSON_IsString(typeItem));
+    TEST_ASSERT(strcmp(typeItem->valuestring, "SparseSampling") == 0);
+    TEST_ASSERT(cJSON_IsObject(valueItem));
+    
+    // Verify encoding field is NOT present in typed JSON value
+    cJSON *encItem = cJSON_GetObjectItemCaseSensitive(valueItem, "encoding");
+    TEST_ASSERT(encItem == NULL);
+    
+    // Test deserialization
+    SparseSamplingRef restored = SparseSamplingCreateFromJSON(json, &error);
+    TEST_ASSERT(restored != NULL);
+    TEST_ASSERT(error == NULL);
+    
+    // Verify encoding was extracted from parsed OCIndexPairSet
+    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored), STR("base64")));
+    
+    ok = true;
+    
+cleanup:
+    OCRelease(dimIndexes);
+    OCRelease(vertices);
+    OCRelease(ss);
+    OCRelease(restored);
+    cJSON_Delete(json);
+    OCRelease(error);
+    
+    if (ok) {
+        printf("test_SparseSampling_json_typed_roundtrip passed.\n");
+    } else {
+        printf("test_SparseSampling_json_typed_roundtrip failed.\n");
+    }
+    return ok;
+}
+
+bool test_SparseSampling_json_malformed_input(void) {
+    printf("test_SparseSampling_json_malformed_input...\n");
+    bool ok = false;
+    OCStringRef error = NULL;
+    
+    // Test NULL JSON
+    SparseSamplingRef ss = SparseSamplingCreateFromJSON(NULL, &error);
+    TEST_ASSERT(ss == NULL);
+    TEST_ASSERT(error != NULL);
+    OCRelease(error);
+    error = NULL;
+    
+    // Test invalid JSON structure
+    cJSON *invalidJson = cJSON_CreateString("not an object");
+    ss = SparseSamplingCreateFromJSON(invalidJson, &error);
+    TEST_ASSERT(ss == NULL);
+    TEST_ASSERT(error != NULL);
+    cJSON_Delete(invalidJson);
+    OCRelease(error);
+    error = NULL;
+    
+    // Test missing required fields (should use defaults)
+    cJSON *minimalJson = cJSON_CreateObject();
+    ss = SparseSamplingCreateFromJSON(minimalJson, &error);
+    TEST_ASSERT(ss != NULL);  // Should create with defaults
+    TEST_ASSERT(error == NULL);
+    cJSON_Delete(minimalJson);
+    OCRelease(ss);
+    
+    // Test invalid unsigned_integer_type
+    cJSON *invalidTypeJson = cJSON_CreateObject();
+    cJSON_AddStringToObject(invalidTypeJson, "unsigned_integer_type", "invalid_type");
+    ss = SparseSamplingCreateFromJSON(invalidTypeJson, &error);
+    TEST_ASSERT(ss == NULL);
+    TEST_ASSERT(error != NULL);
+    cJSON_Delete(invalidTypeJson);
+    OCRelease(error);
+    error = NULL;
+    
+    ok = true;
+    
+    if (ok) {
+        printf("test_SparseSampling_json_malformed_input passed.\n");
+    } else {
+        printf("test_SparseSampling_json_malformed_input failed.\n");
+    }
+    return ok;
+}
+
+bool test_SparseSampling_json_encoding_extraction(void) {
+    printf("test_SparseSampling_json_encoding_extraction...\n");
+    bool ok = false;
+    
+    // This test verifies that typed JSON correctly extracts encoding
+    // from the parsed OCIndexPairSet structure
+    
+    OCIndex dims[] = {0, 1};
+    OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 2);
+    OCArrayRef vertices = _create_sparse_vertices_2d(2);
+    OCStringRef error = NULL;
+    
+    // Create with "none" encoding
+    SparseSamplingRef ss_none = SparseSamplingCreate(
+        dimIndexes, vertices, kOCNumberUInt32Type, STR("none"), 
+        STR("Encoding test"), NULL, &error);
+    TEST_ASSERT(ss_none != NULL);
+    
+    // Serialize as typed JSON
+    cJSON *typed_json = SparseSamplingCopyAsJSON(ss_none, true);
+    TEST_ASSERT(typed_json != NULL);
+    
+    // Deserialize and verify encoding was extracted correctly
+    SparseSamplingRef restored = SparseSamplingCreateFromJSON(typed_json, &error);
+    TEST_ASSERT(restored != NULL);
+    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored), STR("none")));
+    
+    // Repeat with base64 encoding
+    SparseSamplingRef ss_b64 = SparseSamplingCreate(
+        dimIndexes, vertices, kOCNumberUInt32Type, STR("base64"), 
+        STR("Encoding test"), NULL, &error);
+    TEST_ASSERT(ss_b64 != NULL);
+    
+    cJSON *typed_json_b64 = SparseSamplingCopyAsJSON(ss_b64, true);
+    TEST_ASSERT(typed_json_b64 != NULL);
+    
+    SparseSamplingRef restored_b64 = SparseSamplingCreateFromJSON(typed_json_b64, &error);
+    TEST_ASSERT(restored_b64 != NULL);
+    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored_b64), STR("base64")));
+    
+    ok = true;
+    
+cleanup:
+    OCRelease(dimIndexes);
+    OCRelease(vertices);
+    OCRelease(ss_none);
+    OCRelease(ss_b64);
+    OCRelease(restored);
+    OCRelease(restored_b64);
+    cJSON_Delete(typed_json);
+    cJSON_Delete(typed_json_b64);
+    OCRelease(error);
+    
+    if (ok) {
+        printf("test_SparseSampling_json_encoding_extraction passed.\n");
+    } else {
+        printf("test_SparseSampling_json_encoding_extraction failed.\n");
+    }
+    return ok;
+}

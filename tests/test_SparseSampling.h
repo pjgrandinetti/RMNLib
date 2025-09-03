@@ -23,4 +23,10 @@ bool test_SparseSampling_base64_encoding(void);
 bool test_SparseSampling_with_dataset(void);
 bool test_SparseSampling_size_calculations(void);
 
+// JSON serialization tests
+bool test_SparseSampling_json_untyped_roundtrip(void);
+bool test_SparseSampling_json_typed_roundtrip(void);
+bool test_SparseSampling_json_malformed_input(void);
+bool test_SparseSampling_json_encoding_extraction(void);
+
 #endif // TEST_SPARSE_SAMPLING_H

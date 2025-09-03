@@ -20,6 +20,7 @@
 #include <time.h>
 #include "../../RMNLibrary.h"
 #include "Dataset_private.h"
+#include "../SparseSampling_private.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

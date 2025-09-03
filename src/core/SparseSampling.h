@@ -186,13 +186,6 @@ SparseSamplingCopySparseGridVertexes(SparseSamplingRef ss);
  */
 bool SparseSamplingSetSparseGridVertexes(SparseSamplingRef ss, OCIndexPairSetRef verts);
 /**
- * @brief Get the unsigned integer type used for indexing.
- *
- * @param ss  SparseSamplingRef object.
- * @returns   OCNumberType enumerator.
- */
-OCNumberType SparseSamplingGetUnsignedIntegerType(SparseSamplingRef ss);
-/**
  * @brief Set the unsigned integer type for indexing.
  *
  * Only unsigned types are allowed (UInt8, UInt16, UInt32, UInt64).
@@ -240,10 +233,18 @@ bool SparseSamplingSetDescription(SparseSamplingRef ss, OCStringRef desc);
  * @brief Get the metadata dictionary.
  *
  * @param ss  SparseSamplingRef object.
- * @returns   OCDictionaryRef metadata (do not release). May be empty.
+ * @returns   OCDictionaryRef metadata (caller must not release). May be NULL.
  */
 OCDictionaryRef
 SparseSamplingGetApplicationMetaData(SparseSamplingRef ss);
+/**
+ * @brief Get the unsigned integer type for indexing.
+ *
+ * @param ss  SparseSamplingRef object.
+ * @returns   OCNumberType enumerator.
+ */
+OCNumberType 
+SparseSamplingGetUnsignedIntegerType(SparseSamplingRef ss);
 /**
  * @brief Set the metadata dictionary.
  *

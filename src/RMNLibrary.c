@@ -1,4 +1,5 @@
 #include "RMNLibrary.h"
+#include "core/SparseSampling_private.h"
 // GCC compatibility: Define __has_feature for non-Clang compilers
 #ifndef __has_feature
 #define __has_feature(x) 0

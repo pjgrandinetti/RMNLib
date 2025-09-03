@@ -1,5 +1,6 @@
 #include "DependentVariable.h"
 #include "DependentVariable_private.h"
+#include "../SparseSampling_private.h"
 DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv, OCArrayRef dimensions, OCIndexPairSetRef indexPairs, OCStringRef *outError) {
     // 0) bail if caller already has an error
     if (outError && *outError) return NULL;
@@ -112,9 +113,9 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
     if (!dv || !dimensions) return NULL;
     SparseSamplingRef ss = DependentVariableGetSparseSampling(dv);
     OCIndexSetRef idxs = SparseSamplingGetDimensionIndexes(ss);
-    OCArrayRef verts = SparseSamplingGetSparseGridVertexes(ss);
+    OCIndexPairSetRef verts = SparseSamplingGetSparseGridVertexes(ss);
     if (!idxs || !verts) return NULL;
-    OCIndex nVerts = OCArrayGetCount(verts);
+    OCIndex nVerts = OCIndexPairSetGetCount(verts);
     // 1) Build an “output” DV of exactly the right size (nVerts)
     DependentVariableRef outDV =
         DependentVariableCreateWithSize(
@@ -130,15 +131,37 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
     if (!outDV) return NULL;
     OCStringRef err = NULL;
     // 2) Cross‐section each sparse vertex into outDV
-    for (OCIndex iVert = 0; iVert < nVerts; ++iVert) {
-        OCIndexPairSetRef pairs = (OCIndexPairSetRef)OCArrayGetValueAtIndex(verts, iVert);
+    OCIndexSetRef indexSet = OCIndexPairSetCreateIndexSetOfIndexes(verts);
+    if (!indexSet) return NULL;
+    
+    OCIndex *indices = OCIndexSetGetBytesPtr(indexSet);
+    if (!indices) {
+        OCRelease(indexSet);
+        return NULL;
+    }
+    
+    for (OCIndex i = 0; i < nVerts; ++i) {
+        OCIndex vertexIndex = indices[i];
+        OCIndex vertexValue = OCIndexPairSetValueForIndex(verts, vertexIndex);
+        
+        // Create a single-pair OCIndexPairSet for this vertex
+        OCMutableIndexPairSetRef singlePair = OCIndexPairSetCreateMutable();
+        if (!singlePair) {
+            OCRelease(indexSet);
+            return NULL;
+        }
+        OCIndexPairSetAddIndexPair(singlePair, vertexIndex, vertexValue);
+        
         DependentVariableRef slice =
-            DependentVariableCreateCrossSection(dv, dimensions, pairs, &err);
+            DependentVariableCreateCrossSection(dv, dimensions, singlePair, &err);
         if (slice) {
             DependentVariableAppend(outDV, slice, &err);
             OCRelease(slice);
         }
+        OCRelease(singlePair);
     }
+    
+    OCRelease(indexSet);
     // 3) Extract & return a _deep_ mutable copy of the packed components
     OCArrayRef packed =
         OCArrayCreateMutableCopy(outDV->components);
@@ -157,7 +180,7 @@ OCDataRef DependentVariableCreateCSDMComponentsData(DependentVariableRef dv,
     SparseSamplingRef ss = DependentVariableGetSparseSampling(dv);
     if (ss) {
         OCIndexSetRef idxs = SparseSamplingGetDimensionIndexes(ss);
-        OCArrayRef verts = SparseSamplingGetSparseGridVertexes(ss);
+        OCIndexPairSetRef verts = SparseSamplingGetSparseGridVertexes(ss);
         if (idxs && OCIndexSetGetCount(idxs) > 0 && verts) {
             sourceArray = DependentVariableCreatePackedSparseComponentsArray(dv, dimensions);
             ownsArray = true;  // we'll need to release it

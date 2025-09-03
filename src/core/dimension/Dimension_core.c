@@ -2548,6 +2548,9 @@ SILinearDimensionRef SILinearDimensionCreateFromJSON(cJSON *json, OCStringRef *o
         return NULL;
     }
     
+    // Initialize all variables to NULL for cleanup safety
+    SIDimensionRef reciprocal = NULL;
+    
     // Handle OCTypes wrapping format: {"type": "SILinearDimension", "value": {...}}
     cJSON *typeItem = cJSON_GetObjectItemCaseSensitive(json, "type");
     cJSON *valueItem = cJSON_GetObjectItemCaseSensitive(json, "value");
@@ -2697,7 +2700,6 @@ SILinearDimensionRef SILinearDimensionCreateFromJSON(cJSON *json, OCStringRef *o
     }
     
     // reciprocal (optional)
-    SIDimensionRef reciprocal = NULL;
     cJSON *reciprocalItem = cJSON_GetObjectItemCaseSensitive(workingJson, kSIDimensionReciprocalKey);
     if (reciprocalItem && cJSON_IsObject(reciprocalItem)) {
         reciprocal = SIDimensionCreateFromJSON(reciprocalItem, outError);
