@@ -1,5 +1,6 @@
 /* SparseSampling OCType implementation */
 #include "../RMNLibrary.h"
+#include "SparseSampling_private.h"
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // SparseSampling dictionary keys
 #define kSparseSamplingDimensionIndexesKey "dimension_indexes"
@@ -22,7 +23,7 @@ OCTypeID SparseSamplingGetTypeID(void) {
 struct impl_SparseSampling {
     OCBase base;
     OCIndexSetRef dimensionIndexes;
-    OCMutableArrayRef sparseGridVertexes;  // Array of Index Pairs
+    OCIndexPairSetRef sparseGridVertexes;  // Sparse grid vertex data as index-value pairs
     OCNumberType unsignedIntegerType;      // UInt8/16/32/64 only
     OCStringRef encoding;                  // "none" or "base64"
     OCStringRef description;
@@ -56,23 +57,9 @@ static bool impl_SparseSamplingEqual(const void *a, const void *b) {
         return false;
     if (!OCTypeEqual(A->application, B->application))
         return false;
-    // Handle NULL sparseGridVertexes explicitly
-    if (!A->sparseGridVertexes && !B->sparseGridVertexes)
-        return true;
-    if (!A->sparseGridVertexes || !B->sparseGridVertexes)
+    // Compare sparseGridVertexes OCIndexPairSetRef
+    if (!OCTypeEqual(A->sparseGridVertexes, B->sparseGridVertexes))
         return false;
-    // Compare lengths
-    OCIndex count1 = OCArrayGetCount(A->sparseGridVertexes);
-    OCIndex count2 = OCArrayGetCount(B->sparseGridVertexes);
-    if (count1 != count2)
-        return false;
-    // Compare each OCIndexPairSetRef
-    for (OCIndex i = 0; i < count1; ++i) {
-        OCTypeRef p1 = OCArrayGetValueAtIndex(A->sparseGridVertexes, i);
-        OCTypeRef p2 = OCArrayGetValueAtIndex(B->sparseGridVertexes, i);
-        if (!OCTypeEqual(p1, p2))
-            return false;
-    }
     return true;
 }
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
@@ -82,7 +69,7 @@ static OCStringRef impl_SparseSamplingCopyFormattingDesc(OCTypeRef cf) {
     return OCStringCreateWithFormat(
         STR("<SparseSampling dims=%@, verts=%lu, uint=%d, enc=%@>"),
         ss->dimensionIndexes,
-        (unsigned long)OCArrayGetCount(ss->sparseGridVertexes),
+        (unsigned long)(ss->sparseGridVertexes ? OCIndexPairSetGetCount(ss->sparseGridVertexes) : 0),
         ss->unsignedIntegerType,
         ss->encoding);
 }
@@ -113,7 +100,7 @@ impl_SparseSamplingDeepCopy(const void *ptr) {
                                 ? (OCIndexSetRef)OCTypeDeepCopy(src->dimensionIndexes)
                                 : NULL;
     dst->sparseGridVertexes = src->sparseGridVertexes
-                                  ? (OCMutableArrayRef)OCTypeDeepCopy(src->sparseGridVertexes)
+                                  ? (OCIndexPairSetRef)OCTypeDeepCopy(src->sparseGridVertexes)
                                   : NULL;
     // Primitive field
     dst->unsignedIntegerType = src->unsignedIntegerType;
@@ -144,7 +131,7 @@ static struct impl_SparseSampling *SparseSamplingAllocate(void) {
 }
 static void impl_InitSparseSamplingFields(SparseSamplingRef ss) {
     ss->dimensionIndexes = OCIndexSetCreateMutable();
-    ss->sparseGridVertexes = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    ss->sparseGridVertexes = OCIndexPairSetCreateMutable();
     ss->unsignedIntegerType = kOCNumberUInt64Type;
     ss->encoding = STR(kSparseSamplingEncodingValueBase64);
     ss->description = STR("");
@@ -182,31 +169,11 @@ bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError) {
     }
     OCIndex ndim = OCIndexSetGetCount(ss->dimensionIndexes);
     // Note: Empty dimension indexes (ndim == 0) are allowed
-    // 4) sparseGridVertexes must be a valid OCArray of OCIndexPairSetRef
-    if (!ss->sparseGridVertexes || OCGetTypeID(ss->sparseGridVertexes) != OCArrayGetTypeID()) {
+    // 4) sparseGridVertexes must be a valid OCIndexPairSet
+    if (!ss->sparseGridVertexes || OCGetTypeID(ss->sparseGridVertexes) != OCIndexPairSetGetTypeID()) {
         if (outError)
-            *outError = STR("SparseSampling validation error: sparseGridVertexes must be a valid OCArray of OCIndexPairSet");
+            *outError = STR("SparseSampling validation error: sparseGridVertexes must be a valid OCIndexPairSet");
         return false;
-    }
-    OCIndex count = OCArrayGetCount(ss->sparseGridVertexes);
-    for (OCIndex i = 0; i < count; ++i) {
-        OCTypeRef entry = OCArrayGetValueAtIndex(ss->sparseGridVertexes, i);
-        if (!entry || OCGetTypeID(entry) != OCIndexPairSetGetTypeID()) {
-            if (outError) {
-                *outError = OCStringCreateWithFormat(
-                    STR("SparseSampling validation error: sparseGridVertexes[%ld] is not a valid OCIndexPairSetRef"),
-                    (long)i);
-            }
-            return false;
-        }
-        if (OCIndexPairSetGetCount((OCIndexPairSetRef)entry) != ndim) {
-            if (outError) {
-                *outError = OCStringCreateWithFormat(
-                    STR("SparseSampling validation error: sparseGridVertexes[%ld] must contain %ld (i,value) pairs"),
-                    (long)i, (long)ndim);
-            }
-            return false;
-        }
     }
     return true;
 }
@@ -214,7 +181,7 @@ bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError) {
 // Public creator
 SparseSamplingRef SparseSamplingCreate(
     OCIndexSetRef dimensionIndexes,
-    OCArrayRef sparseGridVertexes,
+    OCIndexPairSetRef sparseGridVertexes,
     OCNumberType unsignedIntegerType,
     OCStringRef encoding,
     OCStringRef description,
@@ -262,7 +229,7 @@ SparseSamplingRef SparseSamplingCreate(
     }
     if (sparseGridVertexes) {
         OCRelease(ss->sparseGridVertexes);
-        ss->sparseGridVertexes = OCArrayCreateMutableCopy(sparseGridVertexes);
+        ss->sparseGridVertexes = (OCIndexPairSetRef)OCTypeDeepCopy(sparseGridVertexes);
     }
     ss->unsignedIntegerType = unsignedIntegerType;
     OCRelease(ss->encoding);
@@ -384,101 +351,6 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
         OCRelease(mdCopy);
     }
     return dict;
-}
-
-cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed) {
-    if (!ss) return cJSON_CreateNull();
-    
-    cJSON *json = cJSON_CreateObject();
-    if (!json) return cJSON_CreateNull();
-    
-    // 1. dimension_indexes
-    if (ss->dimensionIndexes) {
-        cJSON *dimArray = cJSON_CreateArray();
-        if (dimArray) {
-            OCArrayRef dimIdxNumbers = OCIndexSetCreateOCNumberArray(ss->dimensionIndexes);
-            if (dimIdxNumbers) {
-                OCIndex count = OCArrayGetCount(dimIdxNumbers);
-                for (OCIndex i = 0; i < count; i++) {
-                    OCNumberRef num = (OCNumberRef)OCArrayGetValueAtIndex(dimIdxNumbers, i);
-                    long value;
-                    if (OCNumberTryGetLong(num, &value)) {
-                        cJSON_AddItemToArray(dimArray, cJSON_CreateNumber((double)value));
-                    }
-                }
-                OCRelease(dimIdxNumbers);
-            }
-            cJSON_AddItemToObject(json, kSparseSamplingDimensionIndexesKey, dimArray);
-        }
-    }
-    
-    // 2. sparse_grid_vertexes (simplified for now - could optimize like dictionary version)
-    if (ss->sparseGridVertexes) {
-        cJSON *vertsArray = cJSON_CreateArray();
-        if (vertsArray) {
-            OCIndex count = OCArrayGetCount(ss->sparseGridVertexes);
-            OCIndex ndim = OCIndexSetGetCount(ss->dimensionIndexes);
-            
-            for (OCIndex i = 0; i < count; i++) {
-                OCIndexPairSetRef vertex = (OCIndexPairSetRef)OCArrayGetValueAtIndex(ss->sparseGridVertexes, i);
-                if (vertex && OCIndexPairSetGetCount(vertex) == ndim) {
-                    OCIndexPair *pairs = OCIndexPairSetGetBytesPtr(vertex);
-                    for (OCIndex j = 0; j < ndim; j++) {
-                        cJSON_AddItemToArray(vertsArray, cJSON_CreateNumber((double)pairs[j].value));
-                    }
-                }
-            }
-            cJSON_AddItemToObject(json, kSparseSamplingSparseGridVertexesKey, vertsArray);
-        }
-    }
-    
-    // 3. unsigned_integer_type
-    const char *typeName = OCNumberGetTypeName(ss->unsignedIntegerType);
-    if (typeName) {
-        cJSON_AddStringToObject(json, kSparseSamplingUnsignedIntegerTypeKey, typeName);
-    }
-    
-    // 4. encoding
-    if (ss->encoding) {
-        const char *encStr = OCStringGetCString(ss->encoding);
-        if (encStr) {
-            cJSON_AddStringToObject(json, kSparseSamplingEncodingKey, encStr);
-        }
-    }
-    
-    // 5. description
-    if (ss->description) {
-        const char *descStr = OCStringGetCString(ss->description);
-        if (descStr) {
-            cJSON_AddStringToObject(json, kSparseSamplingDescriptionKey, descStr);
-        }
-    }
-    
-    // 6. application metadata
-    if (ss->application) {
-        // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded 
-        // into JSON as typed=true, NO EXCEPTIONS. Even if the rest of the JSON is untyped,
-        // application must always remain typed to preserve complex nested type information.
-        cJSON *app = OCTypeCopyJSON((OCTypeRef)ss->application, true);
-        if (app) {
-            cJSON_AddItemToObject(json, kSparseSamplingApplicationKey, app);
-        }
-    }
-    
-    if (typed) {
-        // Wrap in typed object format
-        cJSON *wrapper = cJSON_CreateObject();
-        if (wrapper) {
-            cJSON_AddStringToObject(wrapper, "type", "SparseSampling");
-            cJSON_AddItemToObject(wrapper, "value", json);
-            return wrapper;
-        } else {
-            cJSON_Delete(json);
-            return cJSON_CreateNull();
-        }
-    }
-    
-    return json;
 }
 
 // Dictionary → object
@@ -644,6 +516,77 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
         return NULL;
     }
     return ss;
+}
+
+cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed) {
+    if (!ss) return cJSON_CreateNull();
+    
+    cJSON *json = cJSON_CreateObject();
+    if (!json) return cJSON_CreateNull();
+    
+    // 1. dimension_indexes - use OCIndexSet's built-in JSON serialization
+    if (ss->dimensionIndexes) {
+        cJSON *dimArray = OCIndexSetCopyAsJSON(ss->dimensionIndexes, typed);
+        if (dimArray) {
+            cJSON_AddItemToObject(json, kSparseSamplingDimensionIndexesKey, dimArray);
+        }
+    }
+    
+    // 2. sparse_grid_vertexes - use OCIndexPairSet's built-in JSON serialization
+    if (ss->sparseGridVertexes) {
+        cJSON *vertsJson = OCIndexPairSetCopyAsJSON(ss->sparseGridVertexes, typed);
+        if (vertsJson) {
+            cJSON_AddItemToObject(json, kSparseSamplingSparseGridVertexesKey, vertsJson);
+        }
+    }
+    
+    // 3. unsigned_integer_type
+    const char *typeName = OCNumberGetTypeName(ss->unsignedIntegerType);
+    if (typeName) {
+        cJSON_AddStringToObject(json, kSparseSamplingUnsignedIntegerTypeKey, typeName);
+    }
+    
+    // 4. encoding
+    if (ss->encoding) {
+        const char *encStr = OCStringGetCString(ss->encoding);
+        if (encStr) {
+            cJSON_AddStringToObject(json, kSparseSamplingEncodingKey, encStr);
+        }
+    }
+    
+    // 5. description
+    if (ss->description) {
+        const char *descStr = OCStringGetCString(ss->description);
+        if (descStr) {
+            cJSON_AddStringToObject(json, kSparseSamplingDescriptionKey, descStr);
+        }
+    }
+    
+    // 6. application metadata
+    if (ss->application) {
+        // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded 
+        // into JSON as typed=true, NO EXCEPTIONS. Even if the rest of the JSON is untyped,
+        // application must always remain typed to preserve complex nested type information.
+        cJSON *app = OCTypeCopyJSON((OCTypeRef)ss->application, true);
+        if (app) {
+            cJSON_AddItemToObject(json, kSparseSamplingApplicationKey, app);
+        }
+    }
+    
+    if (typed) {
+        // Wrap in typed object format
+        cJSON *wrapper = cJSON_CreateObject();
+        if (wrapper) {
+            cJSON_AddStringToObject(wrapper, "type", "SparseSampling");
+            cJSON_AddItemToObject(wrapper, "value", json);
+            return wrapper;
+        } else {
+            cJSON_Delete(json);
+            return cJSON_CreateNull();
+        }
+    }
+    
+    return json;
 }
 
 SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outError) {
@@ -928,6 +871,10 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
 OCIndexSetRef SparseSamplingGetDimensionIndexes(SparseSamplingRef ss) {
     return ss ? ss->dimensionIndexes : NULL;
 }
+OCIndexSetRef SparseSamplingCopyDimensionIndexes(SparseSamplingRef ss) {
+    if (!ss || !ss->dimensionIndexes) return NULL;
+    return (OCIndexSetRef)OCTypeDeepCopy(ss->dimensionIndexes);
+}
 bool SparseSamplingSetDimensionIndexes(SparseSamplingRef ss, OCIndexSetRef idxs) {
     if (!ss) return false;
     OCRelease(ss->dimensionIndexes);
@@ -936,31 +883,24 @@ bool SparseSamplingSetDimensionIndexes(SparseSamplingRef ss, OCIndexSetRef idxs)
                                : OCIndexSetCreateMutable();
     return ss->dimensionIndexes != NULL;
 }
-OCArrayRef SparseSamplingGetSparseGridVertexes(SparseSamplingRef ss) {
+
+OCIndexPairSetRef SparseSamplingGetSparseGridVertexes(SparseSamplingRef ss) {
     return ss ? ss->sparseGridVertexes : NULL;
 }
-bool SparseSamplingSetSparseGridVertexes(SparseSamplingRef ss, OCArrayRef verts) {
+OCIndexPairSetRef SparseSamplingCopySparseGridVertexes(SparseSamplingRef ss) {
+    if (!ss || !ss->sparseGridVertexes) return NULL;
+    return (OCIndexPairSetRef)OCTypeDeepCopy(ss->sparseGridVertexes);
+}
+bool SparseSamplingSetSparseGridVertexes(SparseSamplingRef ss, OCIndexPairSetRef verts) {
     if (!ss) return false;
-    OCIndex ndim = ss->dimensionIndexes ? OCIndexSetGetCount(ss->dimensionIndexes) : 0;
-    if (verts) {
-        OCIndex count = OCArrayGetCount(verts);
-        for (OCIndex i = 0; i < count; ++i) {
-            OCTypeRef entry = OCArrayGetValueAtIndex(verts, i);
-            if (!entry || OCGetTypeID(entry) != OCIndexPairSetGetTypeID()) {
-                fprintf(stderr, "[SparseSampling] ERROR: Element at index %ld is not a valid OCIndexPairSet\n", (long)i);
-                return false;
-            }
-            if (ndim > 0 && OCIndexPairSetGetCount((OCIndexPairSetRef)entry) != ndim) {
-                fprintf(stderr, "[SparseSampling] ERROR: OCIndexPairSet at index %ld has incorrect size (expected %ld)\n", (long)i, (long)ndim);
-                return false;
-            }
-        }
-    }
     OCRelease(ss->sparseGridVertexes);
     ss->sparseGridVertexes = verts
-                                 ? OCArrayCreateMutableCopy(verts)
-                                 : OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+                                 ? (OCIndexPairSetRef)OCTypeDeepCopy(verts)
+                                 : OCIndexPairSetCreateMutable();
     return ss->sparseGridVertexes != NULL;
+}
+OCNumberType SparseSamplingGetUnsignedIntegerType(SparseSamplingRef ss) {
+    return ss ? ss->unsignedIntegerType : kOCNumberUInt64Type;
 }
 OCNumberType SparseSamplingGetUnsignedIntegerType(SparseSamplingRef ss) {
     return ss ? ss->unsignedIntegerType : kOCNumberUInt64Type;
@@ -981,6 +921,10 @@ bool SparseSamplingSetUnsignedIntegerType(SparseSamplingRef ss, OCNumberType t) 
 OCStringRef SparseSamplingGetEncoding(SparseSamplingRef ss) {
     return ss ? ss->encoding : NULL;
 }
+OCStringRef SparseSamplingCopyEncoding(SparseSamplingRef ss) {
+    if (!ss || !ss->encoding) return NULL;
+    return OCStringCreateCopy(ss->encoding);
+}
 bool SparseSamplingSetEncoding(SparseSamplingRef ss, OCStringRef enc) {
     if (!ss || !enc) return false;
     if (!OCStringEqual(enc, STR(kSparseSamplingEncodingValueNone)) &&
@@ -993,6 +937,10 @@ bool SparseSamplingSetEncoding(SparseSamplingRef ss, OCStringRef enc) {
 }
 OCStringRef SparseSamplingGetDescription(SparseSamplingRef ss) {
     return ss ? ss->description : NULL;
+}
+OCStringRef SparseSamplingCopyDescription(SparseSamplingRef ss) {
+    if (!ss || !ss->description) return NULL;
+    return OCStringCreateCopy(ss->description);
 }
 bool SparseSamplingSetDescription(SparseSamplingRef ss, OCStringRef d) {
     if (!ss) return false;

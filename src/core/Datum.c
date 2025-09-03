@@ -319,24 +319,8 @@ DatumRef DatumCreateFromJSON(cJSON *json, OCStringRef *outError) {
         return NULL;
     }
     
-    SIScalarRef response = NULL;
-    if (cJSON_IsString(item)) {
-        // Simple string representation - parse as expression
-        OCStringRef responseStr = OCStringCreateWithCString(item->valuestring);
-        response = SIScalarCreateFromExpression(responseStr, outError);
-        OCRelease(responseStr);
-    } else if (cJSON_IsObject(item)) {
-        // Complex JSON object - parse using SIScalar's JSON parser
-        response = SIScalarCreateFromJSON(item, outError);
-        if (response && OCGetTypeID(response) != SIScalarGetTypeID()) {
-            if (outError) *outError = STR("Response is not a SIScalar");
-            OCRelease(response);
-            response = NULL;
-        }
-    } else {
-        if (outError) *outError = STR("Invalid response format");
-        return NULL;
-    }
+    // Delegate to SIScalarCreateFromJSON which handles both string and object formats
+    SIScalarRef response = SIScalarCreateFromJSON(item, outError);
     
     if (!response) return NULL;
     

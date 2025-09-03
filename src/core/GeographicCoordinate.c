@@ -283,16 +283,7 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
     // Parse latitude
     entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordLatitudeKey);
     if (entry) {
-        if (cJSON_IsString(entry)) {
-            OCStringRef latStr = OCStringCreateWithCString(entry->valuestring);
-            lat = SIScalarCreateFromExpression(latStr, outError);
-            OCRelease(latStr);
-        } else if (cJSON_IsObject(entry)) {
-            lat = SIScalarCreateFromJSON(entry, outError);
-        } else {
-            if (outError) *outError = STR("Latitude must be a string expression or typed object, not a bare number");
-            goto fail;
-        }
+        lat = SIScalarCreateFromJSON(entry, outError);
         if (!lat) {
             if (outError && !*outError) *outError = STR("Failed to parse latitude");
             goto fail;
@@ -302,16 +293,7 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
     // Parse longitude
     entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordLongitudeKey);
     if (entry) {
-        if (cJSON_IsString(entry)) {
-            OCStringRef lonStr = OCStringCreateWithCString(entry->valuestring);
-            lon = SIScalarCreateFromExpression(lonStr, outError);
-            OCRelease(lonStr);
-        } else if (cJSON_IsObject(entry)) {
-            lon = SIScalarCreateFromJSON(entry, outError);
-        } else {
-            if (outError) *outError = STR("Longitude must be a string expression or typed object, not a bare number");
-            goto fail;
-        }
+        lon = SIScalarCreateFromJSON(entry, outError);
         if (!lon) {
             if (outError && !*outError) *outError = STR("Failed to parse longitude");
             goto fail;
@@ -321,16 +303,7 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
     // Parse altitude (optional)
     entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordAltitudeKey);
     if (entry) {
-        if (cJSON_IsString(entry)) {
-            OCStringRef altStr = OCStringCreateWithCString(entry->valuestring);
-            alt = SIScalarCreateFromExpression(altStr, outError);
-            OCRelease(altStr);
-        } else if (cJSON_IsObject(entry)) {
-            alt = SIScalarCreateFromJSON(entry, outError);
-        } else {
-            if (outError) *outError = STR("Altitude must be a string expression or typed object, not a bare number");
-            goto fail;
-        }
+        alt = SIScalarCreateFromJSON(entry, outError);
         // Note: altitude parsing failure is not fatal, just skip it
     }
     
@@ -338,21 +311,8 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
     entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordApplicationKey);
     if (entry && cJSON_IsObject(entry)) {
         // Use OCDictionary's native JSON deserialization to handle typed data properly
-        // Since we always serialize application metadata with typed=true, always use OCTypeCreateFromJSONTyped
-        OCDictionaryRef parsedDict = (OCDictionaryRef)OCTypeCreateFromJSONTyped(entry, NULL);
-        if (parsedDict && OCGetTypeID(parsedDict) == OCDictionaryGetTypeID()) {
-            metadata = parsedDict;  // Transfer ownership
-        } else {
-            if (parsedDict) OCRelease(parsedDict);
-        }
-    }
-    
-    // Validate required fields
-    if (!lat || !lon) {
-        if (outError && !*outError) {
-            *outError = STR("GeographicCoordinateCreateFromJSON: missing latitude or longitude");
-        }
-        goto fail;
+        // Since we always serialize application metadata with typed=true, always use OCDictionaryCreateFromJSONTyped
+        metadata = OCDictionaryCreateFromJSONTyped(entry, outError);
     }
     
     // Create the coordinate
@@ -361,16 +321,16 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
     // Clean up
     OCRelease(lat);
     OCRelease(lon);
-    if (alt) OCRelease(alt);
-    if (metadata) OCRelease(metadata);
+    OCRelease(alt);
+    OCRelease(metadata);
     
     return gc;
     
 fail:
     OCRelease(lat);
     OCRelease(lon);
-    if (alt) OCRelease(alt);
-    if (metadata) OCRelease(metadata);
+    OCRelease(alt);
+    OCRelease(metadata);
     return NULL;
 }
 // Getters

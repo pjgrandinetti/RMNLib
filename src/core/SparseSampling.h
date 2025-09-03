@@ -15,13 +15,11 @@
  *     Must not be NULL if sparseGridVertexes is non-NULL.
  *
  * - sparseGridVertexes:
- *     An OCArrayRef of OCIndexPairSetRef entries.
- *     Each entry corresponds to a single sampled vertex, with the coordinates given as
- *     an OCIndexPairSet of (i, value) pairs, where:
- *     i = index into the ordered dimensionIndexes array (i.e., local sparse dimension index),
- *         not the index into the full multidimensional coordinate system.
- *         value = coordinate index along that dimension.
- *     This indirection allows generality across arbitrary sparse subspaces.
+ *     An OCIndexPairSetRef containing all sampled vertex data.
+ *     Each index-value pair represents a coordinate in the sparse sampling space,
+ *     where the index corresponds to a dimension and the value is the coordinate
+ *     along that dimension. This provides a unified representation of all
+ *     sparse grid points in a single OCIndexPairSet structure.
  *
  * - unsignedIntegerType:
  *     An OCNumberType specifying the integer width used when encoding sparseGridVertexes
@@ -42,14 +40,13 @@
  *     is considered empty.
  *   - If one is NULL and the other is not, the object is invalid and should be rejected
  *     by validation.
- *   - The number of entries in each OCIndexPairSet must equal the number of sparse dimensions.
+ *   - The sparseGridVertexes OCIndexPairSet contains all vertex coordinate data.
  *
  * Equality:
  *   SparseSampling instances are considered equal if:
  *     - unsignedIntegerType matches exactly,
  *     - encoding, description, dimensionIndexes, and metaData are equal (via OCTypeEqual),
- *     - sparseGridVertexes arrays are of equal length and each corresponding pair of
- *       OCIndexPairSetRef entries is equal (via OCTypeEqual).
+ *     - sparseGridVertexes OCIndexPairSet is equal (via OCTypeEqual).
  */
 #ifndef SPARSE_SAMPLING_H
 #define SPARSE_SAMPLING_H
@@ -75,7 +72,7 @@ SparseSamplingGetTypeID(void);
  *   - `unsignedIntegerType` is one of the allowed unsigned types,
  *   - `encoding` is either "none" or "base64",
  *   - `dimensionIndexes` is non-NULL,
- *   - every element of `sparseGridVertexes` is an OCIndexPairSetRef.
+ *   - `sparseGridVertexes` is a valid OCIndexPairSetRef.
  *
  * @param ss        The SparseSamplingRef to validate.
  * @param outError  If non-NULL, on failure will be set to an OCStringRef
@@ -88,9 +85,8 @@ bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError);
  *
  * @param dimensionIndexes    An OCIndexSetRef of fixed dimension indexes.
  *                            If NULL, initializes to empty set.
- * @param sparseGridVertexes  An OCArrayRef of OCIndexPairSetRef entries,
- *                             each of which must have exactly one entry for
- *                             each sparse dimension (from dimensionIndexes).
+ * @param sparseGridVertexes  An OCIndexPairSetRef containing all sparse grid
+ *                             vertex data as index-value pairs.
  * @param unsignedIntegerType The numeric type used for indexing. Must be one of:
  *                            kOCNumberUInt8Type, kOCNumberUInt16Type,
  *                            kOCNumberUInt32Type, or kOCNumberUInt64Type.
@@ -105,7 +101,7 @@ bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError);
  */
 SparseSamplingRef
 SparseSamplingCreate(OCIndexSetRef dimensionIndexes,
-                     OCArrayRef sparseGridVertexes,
+                     OCIndexPairSetRef sparseGridVertexes,
                      OCNumberType unsignedIntegerType,
                      OCStringRef encoding,
                      OCStringRef description,
@@ -158,13 +154,13 @@ bool SparseSamplingValidate(SparseSamplingRef ss, OCStringRef *outError);
  * @{
  */
 /**
- * @brief Get the set of fixed dimension indexes.
+ * @brief Copy the set of fixed dimension indexes.
  *
  * @param ss  SparseSamplingRef object.
- * @returns   OCIndexSetRef of indexes (do not release).
+ * @returns   OCIndexSetRef copy of indexes (caller must release).
  */
 OCIndexSetRef
-SparseSamplingGetDimensionIndexes(SparseSamplingRef ss);
+SparseSamplingCopyDimensionIndexes(SparseSamplingRef ss);
 /**
  * @brief Set the fixed dimension indexes.
  *
@@ -174,21 +170,21 @@ SparseSamplingGetDimensionIndexes(SparseSamplingRef ss);
  */
 bool SparseSamplingSetDimensionIndexes(SparseSamplingRef ss, OCIndexSetRef idxSet);
 /**
- * @brief Get the array of sparse grid vertices.
+ * @brief Copy the sparse grid vertices.
  *
  * @param ss  SparseSamplingRef object.
- * @returns   OCArrayRef of OCIndexPairSetRef vertices (do not release).
+ * @returns   OCIndexPairSetRef copy containing all vertex data (caller must release).
  */
-OCArrayRef
-SparseSamplingGetSparseGridVertexes(SparseSamplingRef ss);
+OCIndexPairSetRef
+SparseSamplingCopySparseGridVertexes(SparseSamplingRef ss);
 /**
- * @brief Set the array of sparse grid vertices.
+ * @brief Set the sparse grid vertices.
  *
  * @param ss    SparseSamplingRef object.
- * @param verts New OCArrayRef of OCIndexPairSetRef. May be NULL to clear.
+ * @param verts New OCIndexPairSetRef containing vertex data. May be NULL to clear.
  * @returns     true on success, false on NULL ss or allocation failure.
  */
-bool SparseSamplingSetSparseGridVertexes(SparseSamplingRef ss, OCArrayRef verts);
+bool SparseSamplingSetSparseGridVertexes(SparseSamplingRef ss, OCIndexPairSetRef verts);
 /**
  * @brief Get the unsigned integer type used for indexing.
  *
@@ -207,13 +203,13 @@ OCNumberType SparseSamplingGetUnsignedIntegerType(SparseSamplingRef ss);
  */
 bool SparseSamplingSetUnsignedIntegerType(SparseSamplingRef ss, OCNumberType type);
 /**
- * @brief Get the encoding for sparse_grid_vertexes.
+ * @brief Copy the encoding for sparse_grid_vertexes.
  *
  * @param ss  SparseSamplingRef object.
- * @returns   OCStringRef encoding value (do not release).
+ * @returns   OCStringRef copy of encoding value (caller must release).
  */
 OCStringRef
-SparseSamplingGetEncoding(SparseSamplingRef ss);
+SparseSamplingCopyEncoding(SparseSamplingRef ss);
 /**
  * @brief Set the encoding for sparse_grid_vertexes.
  *
@@ -225,13 +221,13 @@ SparseSamplingGetEncoding(SparseSamplingRef ss);
  */
 bool SparseSamplingSetEncoding(SparseSamplingRef ss, OCStringRef encoding);
 /**
- * @brief Get the human-readable description.
+ * @brief Copy the human-readable description.
  *
  * @param ss  SparseSamplingRef object.
- * @returns   OCStringRef description (do not release). May be empty string.
+ * @returns   OCStringRef copy of description (caller must release). May be empty string.
  */
 OCStringRef
-SparseSamplingGetDescription(SparseSamplingRef ss);
+SparseSamplingCopyDescription(SparseSamplingRef ss);
 /**
  * @brief Set the human-readable description.
  *
