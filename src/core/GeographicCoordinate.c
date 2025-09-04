@@ -99,25 +99,62 @@ GeographicCoordinateRef GeographicCoordinateCreate(
     SIScalarRef latitude,
     SIScalarRef longitude,
     SIScalarRef altitude,
-    OCDictionaryRef metadata) {
-    if (!latitude || !longitude) return NULL;
+    OCDictionaryRef metadata,
+    OCStringRef *outError) {
+    if (outError) *outError = NULL;
+    
+    if (!latitude || !longitude) {
+        if (outError) *outError = STR("GeographicCoordinateCreate: latitude and longitude are required");
+        return NULL;
+    }
+    
     struct impl_GeographicCoordinate *gc = GeographicCoordinateAllocate();
-    if (!gc) return NULL;
+    if (!gc) {
+        if (outError) *outError = STR("GeographicCoordinateCreate: allocation failed");
+        return NULL;
+    }
+    
     impl_InitGeographicCoordinateFields((GeographicCoordinateRef)gc);
+    
     // assign
     gc->latitude = (SIScalarRef)OCTypeDeepCopy((OCTypeRef)latitude);
+    if (!gc->latitude) {
+        if (outError) *outError = STR("GeographicCoordinateCreate: failed to copy latitude");
+        OCRelease(gc);
+        return NULL;
+    }
+    
     gc->longitude = (SIScalarRef)OCTypeDeepCopy((OCTypeRef)longitude);
+    if (!gc->longitude) {
+        if (outError) *outError = STR("GeographicCoordinateCreate: failed to copy longitude");
+        OCRelease(gc);
+        return NULL;
+    }
+    
     if (altitude) {
         gc->altitude = (SIScalarRef)OCTypeDeepCopy((OCTypeRef)altitude);
+        if (!gc->altitude) {
+            if (outError) *outError = STR("GeographicCoordinateCreate: failed to copy altitude");
+            OCRelease(gc);
+            return NULL;
+        }
     }
+    
     OCRelease(gc->application);
     gc->application = metadata
                        ? (OCMutableDictionaryRef)OCTypeDeepCopyMutable(metadata)
                        : OCDictionaryCreateMutable(0);
-    if (!validateGeographicCoordinate((GeographicCoordinateRef)gc, NULL)) {
+    if (!gc->application) {
+        if (outError) *outError = STR("GeographicCoordinateCreate: failed to create application metadata");
         OCRelease(gc);
         return NULL;
     }
+    
+    if (!validateGeographicCoordinate((GeographicCoordinateRef)gc, outError)) {
+        OCRelease(gc);
+        return NULL;
+    }
+    
     return (GeographicCoordinateRef)gc;
 }
 GeographicCoordinateRef GeographicCoordinateCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError) {
@@ -156,7 +193,7 @@ GeographicCoordinateRef GeographicCoordinateCreateFromDictionary(OCDictionaryRef
         }
         goto fail;
     }
-    GeographicCoordinateRef gc = GeographicCoordinateCreate(lat, lon, alt, md);
+    GeographicCoordinateRef gc = GeographicCoordinateCreate(lat, lon, alt, md, outError);
     OCRelease(lat);
     OCRelease(lon);
     OCRelease(alt);
@@ -316,13 +353,17 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
     }
     
     // Create the coordinate
-    GeographicCoordinateRef gc = GeographicCoordinateCreate(lat, lon, alt, metadata);
+    GeographicCoordinateRef gc = GeographicCoordinateCreate(lat, lon, alt, metadata, outError);
     
     // Clean up
     OCRelease(lat);
     OCRelease(lon);
     OCRelease(alt);
     OCRelease(metadata);
+    
+    if (!gc && outError && !*outError) {
+        *outError = STR("Failed to create GeographicCoordinate");
+    }
     
     return gc;
     
@@ -447,7 +488,7 @@ GeographicCoordinateRef GeographicCoordinateGetCurrent(OCDictionaryRef metadata,
         alt = SIScalarCreateWithDouble(jalt->valuedouble,
                                        SIUnitWithSymbol(STR("m")));
     }
-    GeographicCoordinateRef gc = GeographicCoordinateCreate(lat, lon, alt, metadata);
+    GeographicCoordinateRef gc = GeographicCoordinateCreate(lat, lon, alt, metadata, outError);
     OCRelease(lat);
     OCRelease(lon);
     if (alt) OCRelease(alt);

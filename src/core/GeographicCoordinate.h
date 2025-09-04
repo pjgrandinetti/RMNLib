@@ -12,7 +12,8 @@ GeographicCoordinateRef GeographicCoordinateCreate(
     SIScalarRef latitude,     ///< Required latitude (° north positive)
     SIScalarRef longitude,    ///< Required longitude (° east positive)
     SIScalarRef altitude,     ///< Optional altitude (m above sea level), NULL for unspecified
-    OCDictionaryRef metadata  ///< Optional application-specific metadata, NULL for none
+    OCDictionaryRef metadata, ///< Optional application-specific metadata, NULL for none
+    OCStringRef *outError     ///< Optional output for error message
 );
 /// Create a copy from a serialized dictionary (round-trip)
 /// @param dict   Dictionary representation of a GeographicCoordinate

@@ -741,8 +741,12 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
     );
     
     // Propagate creation error if object creation failed
-    if (!ss && outError && createError) {
-        *outError = createError;
+    if (!ss && outError) {
+        if (createError) {
+            *outError = createError;
+        } else if (!*outError) {
+            *outError = STR("Failed to create SparseSampling object");
+        }
     }
     
 cleanup:

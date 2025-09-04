@@ -716,131 +716,18 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
                 OCArrayAppendValue(compsArr, b64);
                 OCRelease(b64);
             } else {
-                const void *bytes = OCDataGetBytesPtr(blob);
-                size_t stride = OCNumberTypeSize(et);
-                OCIndex count = (OCIndex)(OCDataGetLength(blob) / stride);
-                OCMutableArrayRef numArr = OCArrayCreateMutable(isComplex ? count * 2 : count,
-                                                                &kOCTypeArrayCallBacks);
-                if (!isComplex) {
-                    switch (et) {
-                        case kOCNumberSInt8Type: {
-                            int8_t *arr = (int8_t *)bytes;
-                            for (OCIndex j = 0; j < count; ++j) {
-                                OCNumberRef n = OCNumberCreateWithSInt8(arr[j]);
-                                OCArrayAppendValue(numArr, n);
-                                OCRelease(n);
-                            }
-                            break;
-                        }
-                        case kOCNumberSInt16Type: {
-                            int16_t *arr = (int16_t *)bytes;
-                            for (OCIndex j = 0; j < count; ++j) {
-                                OCNumberRef n = OCNumberCreateWithSInt16(arr[j]);
-                                OCArrayAppendValue(numArr, n);
-                                OCRelease(n);
-                            }
-                            break;
-                        }
-                        case kOCNumberSInt32Type: {
-                            int32_t *arr = (int32_t *)bytes;
-                            for (OCIndex j = 0; j < count; ++j) {
-                                OCNumberRef n = OCNumberCreateWithSInt32(arr[j]);
-                                OCArrayAppendValue(numArr, n);
-                                OCRelease(n);
-                            }
-                            break;
-                        }
-                        case kOCNumberSInt64Type: {
-                            int64_t *arr = (int64_t *)bytes;
-                            for (OCIndex j = 0; j < count; ++j) {
-                                OCNumberRef n = OCNumberCreateWithSInt64(arr[j]);
-                                OCArrayAppendValue(numArr, n);
-                                OCRelease(n);
-                            }
-                            break;
-                        }
-                        case kOCNumberUInt8Type: {
-                            uint8_t *arr = (uint8_t *)bytes;
-                            for (OCIndex j = 0; j < count; ++j) {
-                                OCNumberRef n = OCNumberCreateWithUInt8(arr[j]);
-                                OCArrayAppendValue(numArr, n);
-                                OCRelease(n);
-                            }
-                            break;
-                        }
-                        case kOCNumberUInt16Type: {
-                            uint16_t *arr = (uint16_t *)bytes;
-                            for (OCIndex j = 0; j < count; ++j) {
-                                OCNumberRef n = OCNumberCreateWithUInt16(arr[j]);
-                                OCArrayAppendValue(numArr, n);
-                                OCRelease(n);
-                            }
-                            break;
-                        }
-                        case kOCNumberUInt32Type: {
-                            uint32_t *arr = (uint32_t *)bytes;
-                            for (OCIndex j = 0; j < count; ++j) {
-                                OCNumberRef n = OCNumberCreateWithUInt32(arr[j]);
-                                OCArrayAppendValue(numArr, n);
-                                OCRelease(n);
-                            }
-                            break;
-                        }
-                        case kOCNumberUInt64Type: {
-                            uint64_t *arr = (uint64_t *)bytes;
-                            for (OCIndex j = 0; j < count; ++j) {
-                                OCNumberRef n = OCNumberCreateWithUInt64(arr[j]);
-                                OCArrayAppendValue(numArr, n);
-                                OCRelease(n);
-                            }
-                            break;
-                        }
-                        case kOCNumberFloat32Type: {
-                            float *arr = (float *)bytes;
-                            for (OCIndex j = 0; j < count; ++j) {
-                                OCNumberRef n = OCNumberCreateWithFloat(arr[j]);
-                                OCArrayAppendValue(numArr, n);
-                                OCRelease(n);
-                            }
-                            break;
-                        }
-                        case kOCNumberFloat64Type: {
-                            double *arr = (double *)bytes;
-                            for (OCIndex j = 0; j < count; ++j) {
-                                OCNumberRef n = OCNumberCreateWithDouble(arr[j]);
-                                OCArrayAppendValue(numArr, n);
-                                OCRelease(n);
-                            }
-                            break;
-                        }
-                        default:
-                            break;
-                    }
-                } else {
-                    if (et == kOCNumberComplex64Type) {
-                        float complex *arr = (float complex *)bytes;
-                        for (OCIndex j = 0; j < count; ++j) {
-                            OCNumberRef re = OCNumberCreateWithFloat((float)crealf(arr[j]));
-                            OCNumberRef im = OCNumberCreateWithFloat((float)cimagf(arr[j]));
-                            OCArrayAppendValue(numArr, re);
-                            OCArrayAppendValue(numArr, im);
-                            OCRelease(re);
-                            OCRelease(im);
-                        }
-                    } else {
-                        double complex *arr = (double complex *)bytes;
-                        for (OCIndex j = 0; j < count; ++j) {
-                            OCNumberRef re = OCNumberCreateWithDouble(creal(arr[j]));
-                            OCNumberRef im = OCNumberCreateWithDouble(cimag(arr[j]));
-                            OCArrayAppendValue(numArr, re);
-                            OCArrayAppendValue(numArr, im);
-                            OCRelease(re);
-                            OCRelease(im);
-                        }
-                    }
+                // Use optimized OCNumber array conversion functions
+                OCStringRef conversionError = NULL;
+                OCArrayRef numArr = OCNumberCreateArrayFromData(blob, et, &conversionError);
+                
+                if (numArr) {
+                    OCArrayAppendValue(compsArr, numArr);
+                    OCRelease(numArr);
                 }
-                OCArrayAppendValue(compsArr, numArr);
-                OCRelease(numArr);
+                
+                if (conversionError) {
+                    OCRelease(conversionError);
+                }
             }
         }
         OCDictionarySetValue(dict, STR(kDependentVariableComponentsKey), compsArr);
@@ -999,92 +886,19 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
                 if (data) OCRelease(data);
             } else {
                 OCArrayRef numList = OCArrayGetValueAtIndex(compArr, i);
-                OCIndex n = OCArrayGetCount(numList);
-                OCMutableDataRef data = OCDataCreateMutable(0);
-                for (OCIndex j = 0; j < n; ++j) {
-                    OCNumberRef num = OCArrayGetValueAtIndex(numList, j);
-                    double v = 0;
-                    OCNumberTryGetDouble(num, &v);
-                    switch (numericType) {
-                        case kOCNumberSInt8Type: {
-                            int8_t i8 = (int8_t)v;
-                            OCDataAppendBytes(data, (uint8_t const *)&i8, sizeof(i8));
-                            break;
-                        }
-                        case kOCNumberSInt16Type: {
-                            int16_t i16 = (int16_t)v;
-                            OCDataAppendBytes(data, (uint8_t const *)&i16, sizeof(i16));
-                            break;
-                        }
-                        case kOCNumberSInt32Type: {
-                            int32_t i32 = (int32_t)v;
-                            OCDataAppendBytes(data, (uint8_t const *)&i32, sizeof(i32));
-                            break;
-                        }
-                        case kOCNumberSInt64Type: {
-                            int64_t i64 = (int64_t)v;
-                            OCDataAppendBytes(data, (uint8_t const *)&i64, sizeof(i64));
-                            break;
-                        }
-                        case kOCNumberUInt8Type: {
-                            uint8_t u8 = (uint8_t)v;
-                            OCDataAppendBytes(data, (uint8_t const *)&u8, sizeof(u8));
-                            break;
-                        }
-                        case kOCNumberUInt16Type: {
-                            uint16_t u16 = (uint16_t)v;
-                            OCDataAppendBytes(data, (uint8_t const *)&u16, sizeof(u16));
-                            break;
-                        }
-                        case kOCNumberUInt32Type: {
-                            uint32_t u32 = (uint32_t)v;
-                            OCDataAppendBytes(data, (uint8_t const *)&u32, sizeof(u32));
-                            break;
-                        }
-                        case kOCNumberUInt64Type: {
-                            uint64_t u64 = (uint64_t)v;
-                            OCDataAppendBytes(data, (uint8_t const *)&u64, sizeof(u64));
-                            break;
-                        }
-                        case kOCNumberFloat32Type: {
-                            float f = (float)v;
-                            OCDataAppendBytes(data, (uint8_t const *)&f, sizeof(f));
-                            break;
-                        }
-                        case kOCNumberFloat64Type: {
-                            double d = v;
-                            OCDataAppendBytes(data, (uint8_t const *)&d, sizeof(d));
-                            break;
-                        }
-                        case kOCNumberComplex64Type: {
-                            float re = (float)v, im = 0;
-                            if (j + 1 < n) {
-                                OCNumberRef next = OCArrayGetValueAtIndex(numList, ++j);
-                                OCNumberTryGetDouble(next, &v);
-                                im = (float)v;
-                            }
-                            float complex z = re + im * I;
-                            OCDataAppendBytes(data, (uint8_t const *)&z, sizeof(z));
-                            break;
-                        }
-                        case kOCNumberComplex128Type: {
-                            double re = v, im = 0;
-                            if (j + 1 < n) {
-                                OCNumberRef next = OCArrayGetValueAtIndex(numList, ++j);
-                                OCNumberTryGetDouble(next, &v);
-                                im = v;
-                            }
-                            double complex z = re + im * I;
-                            OCDataAppendBytes(data, (uint8_t const *)&z, sizeof(z));
-                            break;
-                        }
-                        default:
-                            break;
-                    }
-                }
-                if (OCDataGetLength(data) > 0)
+                
+                // Use optimized OCNumber array-to-data conversion
+                OCStringRef conversionError = NULL;
+                OCDataRef data = OCNumberCreateDataFromArray(numList, numericType, &conversionError);
+                
+                if (data && OCDataGetLength(data) > 0) {
                     OCArrayAppendValue(components, data);
-                OCRelease(data);
+                    OCRelease(data);
+                }
+                
+                if (conversionError) {
+                    OCRelease(conversionError);
+                }
             }
         }
         if ((OCIndex)OCArrayGetCount(components) != count) {
@@ -1205,104 +1019,20 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
                         OCRelease(b64);
                     }
                 } else {
-                    // Convert to number array
-                    const void *bytes = OCDataGetBytesPtr(blob);
-                    size_t stride = OCNumberTypeSize(et);
-                    OCIndex count = (OCIndex)(OCDataGetLength(blob) / stride);
+                    // Use optimized OCNumber array conversion combined with OCArray JSON
+                    OCStringRef conversionError = NULL;
+                    OCArrayRef numArr = OCNumberCreateArrayFromData(blob, et, &conversionError);
                     
-                    cJSON *numArray = cJSON_CreateArray();
-                    if (numArray) {
-                        if (!isComplex) {
-                            switch (et) {
-                                case kOCNumberSInt8Type: {
-                                    int8_t *arr = (int8_t *)bytes;
-                                    for (OCIndex j = 0; j < count; ++j) {
-                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
-                                    }
-                                    break;
-                                }
-                                case kOCNumberSInt16Type: {
-                                    int16_t *arr = (int16_t *)bytes;
-                                    for (OCIndex j = 0; j < count; ++j) {
-                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
-                                    }
-                                    break;
-                                }
-                                case kOCNumberSInt32Type: {
-                                    int32_t *arr = (int32_t *)bytes;
-                                    for (OCIndex j = 0; j < count; ++j) {
-                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
-                                    }
-                                    break;
-                                }
-                                case kOCNumberSInt64Type: {
-                                    int64_t *arr = (int64_t *)bytes;
-                                    for (OCIndex j = 0; j < count; ++j) {
-                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber((double)arr[j]));
-                                    }
-                                    break;
-                                }
-                                case kOCNumberUInt8Type: {
-                                    uint8_t *arr = (uint8_t *)bytes;
-                                    for (OCIndex j = 0; j < count; ++j) {
-                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
-                                    }
-                                    break;
-                                }
-                                case kOCNumberUInt16Type: {
-                                    uint16_t *arr = (uint16_t *)bytes;
-                                    for (OCIndex j = 0; j < count; ++j) {
-                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
-                                    }
-                                    break;
-                                }
-                                case kOCNumberUInt32Type: {
-                                    uint32_t *arr = (uint32_t *)bytes;
-                                    for (OCIndex j = 0; j < count; ++j) {
-                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
-                                    }
-                                    break;
-                                }
-                                case kOCNumberUInt64Type: {
-                                    uint64_t *arr = (uint64_t *)bytes;
-                                    for (OCIndex j = 0; j < count; ++j) {
-                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber((double)arr[j]));
-                                    }
-                                    break;
-                                }
-                                case kOCNumberFloat32Type: {
-                                    float *arr = (float *)bytes;
-                                    for (OCIndex j = 0; j < count; ++j) {
-                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
-                                    }
-                                    break;
-                                }
-                                case kOCNumberFloat64Type: {
-                                    double *arr = (double *)bytes;
-                                    for (OCIndex j = 0; j < count; ++j) {
-                                        cJSON_AddItemToArray(numArray, cJSON_CreateNumber(arr[j]));
-                                    }
-                                    break;
-                                }
-                                default:
-                                    break;
-                            }
-                        } else {
-                            if (et == kOCNumberComplex64Type) {
-                                float complex *arr = (float complex *)bytes;
-                                for (OCIndex j = 0; j < count; ++j) {
-                                    cJSON_AddItemToArray(numArray, cJSON_CreateNumber(crealf(arr[j])));
-                                    cJSON_AddItemToArray(numArray, cJSON_CreateNumber(cimagf(arr[j])));
-                                }
-                            } else {
-                                double complex *arr = (double complex *)bytes;
-                                for (OCIndex j = 0; j < count; ++j) {
-                                    cJSON_AddItemToArray(numArray, cJSON_CreateNumber(creal(arr[j])));
-                                    cJSON_AddItemToArray(numArray, cJSON_CreateNumber(cimag(arr[j])));
-                                }
-                            }
+                    if (numArr) {
+                        cJSON *numArray = OCArrayCopyAsJSON(numArr, false);
+                        if (numArray) {
+                            cJSON_AddItemToArray(compsArray, numArray);
                         }
-                        cJSON_AddItemToArray(compsArray, numArray);
+                        OCRelease(numArr);
+                    }
+                    
+                    if (conversionError) {
+                        OCRelease(conversionError);
                     }
                 }
             }
@@ -1509,24 +1239,11 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
                 OCArrayAppendValue(components, s);
                 OCRelease(s);
             } else if (cJSON_IsArray(comp)) {
-                OCMutableArrayRef numArr = OCArrayCreateMutable(cJSON_GetArraySize(comp), &kOCTypeArrayCallBacks);
+                // Use OCArray JSON parsing combined with optimized conversion
+                OCArrayRef numArr = OCArrayCreateFromJSON(comp, NULL);
                 if (!numArr) {
-                    if (outError) *outError = STR("Failed to create component number array");
+                    if (outError) *outError = STR("Failed to create component number array from JSON");
                     goto cleanup;
-                }
-                
-                cJSON *val = NULL;
-                cJSON_ArrayForEach(val, comp) {
-                    if (cJSON_IsNumber(val)) {
-                        OCNumberRef n = OCNumberCreateWithDouble(val->valuedouble);
-                        if (!n) {
-                            if (outError) *outError = STR("Failed to create component number");
-                            OCRelease(numArr);
-                            goto cleanup;
-                        }
-                        OCArrayAppendValue(numArr, n);
-                        OCRelease(n);
-                    }
                 }
                 OCArrayAppendValue(components, numArr);
                 OCRelease(numArr);
