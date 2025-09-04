@@ -304,7 +304,15 @@ static DependentVariableRef impl_DependentVariableCreate(
     OCDictionaryRef application,  // application‐specific annotations
     OCStringRef *outError) {
     bool isExternal = type && OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal));
-    // 0) internal must have either buffers or positive explicitSize
+    
+    // 0) validate encoding constraints: raw encoding only allowed for external types
+    if (encoding && OCStringEqual(encoding, STR(kDependentVariableEncodingValueRaw)) && !isExternal) {
+        if (outError) *outError = STR(
+                          "DependentVariableCreate: raw encoding is only valid for external dependent variables");
+        return NULL;
+    }
+    
+    // 1) internal must have either buffers or positive explicitSize
     if (!isExternal && !components && explicitSize <= 0) {
         if (outError) *outError = STR(
                           "DependentVariableCreate: must supply either component buffers or an explicitSize > 0");
@@ -971,7 +979,7 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
     
     bool isExternal = dv->type && OCStringEqual(dv->type, STR(kDependentVariableComponentTypeValueExternal));
     
-    // 1a) if external, record the URL hint
+    // 1a) if external, record the URL 
     if (isExternal && dv->componentsURL) {
         const char *urlStr = OCStringGetCString(dv->componentsURL);
         if (urlStr) {
@@ -979,21 +987,22 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
         }
     }
     
-    // 2) encoding (base64, none, or raw)
-    if (dv->encoding) {
-        const char *encStr = OCStringGetCString(dv->encoding);
-        if (encStr) {
-            cJSON_AddStringToObject(json, kDependentVariableEncodingKey, encStr);
+    // 2) encoding (base64, none, or raw) - skip if typed=true
+    if (!typed) {
+        if (dv->encoding) {
+            const char *encStr = OCStringGetCString(dv->encoding);
+            if (encStr) {
+                cJSON_AddStringToObject(json, kDependentVariableEncodingKey, encStr);
+            }
+        } else {
+            cJSON_AddStringToObject(json, kDependentVariableEncodingKey, kDependentVariableEncodingValueBase64);
         }
-    } else {
-        cJSON_AddStringToObject(json, kDependentVariableEncodingKey, kDependentVariableEncodingValueBase64);
     }
     
     // 3) components (always embed raw data for round-trip)
-    if (dv->components) {
+    if (dv->components && !isExternal) {
         OCNumberType et = DependentVariableGetNumericType(dv);
         bool isBase64 = dv->encoding && OCStringEqual(dv->encoding, STR(kDependentVariableEncodingValueBase64));
-        bool isRaw = dv->encoding && OCStringEqual(dv->encoding, STR(kDependentVariableEncodingValueRaw));
         bool isComplex = (et == kOCNumberComplex64Type || et == kOCNumberComplex128Type);
         OCIndex ncomps = DependentVariableGetComponentCount(dv);
         
@@ -1003,13 +1012,7 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
                 OCDataRef blob = DependentVariableGetComponentAtIndex(dv, i);
                 if (!blob) continue;
                 
-                if (isRaw) {
-                    // If raw, we convert OCData to JSON using OCTypes framework
-                    cJSON *dataJson = OCTypeCopyJSON((OCTypeRef)blob, typed);
-                    if (dataJson) {
-                        cJSON_AddItemToArray(compsArray, dataJson);
-                    }
-                } else if (isBase64) {
+                if (isBase64) {
                     OCStringRef b64 = OCDataCreateBase64EncodedString(blob, OCBase64EncodingOptionsNone);
                     if (b64) {
                         const char *b64Str = OCStringGetCString(b64);
@@ -1024,7 +1027,7 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
                     OCArrayRef numArr = OCNumberCreateArrayFromData(blob, et, &conversionError);
                     
                     if (numArr) {
-                        cJSON *numArray = OCArrayCopyAsJSON(numArr, false);
+                        cJSON *numArray = OCArrayCopyAsJSON(numArr, typed);
                         if (numArray) {
                             cJSON_AddItemToArray(compsArray, numArray);
                         }
@@ -1240,11 +1243,17 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
                 OCRelease(s);
             } else if (cJSON_IsArray(comp)) {
                 // Use OCArray JSON parsing combined with optimized conversion
-                OCArrayRef numArr = OCArrayCreateFromJSON(comp, NULL);
+                OCStringRef parseError = NULL;
+                OCArrayRef numArr = OCArrayCreateFromJSON(comp, &parseError);
                 if (!numArr) {
-                    if (outError) *outError = STR("Failed to create component number array from JSON");
+                    if (outError) {
+                        *outError = parseError ? OCStringCreateCopy(parseError) 
+                                              : STR("Failed to create component number array from JSON");
+                    }
+                    if (parseError) OCRelease(parseError);
                     goto cleanup;
                 }
+                if (parseError) OCRelease(parseError);
                 OCArrayAppendValue(components, numArr);
                 OCRelease(numArr);
             }
