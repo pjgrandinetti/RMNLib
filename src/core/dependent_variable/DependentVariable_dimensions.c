@@ -133,17 +133,17 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
     // 2) Cross‐section each sparse vertex into outDV
     OCIndexSetRef indexSet = OCIndexPairSetCreateIndexSetOfIndexes(verts);
     if (!indexSet) return NULL;
-    
+
     OCIndex *indices = OCIndexSetGetBytesPtr(indexSet);
     if (!indices) {
         OCRelease(indexSet);
         return NULL;
     }
-    
+
     for (OCIndex i = 0; i < nVerts; ++i) {
         OCIndex vertexIndex = indices[i];
         OCIndex vertexValue = OCIndexPairSetValueForIndex(verts, vertexIndex);
-        
+
         // Create a single-pair OCIndexPairSet for this vertex
         OCMutableIndexPairSetRef singlePair = OCIndexPairSetCreateMutable();
         if (!singlePair) {
@@ -151,7 +151,7 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
             return NULL;
         }
         OCIndexPairSetAddIndexPair(singlePair, vertexIndex, vertexValue);
-        
+
         DependentVariableRef slice =
             DependentVariableCreateCrossSection(dv, dimensions, singlePair, &err);
         if (slice) {
@@ -160,7 +160,7 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
         }
         OCRelease(singlePair);
     }
-    
+
     OCRelease(indexSet);
     // 3) Extract & return a _deep_ mutable copy of the packed components
     OCArrayRef packed =

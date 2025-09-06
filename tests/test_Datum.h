@@ -13,4 +13,3 @@ bool test_Datum_functional(void);
 #endif
 
 #endif // TEST_DATUM_H
-

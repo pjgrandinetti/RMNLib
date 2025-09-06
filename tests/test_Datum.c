@@ -170,7 +170,7 @@ cleanup:
     if (value)    OCRelease(value);
     if (c0)       OCRelease(c0);
     if (c1)       OCRelease(c1);
-    if (error)    OCRelease(error);    
+    if (error)    OCRelease(error);
     printf("Datum functional tests %s.\n", ok ? "passed" : "FAILED");
     return ok;
 }

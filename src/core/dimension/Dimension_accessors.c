@@ -463,28 +463,28 @@ SIDimensionRef SIMonotonicDimensionGetReciprocal(SIMonotonicDimensionRef dim) {
 }
 bool SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim, OCArrayRef coords, OCStringRef *outError) {
     if (outError) *outError = NULL;
-    
+
     if (!dim) {
         if (outError) *outError = STR("SIMonotonicDimensionSetCoordinates: dim is NULL");
         return false;
     }
-    
+
     if (!coords || OCArrayGetCount(coords) < 2) {
         if (outError) *outError = STR("SIMonotonicDimensionSetCoordinates: need ≥2 coordinates");
         return false;
     }
-    
+
     // Convert coordinates to SIScalar array (handles OCNumbers)
     OCArrayRef scalarCoords = SIScalarCreateArrayFromMixedTypeArray(coords, outError);
     if (!scalarCoords) {
         if (outError && !*outError) *outError = STR("SIMonotonicDimensionSetCoordinates: failed to convert coordinates to SIScalar array");
         return false;
     }
-    
+
     // Derive dimensionality from first coordinate
     SIScalarRef first = (SIScalarRef)OCArrayGetValueAtIndex(scalarCoords, 0);
     SIDimensionalityRef baseDim = SIQuantityGetUnitDimensionality((SIQuantityRef)first);
-    
+
     // Validate that all coordinates have the same dimensionality
     OCStringRef err = NULL;
     if (!SIQuantityValidateMixedArrayForDimensionality(scalarCoords, baseDim, &err)) {
@@ -493,7 +493,7 @@ bool SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim, OCArrayRef 
         OCRelease(scalarCoords);
         return false;
     }
-    
+
     // Validate dimensionality matches the dimension's quantity
     SIDimensionalityRef dimDim = SIQuantityGetUnitDimensionality((SIQuantityRef)SIDimensionGetCoordinatesOffset((SIDimensionRef)dim));
     if (!SIDimensionalityHasSameReducedDimensionality(baseDim, dimDim)) {
@@ -501,12 +501,12 @@ bool SIMonotonicDimensionSetCoordinates(SIMonotonicDimensionRef dim, OCArrayRef 
         OCRelease(scalarCoords);
         return false;
     }
-    
+
     // All validation passed - update coordinates
     OCRelease(dim->coordinates);
     dim->coordinates = OCArrayCreateMutableCopy(scalarCoords);
     OCRelease(scalarCoords);
-    
+
     return dim->coordinates != NULL;
 }
 bool SIMonotonicDimensionSetReciprocal(
@@ -899,7 +899,7 @@ OCTypeRef DimensionCreateInterpolatedCoordinateAtIndex(SILinearDimensionRef dim,
     // Input validation
     if (!dim) return NULL;
     if (dim->count == 0) return NULL;
-    
+
     // Handle bounds consistently
     if (dIndex <= 0.0) {
         return DimensionCopyCoordinateAtIndex((DimensionRef)dim, 0);
@@ -907,7 +907,7 @@ OCTypeRef DimensionCreateInterpolatedCoordinateAtIndex(SILinearDimensionRef dim,
     if (dIndex >= (double)(dim->count - 1)) {
         return DimensionCopyCoordinateAtIndex((DimensionRef)dim, dim->count - 1);
     }
-    
+
     OCIndex index_before = (OCIndex)floor(dIndex);
     OCIndex index_after = (OCIndex)ceil(dIndex);
     OCIndex index_closest = (OCIndex)round(dIndex);
@@ -924,7 +924,7 @@ OCTypeRef DimensionCreateInterpolatedCoordinateAtIndex(SILinearDimensionRef dim,
     if (index_before == index_after) {
         return DimensionCopyCoordinateAtIndex((DimensionRef)dim, index_before);
     }
-    
+
     // Get coordinate values for interpolation
     SIScalarRef before = (SIScalarRef)DimensionCopyCoordinateAtIndex((DimensionRef)dim, index_before);
     SIScalarRef after = (SIScalarRef)DimensionCopyCoordinateAtIndex((DimensionRef)dim, index_after);
@@ -933,7 +933,7 @@ OCTypeRef DimensionCreateInterpolatedCoordinateAtIndex(SILinearDimensionRef dim,
         if (after) OCRelease(after);
         return NULL;
     }
-    
+
     // Calculate interpolated value: before + fraction * (after - before)
     double fraction = dIndex - (double)index_before;
     SIMutableScalarRef diff = SIScalarCreateMutableCopy(after);
@@ -942,16 +942,16 @@ OCTypeRef DimensionCreateInterpolatedCoordinateAtIndex(SILinearDimensionRef dim,
         OCRelease(after);
         return NULL;
     }
-    
+
     SIScalarSubtract(diff, before, NULL);
     SIScalarMultiplyByDimensionlessRealConstant(diff, fraction);
     SIScalarRef result = SIScalarCreateByAdding(before, (SIScalarRef)diff, NULL);
-    
+
     // Clean up resources
     OCRelease(before);
     OCRelease(after);
     OCRelease(diff);
-    
+
     return (OCTypeRef) result;
 }
 

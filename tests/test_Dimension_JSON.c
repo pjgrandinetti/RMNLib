@@ -40,7 +40,7 @@ static bool verify_dimension_properties_match(DimensionRef original, DimensionRe
     // Check application metadata
     OCDictionaryRef orig_meta = DimensionGetApplicationMetaData(original);
     OCDictionaryRef rest_meta = DimensionGetApplicationMetaData(restored);
-    
+
     if (orig_meta && !rest_meta) {
         printf("[FAIL] %s: Original has metadata but restored doesn't\n", test_name);
         return false;
@@ -88,7 +88,7 @@ bool test_Dimension_JSON_roundtrip(void) {
     TEST_ASSERT(err == NULL);
 
     // Test typed=true JSON round-trip
-    json_typed = impl_DimensionCopyAsJSON(dim_original, true);
+    json_typed = impl_DimensionCopyAsJSON(dim_original, true, &err);
     TEST_ASSERT(json_typed != NULL);
 
     dim_restored_typed = impl_DimensionCreateFromJSON(json_typed, &err);
@@ -98,7 +98,7 @@ bool test_Dimension_JSON_roundtrip(void) {
     TEST_ASSERT(verify_dimension_properties_match(dim_original, dim_restored_typed, "typed JSON"));
 
     // Test typed=false JSON round-trip
-    json_untyped = impl_DimensionCopyAsJSON(dim_original, false);
+    json_untyped = impl_DimensionCopyAsJSON(dim_original, false, &err);
     TEST_ASSERT(json_untyped != NULL);
 
     dim_restored_untyped = impl_DimensionCreateFromJSON(json_untyped, &err);
@@ -160,7 +160,7 @@ bool test_LabeledDimension_JSON_roundtrip(void) {
     TEST_ASSERT(err == NULL);
 
     // Test typed=true JSON round-trip
-    json_typed = impl_LabeledDimensionCopyAsJSON(ld_original, true);
+    json_typed = impl_LabeledDimensionCopyAsJSON(ld_original, true, &err);
     TEST_ASSERT(json_typed != NULL);
 
     ld_restored_typed = LabeledDimensionCreateFromJSON(json_typed, &err);
@@ -180,7 +180,7 @@ bool test_LabeledDimension_JSON_roundtrip(void) {
     }
 
     // Test typed=false JSON round-trip
-    json_untyped = impl_LabeledDimensionCopyAsJSON(ld_original, false);
+    json_untyped = impl_LabeledDimensionCopyAsJSON(ld_original, false, &err);
     TEST_ASSERT(json_untyped != NULL);
 
     ld_restored_untyped = LabeledDimensionCreateFromJSON(json_untyped, &err);
@@ -221,10 +221,10 @@ bool test_SIDimension_JSON_roundtrip(void) {
     // Create SIScalar components
     offset = SIScalarCreateWithDouble(1.5, SIUnitWithSymbol(STR("m")));
     TEST_ASSERT(offset != NULL);
-    
+
     origin = SIScalarCreateWithDouble(0.0, SIUnitWithSymbol(STR("m")));
     TEST_ASSERT(origin != NULL);
-    
+
     period = SIScalarCreateWithDouble(10.0, SIUnitWithSymbol(STR("m")));
     TEST_ASSERT(period != NULL);
 
@@ -250,7 +250,7 @@ bool test_SIDimension_JSON_roundtrip(void) {
     TEST_ASSERT(err == NULL);
 
     // Test typed=true JSON round-trip
-    json_typed = impl_SIDimensionCopyAsJSON(sid_original, true);
+    json_typed = impl_SIDimensionCopyAsJSON(sid_original, true, &err);
     TEST_ASSERT(json_typed != NULL);
 
     sid_restored_typed = SIDimensionCreateFromJSON(json_typed, &err);
@@ -264,7 +264,7 @@ bool test_SIDimension_JSON_roundtrip(void) {
     TEST_ASSERT(SIDimensionGetScaling(sid_original) == SIDimensionGetScaling(sid_restored_typed));
 
     // Test typed=false JSON round-trip
-    json_untyped = impl_SIDimensionCopyAsJSON(sid_original, false);
+    json_untyped = impl_SIDimensionCopyAsJSON(sid_original, false, &err);
     TEST_ASSERT(json_untyped != NULL);
 
     sid_restored_untyped = SIDimensionCreateFromJSON(json_untyped, &err);
@@ -308,13 +308,13 @@ bool test_SIMonotonicDimension_JSON_roundtrip(void) {
     // Create SIScalar components
     offset = SIScalarCreateWithDouble(0.5, SIUnitWithSymbol(STR("Hz")));
     TEST_ASSERT(offset != NULL);
-    
+
     coord1 = SIScalarCreateWithDouble(100.0, SIUnitWithSymbol(STR("Hz")));
     TEST_ASSERT(coord1 != NULL);
-    
+
     coord2 = SIScalarCreateWithDouble(200.0, SIUnitWithSymbol(STR("Hz")));
     TEST_ASSERT(coord2 != NULL);
-    
+
     coord3 = SIScalarCreateWithDouble(300.0, SIUnitWithSymbol(STR("Hz")));
     TEST_ASSERT(coord3 != NULL);
 
@@ -349,7 +349,7 @@ bool test_SIMonotonicDimension_JSON_roundtrip(void) {
     TEST_ASSERT(err == NULL);
 
     // Test typed=true JSON round-trip
-    json_typed = impl_SIMonotonicDimensionCopyAsJSON(mono_original, true);
+    json_typed = impl_SIMonotonicDimensionCopyAsJSON(mono_original, true, &err);
     TEST_ASSERT(json_typed != NULL);
 
     mono_restored_typed = SIMonotonicDimensionCreateFromJSON(json_typed, &err);
@@ -364,7 +364,7 @@ bool test_SIMonotonicDimension_JSON_roundtrip(void) {
     TEST_ASSERT(OCArrayGetCount(orig_coords) == OCArrayGetCount(rest_coords));
 
     // Test typed=false JSON round-trip
-    json_untyped = impl_SIMonotonicDimensionCopyAsJSON(mono_original, false);
+    json_untyped = impl_SIMonotonicDimensionCopyAsJSON(mono_original, false, &err);
     TEST_ASSERT(json_untyped != NULL);
 
     mono_restored_untyped = SIMonotonicDimensionCreateFromJSON(json_untyped, &err);
@@ -409,7 +409,7 @@ bool test_SILinearDimension_JSON_roundtrip(void) {
     // Create SIScalar components
     offset = SIScalarCreateWithDouble(2.0, SIUnitWithSymbol(STR("ppm")));
     TEST_ASSERT(offset != NULL);
-    
+
     increment = SIScalarCreateWithDouble(0.1, SIUnitWithSymbol(STR("ppm")));
     TEST_ASSERT(increment != NULL);
 
@@ -439,7 +439,7 @@ bool test_SILinearDimension_JSON_roundtrip(void) {
     TEST_ASSERT(err == NULL);
 
     // Test typed=true JSON round-trip
-    json_typed = impl_SILinearDimensionCopyAsJSON(lin_original, true);
+    json_typed = impl_SILinearDimensionCopyAsJSON(lin_original, true, &err);
     TEST_ASSERT(json_typed != NULL);
 
     lin_restored_typed = SILinearDimensionCreateFromJSON(json_typed, &err);
@@ -453,7 +453,7 @@ bool test_SILinearDimension_JSON_roundtrip(void) {
     TEST_ASSERT(SILinearDimensionGetComplexFFT(lin_original) == SILinearDimensionGetComplexFFT(lin_restored_typed));
 
     // Test typed=false JSON round-trip
-    json_untyped = impl_SILinearDimensionCopyAsJSON(lin_original, false);
+    json_untyped = impl_SILinearDimensionCopyAsJSON(lin_original, false, &err);
     TEST_ASSERT(json_untyped != NULL);
 
     lin_restored_untyped = SILinearDimensionCreateFromJSON(json_untyped, &err);
@@ -510,7 +510,7 @@ bool test_Dimension_JSON_typed_vs_untyped(void) {
     TEST_ASSERT(err == NULL);
 
     // Generate typed JSON
-    json_typed = impl_LabeledDimensionCopyAsJSON(ld, true);
+    json_typed = impl_LabeledDimensionCopyAsJSON(ld, true, &err);
     TEST_ASSERT(json_typed != NULL);
 
     // Verify typed JSON has OCTypes wrapper structure
@@ -521,7 +521,7 @@ bool test_Dimension_JSON_typed_vs_untyped(void) {
     TEST_ASSERT(strcmp(type_item->valuestring, "LabeledDimension") == 0);
 
     // Generate untyped JSON
-    json_untyped = impl_LabeledDimensionCopyAsJSON(ld, false);
+    json_untyped = impl_LabeledDimensionCopyAsJSON(ld, false, &err);
     TEST_ASSERT(json_untyped != NULL);
 
     // Verify untyped JSON does NOT have OCTypes wrapper structure
@@ -577,16 +577,16 @@ bool test_Dimension_JSON_application_metadata_always_typed(void) {
     // Create complex metadata with nested structures
     metadata = OCDictionaryCreateMutable(0);
     TEST_ASSERT(metadata != NULL);
-    
+
     OCMutableDictionaryRef nested_dict = OCDictionaryCreateMutable(0);
     TEST_ASSERT(nested_dict != NULL);
     OCDictionarySetValue(nested_dict, STR("nested_key"), STR("nested_value"));
-    
+
     OCMutableArrayRef nested_array = OCArrayCreateMutable(2, &kOCTypeArrayCallBacks);
     TEST_ASSERT(nested_array != NULL);
     OCArrayAppendValue(nested_array, STR("item1"));
     OCArrayAppendValue(nested_array, STR("item2"));
-    
+
     OCDictionarySetValue(metadata, STR("simple_string"), STR("test_value"));
     OCDictionarySetValue(metadata, STR("nested_dict"), nested_dict);
     OCDictionarySetValue(metadata, STR("nested_array"), nested_array);
@@ -611,17 +611,17 @@ bool test_Dimension_JSON_application_metadata_always_typed(void) {
     TEST_ASSERT(err == NULL);
 
     // Generate both typed and untyped JSON
-    json_typed = impl_LabeledDimensionCopyAsJSON(ld, true);
+    json_typed = impl_LabeledDimensionCopyAsJSON(ld, true, &err);
     TEST_ASSERT(json_typed != NULL);
 
-    json_untyped = impl_LabeledDimensionCopyAsJSON(ld, false);
+    json_untyped = impl_LabeledDimensionCopyAsJSON(ld, false, &err);
     TEST_ASSERT(json_untyped != NULL);
 
     // Extract application metadata from both JSON formats
     cJSON *typed_value = cJSON_GetObjectItemCaseSensitive(json_typed, "value");
     TEST_ASSERT(typed_value != NULL);
     cJSON *typed_app = cJSON_GetObjectItemCaseSensitive(typed_value, "application");
-    
+
     cJSON *untyped_app = cJSON_GetObjectItemCaseSensitive(json_untyped, "application");
 
     // Both should have application metadata
@@ -630,17 +630,17 @@ bool test_Dimension_JSON_application_metadata_always_typed(void) {
 
     // CRITICAL TEST: Both should have OCTypes wrapper structure even when typed=false
     // because application metadata ALWAYS uses typed=true
-    
+
     // Check typed format (should have wrapper, but be flexible)
     cJSON *typed_app_type = cJSON_GetObjectItemCaseSensitive(typed_app, "type");
     cJSON *typed_app_value = cJSON_GetObjectItemCaseSensitive(typed_app, "value");
-    
+
     // Handle both wrapped and unwrapped formats for flexibility
     if (typed_app_type && cJSON_IsString(typed_app_type)) {
         // Wrapped format: {"type": "OCDictionary", "value": {...}}
         TEST_ASSERT(typed_app_value != NULL && cJSON_IsObject(typed_app_value));
         TEST_ASSERT(strcmp(typed_app_type->valuestring, "OCDictionary") == 0);
-        
+
         // Use the wrapped value for further checks (typed_app_value already set above)
     } else {
         // Unwrapped format: {"simple_string": "test_value", ...}
@@ -651,7 +651,7 @@ bool test_Dimension_JSON_application_metadata_always_typed(void) {
     // Check untyped format (handle both wrapped and unwrapped formats)
     cJSON *untyped_app_type = cJSON_GetObjectItemCaseSensitive(untyped_app, "type");
     cJSON *untyped_app_value = cJSON_GetObjectItemCaseSensitive(untyped_app, "value");
-    
+
     if (untyped_app_type && cJSON_IsString(untyped_app_type)) {
         // Wrapped format
         TEST_ASSERT(untyped_app_value != NULL && cJSON_IsObject(untyped_app_value));
@@ -665,14 +665,14 @@ bool test_Dimension_JSON_application_metadata_always_typed(void) {
     // Verify that nested structures are accessible (may or may not be typed)
     cJSON *typed_nested = cJSON_GetObjectItemCaseSensitive(typed_app_value, "nested_dict");
     cJSON *untyped_nested = cJSON_GetObjectItemCaseSensitive(untyped_app_value, "nested_dict");
-    
+
     TEST_ASSERT(typed_nested != NULL);
     TEST_ASSERT(untyped_nested != NULL);
-    
+
     // Check if nested dictionaries have OCTypes wrapper (flexible - accept both formats)
     cJSON *typed_nested_type = cJSON_GetObjectItemCaseSensitive(typed_nested, "type");
     cJSON *untyped_nested_type = cJSON_GetObjectItemCaseSensitive(untyped_nested, "type");
-    
+
     // Accept either wrapped or unwrapped format for nested structures
     if (typed_nested_type && cJSON_IsString(typed_nested_type)) {
         TEST_ASSERT(strcmp(typed_nested_type->valuestring, "OCDictionary") == 0);
@@ -725,7 +725,7 @@ bool test_Dimension_JSON_error_handling(void) {
     // Test 2: Invalid JSON structure
     invalid_json = cJSON_CreateString("not an object");
     TEST_ASSERT(invalid_json != NULL);
-    
+
     dim = DimensionCreateFromJSON(invalid_json, &err);
     TEST_ASSERT(dim == NULL);
     TEST_ASSERT(err != NULL);
@@ -737,7 +737,7 @@ bool test_Dimension_JSON_error_handling(void) {
     invalid_json = cJSON_CreateObject();
     cJSON_AddStringToObject(invalid_json, "type", "WrongType");
     cJSON_AddObjectToObject(invalid_json, "value");
-    
+
     dim = DimensionCreateFromJSON(invalid_json, &err);
     TEST_ASSERT(dim == NULL);
     TEST_ASSERT(err != NULL);
@@ -749,7 +749,7 @@ bool test_Dimension_JSON_error_handling(void) {
     invalid_json = cJSON_CreateObject();
     cJSON_AddStringToObject(invalid_json, "type", "labeled");
     // Missing coordinate_labels
-    
+
     dim = (DimensionRef)LabeledDimensionCreateFromJSON(invalid_json, &err);
     TEST_ASSERT(dim == NULL);
     TEST_ASSERT(err != NULL);
@@ -782,7 +782,7 @@ bool test_Dimension_JSON_inheritance_patterns(void) {
 
     // Create a complex SILinearDimension that exercises the full inheritance chain
     // Dimension -> SIDimension -> SIMonotonicDimension -> SILinearDimension
-    
+
     increment = SIScalarCreateWithDouble(1.0, SIUnitWithSymbol(STR("Hz")));
     TEST_ASSERT(increment != NULL);
 
@@ -792,7 +792,7 @@ bool test_Dimension_JSON_inheritance_patterns(void) {
 
     lin_dim = SILinearDimensionCreate(
         STR("complex_dim"),                // label (from Dimension)
-        STR("Complex inheritance test"),   // description (from Dimension)  
+        STR("Complex inheritance test"),   // description (from Dimension)
         metadata,                          // application (from Dimension)
         kSIQuantityFrequency,             // quantityName (from SIDimension)
         NULL,                             // offset (from SIDimension)
@@ -809,7 +809,7 @@ bool test_Dimension_JSON_inheritance_patterns(void) {
     TEST_ASSERT(err == NULL);
 
     // Test that the JSON correctly represents the inheritance hierarchy
-    json = impl_SILinearDimensionCopyAsJSON(lin_dim, false);
+    json = impl_SILinearDimensionCopyAsJSON(lin_dim, false, &err);
     TEST_ASSERT(json != NULL);
 
     // Verify the inner type discriminator indicates the most specific type
@@ -835,7 +835,7 @@ bool test_Dimension_JSON_inheritance_patterns(void) {
 
     // Verify all properties are correctly restored across the inheritance hierarchy
     TEST_ASSERT(verify_dimension_properties_match((DimensionRef)lin_dim, (DimensionRef)lin_restored, "inheritance chain"));
-    
+
     // Verify specific properties from each level
     TEST_ASSERT(OCStringEqual(SIDimensionGetQuantityName((SIDimensionRef)lin_dim), SIDimensionGetQuantityName((SIDimensionRef)lin_restored)));
     TEST_ASSERT(SIDimensionGetScaling((SIDimensionRef)lin_dim) == SIDimensionGetScaling((SIDimensionRef)lin_restored));

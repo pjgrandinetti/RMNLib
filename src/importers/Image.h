@@ -21,8 +21,8 @@ extern "C" {
  * @param error Pointer to error string (optional).
  * @return DatasetRef with image data or NULL on failure.
  */
-DatasetRef DatasetImportImageCreateSignalWithImageData(OCArrayRef imageDataArray, 
-                                                       double frameIncrementInSec, 
+DatasetRef DatasetImportImageCreateSignalWithImageData(OCArrayRef imageDataArray,
+                                                       double frameIncrementInSec,
                                                        OCStringRef *error);
 
 /**
@@ -31,7 +31,7 @@ DatasetRef DatasetImportImageCreateSignalWithImageData(OCArrayRef imageDataArray
  * @param error Pointer to error string (optional).
  * @return DatasetRef with image data or NULL on failure.
  */
-DatasetRef DatasetImportImageCreateSignalWithData(OCDataRef contents, 
+DatasetRef DatasetImportImageCreateSignalWithData(OCDataRef contents,
                                                   OCStringRef *error);
 
 #ifdef __cplusplus

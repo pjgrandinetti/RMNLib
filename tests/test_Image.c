@@ -161,7 +161,7 @@ bool test_Image_import_all(void) {
         // Try to import as dataset
         OCStringRef error = NULL;
         DatasetRef dataset = DatasetImportImageCreateSignalWithData(imageData, &error);
-        
+
         OCRelease(imageData);
 
         if (dataset) {
@@ -189,7 +189,7 @@ bool test_Image_import_all(void) {
         free(tmp);
     }
 
-    fprintf(stderr, "\nSummary: tested %d files, %d passed, %d failed\n", 
+    fprintf(stderr, "\nSummary: tested %d files, %d passed, %d failed\n",
             tested, passed, tested - passed);
 
     return tested == 0 || passed == tested;
@@ -471,7 +471,7 @@ bool test_Image_multiple_images(void) {
     // Check dimensions - should have 1 dimension regardless of number of images (flattened pixel array)
     OCMutableArrayRef dimensions = DatasetGetDimensions(dataset);
     bool valid = true;
-    
+
     // Should always have 1 dimension for our current implementation
     valid = (OCArrayGetCount(dimensions) == 1);
     // Note: DatasetGetDimensions returns a non-retained reference, so no OCRelease needed
@@ -483,26 +483,26 @@ bool test_Image_multiple_images(void) {
 bool test_Image_dimensions(void) {
     // Test dimension creation without actual image data
     // This tests the SITypes integration
-    
+
     // Create a simple test image data array
     unsigned char test_pixel[3] = {255, 128, 64}; // RGB pixel
     OCDataRef testData = OCDataCreate(test_pixel, 3);
-    
+
     OCMutableArrayRef imageArray = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(imageArray, testData);
-    
+
     OCStringRef error = NULL;
     DatasetRef dataset = DatasetImportImageCreateSignalWithImageData(imageArray, 0.5, &error);
-    
+
     OCRelease(testData);
     OCRelease(imageArray);
-    
+
     if (!dataset) {
         // This is expected since we don't have real image data
         if (error) OCRelease(error);
         return true; // Not a failure - we're testing error handling
     }
-    
+
     // If we somehow got a dataset, validate its structure
     OCMutableArrayRef dimensions = DatasetGetDimensions(dataset);
     bool valid = (OCArrayGetCount(dimensions) == 1); // Should have 1 dimension for our implementation
@@ -557,9 +557,9 @@ bool test_Image_memory_management(void) {
         if (imageData) {
             OCStringRef error = NULL;
             DatasetRef dataset = DatasetImportImageCreateSignalWithData(imageData, &error);
-            
+
             OCRelease(imageData);
-            
+
             if (dataset) {
                 OCRelease(dataset);
             } else if (error) {

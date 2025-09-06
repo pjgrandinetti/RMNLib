@@ -32,9 +32,9 @@ static int cross_platform_setenv(const char *name, const char *value, int overwr
 
 int main(void) {
     int failures = 0;
-    
+
     fprintf(stderr, "\n=== Running CSDM Import and Roundtrip Test Only ===\n");
-    
+
     // Set up CSDM test root if not already set
     if (!getenv("CSDM_TEST_ROOT")) {
         cross_platform_setenv("CSDM_TEST_ROOT",
@@ -44,10 +44,10 @@ int main(void) {
     }
     fprintf(stderr, "[INFO] CSDM_TEST_ROOT = %s\n",
             getenv("CSDM_TEST_ROOT"));
-    
+
     // Run only the roundtrip test
     if (!test_Dataset_import_and_roundtrip()) failures++;
-    
+
     if (failures > 0) {
         fprintf(stderr, "\nCSDP import and roundtrip test failed.\n");
         return EXIT_FAILURE;

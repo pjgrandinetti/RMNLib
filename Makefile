@@ -72,7 +72,7 @@ ifeq ($(UNAME_S),Darwin)
 endif
 
 CFLAGS   := -fPIC -O3 -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter \
-            -Wno-missing-field-initializers -Wno-unused-function -MMD -MP -DSTB_IMAGE_AVAILABLE
+            -Wno-missing-field-initializers -Wno-unused-function -Wno-pass-failed -MMD -MP -DSTB_IMAGE_AVAILABLE
 CFLAGS_DEBUG := -fPIC -O0 -g -Wall -Wextra -Werror -MMD -MP
 
 # BLAS / LAPACK
@@ -143,14 +143,14 @@ else ifneq ($(findstring MINGW,$(UNAME_S)),)
   SHLIB_LDFLAGS = -Wl,--out-implib=$(LIB_DIR)/libRMN.dll.a
   OCTYPES_LINKLIB := -L$(OCT_LIBDIR) -lOCTypes
   SITYPES_LINKLIB := -L$(SIT_LIBDIR) -lSITypes
-  RPATH_FLAGS   = 
+  RPATH_FLAGS   =
 else
   SHLIB_EXT     = .so
   SHLIB_FLAGS   = -shared -fPIC
   SHLIB_LDFLAGS =
   OCTYPES_LINKLIB := -lOCTypes
   SITYPES_LINKLIB := -lSITypes
-  RPATH_FLAGS   = 
+  RPATH_FLAGS   =
 endif
 
 SHLIB := $(LIB_DIR)/libRMN$(SHLIB_EXT)
@@ -325,12 +325,12 @@ shared: $(SHLIB)
 
 #──────── Tests (core, imports, all) ────────
 TEST_SRC := $(wildcard $(TEST_SRC_DIR)/*.c)
-CORE_TEST_SRC := $(filter-out $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/main_all.c, $(TEST_SRC))
+CORE_TEST_SRC := $(filter-out $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/main_all.c $(TEST_SRC_DIR)/main_csdm_only.c, $(TEST_SRC))
 CORE_TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(CORE_TEST_SRC))
 IMPORT_TEST_SRC := $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/test_CSDM.c $(TEST_SRC_DIR)/test_Image.c \
                    $(TEST_SRC_DIR)/test_JCAMP.c $(TEST_SRC_DIR)/test_Tecmag.c $(TEST_SRC_DIR)/test_utils.c
 IMPORT_TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(IMPORT_TEST_SRC))
-ALL_TEST_SRC := $(filter-out $(TEST_SRC_DIR)/main.c $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/main_all.c, $(TEST_SRC)) \
+ALL_TEST_SRC := $(filter-out $(TEST_SRC_DIR)/main.c $(TEST_SRC_DIR)/main_imports.c $(TEST_SRC_DIR)/main_all.c $(TEST_SRC_DIR)/main_csdm_only.c, $(TEST_SRC)) \
                 $(TEST_SRC_DIR)/main_all.c
 ALL_TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(ALL_TEST_SRC))
 
@@ -502,4 +502,3 @@ help:
 	@echo "  install          Install libs + public headers into ./install"
 	@echo "  xcode            Generate Xcode workspace at build-xcode/"
 	@echo "  clean            Remove build and install artifacts"
-	

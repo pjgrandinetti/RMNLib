@@ -102,20 +102,20 @@ GeographicCoordinateRef GeographicCoordinateCreate(
     OCDictionaryRef metadata,
     OCStringRef *outError) {
     if (outError) *outError = NULL;
-    
+
     if (!latitude || !longitude) {
         if (outError) *outError = STR("GeographicCoordinateCreate: latitude and longitude are required");
         return NULL;
     }
-    
+
     struct impl_GeographicCoordinate *gc = GeographicCoordinateAllocate();
     if (!gc) {
         if (outError) *outError = STR("GeographicCoordinateCreate: allocation failed");
         return NULL;
     }
-    
+
     impl_InitGeographicCoordinateFields((GeographicCoordinateRef)gc);
-    
+
     // assign
     gc->latitude = (SIScalarRef)OCTypeDeepCopy((OCTypeRef)latitude);
     if (!gc->latitude) {
@@ -123,14 +123,14 @@ GeographicCoordinateRef GeographicCoordinateCreate(
         OCRelease(gc);
         return NULL;
     }
-    
+
     gc->longitude = (SIScalarRef)OCTypeDeepCopy((OCTypeRef)longitude);
     if (!gc->longitude) {
         if (outError) *outError = STR("GeographicCoordinateCreate: failed to copy longitude");
         OCRelease(gc);
         return NULL;
     }
-    
+
     if (altitude) {
         gc->altitude = (SIScalarRef)OCTypeDeepCopy((OCTypeRef)altitude);
         if (!gc->altitude) {
@@ -139,7 +139,7 @@ GeographicCoordinateRef GeographicCoordinateCreate(
             return NULL;
         }
     }
-    
+
     OCRelease(gc->application);
     gc->application = metadata
                        ? (OCMutableDictionaryRef)OCTypeDeepCopyMutable(metadata)
@@ -149,12 +149,12 @@ GeographicCoordinateRef GeographicCoordinateCreate(
         OCRelease(gc);
         return NULL;
     }
-    
+
     if (!validateGeographicCoordinate((GeographicCoordinateRef)gc, outError)) {
         OCRelease(gc);
         return NULL;
     }
-    
+
     return (GeographicCoordinateRef)gc;
 }
 GeographicCoordinateRef GeographicCoordinateCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError) {
@@ -237,37 +237,37 @@ OCDictionaryRef GeographicCoordinateCopyAsDictionary(GeographicCoordinateRef gc)
 cJSON *GeographicCoordinateCopyAsJSON(GeographicCoordinateRef gc, bool typed, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!gc) return cJSON_CreateNull();
-    
+
     cJSON *json = cJSON_CreateObject();
     if (!json) return cJSON_CreateNull();
-    
+
     // Add latitude
     if (gc->latitude) {
         cJSON *lat = SIScalarCopyAsJSON(gc->latitude, typed, NULL);
         if (lat) cJSON_AddItemToObject(json, kGeoCoordLatitudeKey, lat);
     }
-    
+
     // Add longitude
     if (gc->longitude) {
         cJSON *lon = SIScalarCopyAsJSON(gc->longitude, typed, NULL);
         if (lon) cJSON_AddItemToObject(json, kGeoCoordLongitudeKey, lon);
     }
-    
+
     // Add altitude (optional)
     if (gc->altitude) {
         cJSON *alt = SIScalarCopyAsJSON(gc->altitude, typed, NULL);
         if (alt) cJSON_AddItemToObject(json, kGeoCoordAltitudeKey, alt);
     }
-    
+
     // Add application metadata (optional)
     if (gc->application) {
-        // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded 
+        // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded
         // into JSON as typed=true, NO EXCEPTIONS. Even if the rest of the JSON is untyped,
         // application must always remain typed to preserve complex nested type information.
         cJSON *app = OCTypeCopyJSON((OCTypeRef)gc->application, true, NULL);
         if (app) cJSON_AddItemToObject(json, kGeoCoordApplicationKey, app);
     }
-    
+
     if (typed) {
         // Wrap in typed object format
         cJSON *wrapper = cJSON_CreateObject();
@@ -280,7 +280,7 @@ cJSON *GeographicCoordinateCopyAsJSON(GeographicCoordinateRef gc, bool typed, OC
             return cJSON_CreateNull();
         }
     }
-    
+
     return json;
 }
 
@@ -290,34 +290,34 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
         if (outError) *outError = STR("Expected a JSON object for GeographicCoordinate");
         return NULL;
     }
-    
+
     cJSON *actualJson = json;
-    
+
     // Check if this is a typed JSON object (has "type" and "value" fields)
     if (cJSON_IsObject(json)) {
         cJSON *typeItem = cJSON_GetObjectItemCaseSensitive(json, "type");
         cJSON *valueItem = cJSON_GetObjectItemCaseSensitive(json, "value");
-        
-        if (typeItem && cJSON_IsString(typeItem) && 
-            strcmp(typeItem->valuestring, "GeographicCoordinate") == 0 && 
+
+        if (typeItem && cJSON_IsString(typeItem) &&
+            strcmp(typeItem->valuestring, "GeographicCoordinate") == 0 &&
             valueItem && cJSON_IsObject(valueItem)) {
             // This is a typed JSON, use the value part
             actualJson = valueItem;
         }
     }
-    
+
     if (!cJSON_IsObject(actualJson)) {
         if (outError) *outError = STR("Expected a JSON object for GeographicCoordinate");
         return NULL;
     }
-    
+
     SIScalarRef lat = NULL;
     SIScalarRef lon = NULL;
     SIScalarRef alt = NULL;
     OCDictionaryRef metadata = NULL;
-    
+
     cJSON *entry;
-    
+
     // Parse latitude
     entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordLatitudeKey);
     if (entry) {
@@ -327,7 +327,7 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
             goto fail;
         }
     }
-    
+
     // Parse longitude
     entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordLongitudeKey);
     if (entry) {
@@ -337,14 +337,14 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
             goto fail;
         }
     }
-    
+
     // Parse altitude (optional)
     entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordAltitudeKey);
     if (entry) {
         alt = SIScalarCreateFromJSON(entry, outError);
         // Note: altitude parsing failure is not fatal, just skip it
     }
-    
+
     // Parse application metadata (optional)
     entry = cJSON_GetObjectItemCaseSensitive(actualJson, kGeoCoordApplicationKey);
     if (entry && cJSON_IsObject(entry)) {
@@ -352,22 +352,22 @@ GeographicCoordinateRef GeographicCoordinateCreateFromJSON(cJSON *json, OCString
         // Since we always serialize application metadata with typed=true, always use OCDictionaryCreateFromJSONTyped
         metadata = OCDictionaryCreateFromJSONTyped(entry, outError);
     }
-    
+
     // Create the coordinate
     GeographicCoordinateRef gc = GeographicCoordinateCreate(lat, lon, alt, metadata, outError);
-    
+
     // Clean up
     OCRelease(lat);
     OCRelease(lon);
     OCRelease(alt);
     OCRelease(metadata);
-    
+
     if (!gc && outError && !*outError) {
         *outError = STR("Failed to create GeographicCoordinate");
     }
-    
+
     return gc;
-    
+
 fail:
     OCRelease(lat);
     OCRelease(lon);

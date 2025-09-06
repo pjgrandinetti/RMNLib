@@ -109,7 +109,7 @@ DatumRef DatumCreate(SIScalarRef response,
     newDatum->memOffset = memOffset;
     newDatum->owner = owner;  // Store the weak reference to the owner
     return (DatumRef)newDatum;
-    
+
     // Note: Error handling removed as it's currently unused
     // This could be added back if validation logic is needed in the future
 }
@@ -219,30 +219,30 @@ cJSON *DatumCopyAsJSON(DatumRef datum, bool typed, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!datum)
         return cJSON_CreateNull();
-    
+
     cJSON *json = cJSON_CreateObject();
     if (!json)
         return cJSON_CreateNull();
-    
+
     // Add dependent_variable_index
     cJSON *dvIndex = cJSON_CreateNumber(datum->dependentVariableIndex);
     if (dvIndex) cJSON_AddItemToObject(json, kDatumDependentVariableIndexKey, dvIndex);
-    
+
     // Add component_index
     cJSON *compIndex = cJSON_CreateNumber(datum->componentIndex);
     if (compIndex) cJSON_AddItemToObject(json, kDatumComponentIndexKey, compIndex);
-    
+
     // Add mem_offset
     cJSON *memOffset = cJSON_CreateNumber(datum->memOffset);
     if (memOffset) cJSON_AddItemToObject(json, kDatumMemOffsetKey, memOffset);
-    
+
     // Add response value using SIScalar's JSON serialization
     // Create a proper SIScalar copy to avoid infinite recursion
     SIScalarRef scalarCopy = SIScalarCreateCopy((SIScalarRef)datum);
     cJSON *response = OCTypeCopyJSON((OCTypeRef)scalarCopy, typed, NULL);
     if (response) cJSON_AddItemToObject(json, kDatumResponseKey, response);
     OCRelease(scalarCopy);
-    
+
     if (typed) {
         // Wrap in typed object format
         cJSON *wrapper = cJSON_CreateObject();
@@ -255,7 +255,7 @@ cJSON *DatumCopyAsJSON(DatumRef datum, bool typed, OCStringRef *outError) {
             return cJSON_CreateNull();
         }
     }
-    
+
     return json;
 }
 
@@ -265,30 +265,30 @@ DatumRef DatumCreateFromJSON(cJSON *json, OCStringRef *outError) {
         if (outError) *outError = STR("JSON is NULL");
         return NULL;
     }
-    
+
     cJSON *actualJson = json;
-    
+
     // Check if this is a typed JSON object (has "type" and "value" fields)
     if (cJSON_IsObject(json)) {
         cJSON *typeItem = cJSON_GetObjectItemCaseSensitive(json, "type");
         cJSON *valueItem = cJSON_GetObjectItemCaseSensitive(json, "value");
-        
-        if (typeItem && cJSON_IsString(typeItem) && 
-            strcmp(typeItem->valuestring, "Datum") == 0 && 
+
+        if (typeItem && cJSON_IsString(typeItem) &&
+            strcmp(typeItem->valuestring, "Datum") == 0 &&
             valueItem && cJSON_IsObject(valueItem)) {
             // This is a typed JSON, use the value part
             actualJson = valueItem;
         }
     }
-    
+
     if (!cJSON_IsObject(actualJson)) {
         if (outError) *outError = STR("Expected a JSON object");
         return NULL;
     }
-    
+
     // Parse fields directly from JSON
     cJSON *item = NULL;
-    
+
     // Required: dependent_variable_index
     item = cJSON_GetObjectItemCaseSensitive(actualJson, kDatumDependentVariableIndexKey);
     if (!cJSON_IsNumber(item)) {
@@ -296,7 +296,7 @@ DatumRef DatumCreateFromJSON(cJSON *json, OCStringRef *outError) {
         return NULL;
     }
     OCIndex dependentVariableIndex = item->valueint;
-    
+
     // Required: component_index
     item = cJSON_GetObjectItemCaseSensitive(actualJson, kDatumComponentIndexKey);
     if (!cJSON_IsNumber(item)) {
@@ -304,7 +304,7 @@ DatumRef DatumCreateFromJSON(cJSON *json, OCStringRef *outError) {
         return NULL;
     }
     OCIndex componentIndex = item->valueint;
-    
+
     // Required: mem_offset
     item = cJSON_GetObjectItemCaseSensitive(actualJson, kDatumMemOffsetKey);
     if (!cJSON_IsNumber(item)) {
@@ -312,19 +312,19 @@ DatumRef DatumCreateFromJSON(cJSON *json, OCStringRef *outError) {
         return NULL;
     }
     OCIndex memOffset = item->valueint;
-    
+
     // Required: response (can be string or object depending on how it was serialized)
     item = cJSON_GetObjectItemCaseSensitive(actualJson, kDatumResponseKey);
     if (!item) {
         if (outError) *outError = STR("Missing \"response\"");
         return NULL;
     }
-    
+
     // Delegate to SIScalarCreateFromJSON which handles both string and object formats
     SIScalarRef response = SIScalarCreateFromJSON(item, outError);
-    
+
     if (!response) return NULL;
-    
+
     DatumRef datum = DatumCreate(response, dependentVariableIndex, componentIndex, memOffset, NULL, outError);
     OCRelease(response);
     return datum;

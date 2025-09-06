@@ -120,7 +120,7 @@ typedef struct impl_Dataset *DatasetRef;
  * @param theType The RMNLib object to get description from
  * @param outError Optional error output parameter
  * @return The description string, or NULL if not supported or on error
- * 
+ *
  * @note Supported types: Dimension, DependentVariable, SparseSampling, Dataset
  * @note Not supported: Datum, GeographicCoordinate
  */
@@ -133,7 +133,7 @@ OCStringRef RMNLibGetDescription(OCTypeRef theType, OCStringRef *outError);
  * @param description The description string to set
  * @param outError Optional error output parameter
  * @return true on success, false on error
- * 
+ *
  * @note Supported types: Dimension, DependentVariable, SparseSampling, Dataset
  * @note Not supported: Datum, GeographicCoordinate
  */
@@ -145,7 +145,7 @@ bool RMNLibSetDescription(OCTypeRef theType, OCStringRef description, OCStringRe
  * @param theType The RMNLib object to get metadata from
  * @param outError Optional error output parameter
  * @return The application metadata dictionary, or NULL if not supported or on error
- * 
+ *
  * @note Supported types: All RMNLib types except Datum
  */
 OCDictionaryRef RMNLibGetApplicationMetaData(OCTypeRef theType, OCStringRef *outError);
@@ -157,7 +157,7 @@ OCDictionaryRef RMNLibGetApplicationMetaData(OCTypeRef theType, OCStringRef *out
  * @param metadata The metadata dictionary to set (can be NULL)
  * @param outError Optional error output parameter
  * @return true on success, false on error
- * 
+ *
  * @note Supported types: All RMNLib types except Datum
  */
 bool RMNLibSetApplicationMetaData(OCTypeRef theType, OCDictionaryRef metadata, OCStringRef *outError);

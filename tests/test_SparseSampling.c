@@ -4,6 +4,7 @@
 #include <string.h>
 #include "RMNLibrary.h"
 #include "SparseSampling.h"
+#include "SparseSampling_private.h"
 #include "test_utils.h"
 // Helper function to create a simple dimension index set
 static OCIndexSetRef _create_dimension_indexes(OCIndex *indexes, OCIndex count) {
@@ -13,17 +14,23 @@ static OCIndexSetRef _create_dimension_indexes(OCIndex *indexes, OCIndex count) 
     }
     return set;
 }
-// Helper function to create sparse grid vertices
-static OCArrayRef _create_sparse_vertices_2d(OCIndex count) {
-    OCMutableArrayRef vertices = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+// Helper function to create sparse grid vertices as a single OCIndexPairSetRef
+static OCIndexPairSetRef _create_sparse_vertices_2d(OCIndex count) {
+    OCMutableIndexPairSetRef vertices = OCIndexPairSetCreateMutable();
+
     // Create 'count' vertices, each with 2 coordinates
+    // Use linearized indexing: vertex_index * num_dimensions + dimension_offset
     for (OCIndex i = 0; i < count; i++) {
-        OCMutableIndexPairSetRef vertex = OCIndexPairSetCreateMutable();
-        OCIndexPairSetAddIndexPair(vertex, 0, i % 10);  // x coordinate
-        OCIndexPairSetAddIndexPair(vertex, 1, i / 10);  // y coordinate
-        OCArrayAppendValue(vertices, vertex);
-        OCRelease(vertex);
+        OCIndex vertex_index = i;
+        // Add x coordinate (dimension 0)
+        OCIndex x_linear_index = vertex_index * 2 + 0;
+        OCIndexPairSetAddIndexPair(vertices, x_linear_index, i % 10);  // x coordinate
+
+        // Add y coordinate (dimension 1)
+        OCIndex y_linear_index = vertex_index * 2 + 1;
+        OCIndexPairSetAddIndexPair(vertices, y_linear_index, i / 10);  // y coordinate
     }
+
     return vertices;
 }
 // Helper function to create a simple dataset with dimensions
@@ -110,23 +117,21 @@ static DatasetRef _create_test_dataset_2d(OCIndex dim0_size, OCIndex dim1_size) 
 bool test_SparseSampling_basic_create(void) {
     printf("test_SparseSampling_basic_create...\n");
     bool ok = false;
+
     // Create dimension indexes - try with just one dimension like the working test
     OCMutableIndexSetRef dimIndexes = OCIndexSetCreateMutable();
     OCIndexSetAddIndex(dimIndexes, 1);
-    // Create sparse vertices - try with just one vertex like the working test
-    OCMutableArrayRef sparseVertices = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    OCMutableIndexPairSetRef pset = OCIndexPairSetCreateMutable();
-    OCIndexPairSetAddIndexPair(pset, 1, 3);
-    OCArrayAppendValue(sparseVertices, pset);
-    OCRelease(pset);
+
+    // Create sparse vertices as a single OCIndexPairSet with linearized indices
+    OCMutableIndexPairSetRef sparseVertices = OCIndexPairSetCreateMutable();
+    OCIndexPairSetAddIndexPair(sparseVertices, 0, 3);  // vertex 0, dimension 1, value 3
+
     // Debug: Check vertex content
-    printf("Created %ld sparse vertices\n", (long)OCArrayGetCount(sparseVertices));
-    if (OCArrayGetCount(sparseVertices) > 0) {
-        OCIndexPairSetRef firstVertex = (OCIndexPairSetRef)OCArrayGetValueAtIndex(sparseVertices, 0);
-        printf("First vertex has %ld pairs\n", (long)OCIndexPairSetGetCount(firstVertex));
-    }
+    printf("Created sparse vertices with %ld pairs\n", (long)OCIndexPairSetGetCount(sparseVertices));
+
     // Debug: Print the type value
     printf("Using unsignedIntegerType value: %d\n", (int)kOCNumberUInt16Type);
+
     // Create SparseSampling object
     OCStringRef error = NULL;
     SparseSamplingRef ss = SparseSamplingCreate(
@@ -137,16 +142,19 @@ bool test_SparseSampling_basic_create(void) {
         STR("Test sparse sampling"),
         NULL,
         &error);
+
     if (error) {
         printf("SparseSampling creation error: %s\n", OCStringGetCString(error));
         OCRelease(error);
     }
-    // Verify properties (update expected values)
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(ss)) == 1);
-    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingGetDimensionIndexes(ss), 1));
-    TEST_ASSERT(OCArrayGetCount(SparseSamplingGetSparseGridVertexes(ss)) == 1);
+
+    // Verify properties
+    TEST_ASSERT(ss != NULL);
+    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss)) == 1);
+    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 1));
+    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(ss)) == 1);
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(ss) == kOCNumberUInt16Type);
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(ss), STR("base64")));
+    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(ss), STR("base64")));
     ok = true;
 cleanup:
     OCRelease(dimIndexes);
@@ -163,15 +171,17 @@ cleanup:
 bool test_SparseSampling_validation(void) {
     printf("test_SparseSampling_validation...\n");
     bool ok = false;
+
     // Use simple dimension indexes and vertices like the working test
     OCMutableIndexSetRef dimIndexes = OCIndexSetCreateMutable();
     OCIndexSetAddIndex(dimIndexes, 1);
-    OCMutableArrayRef vertices = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    OCMutableIndexPairSetRef pset = OCIndexPairSetCreateMutable();
-    OCIndexPairSetAddIndexPair(pset, 1, 3);
-    OCArrayAppendValue(vertices, pset);
-    OCRelease(pset);
+
+    OCMutableIndexPairSetRef vertices = OCIndexPairSetCreateMutable();
+    OCIndexPairSetAddIndexPair(vertices, 0, 3);  // vertex 0, dimension 1, value 3
+
     OCStringRef error = NULL;
+
+    // Test 1: Invalid unsigned integer type
     SparseSamplingRef ss = SparseSamplingCreate(
         dimIndexes,
         vertices,
@@ -184,6 +194,7 @@ bool test_SparseSampling_validation(void) {
     TEST_ASSERT(error != NULL);
     OCRelease(error);
     error = NULL;
+
     // Test 2: Invalid encoding
     ss = SparseSamplingCreate(
         dimIndexes,
@@ -208,7 +219,7 @@ bool test_SparseSampling_validation(void) {
         &error);
     TEST_ASSERT(ss != NULL);
     TEST_ASSERT(error == NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(ss), STR("base64")));
+    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(ss), STR("base64")));
     ok = true;
 cleanup:
     OCRelease(dimIndexes);
@@ -225,12 +236,22 @@ cleanup:
 bool test_SparseSampling_copy_and_equality(void) {
     printf("test_SparseSampling_copy_and_equality...\n");
     bool ok = false;
+
+    // Initialize all variables to NULL to avoid uninitialized use warnings
+    OCIndexSetRef dimIndexes = NULL;
+    OCIndexPairSetRef vertices = NULL;
+    OCStringRef error = NULL;
+    SparseSamplingRef original = NULL;
+    OCDictionaryRef dict = NULL;
+    OCStringRef copyError = NULL;
+    SparseSamplingRef copy = NULL;
+
     // Create original SparseSampling
     OCIndex dims[] = {0, 1};
-    OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 2);
-    OCArrayRef vertices = _create_sparse_vertices_2d(3);
-    OCStringRef error = NULL;
-    SparseSamplingRef original = SparseSamplingCreate(
+    dimIndexes = _create_dimension_indexes(dims, 2);
+    vertices = _create_sparse_vertices_2d(3);
+
+    original = SparseSamplingCreate(
         dimIndexes,
         vertices,
         kOCNumberUInt32Type,
@@ -240,13 +261,15 @@ bool test_SparseSampling_copy_and_equality(void) {
         &error);
     TEST_ASSERT(original != NULL);
     TEST_ASSERT(error == NULL);
+
     // Test equality with itself
     TEST_ASSERT(OCTypeEqual(original, original));
+
     // Test copying by recreating from dictionary (since there's no direct copy function)
-    OCDictionaryRef dict = SparseSamplingCopyAsDictionary(original);
+    dict = SparseSamplingCopyAsDictionary(original);
     TEST_ASSERT(dict != NULL);
-    OCStringRef copyError = NULL;
-    SparseSamplingRef copy = SparseSamplingCreateFromDictionary(dict, &copyError);
+
+    copy = SparseSamplingCreateFromDictionary(dict, &copyError);
     TEST_ASSERT(copy != NULL);
     TEST_ASSERT(copyError == NULL);
     OCRelease(dict);
@@ -254,16 +277,18 @@ bool test_SparseSampling_copy_and_equality(void) {
     TEST_ASSERT(copy != original);             // Different objects
     TEST_ASSERT(OCTypeEqual(original, copy));  // But equal content
     // Verify copy properties
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(copy)) == 2);
-    TEST_ASSERT(OCArrayGetCount(SparseSamplingGetSparseGridVertexes(copy)) == 3);
+    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(copy)) == 2);
+    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(copy)) == 6);  // 3 vertices * 2 dimensions
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(copy) == kOCNumberUInt32Type);
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(copy), STR("none")));
+    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(copy), STR("none")));
     ok = true;
 cleanup:
     OCRelease(dimIndexes);
     OCRelease(vertices);
     OCRelease(original);
     OCRelease(copy);
+    OCRelease(dict);
+    OCRelease(copyError);
     OCRelease(error);
     if (ok) {
         printf("test_SparseSampling_copy_and_equality passed.\n");
@@ -275,12 +300,21 @@ cleanup:
 bool test_SparseSampling_dictionary_roundtrip(void) {
     printf("test_SparseSampling_dictionary_roundtrip...\n");
     bool ok = false;
+
+    // Initialize all variables to NULL to avoid uninitialized use warnings
+    OCIndexSetRef dimIndexes = NULL;
+    OCIndexPairSetRef vertices = NULL;
+    OCStringRef error = NULL;
+    SparseSamplingRef original = NULL;
+    OCDictionaryRef dict = NULL;
+    SparseSamplingRef restored = NULL;
+
     // Create SparseSampling
     OCIndex dims[] = {0, 1};
-    OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 2);
-    OCArrayRef vertices = _create_sparse_vertices_2d(4);
-    OCStringRef error = NULL;
-    SparseSamplingRef original = SparseSamplingCreate(
+    dimIndexes = _create_dimension_indexes(dims, 2);
+    vertices = _create_sparse_vertices_2d(4);
+
+    original = SparseSamplingCreate(
         dimIndexes,
         vertices,
         kOCNumberUInt16Type,
@@ -290,25 +324,28 @@ bool test_SparseSampling_dictionary_roundtrip(void) {
         &error);
     TEST_ASSERT(original != NULL);
     TEST_ASSERT(error == NULL);
+
     // Convert to dictionary
-    OCDictionaryRef dict = SparseSamplingCopyAsDictionary(original);
+    dict = SparseSamplingCopyAsDictionary(original);
     TEST_ASSERT(dict != NULL);
+
     // Verify dictionary contains expected keys
     TEST_ASSERT(OCDictionaryContainsKey(dict, STR("dimension_indexes")));
     TEST_ASSERT(OCDictionaryContainsKey(dict, STR("sparse_grid_vertexes")));
     TEST_ASSERT(OCDictionaryContainsKey(dict, STR("unsigned_integer_type")));
     TEST_ASSERT(OCDictionaryContainsKey(dict, STR("encoding")));
+
     // Create SparseSampling from dictionary
-    SparseSamplingRef restored = SparseSamplingCreateFromDictionary(dict, &error);
+    restored = SparseSamplingCreateFromDictionary(dict, &error);
     TEST_ASSERT(restored != NULL);
     TEST_ASSERT(error == NULL);
     // Verify they are equal (skip OCTypeEqual for now, test individual properties)
     // TEST_ASSERT(OCTypeEqual(original, restored));
     // Verify specific properties instead
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(restored)) == 2);
-    TEST_ASSERT(OCArrayGetCount(SparseSamplingGetSparseGridVertexes(restored)) == 4);
+    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(restored)) == 2);
+    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(restored)) == 8);  // 4 vertices * 2 dimensions
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(restored) == kOCNumberUInt16Type);
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored), STR("base64")));
+    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored), STR("base64")));
     // TODO: Investigate why OCTypeEqual returns false despite all properties being identical
     printf("All individual properties match - roundtrip working correctly\n");
     ok = true;
@@ -341,7 +378,7 @@ bool test_SparseSampling_invalid_create(void) {
         &error);
     // Should still create but with empty dimension indexes
     TEST_ASSERT(ss != NULL);
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(ss)) == 0);
+    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss)) == 0);
     OCRelease(ss);
     OCRelease(error);
     error = NULL;
@@ -371,9 +408,15 @@ cleanup:
 bool test_SparseSampling_null_and_empty(void) {
     printf("test_SparseSampling_null_and_empty...\n");
     bool ok = false;
-    // Create empty SparseSampling
+
+    // Initialize all variables to NULL to avoid uninitialized use warnings
     OCStringRef error = NULL;
-    SparseSamplingRef ss = SparseSamplingCreate(
+    SparseSamplingRef ss = NULL;
+    OCDictionaryRef dict = NULL;
+    SparseSamplingRef restored = NULL;
+
+    // Create empty SparseSampling
+    ss = SparseSamplingCreate(
         NULL,  // No dimension indexes
         NULL,  // No vertices
         kOCNumberUInt32Type,
@@ -383,24 +426,28 @@ bool test_SparseSampling_null_and_empty(void) {
         &error);
     TEST_ASSERT(ss != NULL);
     TEST_ASSERT(error == NULL);
+
     // Verify empty state
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(ss)) == 0);
-    TEST_ASSERT(OCArrayGetCount(SparseSamplingGetSparseGridVertexes(ss)) == 0);
+    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss)) == 0);
+    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(ss)) == 0);
+
     // Test dictionary roundtrip with empty SparseSampling
-    OCDictionaryRef dict = SparseSamplingCopyAsDictionary(ss);
+    dict = SparseSamplingCopyAsDictionary(ss);
     TEST_ASSERT(dict != NULL);
+
     // Debug: check what's in the dictionary
     OCTypeRef dimValue = OCDictionaryGetValue(dict, STR("dimension_indexes"));
     if (dimValue && OCGetTypeID(dimValue) == OCArrayGetTypeID()) {
         // Debug check removed for clean output
     }
-    SparseSamplingRef restored = SparseSamplingCreateFromDictionary(dict, &error);
+
+    restored = SparseSamplingCreateFromDictionary(dict, &error);
     TEST_ASSERT(restored != NULL);
     TEST_ASSERT(error == NULL);
     // TEST_ASSERT(OCTypeEqual(ss, restored)); // Skip OCTypeEqual for now
     // Verify individual properties instead
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(restored)) == 0);
-    TEST_ASSERT(OCArrayGetCount(SparseSamplingGetSparseGridVertexes(restored)) == 0);
+    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(restored)) == 0);
+    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(restored)) == 0);
     ok = true;
 cleanup:
     OCRelease(ss);
@@ -420,7 +467,7 @@ bool test_SparseSampling_fully_sparse(void) {
     // Create a 2D fully sparse sampling (both dimensions are sparse)
     OCIndex dims[] = {0, 1};
     OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 2);
-    OCArrayRef vertices = _create_sparse_vertices_2d(10);
+    OCIndexPairSetRef vertices = _create_sparse_vertices_2d(10);
     OCStringRef error = NULL;
     SparseSamplingRef ss = SparseSamplingCreate(
         dimIndexes,
@@ -433,11 +480,11 @@ bool test_SparseSampling_fully_sparse(void) {
     TEST_ASSERT(ss != NULL);
     TEST_ASSERT(error == NULL);
     // Verify it's fully sparse (all dimensions are in the dimension_indexes)
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(ss)) == 2);
-    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingGetDimensionIndexes(ss), 0));
-    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingGetDimensionIndexes(ss), 1));
-    // In a fully sparse sampling, the expected data size should equal the number of vertices
-    TEST_ASSERT(OCArrayGetCount(SparseSamplingGetSparseGridVertexes(ss)) == 10);
+    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss)) == 2);
+    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 0));
+    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 1));
+    // In a fully sparse sampling, the expected data size should equal the number of pairs (vertices * dimensions)
+    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(ss)) == 20);  // 10 vertices * 2 dimensions
     ok = true;
 cleanup:
     OCRelease(dimIndexes);
@@ -458,12 +505,11 @@ bool test_SparseSampling_partially_sparse(void) {
     OCIndex dims[] = {1};  // Only dimension 1 is sparse
     OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 1);
     // Create sparse vertices with 1D coordinates (only y-coordinate)
-    OCMutableArrayRef vertices = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    OCMutableIndexPairSetRef vertices = OCIndexPairSetCreateMutable();
     for (OCIndex i = 0; i < 5; i++) {
-        OCMutableIndexPairSetRef vertex = OCIndexPairSetCreateMutable();
-        OCIndexPairSetAddIndexPair(vertex, 1, i * 2);  // Only y coordinate
-        OCArrayAppendValue(vertices, vertex);
-        OCRelease(vertex);
+        // Add coordinate pair: linearized index and y-coordinate value
+        OCIndex linearIndex = i; // Simple linear index for single dimension
+        OCIndexPairSetAddIndexPair(vertices, linearIndex, i * 2);  // Only y coordinate
     }
     OCStringRef error = NULL;
     SparseSamplingRef ss = SparseSamplingCreate(
@@ -477,11 +523,11 @@ bool test_SparseSampling_partially_sparse(void) {
     TEST_ASSERT(ss != NULL);
     TEST_ASSERT(error == NULL);
     // Verify it's partially sparse
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(ss)) == 1);
-    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingGetDimensionIndexes(ss), 1));
-    TEST_ASSERT(!OCIndexSetContainsIndex(SparseSamplingGetDimensionIndexes(ss), 0));
-    TEST_ASSERT(!OCIndexSetContainsIndex(SparseSamplingGetDimensionIndexes(ss), 2));
-    TEST_ASSERT(OCArrayGetCount(SparseSamplingGetSparseGridVertexes(ss)) == 5);
+    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss)) == 1);
+    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 1));
+    TEST_ASSERT(!OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 0));
+    TEST_ASSERT(!OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 2));
+    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(ss)) == 5);
     ok = true;
 cleanup:
     OCRelease(dimIndexes);
@@ -498,12 +544,21 @@ cleanup:
 bool test_SparseSampling_base64_encoding(void) {
     printf("test_SparseSampling_base64_encoding...\n");
     bool ok = false;
+
+    // Initialize all variables to NULL to avoid uninitialized use warnings
+    OCIndexSetRef dimIndexes = NULL;
+    OCIndexPairSetRef vertices = NULL;
+    OCStringRef error = NULL;
+    SparseSamplingRef ss = NULL;
+    OCDictionaryRef dict = NULL;
+    SparseSamplingRef restored = NULL;
+
     // Create SparseSampling with base64 encoding
     OCIndex dims[] = {0, 1};
-    OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 2);
-    OCArrayRef vertices = _create_sparse_vertices_2d(3);
-    OCStringRef error = NULL;
-    SparseSamplingRef ss = SparseSamplingCreate(
+    dimIndexes = _create_dimension_indexes(dims, 2);
+    vertices = _create_sparse_vertices_2d(3);
+
+    ss = SparseSamplingCreate(
         dimIndexes,
         vertices,
         kOCNumberUInt32Type,  // Use UInt32 to match the assertion
@@ -513,21 +568,23 @@ bool test_SparseSampling_base64_encoding(void) {
         &error);
     TEST_ASSERT(ss != NULL);
     TEST_ASSERT(error == NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(ss), STR("base64")));
+    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(ss), STR("base64")));
+
     // Convert to dictionary and verify base64 encoding is preserved
-    OCDictionaryRef dict = SparseSamplingCopyAsDictionary(ss);
+    dict = SparseSamplingCopyAsDictionary(ss);
     TEST_ASSERT(dict != NULL);
     OCStringRef encoding = OCDictionaryGetValue(dict, STR("encoding"));
     TEST_ASSERT(OCStringEqual(encoding, STR("base64")));
+
     // Test roundtrip
-    SparseSamplingRef restored = SparseSamplingCreateFromDictionary(dict, &error);
+    restored = SparseSamplingCreateFromDictionary(dict, &error);
     TEST_ASSERT(restored != NULL);
     TEST_ASSERT(error == NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored), STR("base64")));
+    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored), STR("base64")));
     // TEST_ASSERT(OCTypeEqual(ss, restored)); // Skip OCTypeEqual for now
     // Verify individual properties instead
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(restored)) == 2);
-    TEST_ASSERT(OCArrayGetCount(SparseSamplingGetSparseGridVertexes(restored)) == 3);
+    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(restored)) == 2);
+    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(restored)) == 6);  // 3 vertices * 2 dimensions
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(restored) == kOCNumberUInt32Type);
     ok = true;
 cleanup:
@@ -547,15 +604,28 @@ cleanup:
 bool test_SparseSampling_with_dataset(void) {
     printf("test_SparseSampling_with_dataset...\n");
     bool ok = false;
+
+    // Initialize all variables to NULL to avoid uninitialized use warnings
+    DatasetRef dataset = NULL;
+    OCIndexSetRef dimIndexes = NULL;
+    OCIndexPairSetRef vertices = NULL;
+    OCStringRef error = NULL;
+    SparseSamplingRef ss = NULL;
+    OCMutableArrayRef components = NULL;
+    OCMutableDataRef data = NULL;
+    DependentVariableRef dv = NULL;
+    SparseSamplingRef retrievedSS = NULL;
+
     // Create a dataset with 2D dimensions (10x20)
-    DatasetRef dataset = _create_test_dataset_2d(10, 20);
+    dataset = _create_test_dataset_2d(10, 20);
     TEST_ASSERT(dataset != NULL);
+
     // Create fully sparse sampling
     OCIndex dims[] = {0, 1};
-    OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 2);
-    OCArrayRef vertices = _create_sparse_vertices_2d(50);  // 50 vertices out of 200 possible
-    OCStringRef error = NULL;
-    SparseSamplingRef ss = SparseSamplingCreate(
+    dimIndexes = _create_dimension_indexes(dims, 2);
+    vertices = _create_sparse_vertices_2d(50);  // 50 vertices out of 200 possible
+
+    ss = SparseSamplingCreate(
         dimIndexes,
         vertices,
         kOCNumberUInt16Type,  // Use UInt16 to match the assertion
@@ -565,12 +635,14 @@ bool test_SparseSampling_with_dataset(void) {
         &error);
     TEST_ASSERT(ss != NULL);
     TEST_ASSERT(error == NULL);
+
     // Create a dependent variable with sparse sampling
-    OCMutableArrayRef components = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    OCMutableDataRef data = OCDataCreateMutable(0);
+    components = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    data = OCDataCreateMutable(0);
     OCDataSetLength(data, 50 * sizeof(double));  // Data size matches vertex count
     OCArrayAppendValue(components, data);
-    DependentVariableRef dv = DependentVariableCreate(
+
+    dv = DependentVariableCreate(
         STR("sparse_data"),
         STR("Sparse sampled data"),
         SIUnitDimensionlessAndUnderived(),
@@ -582,16 +654,17 @@ bool test_SparseSampling_with_dataset(void) {
         &error);
     TEST_ASSERT(dv != NULL);
     TEST_ASSERT(error == NULL);
+
     // Set sparse sampling on the dependent variable
     DependentVariableSetSparseSampling(dv, ss);
-    SparseSamplingRef retrievedSS = DependentVariableCopySparseSampling(dv);
+    retrievedSS = DependentVariableCopySparseSampling(dv);
     TEST_ASSERT(retrievedSS != NULL);
     // TEST_ASSERT(OCTypeEqual(retrievedSS, ss)); // Skip OCTypeEqual for now
     // Verify sparse sampling properties match
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(retrievedSS)) == 2);
-    TEST_ASSERT(OCArrayGetCount(SparseSamplingGetSparseGridVertexes(retrievedSS)) == 50);
+    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(retrievedSS)) == 2);
+    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(retrievedSS)) == 100);  // 50 vertices * 2 dimensions
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(retrievedSS) == kOCNumberUInt16Type);
-    // Verify the dependent variable size matches the number of vertices
+    // Verify the dependent variable size matches the number of vertices (not pairs)
     TEST_ASSERT(DependentVariableGetSize(dv) == 50);
     ok = true;
 cleanup:
@@ -614,12 +687,21 @@ cleanup:
 bool test_SparseSampling_size_calculations(void) {
     printf("test_SparseSampling_size_calculations...\n");
     bool ok = false;
+
+    // Initialize all variables to NULL to avoid uninitialized use warnings
+    OCIndexSetRef dimIndexes_full = NULL;
+    OCIndexPairSetRef vertices_full = NULL;
+    OCStringRef error = NULL;
+    SparseSamplingRef ss_full = NULL;
+    OCIndexSetRef dimIndexes_partial = NULL;
+    OCMutableIndexPairSetRef vertices_partial = NULL;
+    SparseSamplingRef ss_partial = NULL;
+
     // Test Case 1: Fully sparse 2D (both dimensions sparse)
     OCIndex dims_full[] = {0, 1};
-    OCIndexSetRef dimIndexes_full = _create_dimension_indexes(dims_full, 2);
-    OCArrayRef vertices_full = _create_sparse_vertices_2d(25);
-    OCStringRef error = NULL;
-    SparseSamplingRef ss_full = SparseSamplingCreate(
+    dimIndexes_full = _create_dimension_indexes(dims_full, 2);
+    vertices_full = _create_sparse_vertices_2d(25);
+    ss_full = SparseSamplingCreate(
         dimIndexes_full,
         vertices_full,
         kOCNumberUInt32Type,
@@ -629,23 +711,22 @@ bool test_SparseSampling_size_calculations(void) {
         &error);
     TEST_ASSERT(ss_full != NULL);
     TEST_ASSERT(error == NULL);
-    // For fully sparse: expected size = number of vertices
-    OCIndex nVerts_full = OCArrayGetCount(SparseSamplingGetSparseGridVertexes(ss_full));
-    OCIndex sparseDims_full = OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(ss_full));
-    TEST_ASSERT(nVerts_full == 25);
+    // For fully sparse: expected size = number of coordinate pairs (vertices * dimensions)
+    OCIndex nVerts_full = OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(ss_full));
+    OCIndex sparseDims_full = OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss_full));
+    TEST_ASSERT(nVerts_full == 50);  // 25 vertices * 2 dimensions
     TEST_ASSERT(sparseDims_full == 2);
     // Test Case 2: Partially sparse (only dimension 1 sparse, with 3D dataset)
     OCIndex dims_partial[] = {1};
-    OCIndexSetRef dimIndexes_partial = _create_dimension_indexes(dims_partial, 1);
+    dimIndexes_partial = _create_dimension_indexes(dims_partial, 1);
     // Create 1D sparse vertices (only y coordinates)
-    OCMutableArrayRef vertices_partial = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
+    vertices_partial = OCIndexPairSetCreateMutable();
     for (OCIndex i = 0; i < 10; i++) {
-        OCMutableIndexPairSetRef vertex = OCIndexPairSetCreateMutable();
-        OCIndexPairSetAddIndexPair(vertex, 1, i);  // Only dimension 1
-        OCArrayAppendValue(vertices_partial, vertex);
-        OCRelease(vertex);
+        // Add vertex with linearized index: vertex_index * num_dimensions + dimension_offset
+        // vertex i, dimension 1 (y-coordinate): i * 2 + 1
+        OCIndexPairSetAddIndexPair(vertices_partial, i * 2 + 1, i);  // Only dimension 1
     }
-    SparseSamplingRef ss_partial = SparseSamplingCreate(
+    ss_partial = SparseSamplingCreate(
         dimIndexes_partial,
         vertices_partial,
         kOCNumberUInt32Type,
@@ -656,8 +737,8 @@ bool test_SparseSampling_size_calculations(void) {
     TEST_ASSERT(ss_partial != NULL);
     TEST_ASSERT(error == NULL);
     // For partially sparse: expected size = nVerts * (size of non-sparse dimensions)
-    OCIndex nVerts_partial = OCArrayGetCount(SparseSamplingGetSparseGridVertexes(ss_partial));
-    OCIndex sparseDims_partial = OCIndexSetGetCount(SparseSamplingGetDimensionIndexes(ss_partial));
+    OCIndex nVerts_partial = OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(ss_partial));
+    OCIndex sparseDims_partial = OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss_partial));
     TEST_ASSERT(nVerts_partial == 10);
     TEST_ASSERT(sparseDims_partial == 1);
     // If we had a 3D dataset (10x20x30) and only dimension 1 was sparse with 10 vertices,
@@ -683,53 +764,64 @@ cleanup:
 bool test_SparseSampling_json_untyped_roundtrip(void) {
     printf("test_SparseSampling_json_untyped_roundtrip...\n");
     bool ok = false;
-    
+
+    // Initialize all variables to NULL to avoid uninitialized use warnings
+    OCIndexSetRef dimIndexes = NULL;
+    OCIndexPairSetRef vertices = NULL;
+    OCStringRef error = NULL;
+    SparseSamplingRef ss_none = NULL;
+    SparseSamplingRef ss_b64 = NULL;
+    SparseSamplingRef restored_none = NULL;
+    SparseSamplingRef restored_b64 = NULL;
+    cJSON *json_none = NULL;
+    cJSON *json_b64 = NULL;
+    cJSON *encItem = NULL;
+
     // Create SparseSampling with various encodings
     OCIndex dims[] = {0, 1};
-    OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 2);
-    OCArrayRef vertices = _create_sparse_vertices_2d(3);
-    OCStringRef error = NULL;
-    
+    dimIndexes = _create_dimension_indexes(dims, 2);
+    vertices = _create_sparse_vertices_2d(3);
+
     // Test with "none" encoding
-    SparseSamplingRef ss_none = SparseSamplingCreate(
-        dimIndexes, vertices, kOCNumberUInt32Type, STR("none"), 
+    ss_none = SparseSamplingCreate(
+        dimIndexes, vertices, kOCNumberUInt32Type, STR("none"),
         STR("JSON test"), NULL, &error);
     TEST_ASSERT(ss_none != NULL);
-    
+
     // Test untyped JSON serialization
-    cJSON *json_none = SparseSamplingCopyAsJSON(ss_none, false);
+    json_none = SparseSamplingCopyAsJSON(ss_none, false, NULL);
     TEST_ASSERT(json_none != NULL);
     TEST_ASSERT(cJSON_IsObject(json_none));
-    
+
     // Verify encoding field is present in untyped JSON
-    cJSON *encItem = cJSON_GetObjectItemCaseSensitive(json_none, "encoding");
+    encItem = cJSON_GetObjectItemCaseSensitive(json_none, "encoding");
     TEST_ASSERT(cJSON_IsString(encItem));
     TEST_ASSERT(strcmp(encItem->valuestring, "none") == 0);
-    
+
     // Test deserialization
-    SparseSamplingRef restored_none = SparseSamplingCreateFromJSON(json_none, &error);
+    restored_none = SparseSamplingCreateFromJSON(json_none, &error);
     TEST_ASSERT(restored_none != NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored_none), STR("none")));
-    
+    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored_none), STR("none")));
+
     // Test with "base64" encoding
-    SparseSamplingRef ss_b64 = SparseSamplingCreate(
-        dimIndexes, vertices, kOCNumberUInt32Type, STR("base64"), 
+    ss_b64 = SparseSamplingCreate(
+        dimIndexes, vertices, kOCNumberUInt32Type, STR("base64"),
         STR("JSON test"), NULL, &error);
     TEST_ASSERT(ss_b64 != NULL);
-    
-    cJSON *json_b64 = SparseSamplingCopyAsJSON(ss_b64, false);
+
+    json_b64 = SparseSamplingCopyAsJSON(ss_b64, false, NULL);
     TEST_ASSERT(json_b64 != NULL);
-    
+
     encItem = cJSON_GetObjectItemCaseSensitive(json_b64, "encoding");
     TEST_ASSERT(cJSON_IsString(encItem));
     TEST_ASSERT(strcmp(encItem->valuestring, "base64") == 0);
-    
-    SparseSamplingRef restored_b64 = SparseSamplingCreateFromJSON(json_b64, &error);
+
+    restored_b64 = SparseSamplingCreateFromJSON(json_b64, &error);
     TEST_ASSERT(restored_b64 != NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored_b64), STR("base64")));
-    
+    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored_b64), STR("base64")));
+
     ok = true;
-    
+
 cleanup:
     OCRelease(dimIndexes);
     OCRelease(vertices);
@@ -740,7 +832,7 @@ cleanup:
     cJSON_Delete(json_none);
     cJSON_Delete(json_b64);
     OCRelease(error);
-    
+
     if (ok) {
         printf("test_SparseSampling_json_untyped_roundtrip passed.\n");
     } else {
@@ -752,43 +844,53 @@ cleanup:
 bool test_SparseSampling_json_typed_roundtrip(void) {
     printf("test_SparseSampling_json_typed_roundtrip...\n");
     bool ok = false;
-    
-    OCIndex dims[] = {0, 1};
-    OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 2);
-    OCArrayRef vertices = _create_sparse_vertices_2d(3);
+
+    // Initialize all variables to NULL to avoid uninitialized use warnings
+    OCIndexSetRef dimIndexes = NULL;
+    OCIndexPairSetRef vertices = NULL;
     OCStringRef error = NULL;
-    
-    SparseSamplingRef ss = SparseSamplingCreate(
-        dimIndexes, vertices, kOCNumberUInt32Type, STR("base64"), 
+    SparseSamplingRef ss = NULL;
+    SparseSamplingRef restored = NULL;
+    cJSON *json = NULL;
+    cJSON *typeItem = NULL;
+    cJSON *valueItem = NULL;
+    cJSON *encItem = NULL;
+
+    OCIndex dims[] = {0, 1};
+    dimIndexes = _create_dimension_indexes(dims, 2);
+    vertices = _create_sparse_vertices_2d(3);
+
+    ss = SparseSamplingCreate(
+        dimIndexes, vertices, kOCNumberUInt32Type, STR("base64"),
         STR("Typed JSON test"), NULL, &error);
     TEST_ASSERT(ss != NULL);
-    
+
     // Test typed JSON serialization
-    cJSON *json = SparseSamplingCopyAsJSON(ss, true);
+    json = SparseSamplingCopyAsJSON(ss, true, NULL);
     TEST_ASSERT(json != NULL);
     TEST_ASSERT(cJSON_IsObject(json));
-    
+
     // Verify typed format structure
-    cJSON *typeItem = cJSON_GetObjectItemCaseSensitive(json, "type");
-    cJSON *valueItem = cJSON_GetObjectItemCaseSensitive(json, "value");
+    typeItem = cJSON_GetObjectItemCaseSensitive(json, "type");
+    valueItem = cJSON_GetObjectItemCaseSensitive(json, "value");
     TEST_ASSERT(cJSON_IsString(typeItem));
     TEST_ASSERT(strcmp(typeItem->valuestring, "SparseSampling") == 0);
     TEST_ASSERT(cJSON_IsObject(valueItem));
-    
+
     // Verify encoding field is NOT present in typed JSON value
-    cJSON *encItem = cJSON_GetObjectItemCaseSensitive(valueItem, "encoding");
+    encItem = cJSON_GetObjectItemCaseSensitive(valueItem, "encoding");
     TEST_ASSERT(encItem == NULL);
-    
+
     // Test deserialization
-    SparseSamplingRef restored = SparseSamplingCreateFromJSON(json, &error);
+    restored = SparseSamplingCreateFromJSON(json, &error);
     TEST_ASSERT(restored != NULL);
     TEST_ASSERT(error == NULL);
-    
+
     // Verify encoding was extracted from parsed OCIndexPairSet
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored), STR("base64")));
-    
+    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored), STR("base64")));
+
     ok = true;
-    
+
 cleanup:
     OCRelease(dimIndexes);
     OCRelease(vertices);
@@ -796,7 +898,7 @@ cleanup:
     OCRelease(restored);
     cJSON_Delete(json);
     OCRelease(error);
-    
+
     if (ok) {
         printf("test_SparseSampling_json_typed_roundtrip passed.\n");
     } else {
@@ -809,14 +911,14 @@ bool test_SparseSampling_json_malformed_input(void) {
     printf("test_SparseSampling_json_malformed_input...\n");
     bool ok = false;
     OCStringRef error = NULL;
-    
+
     // Test NULL JSON
     SparseSamplingRef ss = SparseSamplingCreateFromJSON(NULL, &error);
     TEST_ASSERT(ss == NULL);
     TEST_ASSERT(error != NULL);
     OCRelease(error);
     error = NULL;
-    
+
     // Test invalid JSON structure
     cJSON *invalidJson = cJSON_CreateString("not an object");
     ss = SparseSamplingCreateFromJSON(invalidJson, &error);
@@ -825,7 +927,7 @@ bool test_SparseSampling_json_malformed_input(void) {
     cJSON_Delete(invalidJson);
     OCRelease(error);
     error = NULL;
-    
+
     // Test missing required fields (should use defaults)
     cJSON *minimalJson = cJSON_CreateObject();
     ss = SparseSamplingCreateFromJSON(minimalJson, &error);
@@ -833,7 +935,7 @@ bool test_SparseSampling_json_malformed_input(void) {
     TEST_ASSERT(error == NULL);
     cJSON_Delete(minimalJson);
     OCRelease(ss);
-    
+
     // Test invalid unsigned_integer_type
     cJSON *invalidTypeJson = cJSON_CreateObject();
     cJSON_AddStringToObject(invalidTypeJson, "unsigned_integer_type", "invalid_type");
@@ -843,9 +945,10 @@ bool test_SparseSampling_json_malformed_input(void) {
     cJSON_Delete(invalidTypeJson);
     OCRelease(error);
     error = NULL;
-    
+
     ok = true;
-    
+
+cleanup:
     if (ok) {
         printf("test_SparseSampling_json_malformed_input passed.\n");
     } else {
@@ -857,45 +960,55 @@ bool test_SparseSampling_json_malformed_input(void) {
 bool test_SparseSampling_json_encoding_extraction(void) {
     printf("test_SparseSampling_json_encoding_extraction...\n");
     bool ok = false;
-    
+
+    // Initialize all variables to NULL to avoid uninitialized use warnings
+    OCIndexSetRef dimIndexes = NULL;
+    OCIndexPairSetRef vertices = NULL;
+    OCStringRef error = NULL;
+    SparseSamplingRef ss_none = NULL;
+    SparseSamplingRef ss_b64 = NULL;
+    SparseSamplingRef restored = NULL;
+    SparseSamplingRef restored_b64 = NULL;
+    cJSON *typed_json = NULL;
+    cJSON *typed_json_b64 = NULL;
+
     // This test verifies that typed JSON correctly extracts encoding
     // from the parsed OCIndexPairSet structure
-    
+
     OCIndex dims[] = {0, 1};
-    OCIndexSetRef dimIndexes = _create_dimension_indexes(dims, 2);
-    OCArrayRef vertices = _create_sparse_vertices_2d(2);
-    OCStringRef error = NULL;
-    
+    dimIndexes = _create_dimension_indexes(dims, 2);
+    vertices = _create_sparse_vertices_2d(2);
+
     // Create with "none" encoding
-    SparseSamplingRef ss_none = SparseSamplingCreate(
-        dimIndexes, vertices, kOCNumberUInt32Type, STR("none"), 
+    ss_none = SparseSamplingCreate(
+        dimIndexes, vertices, kOCNumberUInt32Type, STR("none"),
         STR("Encoding test"), NULL, &error);
     TEST_ASSERT(ss_none != NULL);
-    
+
     // Serialize as typed JSON
-    cJSON *typed_json = SparseSamplingCopyAsJSON(ss_none, true);
+    typed_json = SparseSamplingCopyAsJSON(ss_none, true, NULL);
     TEST_ASSERT(typed_json != NULL);
-    
+
     // Deserialize and verify encoding was extracted correctly
-    SparseSamplingRef restored = SparseSamplingCreateFromJSON(typed_json, &error);
+    restored = SparseSamplingCreateFromJSON(typed_json, &error);
     TEST_ASSERT(restored != NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored), STR("none")));
-    
+    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored), STR("none")));
+
     // Repeat with base64 encoding
-    SparseSamplingRef ss_b64 = SparseSamplingCreate(
-        dimIndexes, vertices, kOCNumberUInt32Type, STR("base64"), 
+    ss_b64 = SparseSamplingCreate(
+        dimIndexes, vertices, kOCNumberUInt32Type, STR("base64"),
         STR("Encoding test"), NULL, &error);
     TEST_ASSERT(ss_b64 != NULL);
-    
-    cJSON *typed_json_b64 = SparseSamplingCopyAsJSON(ss_b64, true);
+
+    typed_json_b64 = SparseSamplingCopyAsJSON(ss_b64, true, NULL);
     TEST_ASSERT(typed_json_b64 != NULL);
-    
-    SparseSamplingRef restored_b64 = SparseSamplingCreateFromJSON(typed_json_b64, &error);
+
+    restored_b64 = SparseSamplingCreateFromJSON(typed_json_b64, &error);
     TEST_ASSERT(restored_b64 != NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(restored_b64), STR("base64")));
-    
+    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored_b64), STR("base64")));
+
     ok = true;
-    
+
 cleanup:
     OCRelease(dimIndexes);
     OCRelease(vertices);
@@ -906,7 +1019,7 @@ cleanup:
     cJSON_Delete(typed_json);
     cJSON_Delete(typed_json_b64);
     OCRelease(error);
-    
+
     if (ok) {
         printf("test_SparseSampling_json_encoding_extraction passed.\n");
     } else {

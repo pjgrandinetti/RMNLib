@@ -241,7 +241,7 @@ bool DatasetExport(DatasetRef ds,
             cJSON_ArrayForEach(dv_item, dvList) {
                 if (!cJSON_IsObject(dv_item)) continue;
                 cJSON *type_item = cJSON_GetObjectItemCaseSensitive(dv_item, kDependentVariableTypeKey);
-                if (type_item && cJSON_IsString(type_item) && 
+                if (type_item && cJSON_IsString(type_item) &&
                     strcmp(type_item->valuestring, kDependentVariableComponentTypeValueExternal) == 0) {
                     cJSON_DeleteItemFromObject(dv_item, kDependentVariableComponentsKey);
                     cJSON_DeleteItemFromObject(dv_item, kDependentVariableEncodingKey);
@@ -423,7 +423,7 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         }
         return NULL;
     }
-    
+
     // 2) Extract dataset JSON from CSDM envelope
     cJSON *csdm_envelope = cJSON_GetObjectItemCaseSensitive(root, kDatasetCsdmEnvelopeKey);
     if (!csdm_envelope) {
@@ -431,7 +431,7 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         if (outError) *outError = STR("Dataset import failed: missing CSDM envelope");
         return NULL;
     }
-    
+
     // Create a copy of the dataset content and remove envelope-specific fields
     cJSON *dataset_json = cJSON_Duplicate(csdm_envelope, true);
     if (!dataset_json) {
@@ -439,12 +439,12 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         if (outError) *outError = STR("Dataset import failed: cannot extract dataset from envelope");
         return NULL;
     }
-    
+
     // Remove only envelope-specific fields, keep dataset core fields
     cJSON_DeleteItemFromObject(dataset_json, kDatasetTimestampKey);
     cJSON_DeleteItemFromObject(dataset_json, kDatasetReadOnlyKey);
     cJSON_DeleteItemFromObject(dataset_json, kDatasetGeoCoordinateKey);
-    
+
     // 3) Create Dataset from cleaned JSON (without envelope)
     DatasetRef ds = DatasetCreateFromJSON(dataset_json, outError);
     cJSON_Delete(root);

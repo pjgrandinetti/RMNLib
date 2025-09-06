@@ -185,7 +185,7 @@ jobs:
           make clean
           make update-deps
           make test-asan
-          
+
   # ARM64 Linux build: still under releases only (keeps PRs fast)
   build-arm64:
     name: Build & Test (ubuntu-latest.arm64)

@@ -248,11 +248,8 @@ bool test_DependentVariable_sparse_sampling(void) {
     // build a sparse‐sampling object
     OCMutableIndexSetRef dims = OCIndexSetCreateMutable();
     OCIndexSetAddIndex(dims, 1);
-    OCMutableArrayRef verts = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    OCMutableIndexPairSetRef pset = OCIndexPairSetCreateMutable();
-    OCIndexPairSetAddIndexPair(pset, 1, 3);
-    OCArrayAppendValue(verts, pset);
-    OCRelease(pset);
+    OCMutableIndexPairSetRef verts = OCIndexPairSetCreateMutable();
+    OCIndexPairSetAddIndexPair(verts, 1, 3);  // Using linearized coordinate encoding
     SparseSamplingRef ss = SparseSamplingCreate(
         dims,
         verts,
@@ -270,8 +267,16 @@ bool test_DependentVariable_sparse_sampling(void) {
     SparseSamplingRef got = DependentVariableCopySparseSampling(dv);
     TEST_ASSERT(got);
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(got) == kOCNumberUInt16Type);
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetEncoding(got), STR("base64")));
-    TEST_ASSERT(OCStringEqual(SparseSamplingGetDescription(got), STR("sparse-desc")));
+
+    // Use copy functions and release the returned strings
+    OCStringRef encoding = SparseSamplingCopyEncoding(got);
+    TEST_ASSERT(OCStringEqual(encoding, STR("base64")));
+    OCRelease(encoding);
+
+    OCStringRef description = SparseSamplingCopyDescription(got);
+    TEST_ASSERT(OCStringEqual(description, STR("sparse-desc")));
+    OCRelease(description);
+
     OCRelease(got);  // Release the copy returned by DependentVariableCopySparseSampling
     OCRelease(ss);
     ok = true;
@@ -543,12 +548,12 @@ bool test_DependentVariable_copy_component_labels(void) {
     OCStringRef err = NULL;
     OCStringRef label1 = NULL, label2 = NULL, label3 = NULL;
     OCStringRef copiedLabel1 = NULL, copiedLabel2 = NULL, copiedLabel3 = NULL;
-    
+
     printf("Testing DependentVariable component labels copy...\n");
-    
+
     // Create a simple DependentVariable with component labels
     unit = SIUnitDimensionlessAndUnderived();
-    
+
     // Create component data
     components = OCArrayCreateMutable(3, &kOCTypeArrayCallBacks);
     for (int i = 0; i < 3; i++) {
@@ -563,7 +568,7 @@ bool test_DependentVariable_copy_component_labels(void) {
         OCRelease(comp);
         comp = NULL;
     }
-    
+
     // Create component labels
     labels = OCArrayCreateMutable(3, &kOCTypeArrayCallBacks);
     label1 = STR("x_component");
@@ -572,7 +577,7 @@ bool test_DependentVariable_copy_component_labels(void) {
     OCArrayAppendValue(labels, label1);
     OCArrayAppendValue(labels, label2);
     OCArrayAppendValue(labels, label3);
-    
+
     // Create DependentVariable
     dv = DependentVariableCreate(
         STR("test_vector"),
@@ -585,33 +590,33 @@ bool test_DependentVariable_copy_component_labels(void) {
         components,
         &err
     );
-    
+
     TEST_ASSERT(dv != NULL);
     if (err) {
         printf("Error creating DependentVariable: %s\n", OCStringGetCString(err));
         goto cleanup;
     }
-    
+
     // Test copying component labels
     copiedLabels = DependentVariableCopyComponentLabels(dv);
     TEST_ASSERT(copiedLabels != NULL);
     TEST_ASSERT(OCArrayGetCount(copiedLabels) == 3);
-    
+
     // Verify the copied labels are correct
     copiedLabel1 = (OCStringRef)OCArrayGetValueAtIndex(copiedLabels, 0);
     copiedLabel2 = (OCStringRef)OCArrayGetValueAtIndex(copiedLabels, 1);
     copiedLabel3 = (OCStringRef)OCArrayGetValueAtIndex(copiedLabels, 2);
-    
+
     TEST_ASSERT(OCStringEqual(copiedLabel1, STR("x_component")));
     TEST_ASSERT(OCStringEqual(copiedLabel2, STR("y_component")));
     TEST_ASSERT(OCStringEqual(copiedLabel3, STR("z_component")));
-    
+
     // Test with NULL DependentVariable
     OCArrayRef nullResult = DependentVariableCopyComponentLabels(NULL);
     TEST_ASSERT(nullResult == NULL);
-    
+
     ok = true;
-    
+
 cleanup:
     if (dv) OCRelease(dv);
     if (components) OCRelease(components);
@@ -619,7 +624,7 @@ cleanup:
     if (labels) OCRelease(labels);
     if (copiedLabels) OCRelease(copiedLabels);
     if (err) OCRelease(err);
-    
+
     printf("DependentVariable copy component labels tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -634,11 +639,11 @@ bool test_DependentVariable_copy_component_label_at_index(void) {
     OCStringRef err = NULL;
     SIUnitRef unit = NULL;
     OCStringRef copiedLabel1 = NULL, copiedLabel2 = NULL, copiedLabel3 = NULL;
-    
+
     // Create a simple unit
     unit = SIUnitDimensionlessAndUnderived();
     TEST_ASSERT(unit != NULL);
-    
+
     // Create component data
     components = OCArrayCreateMutable(3, &kOCTypeArrayCallBacks);
     for (int i = 0; i < 3; i++) {
@@ -653,13 +658,13 @@ bool test_DependentVariable_copy_component_label_at_index(void) {
         OCRelease(comp);
         comp = NULL;
     }
-    
+
     // Create component labels
     labels = OCArrayCreateMutable(3, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(labels, STR("x_component"));
     OCArrayAppendValue(labels, STR("y_component"));
     OCArrayAppendValue(labels, STR("z_component"));
-    
+
     // Create DependentVariable
     dv = DependentVariableCreate(
         STR("test_variable"),
@@ -672,41 +677,41 @@ bool test_DependentVariable_copy_component_label_at_index(void) {
         components,
         &err
     );
-    
+
     if (err) {
         printf("Error creating DependentVariable: %s\n", OCStringGetCString(err));
     }
     TEST_ASSERT(dv != NULL);
     TEST_ASSERT(err == NULL);
-    
+
     // Test copying individual labels at specific indices
     copiedLabel1 = DependentVariableCopyComponentLabelAtIndex(dv, 0);
     copiedLabel2 = DependentVariableCopyComponentLabelAtIndex(dv, 1);
     copiedLabel3 = DependentVariableCopyComponentLabelAtIndex(dv, 2);
-    
+
     TEST_ASSERT(copiedLabel1 != NULL);
     TEST_ASSERT(copiedLabel2 != NULL);
     TEST_ASSERT(copiedLabel3 != NULL);
-    
+
     // Verify the copied labels have correct content
     TEST_ASSERT(OCStringEqual(copiedLabel1, STR("x_component")));
     TEST_ASSERT(OCStringEqual(copiedLabel2, STR("y_component")));
     TEST_ASSERT(OCStringEqual(copiedLabel3, STR("z_component")));
-    
+
     // Test with invalid index (should return NULL)
     OCStringRef invalidLabel = DependentVariableCopyComponentLabelAtIndex(dv, 10);
     TEST_ASSERT(invalidLabel == NULL);
-    
+
     // Test with negative index (should return NULL)
     invalidLabel = DependentVariableCopyComponentLabelAtIndex(dv, -1);
     TEST_ASSERT(invalidLabel == NULL);
-    
+
     // Test with NULL DependentVariable
     OCStringRef nullResult = DependentVariableCopyComponentLabelAtIndex(NULL, 0);
     TEST_ASSERT(nullResult == NULL);
-    
+
     ok = true;
-    
+
 cleanup:
     if (dv) OCRelease(dv);
     if (components) OCRelease(components);
@@ -716,7 +721,7 @@ cleanup:
     if (copiedLabel2) OCRelease(copiedLabel2);
     if (copiedLabel3) OCRelease(copiedLabel3);
     if (err) OCRelease(err);
-    
+
     printf("DependentVariable copy component label at index tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -730,11 +735,11 @@ bool test_DependentVariable_copy_component_at_index(void) {
     OCStringRef err = NULL;
     SIUnitRef unit = NULL;
     OCDataRef copiedComp1 = NULL, copiedComp2 = NULL, copiedComp3 = NULL;
-    
+
     // Create a simple unit
     unit = SIUnitDimensionlessAndUnderived();
     TEST_ASSERT(unit != NULL);
-    
+
     // Create component data with different values for each component
     components = OCArrayCreateMutable(3, &kOCTypeArrayCallBacks);
     for (int i = 0; i < 3; i++) {
@@ -748,13 +753,13 @@ bool test_DependentVariable_copy_component_at_index(void) {
         OCArrayAppendValue(components, comp);
         OCRelease(comp);
     }
-    
+
     // Create component labels
     labels = OCArrayCreateMutable(3, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(labels, STR("x_component"));
     OCArrayAppendValue(labels, STR("y_component"));
     OCArrayAppendValue(labels, STR("z_component"));
-    
+
     // Create DependentVariable
     dv = DependentVariableCreate(
         STR("test_variable"),
@@ -767,45 +772,45 @@ bool test_DependentVariable_copy_component_at_index(void) {
         components,
         &err
     );
-    
+
     if (err) {
         printf("Error creating DependentVariable: %s\n", OCStringGetCString(err));
     }
     TEST_ASSERT(dv != NULL);
     TEST_ASSERT(err == NULL);
-    
+
     // Test copying individual components at specific indices
     copiedComp1 = DependentVariableCopyComponentAtIndex(dv, 0);
     copiedComp2 = DependentVariableCopyComponentAtIndex(dv, 1);
     copiedComp3 = DependentVariableCopyComponentAtIndex(dv, 2);
-    
+
     TEST_ASSERT(copiedComp1 != NULL);
     TEST_ASSERT(copiedComp2 != NULL);
     TEST_ASSERT(copiedComp3 != NULL);
-    
+
     // Verify the copied components have correct content and are deep copies
     const float *data1 = (const float *)OCDataGetBytesPtr(copiedComp1);
     const float *data2 = (const float *)OCDataGetBytesPtr(copiedComp2);
     const float *data3 = (const float *)OCDataGetBytesPtr(copiedComp3);
-    
+
     TEST_ASSERT(data1[0] == 10.0f && data1[1] == 20.0f && data1[2] == 30.0f && data1[3] == 40.0f);
     TEST_ASSERT(data2[0] == 11.0f && data2[1] == 21.0f && data2[2] == 31.0f && data2[3] == 41.0f);
     TEST_ASSERT(data3[0] == 12.0f && data3[1] == 22.0f && data3[2] == 32.0f && data3[3] == 42.0f);
-    
+
     // Test with invalid index (should return NULL)
     OCDataRef invalidComp = DependentVariableCopyComponentAtIndex(dv, 10);
     TEST_ASSERT(invalidComp == NULL);
-    
+
     // Test with negative index (should return NULL)
     invalidComp = DependentVariableCopyComponentAtIndex(dv, -1);
     TEST_ASSERT(invalidComp == NULL);
-    
+
     // Test with NULL DependentVariable
     OCDataRef nullResult = DependentVariableCopyComponentAtIndex(NULL, 0);
     TEST_ASSERT(nullResult == NULL);
-    
+
     ok = true;
-    
+
 cleanup:
     if (dv) OCRelease(dv);
     if (components) OCRelease(components);
@@ -814,7 +819,7 @@ cleanup:
     if (copiedComp2) OCRelease(copiedComp2);
     if (copiedComp3) OCRelease(copiedComp3);
     if (err) OCRelease(err);
-    
+
     printf("DependentVariable copy component at index tests %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }

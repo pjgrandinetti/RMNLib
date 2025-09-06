@@ -842,27 +842,27 @@ bool test_monotonic_large_scale_values(void) {
     OCStringRef error = NULL;
     SIMonotonicDimensionRef monotonicDim = NULL;
     OCMutableArrayRef coordinates = NULL;
-    
+
     // Test with a wide range of coordinate values including very large ones
     double values[] = {1.0, 100.0, 1000.0, 1000000.0, 2.36518262e15};
     int numValues = sizeof(values) / sizeof(values[0]);
-    
+
     // Create coordinates array with SIScalar objects (dimensionless)
     coordinates = OCArrayCreateMutable(numValues, &kOCTypeArrayCallBacks);
     TEST_ASSERT(coordinates != NULL);
-    
+
     for (int i = 0; i < numValues; i++) {
         SIScalarRef scalar = SIScalarCreateWithDouble(values[i], SIUnitDimensionlessAndUnderived());
         TEST_ASSERT(scalar != NULL);
         OCArrayAppendValue(coordinates, scalar);
         OCRelease(scalar); // Release our reference, array retains it
     }
-    
+
     // Test 1: Full constructor
     error = NULL;
     monotonicDim = SIMonotonicDimensionCreate(
         STR("large_scale"),         // label
-        STR("Large scale values"),  // description  
+        STR("Large scale values"),  // description
         NULL,                       // metadata
         kSIQuantityDimensionless,   // quantity (dimensionless since no units)
         NULL,                       // offset (NULL for default)
@@ -873,16 +873,16 @@ bool test_monotonic_large_scale_values(void) {
         NULL,                       // reciprocal
         &error                      // outError
     );
-    
+
     TEST_ASSERT(monotonicDim != NULL && error == NULL);
-    
+
     // Verify the dimension properties
     OCArrayRef retrievedCoords = SIMonotonicDimensionCopyCoordinates(monotonicDim);
     TEST_ASSERT(retrievedCoords != NULL);
-    
+
     OCIndex coordCount = OCArrayGetCount(retrievedCoords);
     TEST_ASSERT(coordCount == numValues);
-    
+
     // Verify coordinate values
     for (OCIndex i = 0; i < coordCount; i++) {
         SIScalarRef coord = (SIScalarRef)OCArrayGetValueAtIndex(retrievedCoords, i);
@@ -890,14 +890,14 @@ bool test_monotonic_large_scale_values(void) {
         TEST_ASSERT(fabs(coordValue - values[i]) < 1e-9);
     }
     OCRelease(retrievedCoords);
-    
+
     // Verify dimension type
     OCStringRef dimType = DimensionGetType((DimensionRef)monotonicDim);
     TEST_ASSERT(OCStringEqual(dimType, STR("monotonic")));
-    
+
     OCRelease(monotonicDim);
     monotonicDim = NULL;
-    
+
     // Test 2: Minimal constructor
     error = NULL;
     monotonicDim = SIMonotonicDimensionCreateMinimal(
@@ -906,18 +906,18 @@ bool test_monotonic_large_scale_values(void) {
         NULL,                       // reciprocal
         &error                      // outError
     );
-    
+
     TEST_ASSERT(monotonicDim != NULL && error == NULL);
     OCRelease(monotonicDim);
     monotonicDim = NULL;
-    
+
     ok = true;
-    
+
 cleanup:
     if (coordinates) OCRelease(coordinates);
     if (monotonicDim) OCRelease(monotonicDim);
     if (error) OCRelease(error);
-    
+
     printf("Monotonic dimension large-scale values test %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
@@ -932,20 +932,20 @@ bool test_DimensionMetadataRoundTrip(void) {
     OCDictionaryRef dict = NULL;
     OCMutableDictionaryRef metadata = NULL;
     OCStringRef err = NULL;
-    
+
     // Create coordinate labels
     labels = OCArrayCreateMutable(3, &kOCTypeArrayCallBacks);
     TEST_ASSERT(labels != NULL);
     OCArrayAppendValue(labels, STR("red"));
     OCArrayAppendValue(labels, STR("green"));
     OCArrayAppendValue(labels, STR("blue"));
-    
+
     // Create application metadata
     metadata = OCDictionaryCreateMutable(0);
     TEST_ASSERT(metadata != NULL);
     OCDictionarySetValue(metadata, STR("encoding"), STR("sRGB"));
     OCDictionarySetValue(metadata, STR("version"), STR("1.0"));
-    
+
     // Create LabeledDimension with metadata
     err = NULL;
     ld_original = LabeledDimensionCreate(
@@ -957,65 +957,65 @@ bool test_DimensionMetadataRoundTrip(void) {
     );
     TEST_ASSERT(ld_original != NULL);
     TEST_ASSERT(err == NULL);
-    
+
     // Verify original has metadata
     OCDictionaryRef orig_meta = DimensionGetApplicationMetaData((DimensionRef)ld_original);
     TEST_ASSERT(orig_meta != NULL);
     TEST_ASSERT(OCDictionaryGetCount(orig_meta) == 2);
-    
+
     OCStringRef orig_encoding = (OCStringRef)OCDictionaryGetValue(orig_meta, STR("encoding"));
     TEST_ASSERT(orig_encoding != NULL);
     TEST_ASSERT(OCStringEqual(orig_encoding, STR("sRGB")));
-    
+
     OCStringRef orig_version = (OCStringRef)OCDictionaryGetValue(orig_meta, STR("version"));
     TEST_ASSERT(orig_version != NULL);
     TEST_ASSERT(OCStringEqual(orig_version, STR("1.0")));
-    
+
     // Convert to dictionary
     dict = LabeledDimensionCopyAsDictionary(ld_original);
     TEST_ASSERT(dict != NULL);
-    
+
     // Verify metadata is in dictionary
     OCDictionaryRef dict_meta = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("application"));
     TEST_ASSERT(dict_meta != NULL);
     TEST_ASSERT(OCDictionaryGetCount(dict_meta) == 2);
-    
+
     OCStringRef dict_encoding = (OCStringRef)OCDictionaryGetValue(dict_meta, STR("encoding"));
     TEST_ASSERT(dict_encoding != NULL);
     TEST_ASSERT(OCStringEqual(dict_encoding, STR("sRGB")));
-    
+
     // Create dimension from dictionary (round-trip)
     err = NULL;
     ld_restored = LabeledDimensionCreateFromDictionary(dict, &err);
     TEST_ASSERT(ld_restored != NULL);
     TEST_ASSERT(err == NULL);
-    
+
     // Verify restored dimension has metadata
     OCDictionaryRef restored_meta = DimensionGetApplicationMetaData((DimensionRef)ld_restored);
     TEST_ASSERT(restored_meta != NULL);
     TEST_ASSERT(OCDictionaryGetCount(restored_meta) == 2);
-    
+
     OCStringRef restored_encoding = (OCStringRef)OCDictionaryGetValue(restored_meta, STR("encoding"));
     TEST_ASSERT(restored_encoding != NULL);
     TEST_ASSERT(OCStringEqual(restored_encoding, STR("sRGB")));
-    
+
     OCStringRef restored_version = (OCStringRef)OCDictionaryGetValue(restored_meta, STR("version"));
     TEST_ASSERT(restored_version != NULL);
     TEST_ASSERT(OCStringEqual(restored_version, STR("1.0")));
-    
+
     // Verify that other properties are preserved too
     OCStringRef restored_label = DimensionCopyLabel((DimensionRef)ld_restored);
     TEST_ASSERT(restored_label != NULL);
     TEST_ASSERT(OCStringEqual(restored_label, STR("color_channel")));
     OCRelease(restored_label);
-    
+
     OCStringRef restored_desc = DimensionCopyDescription((DimensionRef)ld_restored);
     TEST_ASSERT(restored_desc != NULL);
     TEST_ASSERT(OCStringEqual(restored_desc, STR("RGB color channels")));
     OCRelease(restored_desc);
-    
+
     ok = true;
-    
+
 cleanup:
     if (labels) OCRelease(labels);
     if (metadata) OCRelease(metadata);
@@ -1023,7 +1023,7 @@ cleanup:
     if (ld_restored) OCRelease(ld_restored);
     if (dict) OCRelease(dict);
     if (err) OCRelease(err);
-    
+
     printf("Dimension metadata round-trip test %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }

@@ -47,7 +47,7 @@
           "80 s"
         ],
         "label" : "t1",
-        "quantity_name" : "time"  
+        "quantity_name" : "time"
       }
     ],
     "dependent_variables" : [

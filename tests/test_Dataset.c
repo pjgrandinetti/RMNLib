@@ -216,26 +216,26 @@ cleanup:
 static DependentVariableRef _make_mock_dv_with_data(void) {
     // Create test data like the Python test: [1.0]
     double data[] = {1.0};
-    
+
     // Create data component
     OCMutableDataRef comp = OCDataCreateMutable(0);
     if (!comp) return NULL;
-    
+
     // Set length and copy data
     OCDataSetLength(comp, sizeof(data));
     double *dataPtr = (double *)OCDataGetMutableBytes(comp);
     memcpy(dataPtr, data, sizeof(data));
-    
+
     // Create components array
     OCMutableArrayRef comps = OCArrayCreateMutable(1, &kOCTypeArrayCallBacks);
     OCArrayAppendValue(comps, comp);
     OCRelease(comp);
-    
+
     // Create DependentVariable
     SIUnitRef unit = SIUnitDimensionlessAndUnderived();
     OCStringRef err = NULL;
     DependentVariableRef dv = DependentVariableCreate(
-        STR("test_dv"),                     // name  
+        STR("test_dv"),                     // name
         STR("Test dependent variable"),     // description
         unit,                               // unit
         STR("dimensionless"),               // quantity_name
@@ -245,7 +245,7 @@ static DependentVariableRef _make_mock_dv_with_data(void) {
         comps,                              // components
         &err                                // outError
     );
-    
+
     OCRelease(comps);
     if (!dv && err) {
         printf("_make_mock_dv_with_data failed: %s\n", OCStringGetCString(err));
@@ -261,16 +261,16 @@ bool test_Dataset_rigorous_roundtrip(void) {
     OCDictionaryRef dict = NULL;
     DatasetRef ds = NULL, rt = NULL;
     OCStringRef err_str = NULL; // Declare early to avoid uninitialized warnings
-    
+
     // Create a DependentVariable with actual data (like Python test)
     DependentVariableRef dv = _make_mock_dv_with_data();
     TEST_ASSERT(dv != NULL);
     OCArrayAppendValue(dvs, dv);
     OCRelease(dv);
-    
+
     // Create Dataset with title and description (like Python test)
     ds = DatasetCreate(NULL,                           // dimensions
-                       NULL,                           // dimensionPrecedence  
+                       NULL,                           // dimensionPrecedence
                        dvs,                            // dependentVariables
                        NULL,                           // tags
                        STR("Original description"),    // description
@@ -280,7 +280,7 @@ bool test_Dataset_rigorous_roundtrip(void) {
                        NULL,                           // metaData
                        NULL);                          // outError
     TEST_ASSERT(ds != NULL);
-    
+
     // Verify original dataset properties
     OCStringRef title = DatasetGetTitle(ds);
     OCStringRef desc = DatasetGetDescription(ds);
@@ -288,19 +288,19 @@ bool test_Dataset_rigorous_roundtrip(void) {
     TEST_ASSERT(desc != NULL);
     TEST_ASSERT(OCStringEqual(title, STR("Original Dataset")));
     TEST_ASSERT(OCStringEqual(desc, STR("Original description")));
-    
+
     // Round-trip via dictionary (like Python test calls to_dict() then from_dict())
     dict = DatasetCopyAsDictionary(ds);
     TEST_ASSERT(dict != NULL);
-    
+
     // DEBUG: Print dictionary structure to help debug Python wrapper issue
     printf("=== C Dictionary Structure Debug ===\n");
     OCStringRef debug_title = (OCStringRef)OCDictionaryGetValue(dict, STR("title"));
     if (debug_title) printf("  title: %s\n", OCStringGetCString(debug_title));
-    
+
     OCStringRef debug_desc = (OCStringRef)OCDictionaryGetValue(dict, STR("description"));
     if (debug_desc) printf("  description: %s\n", OCStringGetCString(debug_desc));
-    
+
     OCArrayRef debug_deps = (OCArrayRef)OCDictionaryGetValue(dict, STR("dependent_variables"));
     if (debug_deps) {
         printf("  dependent_variables: array with %llu items\n", (unsigned long long)OCArrayGetCount(debug_deps));
@@ -314,14 +314,14 @@ bool test_Dataset_rigorous_roundtrip(void) {
             }
         }
     }
-    
+
     OCArrayRef debug_dims = (OCArrayRef)OCDictionaryGetValue(dict, STR("dimensions"));
     if (debug_dims) printf("  dimensions: array with %llu items\n", (unsigned long long)OCArrayGetCount(debug_dims));
-    
+
     OCArrayRef debug_prec = (OCArrayRef)OCDictionaryGetValue(dict, STR("dimension_precedence"));
     if (debug_prec) printf("  dimension_precedence: array with %llu items\n", (unsigned long long)OCArrayGetCount(debug_prec));
     printf("=== End C Dictionary Debug ===\n");
-    
+
     // Create from dictionary
     rt = DatasetCreateFromDictionary(dict, &err_str);
     if (rt == NULL) {
@@ -333,7 +333,7 @@ bool test_Dataset_rigorous_roundtrip(void) {
         }
         goto cleanup;
     }
-    
+
     // Verify roundtrip dataset properties match original
     OCStringRef rt_title = DatasetGetTitle(rt);
     OCStringRef rt_desc = DatasetGetDescription(rt);
@@ -341,16 +341,16 @@ bool test_Dataset_rigorous_roundtrip(void) {
     TEST_ASSERT(rt_desc != NULL);
     TEST_ASSERT(OCStringEqual(rt_title, STR("Original Dataset")));
     TEST_ASSERT(OCStringEqual(rt_desc, STR("Original description")));
-    
+
     // Verify dependent variables count matches
     OCArrayRef orig_dvs = DatasetGetDependentVariables(ds);
     OCArrayRef rt_dvs = DatasetGetDependentVariables(rt);
     TEST_ASSERT(OCArrayGetCount(orig_dvs) == OCArrayGetCount(rt_dvs));
     TEST_ASSERT(OCArrayGetCount(rt_dvs) == 1);
-    
+
     // Verify the datasets are equal
     TEST_ASSERT(OCTypeEqual(ds, rt));
-    
+
     ok = true;
 cleanup:
     if (err_str) OCRelease(err_str);

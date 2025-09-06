@@ -1,0 +1,81 @@
+# Pre-commit configuration for RMNLib C library
+# See https://pre-commit.com for more information
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.(md|rst)$
+      - id: end-of-file-fixer
+        exclude: \.(md|rst)$
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: mixed-line-ending
+
+  # C/C++ specific tools
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      # Code formatting with clang-format
+      - id: clang-format
+        args: [--style=file, --fallback-style=LLVM]
+        files: \.(c|h)$
+        exclude: ^(build/|third_party/|install/|.*\.tab\.(c|h)|.*Scanner\.c|src/third_party/)$
+
+  # Local hooks using rmnpy-dev conda environment
+  - repo: local
+    hooks:
+      # Static analysis with cppcheck (using rmnpy-dev conda environment)
+      - id: cppcheck
+        name: cppcheck
+        entry: conda run -n rmnpy-dev cppcheck
+        language: system
+        args:
+          - --error-exitcode=1
+          - --enable=warning,style,performance,portability
+          - --suppress=missingIncludeSystem
+          - --suppress=constVariable
+          - --suppress=constVariablePointer
+          - --suppress=constParameterPointer
+          - --suppress=variableScope
+          - --suppress=unusedStructMember
+          - --suppress=constParameterCallback
+          - --suppress=invalidPointerCast
+          - --suppress=nullPointerRedundantCheck
+          - --suppress=unreadVariable
+          - --suppress=shadowVariable
+          - --suppress=knownConditionTrueFalse
+          - --suppress=nullPointerOutOfMemory
+          - --suppress=nullPointerArithmeticOutOfMemory
+          - --suppress=invalidPrintfArgType_uint
+          - --suppress=shadowArgument
+          - --suppress=unusedFunction
+          - --suppress=unmatchedSuppression
+          - --suppress=normalCheckLevelMaxBranches
+          - --suppress=toomanyconfigs
+          - --suppress=unusedVariable
+          - --suppress=uninitvar
+          - --suppress=unassignedVariable
+          - --suppress=syntaxError
+          - --suppress=redundantAssignment
+          - --suppress=redundantCondition
+          - --suppress=redundantInitialization
+          - --suppress=zerodivcond
+          - --suppress=arrayIndexThenCheck
+          - --inline-suppr
+        files: \.(c|h)$
+        exclude: ^(build/|third_party/|install/|.*\.tab\.(c|h)|.*Scanner\.c|src/third_party/|.*stb_image\.h)$
+
+# Configuration for pre-commit hooks
+default_language_version:
+  python: python3
+
+# Uses rmnpy-dev conda environment for cppcheck
+default_stages: [commit]
+fail_fast: false

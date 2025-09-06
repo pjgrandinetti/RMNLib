@@ -5,8 +5,8 @@
 ##OWNER= Dr R.Lancashire
 ##$URL= http://wwwchem.uwimona.edu.jm:1104/spectra/testdata/index.html
 ##NPOINTS=  298
-##XUNITS= GAUSS          
-##YUNITS= ARBITRARY 
+##XUNITS= GAUSS
+##YUNITS= ARBITRARY
 ##RESOLUTION= 4
 ##FIRSTX= 2750
 ##LASTX= 3938

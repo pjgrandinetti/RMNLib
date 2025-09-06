@@ -143,7 +143,7 @@ OCMutableArrayRef DimensionCreateCoordinateIndexesFromMemOffset(OCArrayRef dimen
    	IF_NO_OBJECT_EXISTS_RETURN(dimensions,NULL);
     OCIndex dimensionsCount = OCArrayGetCount(dimensions);
     if(dimensionsCount==0) return NULL;
-    
+
     OCMutableIndexArrayRef indexValues = OCIndexArrayCreateMutable(dimensionsCount);
     OCIndex hyperVolume = 1;
     for(OCIndex idim = 0; idim<dimensionsCount; idim++) {
@@ -161,9 +161,9 @@ OCArrayRef DimensionCreateCoordinatesFromIndexes(OCArrayRef dimensions, OCIndexA
   	IF_NO_OBJECT_EXISTS_RETURN(dimensions,NULL);
     OCIndex dimensionsCount = OCArrayGetCount(dimensions);
     if(dimensionsCount==0) return NULL;
-    
+
     OCMutableArrayRef coordinateValues = OCArrayCreateMutable(sizeof(SIScalarRef)*dimensionsCount,&kOCTypeArrayCallBacks);
-    
+
     for(OCIndex idim = 0; idim<dimensionsCount; idim++) {
         DimensionRef dimension = (DimensionRef) OCArrayGetValueAtIndex(dimensions, idim);
         OCTypeRef coordinate = DimensionCopyCoordinateAtIndex(dimension, OCIndexArrayGetValueAtIndex(theIndexes, idim));

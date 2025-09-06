@@ -6,12 +6,12 @@
 #endif
 bool RMNLibSetDescription(OCTypeRef theType, OCStringRef description, OCStringRef *outError) {
     if (outError) *outError = NULL;
-    
+
     if (!theType || !description) {
         if (outError) *outError = STR("Invalid parameters: theType and description cannot be NULL");
         return false;
     }
-    
+
     OCTypeID typeID = OCGetTypeID(theType);
     if (typeID == DimensionGetTypeID() || typeID == LabeledDimensionGetTypeID() || typeID == SIDimensionGetTypeID() || typeID == SIMonotonicDimensionGetTypeID() || typeID == SILinearDimensionGetTypeID()) {
         return DimensionSetDescription((DimensionRef)theType, description, outError);
@@ -35,7 +35,7 @@ bool RMNLibSetDescription(OCTypeRef theType, OCStringRef description, OCStringRe
         if (outError) *outError = STR("GeographicCoordinate type does not support description field");
         return false;
     }
-    
+
     // Unknown type
     if (outError) *outError = STR("Unknown or unsupported type");
     return false;
@@ -43,12 +43,12 @@ bool RMNLibSetDescription(OCTypeRef theType, OCStringRef description, OCStringRe
 
 OCStringRef RMNLibGetDescription(OCTypeRef theType, OCStringRef *outError) {
     if (outError) *outError = NULL;
-    
+
     if (!theType) {
         if (outError) *outError = STR("Invalid parameter: theType cannot be NULL");
         return NULL;
     }
-    
+
     OCTypeID typeID = OCGetTypeID(theType);
     if (typeID == DimensionGetTypeID() || typeID == LabeledDimensionGetTypeID() || typeID == SIDimensionGetTypeID() || typeID == SIMonotonicDimensionGetTypeID() || typeID == SILinearDimensionGetTypeID()) {
         return DimensionCopyDescription((DimensionRef)theType);
@@ -72,7 +72,7 @@ OCStringRef RMNLibGetDescription(OCTypeRef theType, OCStringRef *outError) {
         if (outError) *outError = STR("GeographicCoordinate type does not support description field");
         return NULL;
     }
-    
+
     // Unknown type
     if (outError) *outError = STR("Unknown or unsupported type");
     return NULL;
@@ -80,12 +80,12 @@ OCStringRef RMNLibGetDescription(OCTypeRef theType, OCStringRef *outError) {
 
 bool RMNLibSetApplicationMetaData(OCTypeRef theType, OCDictionaryRef metadata, OCStringRef *outError) {
     if (outError) *outError = NULL;
-    
+
     if (!theType) {
         if (outError) *outError = STR("Invalid parameter: theType cannot be NULL");
         return false;
     }
-    
+
     OCTypeID typeID = OCGetTypeID(theType);
     if (typeID == DimensionGetTypeID() || typeID == LabeledDimensionGetTypeID() || typeID == SIDimensionGetTypeID() || typeID == SIMonotonicDimensionGetTypeID() || typeID == SILinearDimensionGetTypeID()) {
         return DimensionSetApplicationMetaData((DimensionRef)theType, metadata, outError);
@@ -107,7 +107,7 @@ bool RMNLibSetApplicationMetaData(OCTypeRef theType, OCDictionaryRef metadata, O
         if (outError) *outError = STR("Datum type does not support application metadata field");
         return false;
     }
-    
+
     // Unknown type
     if (outError) *outError = STR("Unknown or unsupported type");
     return false;
@@ -115,12 +115,12 @@ bool RMNLibSetApplicationMetaData(OCTypeRef theType, OCDictionaryRef metadata, O
 
 OCDictionaryRef RMNLibGetApplicationMetaData(OCTypeRef theType, OCStringRef *outError) {
     if (outError) *outError = NULL;
-    
+
     if (!theType) {
         if (outError) *outError = STR("Invalid parameter: theType cannot be NULL");
         return NULL;
     }
-    
+
     OCTypeID typeID = OCGetTypeID(theType);
     if (typeID == DimensionGetTypeID() || typeID == LabeledDimensionGetTypeID() || typeID == SIDimensionGetTypeID() || typeID == SIMonotonicDimensionGetTypeID() || typeID == SILinearDimensionGetTypeID()) {
         return DimensionGetApplicationMetaData((DimensionRef)theType);
@@ -142,7 +142,7 @@ OCDictionaryRef RMNLibGetApplicationMetaData(OCTypeRef theType, OCStringRef *out
         if (outError) *outError = STR("Datum type does not support application metadata field");
         return NULL;
     }
-    
+
     // Unknown type
     if (outError) *outError = STR("Unknown or unsupported type");
     return NULL;

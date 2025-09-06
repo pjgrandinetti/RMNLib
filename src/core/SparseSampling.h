@@ -243,7 +243,7 @@ SparseSamplingGetApplicationMetaData(SparseSamplingRef ss);
  * @param ss  SparseSamplingRef object.
  * @returns   OCNumberType enumerator.
  */
-OCNumberType 
+OCNumberType
 SparseSamplingGetUnsignedIntegerType(SparseSamplingRef ss);
 /**
  * @brief Set the metadata dictionary.

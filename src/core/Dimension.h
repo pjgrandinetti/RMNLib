@@ -705,6 +705,18 @@ bool DimensionIsQuantitative(DimensionRef dim);
  * @return A new OCDictionaryRef, or NULL on error. Caller must release.
  */
 OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim);
+
+/**
+ * @brief Serialize a Dimension (any subclass) to JSON.
+ *
+ * Includes all base fields plus a "type" discriminator for dispatch.
+ * @param dim The Dimension instance.
+ * @param typed Whether to include OCTypes metadata wrapping.
+ * @param outError On failure, receives a descriptive OCStringRef.
+ * @return A new cJSON object, or NULL on error. Caller must release with cJSON_Delete.
+ */
+cJSON *DimensionCopyAsJSON(DimensionRef dim, bool typed, OCStringRef *outError);
+
 /**
  * @brief Reconstruct a Dimension from a dictionary representation.
  *

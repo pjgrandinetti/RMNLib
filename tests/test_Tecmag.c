@@ -118,7 +118,7 @@ import_tecmag_and_check(const char *root, const char *relpath)
 /// Test specifically one Tecmag file for debugging
 bool test_Tecmag_single_file(void) {
     printf("test_Tecmag_single_file...\n");
-    
+
     // Get test root directory
     const char *root = getenv("TECMAG_TEST_ROOT");
     if (!root) {
@@ -130,16 +130,16 @@ bool test_Tecmag_single_file(void) {
     const char *test_file = "1pulse_WALTZ/13C EtOH_90.tnt";
     char file_path[PATH_MAX];
     snprintf(file_path, sizeof(file_path), "%s/%s", root, test_file);
-    
+
     // Check if file exists
     struct stat st;
     if (stat(file_path, &st) != 0) {
         printf("[SKIP] %-60s : file not found\n", test_file);
         return true; // Skip if file doesn't exist
     }
-    
+
     printf("Testing specific Tecmag file: %s\n", test_file);
-    
+
     // Load the file
     OCStringRef fileErr = NULL;
     OCDataRef contents = OCDataCreateWithContentsOfFile(file_path, &fileErr);
@@ -151,12 +151,12 @@ bool test_Tecmag_single_file(void) {
         OCRelease(fileErr);
         return false;
     }
-    
+
     // Attempt to import as Tecmag
     OCStringRef err = NULL;
     DatasetRef ds = DatasetImportTecmagCreateWithFileData(contents, &err);
     OCRelease(contents);
-    
+
     if (!ds) {
         printf("[FAIL] %-60s : import failed\n", test_file);
         if (err && OCStringGetLength(err) > 0) {
@@ -167,32 +167,32 @@ bool test_Tecmag_single_file(void) {
         OCRelease(err);
         return false;
     }
-    
+
     // Success - verify we got a valid dataset
     printf("[PASS] %-60s : import succeeded\n", test_file);
-    
+
     // Optional: Print some basic info about the dataset
     OCArrayRef dimensions = DatasetGetDimensions(ds);
     if (dimensions) {
         OCIndex dimCount = OCArrayGetCount(dimensions);
         printf("    Dataset has %lu dimension(s)\n", (unsigned long)dimCount);
-        
+
         if (dimCount > 0) {
             SIDimensionRef firstDim = (SIDimensionRef)OCArrayGetValueAtIndex(dimensions, 0);
             OCIndex size = DimensionGetCount((DimensionRef)firstDim);
             printf("    First dimension size: %lu points\n", (unsigned long)size);
         }
     }
-    
+
     OCArrayRef dependentVars = DatasetGetDependentVariables(ds);
     if (dependentVars) {
         OCIndex dvCount = OCArrayGetCount(dependentVars);
         printf("    Dataset has %lu dependent variable(s)\n", (unsigned long)dvCount);
     }
-    
+
     OCRelease(ds);
     OCRelease(err);
-    
+
     printf("test_Tecmag_single_file passed.\n");
     return true;
 }

@@ -187,11 +187,11 @@ bool test_Dataset_import_single_csdm(void) {
 
 
     const char *test_file = "sparse/iglu_2d.csdf";
-    
+
     printf("Testing single failing file: %s\n", test_file);
-    
+
     bool success = import_and_check(root, test_file);
-    
+
     if (success) {
         printf("test_Dataset_import_single_csdm passed.\n");
         return true;

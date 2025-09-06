@@ -28,7 +28,7 @@ bool DatasetSetDimensions(DatasetRef ds, OCMutableArrayRef dims) {
     if (!ds) return false;
     OCRelease(ds->dimensions);
     // Convert NULL to empty array to avoid NULL ivars
-    ds->dimensions = dims ? (OCMutableArrayRef)OCRetain(dims) 
+    ds->dimensions = dims ? (OCMutableArrayRef)OCRetain(dims)
                           : OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     return true;
 }
@@ -60,7 +60,7 @@ bool DatasetSetDependentVariables(DatasetRef ds, OCMutableArrayRef dvs) {
     // Convert NULL to empty array to avoid NULL ivars
     ds->dependentVariables = dvs ? (OCMutableArrayRef)OCRetain(dvs)
                                  : OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
-    
+
     // Set owner for all dependent variables
     OCIndex count = OCArrayGetCount(ds->dependentVariables);
     for (OCIndex i = 0; i < count; ++i) {
