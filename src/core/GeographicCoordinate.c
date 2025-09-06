@@ -52,8 +52,8 @@ static OCStringRef impl_GeographicCoordinateCopyFormattingDesc(OCTypeRef cf) {
         gc->altitude ? gc->altitude : (SIScalarRef)STR("null"));
 }
 // JSON serialization
-static cJSON *impl_GeographicCoordinateCopyJSON(const void *obj, bool typed) {
-    return GeographicCoordinateCopyAsJSON((GeographicCoordinateRef)obj, typed);
+static cJSON *impl_GeographicCoordinateCopyJSON(const void *obj, bool typed, OCStringRef *outError) {
+    return GeographicCoordinateCopyAsJSON((GeographicCoordinateRef)obj, typed, outError);
 }
 // Deep-copy
 static void *impl_GeographicCoordinateDeepCopy(const void *ptr) {
@@ -234,7 +234,8 @@ OCDictionaryRef GeographicCoordinateCopyAsDictionary(GeographicCoordinateRef gc)
     return dict;
 }
 
-cJSON *GeographicCoordinateCopyAsJSON(GeographicCoordinateRef gc, bool typed) {
+cJSON *GeographicCoordinateCopyAsJSON(GeographicCoordinateRef gc, bool typed, OCStringRef *outError) {
+    if (outError) *outError = NULL;
     if (!gc) return cJSON_CreateNull();
     
     cJSON *json = cJSON_CreateObject();
@@ -242,19 +243,19 @@ cJSON *GeographicCoordinateCopyAsJSON(GeographicCoordinateRef gc, bool typed) {
     
     // Add latitude
     if (gc->latitude) {
-        cJSON *lat = SIScalarCopyAsJSON(gc->latitude, typed);
+        cJSON *lat = SIScalarCopyAsJSON(gc->latitude, typed, NULL);
         if (lat) cJSON_AddItemToObject(json, kGeoCoordLatitudeKey, lat);
     }
     
     // Add longitude
     if (gc->longitude) {
-        cJSON *lon = SIScalarCopyAsJSON(gc->longitude, typed);
+        cJSON *lon = SIScalarCopyAsJSON(gc->longitude, typed, NULL);
         if (lon) cJSON_AddItemToObject(json, kGeoCoordLongitudeKey, lon);
     }
     
     // Add altitude (optional)
     if (gc->altitude) {
-        cJSON *alt = SIScalarCopyAsJSON(gc->altitude, typed);
+        cJSON *alt = SIScalarCopyAsJSON(gc->altitude, typed, NULL);
         if (alt) cJSON_AddItemToObject(json, kGeoCoordAltitudeKey, alt);
     }
     
@@ -263,7 +264,7 @@ cJSON *GeographicCoordinateCopyAsJSON(GeographicCoordinateRef gc, bool typed) {
         // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded 
         // into JSON as typed=true, NO EXCEPTIONS. Even if the rest of the JSON is untyped,
         // application must always remain typed to preserve complex nested type information.
-        cJSON *app = OCTypeCopyJSON((OCTypeRef)gc->application, true);
+        cJSON *app = OCTypeCopyJSON((OCTypeRef)gc->application, true, NULL);
         if (app) cJSON_AddItemToObject(json, kGeoCoordApplicationKey, app);
     }
     

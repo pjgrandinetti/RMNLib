@@ -101,8 +101,8 @@ static OCStringRef impl_DatasetCopyFormattingDesc(OCTypeRef cf) {
         ds->title);
 }
 
-static cJSON *impl_DatasetCopyJSON(const void *obj, bool typed) {
-    return DatasetCopyAsJSON((DatasetRef)obj, typed);
+static cJSON *impl_DatasetCopyJSON(const void *obj, bool typed, OCStringRef *outError) {
+    return DatasetCopyAsJSON((DatasetRef)obj, typed, outError);
 }
 
 static void *impl_DatasetDeepCopy(const void *ptr) {
@@ -605,7 +605,7 @@ OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
     return (OCDictionaryRef)dict;
 }
 
-cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed) {
+cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
     if (!ds) return cJSON_CreateNull();
     
     // Create the core dataset object
@@ -632,7 +632,7 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed) {
     }
     
     if (ds->geographicCoordinate) {
-        cJSON *geoJson = OCTypeCopyJSON((OCTypeRef)ds->geographicCoordinate, typed);
+        cJSON *geoJson = OCTypeCopyJSON((OCTypeRef)ds->geographicCoordinate, typed, outError);
         if (geoJson) {
             cJSON_AddItemToObject(core, kDatasetGeoCoordinateKey, geoJson);
         }
@@ -678,7 +678,7 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed) {
             for (OCIndex i = 0; i < count; i++) {
                 DimensionRef dim = (DimensionRef)OCArrayGetValueAtIndex(ds->dimensions, i);
                 if (dim) {
-                    cJSON *dimJson = OCTypeCopyJSON((OCTypeRef)dim, typed);
+                    cJSON *dimJson = OCTypeCopyJSON((OCTypeRef)dim, typed, outError);
                     if (dimJson) {
                         cJSON_AddItemToArray(dimsArray, dimJson);
                     }
@@ -712,7 +712,7 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed) {
                     // Create a copy with "internal" type for serialization
                     DependentVariableRef copy = DependentVariableCopy(dv);
                     DependentVariableSetType(copy, STR("internal"));
-                    cJSON *dvJson = OCTypeCopyJSON((OCTypeRef)copy, typed);
+                    cJSON *dvJson = OCTypeCopyJSON((OCTypeRef)copy, typed, outError);
                     if (dvJson) {
                         cJSON_AddItemToArray(dvsArray, dvJson);
                     }
@@ -725,7 +725,7 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed) {
     
     // focus
     if (ds->focus) {
-        cJSON *focusJson = OCTypeCopyJSON((OCTypeRef)ds->focus, typed);
+        cJSON *focusJson = OCTypeCopyJSON((OCTypeRef)ds->focus, typed, outError);
         if (focusJson) {
             cJSON_AddItemToObject(core, kDatasetFocusKey, focusJson);
         }
@@ -733,7 +733,7 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed) {
     
     // previous_focus
     if (ds->previousFocus) {
-        cJSON *pfJson = OCTypeCopyJSON((OCTypeRef)ds->previousFocus, typed);
+        cJSON *pfJson = OCTypeCopyJSON((OCTypeRef)ds->previousFocus, typed, outError);
         if (pfJson) {
             cJSON_AddItemToObject(core, kDatasetPreviousFocusKey, pfJson);
         }
@@ -744,7 +744,7 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed) {
         // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded 
         // into JSON as typed=true, NO EXCEPTIONS. Even if the rest of the JSON is untyped,
         // application must always remain typed to preserve complex nested type information.
-        cJSON *appJson = OCTypeCopyJSON((OCTypeRef)ds->application, true);
+        cJSON *appJson = OCTypeCopyJSON((OCTypeRef)ds->application, true, outError);
         if (appJson) {
             cJSON_AddItemToObject(core, kDatasetApplicationKey, appJson);
         }

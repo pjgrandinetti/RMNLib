@@ -132,7 +132,7 @@ void impl_InitBaseDimensionFields(DimensionRef dim);
 bool impl_DimensionEqual(const void *a, const void *b);
 void impl_DimensionFinalize(const void *obj);
 OCStringRef impl_DimensionCopyFormattingDesc(OCTypeRef cf);
-cJSON *impl_DimensionCopyAsJSON(const void *obj, bool typed);
+cJSON *impl_DimensionCopyAsJSON(const void *obj, bool typed, OCStringRef *outError);
 void *impl_DimensionDeepCopy(const void *obj);
 // Core object creation functions (defined in Dimension_core.c)
 DimensionRef impl_DimensionAllocate(void);
@@ -156,7 +156,7 @@ OCMutableDictionaryRef DimensionGetApplicationMetaData(DimensionRef dim);
 bool impl_LabeledDimensionEqual(const void *a, const void *b);
 void impl_LabeledDimensionFinalize(const void *obj);
 OCStringRef impl_LabeledDimensionCopyFormattingDesc(OCTypeRef cf);
-cJSON *impl_LabeledDimensionCopyAsJSON(const void *obj, bool typed);
+cJSON *impl_LabeledDimensionCopyAsJSON(const void *obj, bool typed, OCStringRef *outError);
 void *impl_LabeledDimensionDeepCopy(const void *obj);
 // LabeledDimension - Internal allocation (defined in Dimension_core.c)
 LabeledDimensionRef LabeledDimensionAllocate(void);
@@ -169,7 +169,7 @@ OCArrayRef LabeledDimensionGetCoordinateLabels(LabeledDimensionRef dim);
 bool impl_SIDimensionEqual(const void *a, const void *b);
 void impl_SIDimensionFinalize(const void *obj);
 OCStringRef impl_SIDimensionCopyFormattingDesc(OCTypeRef cf);
-cJSON *impl_SIDimensionCopyAsJSON(const void *obj, bool typed);
+cJSON *impl_SIDimensionCopyAsJSON(const void *obj, bool typed, OCStringRef *outError);
 void *impl_SIDimensionDeepCopy(const void *obj);
 void impl_InitSIDimensionFields(SIDimensionRef dim);
 // SIDimension validation functions (defined in Dimension_core.c)
@@ -211,7 +211,7 @@ bool impl_SIDimensionIsReciprocalOf(SIDimensionRef src, SIDimensionRef rec, OCSt
 bool impl_SIMonotonicDimensionEqual(const void *a, const void *b);
 void impl_SIMonotonicDimensionFinalize(const void *obj);
 OCStringRef impl_SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf);
-cJSON *impl_SIMonotonicDimensionCopyAsJSON(const void *obj, bool typed);
+cJSON *impl_SIMonotonicDimensionCopyAsJSON(const void *obj, bool typed, OCStringRef *outError);
 void *impl_SIMonotonicDimensionDeepCopy(const void *obj);
 // SIMonotonicDimension - Internal allocation (defined in Dimension_core.c)
 SIMonotonicDimensionRef SIMonotonicDimensionAllocate(void);
@@ -226,7 +226,7 @@ SIDimensionRef SIMonotonicDimensionGetReciprocal(SIMonotonicDimensionRef dim);
 bool impl_SILinearDimensionEqual(const void *a, const void *b);
 void impl_SILinearDimensionFinalize(const void *obj);
 OCStringRef impl_SILinearDimensionCopyFormattingDesc(OCTypeRef cf);
-cJSON *impl_SILinearDimensionCopyAsJSON(const void *obj, bool typed);
+cJSON *impl_SILinearDimensionCopyAsJSON(const void *obj, bool typed, OCStringRef *outError);
 void *impl_SILinearDimensionDeepCopy(const void *obj);
 // SILinearDimension - Internal allocation (defined in Dimension_core.c)
 SILinearDimensionRef SILinearDimensionAllocate(void);

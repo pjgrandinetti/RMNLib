@@ -28,8 +28,9 @@ OCDictionaryRef GeographicCoordinateCopyAsDictionary(GeographicCoordinateRef gc)
 /// Convert a GeographicCoordinateRef to cJSON representation.
 /// @param gc The GeographicCoordinate to convert.
 /// @param typed Whether to include type information in the JSON.
+/// @param outError Optional output parameter for error messages (may be NULL).
 /// @return cJSON object or NULL on error.
-cJSON *GeographicCoordinateCopyAsJSON(GeographicCoordinateRef gc, bool typed);
+cJSON *GeographicCoordinateCopyAsJSON(GeographicCoordinateRef gc, bool typed, OCStringRef *outError);
 /// Getters
 SIScalarRef GeographicCoordinateGetLatitude(GeographicCoordinateRef gc);                 ///< Latitude
 SIScalarRef GeographicCoordinateGetLongitude(GeographicCoordinateRef gc);                ///< Longitude

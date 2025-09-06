@@ -238,7 +238,7 @@ bool DependentVariableAppend(
 /**
  * @brief Create cJSON object from DependentVariable.
  */
-cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed);
+cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCStringRef *outError);
 /**
  * @brief Serialize into a deep-copyable OCDictionary (for JSON, tests).
  */

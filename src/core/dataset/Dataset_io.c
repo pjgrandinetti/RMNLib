@@ -228,7 +228,7 @@ bool DatasetExport(DatasetRef ds,
         return false;
     }
     // 1) build full JSON directly
-    cJSON *core = OCTypeCopyJSON((OCTypeRef)ds, false);
+    cJSON *core = OCTypeCopyJSON((OCTypeRef)ds, false, outError);
     if (!core) {
         if (outError) *outError = STR("Failed to create JSON from Dataset");
         return false;
@@ -262,7 +262,7 @@ bool DatasetExport(DatasetRef ds,
         }
         if (DatasetGetGeographicCoordinate(ds)) {
             GeographicCoordinateRef gc = DatasetGetGeographicCoordinate(ds);
-            cJSON *gcJson = OCTypeCopyJSON((OCTypeRef)gc, false);
+            cJSON *gcJson = OCTypeCopyJSON((OCTypeRef)gc, false, outError);
             if (gcJson) {
                 cJSON_AddItemToObject(core, kDatasetGeoCoordinateKey, gcJson);
             }

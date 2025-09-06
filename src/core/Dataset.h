@@ -125,7 +125,7 @@ OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds);
  * @param typed Whether to include type information in the JSON.
  * @return cJSON object or NULL on error.
  */
-cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed);
+cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError);
 /**
  * @brief Convenience: deep-copy via CopyAsDictionary + CreateFromDictionary.
  * @param ds Source DatasetRef (must not be NULL).

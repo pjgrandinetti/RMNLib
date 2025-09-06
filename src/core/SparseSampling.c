@@ -75,8 +75,8 @@ static OCStringRef impl_SparseSamplingCopyFormattingDesc(OCTypeRef cf) {
 }
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // JSON serialization
-static cJSON *impl_SparseSamplingCopyJSON(const void *obj, bool typed) {
-    return SparseSamplingCopyAsJSON((SparseSamplingRef)obj, typed);
+static cJSON *impl_SparseSamplingCopyJSON(const void *obj, bool typed, OCStringRef *outError) {
+    return SparseSamplingCopyAsJSON((SparseSamplingRef)obj, typed, outError);
 }
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 // Deep‐copy
@@ -518,7 +518,7 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
     return ss;
 }
 
-cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed) {
+cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed, OCStringRef *outError) {
     if (!ss) return cJSON_CreateNull();
     
     cJSON *json = cJSON_CreateObject();
@@ -526,7 +526,7 @@ cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed) {
     
     // 1. dimension_indexes - use OCIndexSet's built-in JSON serialization
     if (ss->dimensionIndexes) {
-        cJSON *dimArray = OCIndexSetCopyAsJSON(ss->dimensionIndexes, typed);
+        cJSON *dimArray = OCIndexSetCopyAsJSON(ss->dimensionIndexes, typed, outError);
         if (dimArray) {
             cJSON_AddItemToObject(json, kSparseSamplingDimensionIndexesKey, dimArray);
         }
@@ -541,7 +541,7 @@ cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed) {
             jsonEncoding = OCJSONEncodingBase64;
         }
         OCIndexPairSetSetEncoding((OCMutableIndexPairSetRef)ss->sparseGridVertexes, jsonEncoding);
-        cJSON *vertsJson = OCIndexPairSetCopyAsJSON(ss->sparseGridVertexes, typed);
+        cJSON *vertsJson = OCIndexPairSetCopyAsJSON(ss->sparseGridVertexes, typed, outError);
         if (vertsJson) {
             cJSON_AddItemToObject(json, kSparseSamplingSparseGridVertexesKey, vertsJson);
         }
@@ -574,7 +574,7 @@ cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed) {
         // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded 
         // into JSON as typed=true, NO EXCEPTIONS. Even if the rest of the JSON is untyped,
         // application must always remain typed to preserve complex nested type information.
-        cJSON *app = OCTypeCopyJSON((OCTypeRef)ss->application, true);
+        cJSON *app = OCTypeCopyJSON((OCTypeRef)ss->application, true, outError);
         if (app) {
             cJSON_AddItemToObject(json, kSparseSamplingApplicationKey, app);
         }

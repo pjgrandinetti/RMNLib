@@ -55,8 +55,8 @@ static OCStringRef impl_DatumCopyFormattingDescription(OCTypeRef theType) {
     return SIScalarCopyFormattingDescription((SIScalarRef) datum);
 }
 // cJSON serialization for Datum - create cJSON object directly
-static cJSON *impl_DatumCopyJSON(const void *obj, bool typed) {
-    return DatumCopyAsJSON((DatumRef)obj, typed);
+static cJSON *impl_DatumCopyJSON(const void *obj, bool typed, OCStringRef *outError) {
+    return DatumCopyAsJSON((DatumRef)obj, typed, outError);
 }
 static void *impl_DatumDeepCopy(const void *theType) {
     if (!theType) return NULL;
@@ -215,7 +215,8 @@ DatumRef DatumCreateFromDictionary(OCDictionaryRef dictionary, OCStringRef *erro
     if (response) OCRelease(response);
     return datum;
 }
-cJSON *DatumCopyAsJSON(DatumRef datum, bool typed) {
+cJSON *DatumCopyAsJSON(DatumRef datum, bool typed, OCStringRef *outError) {
+    if (outError) *outError = NULL;
     if (!datum)
         return cJSON_CreateNull();
     
@@ -238,7 +239,7 @@ cJSON *DatumCopyAsJSON(DatumRef datum, bool typed) {
     // Add response value using SIScalar's JSON serialization
     // Create a proper SIScalar copy to avoid infinite recursion
     SIScalarRef scalarCopy = SIScalarCreateCopy((SIScalarRef)datum);
-    cJSON *response = OCTypeCopyJSON((OCTypeRef)scalarCopy, typed);
+    cJSON *response = OCTypeCopyJSON((OCTypeRef)scalarCopy, typed, NULL);
     if (response) cJSON_AddItemToObject(json, kDatumResponseKey, response);
     OCRelease(scalarCopy);
     

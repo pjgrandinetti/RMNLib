@@ -96,8 +96,8 @@ static OCStringRef impl_DependentVariableCopyFormattingDesc(OCTypeRef cf) {
     if (dv->sparseSampling) OCRelease(sparseDesc);
     return desc;
 }
-cJSON *impl_DependentVariableCopyJSON(const void *obj, bool typed) {
-    return DependentVariableCopyAsJSON((DependentVariableRef)obj, typed);
+cJSON *impl_DependentVariableCopyJSON(const void *obj, bool typed, OCStringRef *outError) {
+    return DependentVariableCopyAsJSON((DependentVariableRef)obj, typed, outError);
 }
 static void *impl_DependentVariableDeepCopy(const void *ptr) {
     if (!ptr) return NULL;
@@ -959,7 +959,7 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
     if (sparseSampling) OCRelease(sparseSampling);
     return dv;
 }
-cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
+cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCStringRef *outError) {
     if (!dv) {
         return cJSON_CreateNull();
     }
@@ -1027,7 +1027,7 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
                     OCArrayRef numArr = OCNumberCreateArrayFromData(blob, et, &conversionError);
                     
                     if (numArr) {
-                        cJSON *numArray = OCArrayCopyAsJSON(numArr, typed);
+                        cJSON *numArray = OCArrayCopyAsJSON(numArr, typed, outError);
                         if (numArray) {
                             cJSON_AddItemToArray(compsArray, numArray);
                         }
@@ -1106,7 +1106,7 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
     
     // 7) sparse_sampling
     if (dv->sparseSampling) {
-        cJSON *spJson = OCTypeCopyJSON((OCTypeRef)dv->sparseSampling, typed);
+        cJSON *spJson = OCTypeCopyJSON((OCTypeRef)dv->sparseSampling, typed, outError);
         if (spJson) {
             cJSON_AddItemToObject(json, kDependentVariableSparseSamplingKey, spJson);
         }
@@ -1117,7 +1117,7 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed) {
         // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded 
         // into JSON as typed=true, NO EXCEPTIONS. Even if the rest of the JSON is untyped,
         // application must always remain typed to preserve complex nested type information.
-        cJSON *appJson = OCTypeCopyJSON((OCTypeRef)dv->application, true);
+        cJSON *appJson = OCTypeCopyJSON((OCTypeRef)dv->application, true, outError);
         if (appJson) {
             cJSON_AddItemToObject(json, kDependentVariableApplicationKey, appJson);
         }

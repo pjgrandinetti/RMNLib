@@ -158,7 +158,7 @@ OCStringRef impl_DimensionCopyFormattingDesc(OCTypeRef cf) {
         lbl, desc);
     return out;
 }
-cJSON *impl_DimensionCopyAsJSON(const void *obj, bool typed) {
+cJSON *impl_DimensionCopyAsJSON(const void *obj, bool typed, OCStringRef *outError) {
     DimensionRef dim = (DimensionRef)obj;
     if (!dim) return cJSON_CreateNull();
     
@@ -189,7 +189,7 @@ cJSON *impl_DimensionCopyAsJSON(const void *obj, bool typed) {
     OCDictionaryRef metadata = DimensionGetApplicationMetaData(dim);
     if (metadata && OCDictionaryGetCount(metadata) > 0) {
         // Application metadata MUST ALWAYS be serialized with typed=true, NO EXCEPTIONS
-        cJSON *metadata_json = OCTypeCopyJSON((OCTypeRef)metadata, true);
+        cJSON *metadata_json = OCTypeCopyJSON((OCTypeRef)metadata, true, outError);
         if (metadata_json) {
             cJSON_AddItemToObject(json, kDimensionApplicationKey, metadata_json);
         }
@@ -440,12 +440,12 @@ OCStringRef impl_LabeledDimensionCopyFormattingDesc(OCTypeRef cf) {
         (long)count);
     return fmt;
 }
-cJSON *impl_LabeledDimensionCopyAsJSON(const void *obj, bool typed) {
+cJSON *impl_LabeledDimensionCopyAsJSON(const void *obj, bool typed, OCStringRef *outError) {
     const LabeledDimensionRef ldim = (const LabeledDimensionRef)obj;
     if (!ldim) return cJSON_CreateNull();
     
     // Get base fields without OCTypes wrapping (always pass false to get raw JSON)
-    cJSON *json = impl_DimensionCopyAsJSON(&ldim->_super, false);
+    cJSON *json = impl_DimensionCopyAsJSON(&ldim->_super, false, outError);
     if (!json) return cJSON_CreateNull();
     
     // Add type discriminator for LabeledDimension
@@ -453,7 +453,7 @@ cJSON *impl_LabeledDimensionCopyAsJSON(const void *obj, bool typed) {
     
     // Add the subclass field: coordinateLabels (OCMutableArrayRef)
     if (ldim->coordinateLabels) {
-        cJSON *labels_json = OCTypeCopyJSON((OCTypeRef)ldim->coordinateLabels, typed);
+        cJSON *labels_json = OCTypeCopyJSON((OCTypeRef)ldim->coordinateLabels, typed, outError);
         if (labels_json)
             cJSON_AddItemToObject(json, kLabeledDimensionCoordinateLabelsKey, labels_json);
     }
@@ -729,12 +729,12 @@ OCStringRef impl_SIDimensionCopyFormattingDesc(OCTypeRef cf) {
     OCRelease(periodStr);
     return fmt;
 }
-cJSON *impl_SIDimensionCopyAsJSON(const void *obj, bool typed) {
+cJSON *impl_SIDimensionCopyAsJSON(const void *obj, bool typed, OCStringRef *outError) {
     const SIDimensionRef sidim = (const SIDimensionRef)obj;
     if (!sidim) return cJSON_CreateNull();
     
     // Get base fields without OCTypes wrapping (always pass false to get raw JSON)
-    cJSON *json = impl_DimensionCopyAsJSON(&sidim->_super, false);
+    cJSON *json = impl_DimensionCopyAsJSON(&sidim->_super, false, outError);
     if (!json) return cJSON_CreateNull();
     
     // Add type discriminator for SIDimension
@@ -750,16 +750,16 @@ cJSON *impl_SIDimensionCopyAsJSON(const void *obj, bool typed) {
     } while (0)
     ADD_JSON_ITEM(kSIDimensionQuantityNameKey,
                   sidim->quantityName != NULL,
-                  OCTypeCopyJSON((OCTypeRef)sidim->quantityName, typed));
+                  OCTypeCopyJSON((OCTypeRef)sidim->quantityName, typed, outError));
     ADD_JSON_ITEM(kSIDimensionOffsetKey,
                   sidim->offset != NULL,
-                  OCTypeCopyJSON((OCTypeRef)sidim->offset, typed));
+                  OCTypeCopyJSON((OCTypeRef)sidim->offset, typed, outError));
     ADD_JSON_ITEM(kSIDimensionOriginKey,
                   sidim->origin != NULL,
-                  OCTypeCopyJSON((OCTypeRef)sidim->origin, typed));
+                  OCTypeCopyJSON((OCTypeRef)sidim->origin, typed, outError));
     ADD_JSON_ITEM(kSIDimensionPeriodKey,
                   sidim->period != NULL,
-                  OCTypeCopyJSON((OCTypeRef)sidim->period, typed));
+                  OCTypeCopyJSON((OCTypeRef)sidim->period, typed, outError));
 #undef ADD_JSON_ITEM
     
     // Always include these primitives
@@ -783,12 +783,12 @@ cJSON *impl_SIDimensionCopyAsJSON(const void *obj, bool typed) {
 }
 
 // Internal helper for derived classes - same as above but doesn't add type field
-cJSON *impl_SIDimensionCopyAsJSONWithoutType(const void *obj, bool typed) {
+cJSON *impl_SIDimensionCopyAsJSONWithoutType(const void *obj, bool typed, OCStringRef *outError) {
     const SIDimensionRef sidim = (const SIDimensionRef)obj;
     if (!sidim) return cJSON_CreateNull();
     
     // Get base fields without OCTypes wrapping (always pass false to get raw JSON)
-    cJSON *json = impl_DimensionCopyAsJSON(&sidim->_super, false);
+    cJSON *json = impl_DimensionCopyAsJSON(&sidim->_super, false, outError);
     if (!json) return cJSON_CreateNull();
     
     // NOTE: No type discriminator added - let derived class handle it
@@ -803,16 +803,16 @@ cJSON *impl_SIDimensionCopyAsJSONWithoutType(const void *obj, bool typed) {
     } while (0)
     ADD_JSON_ITEM(kSIDimensionQuantityNameKey,
                   sidim->quantityName != NULL,
-                  OCTypeCopyJSON((OCTypeRef)sidim->quantityName, typed));
+                  OCTypeCopyJSON((OCTypeRef)sidim->quantityName, typed, outError));
     ADD_JSON_ITEM(kSIDimensionOffsetKey,
                   sidim->offset != NULL,
-                  OCTypeCopyJSON((OCTypeRef)sidim->offset, typed));
+                  OCTypeCopyJSON((OCTypeRef)sidim->offset, typed, outError));
     ADD_JSON_ITEM(kSIDimensionOriginKey,
                   sidim->origin != NULL,
-                  OCTypeCopyJSON((OCTypeRef)sidim->origin, typed));
+                  OCTypeCopyJSON((OCTypeRef)sidim->origin, typed, outError));
     ADD_JSON_ITEM(kSIDimensionPeriodKey,
                   sidim->period != NULL,
-                  OCTypeCopyJSON((OCTypeRef)sidim->period, typed));
+                  OCTypeCopyJSON((OCTypeRef)sidim->period, typed, outError));
 #undef ADD_JSON_ITEM
     
     // Always include these primitives
@@ -1569,12 +1569,12 @@ OCStringRef impl_SIMonotonicDimensionCopyFormattingDesc(OCTypeRef cf) {
     OCRelease(recStr);
     return fmt;
 }
-cJSON *impl_SIMonotonicDimensionCopyAsJSON(const void *obj, bool typed) {
+cJSON *impl_SIMonotonicDimensionCopyAsJSON(const void *obj, bool typed, OCStringRef *outError) {
     const SIMonotonicDimensionRef mono = (const SIMonotonicDimensionRef)obj;
     if (!mono) return cJSON_CreateNull();
     
     // Get base fields without type field (using our new helper)
-    cJSON *json = impl_SIDimensionCopyAsJSONWithoutType(&mono->_super, false);
+    cJSON *json = impl_SIDimensionCopyAsJSONWithoutType(&mono->_super, false, outError);
     if (!json) return cJSON_CreateNull();
     
     // Add type discriminator for SIMonotonicDimension
@@ -1582,14 +1582,14 @@ cJSON *impl_SIMonotonicDimensionCopyAsJSON(const void *obj, bool typed) {
     
     // reciprocal (SIDimensionRef) - serialize with same typed parameter
     if (mono->reciprocal) {
-        cJSON *recip_json = impl_SIDimensionCopyAsJSON(mono->reciprocal, typed);
+        cJSON *recip_json = impl_SIDimensionCopyAsJSON(mono->reciprocal, typed, outError);
         if (recip_json)
             cJSON_AddItemToObject(json, kSIDimensionReciprocalKey, recip_json);
     }
     
     // coordinates (OCMutableArrayRef) - serialize with same typed parameter
     if (mono->coordinates) {
-        cJSON *coords_json = OCTypeCopyJSON((OCTypeRef)mono->coordinates, typed);
+        cJSON *coords_json = OCTypeCopyJSON((OCTypeRef)mono->coordinates, typed, outError);
         if (coords_json)
             cJSON_AddItemToObject(json, kSIMonotonicDimensionCoordinatesKey, coords_json);
     }
@@ -2196,12 +2196,12 @@ OCStringRef impl_SILinearDimensionCopyFormattingDesc(OCTypeRef cf) {
     OCRelease(fftStr);
     return fmt;
 }
-cJSON *impl_SILinearDimensionCopyAsJSON(const void *obj, bool typed) {
+cJSON *impl_SILinearDimensionCopyAsJSON(const void *obj, bool typed, OCStringRef *outError) {
     const SILinearDimensionRef lin = (const SILinearDimensionRef)obj;
     if (!lin) return cJSON_CreateNull();
     
     // Get base fields without type field (using our new helper)
-    cJSON *json = impl_SIDimensionCopyAsJSONWithoutType(&lin->_super, false);
+    cJSON *json = impl_SIDimensionCopyAsJSONWithoutType(&lin->_super, false, outError);
     if (!json) return cJSON_CreateNull();
     
     // Add type discriminator for SILinearDimension
@@ -2209,7 +2209,7 @@ cJSON *impl_SILinearDimensionCopyAsJSON(const void *obj, bool typed) {
     
     // reciprocal (SIDimensionRef) - serialize with same typed parameter
     if (lin->reciprocal) {
-        cJSON *recip_json = impl_SIDimensionCopyAsJSON(lin->reciprocal, typed);
+        cJSON *recip_json = impl_SIDimensionCopyAsJSON(lin->reciprocal, typed, outError);
         if (recip_json)
             cJSON_AddItemToObject(json, kSIDimensionReciprocalKey, recip_json);
     }
@@ -2219,7 +2219,7 @@ cJSON *impl_SILinearDimensionCopyAsJSON(const void *obj, bool typed) {
     
     // increment (SIScalarRef) - serialize with same typed parameter
     if (lin->increment) {
-        cJSON *inc_json = OCTypeCopyJSON((OCTypeRef)lin->increment, typed);
+        cJSON *inc_json = OCTypeCopyJSON((OCTypeRef)lin->increment, typed, outError);
         if (inc_json)
             cJSON_AddItemToObject(json, kSILinearDimensionIncrementKey, inc_json);
     }
