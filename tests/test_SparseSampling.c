@@ -150,11 +150,21 @@ bool test_SparseSampling_basic_create(void) {
 
     // Verify properties
     TEST_ASSERT(ss != NULL);
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss)) == 1);
-    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 1));
-    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(ss)) == 1);
+
+    OCIndexSetRef copyDims = SparseSamplingCopyDimensionIndexes(ss);
+    TEST_ASSERT(OCIndexSetGetCount(copyDims) == 1);
+    TEST_ASSERT(OCIndexSetContainsIndex(copyDims, 1));
+    OCRelease(copyDims);
+
+    OCIndexPairSetRef copyVerts = SparseSamplingCopySparseGridVertexes(ss);
+    TEST_ASSERT(OCIndexPairSetGetCount(copyVerts) == 1);
+    OCRelease(copyVerts);
+
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(ss) == kOCNumberUInt16Type);
-    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(ss), STR("base64")));
+
+    OCStringRef copyEnc = SparseSamplingCopyEncoding(ss);
+    TEST_ASSERT(OCStringEqual(copyEnc, STR("base64")));
+    OCRelease(copyEnc);
     ok = true;
 cleanup:
     OCRelease(dimIndexes);
@@ -219,7 +229,11 @@ bool test_SparseSampling_validation(void) {
         &error);
     TEST_ASSERT(ss != NULL);
     TEST_ASSERT(error == NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(ss), STR("base64")));
+
+    OCStringRef validationEnc = SparseSamplingCopyEncoding(ss);
+    TEST_ASSERT(OCStringEqual(validationEnc, STR("base64")));
+    OCRelease(validationEnc);
+
     ok = true;
 cleanup:
     OCRelease(dimIndexes);
@@ -273,14 +287,24 @@ bool test_SparseSampling_copy_and_equality(void) {
     TEST_ASSERT(copy != NULL);
     TEST_ASSERT(copyError == NULL);
     OCRelease(dict);
+    dict = NULL;  // Set to NULL to avoid double release in cleanup
     TEST_ASSERT(copy != NULL);
     TEST_ASSERT(copy != original);             // Different objects
     TEST_ASSERT(OCTypeEqual(original, copy));  // But equal content
     // Verify copy properties
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(copy)) == 2);
-    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(copy)) == 6);  // 3 vertices * 2 dimensions
+    OCIndexSetRef copyDimIndexes = SparseSamplingCopyDimensionIndexes(copy);
+    TEST_ASSERT(OCIndexSetGetCount(copyDimIndexes) == 2);
+    OCRelease(copyDimIndexes);
+
+    OCIndexPairSetRef copyVertices = SparseSamplingCopySparseGridVertexes(copy);
+    TEST_ASSERT(OCIndexPairSetGetCount(copyVertices) == 6);  // 3 vertices * 2 dimensions
+    OCRelease(copyVertices);
+
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(copy) == kOCNumberUInt32Type);
-    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(copy), STR("none")));
+
+    OCStringRef copyEncoding = SparseSamplingCopyEncoding(copy);
+    TEST_ASSERT(OCStringEqual(copyEncoding, STR("none")));
+    OCRelease(copyEncoding);
     ok = true;
 cleanup:
     OCRelease(dimIndexes);
@@ -342,10 +366,19 @@ bool test_SparseSampling_dictionary_roundtrip(void) {
     // Verify they are equal (skip OCTypeEqual for now, test individual properties)
     // TEST_ASSERT(OCTypeEqual(original, restored));
     // Verify specific properties instead
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(restored)) == 2);
-    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(restored)) == 8);  // 4 vertices * 2 dimensions
+    OCIndexSetRef restoredDims = SparseSamplingCopyDimensionIndexes(restored);
+    TEST_ASSERT(OCIndexSetGetCount(restoredDims) == 2);
+    OCRelease(restoredDims);
+
+    OCIndexPairSetRef restoredVerts = SparseSamplingCopySparseGridVertexes(restored);
+    TEST_ASSERT(OCIndexPairSetGetCount(restoredVerts) == 8);  // 4 vertices * 2 dimensions
+    OCRelease(restoredVerts);
+
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(restored) == kOCNumberUInt16Type);
-    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored), STR("base64")));
+
+    OCStringRef restoredEnc = SparseSamplingCopyEncoding(restored);
+    TEST_ASSERT(OCStringEqual(restoredEnc, STR("base64")));
+    OCRelease(restoredEnc);
     // TODO: Investigate why OCTypeEqual returns false despite all properties being identical
     printf("All individual properties match - roundtrip working correctly\n");
     ok = true;
@@ -378,7 +411,10 @@ bool test_SparseSampling_invalid_create(void) {
         &error);
     // Should still create but with empty dimension indexes
     TEST_ASSERT(ss != NULL);
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss)) == 0);
+
+    OCIndexSetRef invalidDims = SparseSamplingCopyDimensionIndexes(ss);
+    TEST_ASSERT(OCIndexSetGetCount(invalidDims) == 0);
+    OCRelease(invalidDims);
     OCRelease(ss);
     OCRelease(error);
     error = NULL;
@@ -428,8 +464,13 @@ bool test_SparseSampling_null_and_empty(void) {
     TEST_ASSERT(error == NULL);
 
     // Verify empty state
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss)) == 0);
-    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(ss)) == 0);
+    OCIndexSetRef emptyDims = SparseSamplingCopyDimensionIndexes(ss);
+    TEST_ASSERT(OCIndexSetGetCount(emptyDims) == 0);
+    OCRelease(emptyDims);
+
+    OCIndexPairSetRef emptyVerts = SparseSamplingCopySparseGridVertexes(ss);
+    TEST_ASSERT(OCIndexPairSetGetCount(emptyVerts) == 0);
+    OCRelease(emptyVerts);
 
     // Test dictionary roundtrip with empty SparseSampling
     dict = SparseSamplingCopyAsDictionary(ss);
@@ -446,8 +487,13 @@ bool test_SparseSampling_null_and_empty(void) {
     TEST_ASSERT(error == NULL);
     // TEST_ASSERT(OCTypeEqual(ss, restored)); // Skip OCTypeEqual for now
     // Verify individual properties instead
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(restored)) == 0);
-    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(restored)) == 0);
+    OCIndexSetRef restoredEmptyDims = SparseSamplingCopyDimensionIndexes(restored);
+    TEST_ASSERT(OCIndexSetGetCount(restoredEmptyDims) == 0);
+    OCRelease(restoredEmptyDims);
+
+    OCIndexPairSetRef restoredEmptyVerts = SparseSamplingCopySparseGridVertexes(restored);
+    TEST_ASSERT(OCIndexPairSetGetCount(restoredEmptyVerts) == 0);
+    OCRelease(restoredEmptyVerts);
     ok = true;
 cleanup:
     OCRelease(ss);
@@ -480,11 +526,16 @@ bool test_SparseSampling_fully_sparse(void) {
     TEST_ASSERT(ss != NULL);
     TEST_ASSERT(error == NULL);
     // Verify it's fully sparse (all dimensions are in the dimension_indexes)
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss)) == 2);
-    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 0));
-    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 1));
+    OCIndexSetRef fullySparseDims = SparseSamplingCopyDimensionIndexes(ss);
+    TEST_ASSERT(OCIndexSetGetCount(fullySparseDims) == 2);
+    TEST_ASSERT(OCIndexSetContainsIndex(fullySparseDims, 0));
+    TEST_ASSERT(OCIndexSetContainsIndex(fullySparseDims, 1));
+    OCRelease(fullySparseDims);
+
     // In a fully sparse sampling, the expected data size should equal the number of pairs (vertices * dimensions)
-    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(ss)) == 20);  // 10 vertices * 2 dimensions
+    OCIndexPairSetRef fullySparseVerts = SparseSamplingCopySparseGridVertexes(ss);
+    TEST_ASSERT(OCIndexPairSetGetCount(fullySparseVerts) == 20);  // 10 vertices * 2 dimensions
+    OCRelease(fullySparseVerts);
     ok = true;
 cleanup:
     OCRelease(dimIndexes);
@@ -523,11 +574,16 @@ bool test_SparseSampling_partially_sparse(void) {
     TEST_ASSERT(ss != NULL);
     TEST_ASSERT(error == NULL);
     // Verify it's partially sparse
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(ss)) == 1);
-    TEST_ASSERT(OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 1));
-    TEST_ASSERT(!OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 0));
-    TEST_ASSERT(!OCIndexSetContainsIndex(SparseSamplingCopyDimensionIndexes(ss), 2));
-    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(ss)) == 5);
+    OCIndexSetRef partiallySparseDims = SparseSamplingCopyDimensionIndexes(ss);
+    TEST_ASSERT(OCIndexSetGetCount(partiallySparseDims) == 1);
+    TEST_ASSERT(OCIndexSetContainsIndex(partiallySparseDims, 1));
+    TEST_ASSERT(!OCIndexSetContainsIndex(partiallySparseDims, 0));
+    TEST_ASSERT(!OCIndexSetContainsIndex(partiallySparseDims, 2));
+    OCRelease(partiallySparseDims);
+
+    OCIndexPairSetRef partiallySparseVerts = SparseSamplingCopySparseGridVertexes(ss);
+    TEST_ASSERT(OCIndexPairSetGetCount(partiallySparseVerts) == 5);
+    OCRelease(partiallySparseVerts);
     ok = true;
 cleanup:
     OCRelease(dimIndexes);
@@ -568,7 +624,10 @@ bool test_SparseSampling_base64_encoding(void) {
         &error);
     TEST_ASSERT(ss != NULL);
     TEST_ASSERT(error == NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(ss), STR("base64")));
+
+    OCStringRef b64Enc1 = SparseSamplingCopyEncoding(ss);
+    TEST_ASSERT(OCStringEqual(b64Enc1, STR("base64")));
+    OCRelease(b64Enc1);
 
     // Convert to dictionary and verify base64 encoding is preserved
     dict = SparseSamplingCopyAsDictionary(ss);
@@ -580,11 +639,19 @@ bool test_SparseSampling_base64_encoding(void) {
     restored = SparseSamplingCreateFromDictionary(dict, &error);
     TEST_ASSERT(restored != NULL);
     TEST_ASSERT(error == NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored), STR("base64")));
-    // TEST_ASSERT(OCTypeEqual(ss, restored)); // Skip OCTypeEqual for now
+
+    OCStringRef b64Enc2 = SparseSamplingCopyEncoding(restored);
+    TEST_ASSERT(OCStringEqual(b64Enc2, STR("base64")));
+    OCRelease(b64Enc2);
+
     // Verify individual properties instead
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(restored)) == 2);
-    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(restored)) == 6);  // 3 vertices * 2 dimensions
+    OCIndexSetRef b64Dims = SparseSamplingCopyDimensionIndexes(restored);
+    TEST_ASSERT(OCIndexSetGetCount(b64Dims) == 2);
+    OCRelease(b64Dims);
+
+    OCIndexPairSetRef b64Verts = SparseSamplingCopySparseGridVertexes(restored);
+    TEST_ASSERT(OCIndexPairSetGetCount(b64Verts) == 6);  // 3 vertices * 2 dimensions
+    OCRelease(b64Verts);
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(restored) == kOCNumberUInt32Type);
     ok = true;
 cleanup:
@@ -661,8 +728,14 @@ bool test_SparseSampling_with_dataset(void) {
     TEST_ASSERT(retrievedSS != NULL);
     // TEST_ASSERT(OCTypeEqual(retrievedSS, ss)); // Skip OCTypeEqual for now
     // Verify sparse sampling properties match
-    TEST_ASSERT(OCIndexSetGetCount(SparseSamplingCopyDimensionIndexes(retrievedSS)) == 2);
-    TEST_ASSERT(OCIndexPairSetGetCount(SparseSamplingCopySparseGridVertexes(retrievedSS)) == 100);  // 50 vertices * 2 dimensions
+    OCIndexSetRef datasetDims = SparseSamplingCopyDimensionIndexes(retrievedSS);
+    TEST_ASSERT(OCIndexSetGetCount(datasetDims) == 2);
+    OCRelease(datasetDims);
+
+    OCIndexPairSetRef datasetVerts = SparseSamplingCopySparseGridVertexes(retrievedSS);
+    TEST_ASSERT(OCIndexPairSetGetCount(datasetVerts) == 100);  // 50 vertices * 2 dimensions
+    OCRelease(datasetVerts);
+
     TEST_ASSERT(SparseSamplingGetUnsignedIntegerType(retrievedSS) == kOCNumberUInt16Type);
     // Verify the dependent variable size matches the number of vertices (not pairs)
     TEST_ASSERT(DependentVariableGetSize(dv) == 50);
