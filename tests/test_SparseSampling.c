@@ -796,7 +796,9 @@ bool test_SparseSampling_json_untyped_roundtrip(void) {
     // Test deserialization
     restored_none = SparseSamplingCreateFromJSON(json_none, &error);
     TEST_ASSERT(restored_none != NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored_none), STR("none")));
+    OCStringRef enc_none = SparseSamplingCopyEncoding(restored_none);
+    TEST_ASSERT(OCStringEqual(enc_none, STR("none")));
+    OCRelease(enc_none);
     // Test with "base64" encoding
     ss_b64 = SparseSamplingCreate(
         dimIndexes, vertices, kOCNumberUInt32Type, STR("base64"),
@@ -809,7 +811,9 @@ bool test_SparseSampling_json_untyped_roundtrip(void) {
     TEST_ASSERT(strcmp(encItem->valuestring, "base64") == 0);
     restored_b64 = SparseSamplingCreateFromJSON(json_b64, &error);
     TEST_ASSERT(restored_b64 != NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored_b64), STR("base64")));
+    OCStringRef enc_b64 = SparseSamplingCopyEncoding(restored_b64);
+    TEST_ASSERT(OCStringEqual(enc_b64, STR("base64")));
+    OCRelease(enc_b64);
     ok = true;
 cleanup:
     OCRelease(dimIndexes);
@@ -991,7 +995,9 @@ bool test_SparseSampling_json_encoding_extraction(void) {
     TEST_ASSERT(typed_json_b64 != NULL);
     restored_b64 = SparseSamplingCreateFromJSON(typed_json_b64, &error);
     TEST_ASSERT(restored_b64 != NULL);
-    TEST_ASSERT(OCStringEqual(SparseSamplingCopyEncoding(restored_b64), STR("base64")));
+    OCStringRef enc_b64_2 = SparseSamplingCopyEncoding(restored_b64);
+    TEST_ASSERT(OCStringEqual(enc_b64_2, STR("base64")));
+    OCRelease(enc_b64_2);
     ok = true;
 cleanup:
     OCRelease(dimIndexes);

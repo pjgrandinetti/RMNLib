@@ -529,3 +529,6 @@ help:
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  clean            Remove build and install artifacts"
+	@echo ""
+	@echo "Environment Variables:"
+	@echo "  OC_LEAK_TRACKING=1             Enable OCTypes leak tracking (-DOC_LEAK_TRACKING)"

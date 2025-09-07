@@ -148,6 +148,8 @@ bool test_LabeledDimension_JSON_roundtrip(void) {
         OCStringRef rest_label = (OCStringRef)OCArrayGetValueAtIndex(rest_coords, i);
         TEST_ASSERT(OCStringEqual(orig_label, rest_label));
     }
+    OCRelease(orig_coords);
+    OCRelease(rest_coords);
     // Test typed=false JSON round-trip
     json_untyped = impl_LabeledDimensionCopyAsJSON(ld_original, false, &err);
     TEST_ASSERT(json_untyped != NULL);
@@ -294,6 +296,8 @@ bool test_SIMonotonicDimension_JSON_roundtrip(void) {
     OCArrayRef orig_coords = SIMonotonicDimensionCopyCoordinates(mono_original);
     OCArrayRef rest_coords = SIMonotonicDimensionCopyCoordinates(mono_restored_typed);
     TEST_ASSERT(OCArrayGetCount(orig_coords) == OCArrayGetCount(rest_coords));
+    OCRelease(orig_coords);
+    OCRelease(rest_coords);
     // Test typed=false JSON round-trip
     json_untyped = impl_SIMonotonicDimensionCopyAsJSON(mono_original, false, &err);
     TEST_ASSERT(json_untyped != NULL);

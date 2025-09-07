@@ -1125,7 +1125,9 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
             }
         } else if (cJSON_IsString(offsetItem)) {
             // This is a string representation of a SIScalar
-            offset = SIScalarCreateFromExpression(OCStringCreateWithCString(offsetItem->valuestring), outError);
+            OCStringRef tempString = OCStringCreateWithCString(offsetItem->valuestring);
+            offset = SIScalarCreateFromExpression(tempString, outError);
+            OCRelease(tempString);
             if (!offset) goto cleanup;
         }
     }
@@ -1141,7 +1143,9 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
             }
         } else if (cJSON_IsString(originItem)) {
             // This is a string representation of a SIScalar
-            origin = SIScalarCreateFromExpression(OCStringCreateWithCString(originItem->valuestring), outError);
+            OCStringRef tempString = OCStringCreateWithCString(originItem->valuestring);
+            origin = SIScalarCreateFromExpression(tempString, outError);
+            OCRelease(tempString);
             if (!origin) goto cleanup;
         }
     }
@@ -1157,7 +1161,9 @@ SIDimensionRef SIDimensionCreateFromJSON(cJSON *json, OCStringRef *outError) {
             }
         } else if (cJSON_IsString(periodItem)) {
             // This is a string representation of a SIScalar
-            period = SIScalarCreateFromExpression(OCStringCreateWithCString(periodItem->valuestring), outError);
+            OCStringRef tempString = OCStringCreateWithCString(periodItem->valuestring);
+            period = SIScalarCreateFromExpression(tempString, outError);
+            OCRelease(tempString);
             if (!period) goto cleanup;
         }
     }
