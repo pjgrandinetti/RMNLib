@@ -71,7 +71,7 @@ static bool verify_complex_double_arrays(const complex double *actual, const com
     return true;
 }
 bool test_DependentVariable_arithmetic_comprehensive_types(void) {
-    printf("Testing comprehensive arithmetic type combinations...\\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = true;
     // Test Float32 + Float32
     {
@@ -213,11 +213,11 @@ bool test_DependentVariable_arithmetic_comprehensive_types(void) {
         if (dv1) OCRelease(dv1);
         if (dv2) OCRelease(dv2);
     }
-    printf("Comprehensive type tests %s\\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_arithmetic_error_cases(void) {
-    printf("Testing arithmetic error cases...\\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = true;
     // Test division by zero
     {
@@ -278,11 +278,11 @@ bool test_DependentVariable_arithmetic_error_cases(void) {
         if (dv1) OCRelease(dv1);
         if (dv2) OCRelease(dv2);
     }
-    printf("Error case tests %s\\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_arithmetic_complex(void) {
-    printf("Testing complex number arithmetic...\\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = true;
     // Test complex multiplication: (1+2i) * (3+4i) = -5+10i
     {
@@ -340,11 +340,11 @@ bool test_DependentVariable_arithmetic_complex(void) {
         if (dv1) OCRelease(dv1);
         if (dv2) OCRelease(dv2);
     }
-    printf("Complex arithmetic tests %s\\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_arithmetic_edge_cases(void) {
-    printf("Testing arithmetic edge cases...\\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = true;
     // Test very small numbers
     {
@@ -395,11 +395,11 @@ bool test_DependentVariable_arithmetic_edge_cases(void) {
         if (dv1) OCRelease(dv1);
         if (dv2) OCRelease(dv2);
     }
-    printf("Edge case tests %s\\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_arithmetic_large_scale(void) {
-    printf("Testing large-scale arithmetic operations...\\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = true;
     // Test with larger arrays to exercise OpenMP paths
     const size_t large_size = 1000;  // Reduced from 10000 to avoid memory issues
@@ -458,11 +458,11 @@ bool test_DependentVariable_arithmetic_large_scale(void) {
     if (dv2) OCRelease(dv2);
     free(large_data1);
     free(large_data2);
-    printf("Large scale tests %s\\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_arithmetic_integer_types(void) {
-    printf("Testing integer type arithmetic...\\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = true;
     // Test with various integer types
     int32_t idata1[] = {10, 20, 30, 40};
@@ -498,6 +498,6 @@ bool test_DependentVariable_arithmetic_integer_types(void) {
     }
     if (dv1) OCRelease(dv1);
     if (dv2) OCRelease(dv2);
-    printf("Integer type tests %s\\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }

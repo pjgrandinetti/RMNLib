@@ -36,9 +36,9 @@ SparseSamplingGetDimensionIndexes(SparseSamplingRef ss);
  * @brief Get direct reference to sparse grid vertices (internal use only).
  *
  * @param ss  SparseSamplingRef object.
- * @returns   OCIndexPairSetRef containing vertex data (do not release).
+ * @returns   OCDataRef containing vertex data (do not release).
  */
-OCIndexPairSetRef
+OCDataRef
 SparseSamplingGetSparseGridVertexes(SparseSamplingRef ss);
 
 /**
@@ -58,6 +58,35 @@ SparseSamplingGetEncoding(SparseSamplingRef ss);
  */
 OCStringRef
 SparseSamplingGetDescription(SparseSamplingRef ss);
+
+/**
+ * @brief Get the number of vertices in the sparse grid.
+ *
+ * @param ss  SparseSamplingRef object.
+ * @returns   Number of vertices, or 0 if ss is NULL or empty.
+ */
+size_t
+SparseSamplingGetVertexCount(SparseSamplingRef ss);
+
+/**
+ * @brief Get the number of dimensions in the sparse grid.
+ *
+ * @param ss  SparseSamplingRef object.
+ * @returns   Number of dimensions, or 0 if ss is NULL or empty.
+ */
+OCIndex
+SparseSamplingGetDimensionCount(SparseSamplingRef ss);
+
+/**
+ * @brief Get vertex coordinates at a specific index.
+ *
+ * @param ss          SparseSamplingRef object.
+ * @param vertexIndex Index of the vertex to retrieve.
+ * @param outCoords   Output array to store vertex coordinates (must be pre-allocated).
+ * @returns           true on success, false on error or invalid index.
+ */
+bool
+SparseSamplingGetVertexAtIndex(SparseSamplingRef ss, OCIndex vertexIndex, OCIndex *outCoords);
 
 /** @} */
 

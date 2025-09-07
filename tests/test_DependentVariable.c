@@ -33,6 +33,7 @@ static DependentVariableRef _make_internal_scalar(OCIndex length) {
     return dv;
 }
 bool test_DependentVariable_base(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef dv = NULL;
     OCStringRef name_str = NULL, desc_str = NULL, qt_str = NULL, qn_str = NULL, enc_str = NULL;
@@ -86,10 +87,11 @@ bool test_DependentVariable_base(void) {
     ok = true;
 cleanup:
     if (dv) OCRelease(dv);
-    printf("DependentVariable base tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_internal_vs_external(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef intdv = NULL, extdv = NULL;
     OCStringRef err = NULL, enc_str = NULL;
@@ -105,7 +107,6 @@ bool test_DependentVariable_internal_vs_external(void) {
     OCRelease((OCTypeRef)enc_str);
     // ── external: must supply a non-NULL URL now ──
     err = NULL;
-    printf("Creating external DV...\n");
     extdv = DependentVariableCreateExternal(
         STR("ext"),            // name
         STR("external test"),  // description
@@ -120,7 +121,6 @@ bool test_DependentVariable_internal_vs_external(void) {
         printf("DependentVariableCreateExternal failed: %s\n",
                err ? OCStringGetCString(err) : "unknown error");
     }
-    printf("External DV created successfully\n");
     TEST_ASSERT(extdv);
     // no in-memory buffers
     TEST_ASSERT(DependentVariableGetComponentCount(extdv) == 0);
@@ -133,7 +133,6 @@ bool test_DependentVariable_internal_vs_external(void) {
     // encoding should be "base64" for externals too (new default)
     {
         OCStringRef enc = DependentVariableCopyEncoding(extdv);
-        printf("External DV encoding: %s\n", enc ? OCStringGetCString(enc) : "NULL");
         TEST_ASSERT(enc && OCStringEqual(enc, STR("base64")));
         OCRelease((OCTypeRef)enc);
     }
@@ -142,11 +141,11 @@ cleanup:
     if (intdv) OCRelease(intdv);
     if (extdv) OCRelease(extdv);
     if (err) OCRelease(err);
-    printf("DependentVariable internal/external tests %s\n",
-           ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_values_and_accessors(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef dv = NULL;
     SIScalarRef sIn = NULL, sOut = NULL;
@@ -187,10 +186,11 @@ bool test_DependentVariable_values_and_accessors(void) {
 cleanup:
     if (dv) OCRelease(dv);
     if (err) OCRelease(err);
-    printf("DependentVariable values tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_type_queries(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCIndex r, c, count;
     OCStringRef err = NULL;
@@ -236,10 +236,11 @@ bool test_DependentVariable_type_queries(void) {
     ok = true;
 cleanup:
     if (err) OCRelease(err);
-    printf("DependentVariable type-queries tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_sparse_sampling(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef dv = _make_internal_scalar(10);
     TEST_ASSERT(dv);
@@ -248,8 +249,9 @@ bool test_DependentVariable_sparse_sampling(void) {
     // build a sparse‐sampling object
     OCMutableIndexSetRef dims = OCIndexSetCreateMutable();
     OCIndexSetAddIndex(dims, 1);
-    OCMutableIndexPairSetRef verts = OCIndexPairSetCreateMutable();
-    OCIndexPairSetAddIndexPair(verts, 1, 3);  // Using linearized coordinate encoding
+    // Create sparse vertices as OCData with coordinate value 3
+    uint16_t vertexData = 3;
+    OCDataRef verts = OCDataCreate((const uint8_t*)&vertexData, sizeof(uint16_t));
     SparseSamplingRef ss = SparseSamplingCreate(
         dims,
         verts,
@@ -282,10 +284,11 @@ bool test_DependentVariable_sparse_sampling(void) {
     ok = true;
 cleanup:
     if (dv) OCRelease(dv);
-    printf("DependentVariable sparse-sampling tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_copy_and_roundtrip(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef dv = NULL, dv2 = NULL, dv3 = NULL;
     OCDictionaryRef dict = NULL;
@@ -313,10 +316,11 @@ cleanup:
     if (dv2) OCRelease(dv2);
     if (dv) OCRelease(dv);
     if (err) OCRelease(err);
-    printf("DependentVariable copy/roundtrip tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_invalid_create(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCMutableArrayRef comps = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCMutableDataRef b = OCDataCreateMutable(0);
@@ -333,17 +337,18 @@ bool test_DependentVariable_invalid_create(void) {
         comps,
         &err);
     if (dv == NULL && err) {
-        printf("Expected failure: %s\n", OCStringGetCString(err));
+        // Expected failure - don't print verbose error
     }
     TEST_ASSERT(dv == NULL);
     ok = true;
 cleanup:
     OCRelease(comps);
     if (err) OCRelease(err);
-    printf("DependentVariable invalid-create tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_components(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef dv = NULL;
     OCMutableArrayRef comps = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
@@ -393,10 +398,11 @@ cleanup:
     if (dv) OCRelease(dv);
     if (comps) OCRelease(comps);
     if (err) OCRelease(err);
-    printf("DependentVariable components tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_values(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef dv = NULL;
     SIScalarRef sIn = NULL, sOut = NULL;
@@ -426,10 +432,11 @@ bool test_DependentVariable_values(void) {
 cleanup:
     if (dv) OCRelease(dv);
     if (err) OCRelease(err);
-    printf("DependentVariable values tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_typeQueries(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCIndex count, r, c;
     OCStringRef err = NULL;
@@ -473,10 +480,11 @@ bool test_DependentVariable_typeQueries(void) {
     ok = true;
 cleanup:
     if (err) OCRelease(err);
-    printf("DependentVariable type-queries tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_complexCopy(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef src = NULL, dst = NULL;
     OCMutableArrayRef comps = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
@@ -505,10 +513,11 @@ cleanup:
     if (src) OCRelease(src);
     if (comps) OCRelease(comps);
     if (err) OCRelease(err);
-    printf("DependentVariable complex-copy tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_invalidCreate(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCMutableArrayRef oneBuf = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCMutableDataRef b = OCDataCreateMutable(0);
@@ -527,17 +536,18 @@ bool test_DependentVariable_invalidCreate(void) {
         oneBuf,
         &err);
     if (dv == NULL && err) {
-        printf("Expected invalid-create error: %s\n", OCStringGetCString(err));
+        // Expected invalid-create error - don't print verbose message
     }
     TEST_ASSERT(dv == NULL);
     ok = true;
 cleanup:
     OCRelease(oneBuf);
     if (err) OCRelease(err);
-    printf("DependentVariable invalid-create tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DependentVariable_copy_component_labels(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef dv = NULL;
     OCMutableArrayRef components = NULL;
@@ -548,8 +558,6 @@ bool test_DependentVariable_copy_component_labels(void) {
     OCStringRef err = NULL;
     OCStringRef label1 = NULL, label2 = NULL, label3 = NULL;
     OCStringRef copiedLabel1 = NULL, copiedLabel2 = NULL, copiedLabel3 = NULL;
-
-    printf("Testing DependentVariable component labels copy...\n");
 
     // Create a simple DependentVariable with component labels
     unit = SIUnitDimensionlessAndUnderived();
@@ -625,12 +633,12 @@ cleanup:
     if (copiedLabels) OCRelease(copiedLabels);
     if (err) OCRelease(err);
 
-    printf("DependentVariable copy component labels tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 
 bool test_DependentVariable_copy_component_label_at_index(void) {
-    printf("Testing DependentVariable copy component label at index...\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef dv = NULL;
     OCMutableArrayRef components = NULL;
@@ -722,12 +730,12 @@ cleanup:
     if (copiedLabel3) OCRelease(copiedLabel3);
     if (err) OCRelease(err);
 
-    printf("DependentVariable copy component label at index tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 
 bool test_DependentVariable_copy_component_at_index(void) {
-    printf("Testing DependentVariable copy component at index...\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef dv = NULL;
     OCMutableArrayRef components = NULL;
@@ -820,11 +828,12 @@ cleanup:
     if (copiedComp3) OCRelease(copiedComp3);
     if (err) OCRelease(err);
 
-    printf("DependentVariable copy component at index tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 
 bool test_DependentVariable_arithmetic_operations(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DependentVariableRef dv1 = NULL, dv2 = NULL;
     OCMutableArrayRef components1 = NULL, components2 = NULL;
@@ -954,6 +963,6 @@ cleanup:
     if (comp1) OCRelease(comp1);
     if (comp2) OCRelease(comp2);
     if (err) OCRelease(err);
-    printf("DependentVariable arithmetic operations tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }

@@ -101,6 +101,10 @@ int main(void) {
     if (!test_SparseSampling_base64_encoding()) failures++;
     if (!test_SparseSampling_with_dataset()) failures++;
     if (!test_SparseSampling_size_calculations()) failures++;
+    if (!test_SparseSampling_json_untyped_roundtrip()) failures++;
+    if (!test_SparseSampling_json_typed_roundtrip()) failures++;
+    if (!test_SparseSampling_json_malformed_input()) failures++;
+    if (!test_SparseSampling_json_encoding_extraction()) failures++;
     fprintf(stderr, "\n=== Running Dataset Tests ===\n");
     if (!test_Dataset_minimal_create()) failures++;
     if (!test_DatasetCreateMinimal()) failures++;

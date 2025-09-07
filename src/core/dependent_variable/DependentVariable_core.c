@@ -359,6 +359,19 @@ static DependentVariableRef impl_DependentVariableCreate(
                 return NULL;
             }
         }
+
+        // Validate that the actual components count matches the expected count from quantity_type
+        OCIndex expectedComponentsCount = DependentVariableComponentsCountFromQuantityType(quantityType);
+        if (expectedComponentsCount != kOCNotFound && componentsCount != expectedComponentsCount) {
+            if (outError) {
+                const char *qTypeStr = quantityType ? OCStringGetCString(quantityType) : "(null)";
+                OCStringRef errMsg = OCStringCreateWithFormat(
+                    STR("DependentVariable creation failed: Components count (%ld) does not match quantity_type '%s' which requires %ld components"),
+                    (long)componentsCount, qTypeStr, (long)expectedComponentsCount);
+                *outError = errMsg;
+            }
+            return NULL;
+        }
     } else {
         componentsCount = DependentVariableComponentsCountFromQuantityType(quantityType);
         if (componentsCount == kOCNotFound) {
@@ -1294,8 +1307,8 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             // When json_typed=true, encoding is not present, components are always number arrays
             isBase64 = false;
         } else {
-            // When json_typed=false, use encoding field (default to base64)
-            isBase64 = encoding ? OCStringEqual(encoding, STR(kDependentVariableEncodingValueBase64)) : true;
+            // When json_typed=false, use encoding field (default to "none" per CSDM spec)
+            isBase64 = encoding ? OCStringEqual(encoding, STR(kDependentVariableEncodingValueBase64)) : false;
         }
 
         cJSON *comp = NULL;
@@ -1318,7 +1331,7 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             } else if (cJSON_IsArray(comp) && !isBase64) {
                 // Handle number arrays - parse and convert to OCDataRef
                 OCStringRef parseError = NULL;
-                OCArrayRef numArr = OCArrayCreateFromJSON(comp, &parseError);
+                OCArrayRef numArr = OCArrayOfNumbersCreateFromJSON(comp, numericType, &parseError);
                 if (!numArr) {
                     if (outError) {
                         if (parseError) {

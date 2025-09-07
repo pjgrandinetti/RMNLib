@@ -236,8 +236,8 @@ bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
         if (sparseDimCount == 0) {
             // 0-dimensional sparse sampling: all dimensions are dense
             // Expected size should be the number of sparse grid vertices
-            OCIndex flatCount = OCIndexPairSetGetCount(SparseSamplingGetSparseGridVertexes(ss));
-            sparseSize = flatCount;  // Each vertex represents one data point
+            OCIndex vertexCount = SparseSamplingGetVertexCount(ss);
+            sparseSize = vertexCount;  // Each vertex represents one data point
             break;
         }
         // For fully sparse datasets (all dimensions are sparse),
@@ -253,9 +253,8 @@ bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
                 fullGridSize *= DimensionGetCount(d);
             }
         }
-        OCIndex flatCount = OCIndexPairSetGetCount(SparseSamplingGetSparseGridVertexes(ss));
-        OCIndex nVerts = flatCount / sparseDimCount;
-        sparseSize = nVerts * fullGridSize;
+        OCIndex vertexCount = SparseSamplingGetVertexCount(ss);
+        sparseSize = vertexCount * fullGridSize;
         break;
     }
     if (sparseSize > 0) {

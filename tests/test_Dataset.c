@@ -15,7 +15,7 @@ static DependentVariableRef _make_mock_dv(void) {
                                           NULL);
 }
 bool test_Dataset_minimal_create(void) {
-    printf("test_Dataset_minimal_create...\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     DatasetRef ds = NULL;
@@ -54,11 +54,11 @@ bool test_Dataset_minimal_create(void) {
 cleanup:
     OCRelease(ds);
     OCRelease(dvs);
-    printf("test_Dataset_minimal_create %s.\n", ok ? "passed" : "FAILED");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_DatasetCreateMinimal(void) {
-    printf("test_DatasetCreateMinimal...\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     DatasetRef ds = NULL;
@@ -88,11 +88,11 @@ bool test_DatasetCreateMinimal(void) {
 cleanup:
     OCRelease(ds);
     OCRelease(dvs);
-    printf("test_DatasetCreateMinimal %s.\n", ok ? "passed" : "FAILED");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_Dataset_mutators(void) {
-    printf("test_Dataset_mutators...\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCMutableArrayRef dims = NULL;
@@ -151,11 +151,11 @@ cleanup:
     OCRelease(newDVs);
     OCRelease(tags);
     OCRelease(md);
-    printf("test_Dataset_mutators %s.\n", ok ? "passed" : "FAILED");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_Dataset_type_contract(void) {
-    printf("test_Dataset_type_contract...\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     DatasetRef ds = NULL;
@@ -176,11 +176,11 @@ bool test_Dataset_type_contract(void) {
 cleanup:
     OCRelease(ds);
     OCRelease(dvs);
-    printf("test_Dataset_type_contract %s.\n", ok ? "passed" : "FAILED");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_Dataset_copy_and_roundtrip(void) {
-    printf("test_Dataset_copy_and_roundtrip...\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCDictionaryRef dict = NULL;
@@ -208,7 +208,7 @@ cleanup:
     OCRelease(copy);
     OCRelease(ds);
     OCRelease(dvs);
-    printf("test_Dataset_copy_and_roundtrip %s.\n", ok ? "passed" : "FAILED");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 
@@ -255,7 +255,7 @@ static DependentVariableRef _make_mock_dv_with_data(void) {
 }
 
 bool test_Dataset_rigorous_roundtrip(void) {
-    printf("test_Dataset_rigorous_roundtrip...\n");
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCMutableArrayRef dvs = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     OCDictionaryRef dict = NULL;
@@ -293,35 +293,6 @@ bool test_Dataset_rigorous_roundtrip(void) {
     dict = DatasetCopyAsDictionary(ds);
     TEST_ASSERT(dict != NULL);
 
-    // DEBUG: Print dictionary structure to help debug Python wrapper issue
-    printf("=== C Dictionary Structure Debug ===\n");
-    OCStringRef debug_title = (OCStringRef)OCDictionaryGetValue(dict, STR("title"));
-    if (debug_title) printf("  title: %s\n", OCStringGetCString(debug_title));
-
-    OCStringRef debug_desc = (OCStringRef)OCDictionaryGetValue(dict, STR("description"));
-    if (debug_desc) printf("  description: %s\n", OCStringGetCString(debug_desc));
-
-    OCArrayRef debug_deps = (OCArrayRef)OCDictionaryGetValue(dict, STR("dependent_variables"));
-    if (debug_deps) {
-        printf("  dependent_variables: array with %llu items\n", (unsigned long long)OCArrayGetCount(debug_deps));
-        if (OCArrayGetCount(debug_deps) > 0) {
-            OCDictionaryRef dv_dict = (OCDictionaryRef)OCArrayGetValueAtIndex(debug_deps, 0);
-            if (dv_dict) {
-                OCStringRef dv_type = (OCStringRef)OCDictionaryGetValue(dv_dict, STR("type"));
-                if (dv_type) printf("    [0].type: %s\n", OCStringGetCString(dv_type));
-                OCStringRef dv_encoding = (OCStringRef)OCDictionaryGetValue(dv_dict, STR("encoding"));
-                if (dv_encoding) printf("    [0].encoding: %s\n", OCStringGetCString(dv_encoding));
-            }
-        }
-    }
-
-    OCArrayRef debug_dims = (OCArrayRef)OCDictionaryGetValue(dict, STR("dimensions"));
-    if (debug_dims) printf("  dimensions: array with %llu items\n", (unsigned long long)OCArrayGetCount(debug_dims));
-
-    OCArrayRef debug_prec = (OCArrayRef)OCDictionaryGetValue(dict, STR("dimension_precedence"));
-    if (debug_prec) printf("  dimension_precedence: array with %llu items\n", (unsigned long long)OCArrayGetCount(debug_prec));
-    printf("=== End C Dictionary Debug ===\n");
-
     // Create from dictionary
     rt = DatasetCreateFromDictionary(dict, &err_str);
     if (rt == NULL) {
@@ -358,6 +329,6 @@ cleanup:
     OCRelease(dict);
     OCRelease(ds);
     OCRelease(dvs);
-    printf("test_Dataset_rigorous_roundtrip %s.\n", ok ? "passed" : "FAILED");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }

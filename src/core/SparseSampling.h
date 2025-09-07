@@ -85,8 +85,8 @@ bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError);
  *
  * @param dimensionIndexes    An OCIndexSetRef of fixed dimension indexes.
  *                            If NULL, initializes to empty set.
- * @param sparseGridVertexes  An OCIndexPairSetRef containing all sparse grid
- *                             vertex data as index-value pairs.
+ * @param sparseGridVertexes  An OCDataRef containing flattened sparse grid
+ *                             vertex coordinates as raw integer data.
  * @param unsignedIntegerType The numeric type used for indexing. Must be one of:
  *                            kOCNumberUInt8Type, kOCNumberUInt16Type,
  *                            kOCNumberUInt32Type, or kOCNumberUInt64Type.
@@ -101,7 +101,7 @@ bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError);
  */
 SparseSamplingRef
 SparseSamplingCreate(OCIndexSetRef dimensionIndexes,
-                     OCIndexPairSetRef sparseGridVertexes,
+                     OCDataRef sparseGridVertexes,
                      OCNumberType unsignedIntegerType,
                      OCStringRef encoding,
                      OCStringRef description,
@@ -173,18 +173,18 @@ bool SparseSamplingSetDimensionIndexes(SparseSamplingRef ss, OCIndexSetRef idxSe
  * @brief Copy the sparse grid vertices.
  *
  * @param ss  SparseSamplingRef object.
- * @returns   OCIndexPairSetRef copy containing all vertex data (caller must release).
+ * @returns   OCDataRef copy containing flattened vertex coordinate data (caller must release).
  */
-OCIndexPairSetRef
+OCDataRef
 SparseSamplingCopySparseGridVertexes(SparseSamplingRef ss);
 /**
  * @brief Set the sparse grid vertices.
  *
  * @param ss    SparseSamplingRef object.
- * @param verts New OCIndexPairSetRef containing vertex data. May be NULL to clear.
+ * @param verts New OCDataRef containing flattened vertex coordinate data. May be NULL to clear.
  * @returns     true on success, false on NULL ss or allocation failure.
  */
-bool SparseSamplingSetSparseGridVertexes(SparseSamplingRef ss, OCIndexPairSetRef verts);
+bool SparseSamplingSetSparseGridVertexes(SparseSamplingRef ss, OCDataRef verts);
 /**
  * @brief Set the unsigned integer type for indexing.
  *
@@ -245,6 +245,32 @@ SparseSamplingGetApplicationMetaData(SparseSamplingRef ss);
  */
 OCNumberType
 SparseSamplingGetUnsignedIntegerType(SparseSamplingRef ss);
+/**
+ * @brief Get the number of vertices in the sparse grid.
+ *
+ * @param ss  SparseSamplingRef object.
+ * @returns   Number of vertices, or 0 if ss is NULL or empty.
+ */
+size_t
+SparseSamplingGetVertexCount(SparseSamplingRef ss);
+/**
+ * @brief Get the number of dimensions in the sparse grid.
+ *
+ * @param ss  SparseSamplingRef object.
+ * @returns   Number of dimensions, or 0 if ss is NULL or empty.
+ */
+OCIndex
+SparseSamplingGetDimensionCount(SparseSamplingRef ss);
+/**
+ * @brief Get vertex coordinates at a specific index.
+ *
+ * @param ss          SparseSamplingRef object.
+ * @param vertexIndex Index of the vertex to retrieve.
+ * @param outCoords   Output array to store vertex coordinates (must be pre-allocated).
+ * @returns           true on success, false on error or invalid index.
+ */
+bool
+SparseSamplingGetVertexAtIndex(SparseSamplingRef ss, OCIndex vertexIndex, OCIndex *outCoords);
 /**
  * @brief Set the metadata dictionary.
  *
