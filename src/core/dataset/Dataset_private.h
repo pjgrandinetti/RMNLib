@@ -13,19 +13,15 @@
  */
 #ifndef DATASET_PRIVATE_H
 #define DATASET_PRIVATE_H
-
 // Include the public header for type declarations
 #include "../Dataset.h"
 #include "../dependent_variable/DependentVariable_private.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 // ============================================================================
 // SERIALIZATION CONSTANTS
 // ============================================================================
-
 #define kDatasetCsdmEnvelopeKey "csdm"
 #define kDatasetVersionKey "version"
 #define kDatasetTimestampKey "timestamp"
@@ -40,11 +36,9 @@ extern "C" {
 #define kDatasetFocusKey "focus"
 #define kDatasetPreviousFocusKey "previous_focus"
 #define kDatasetApplicationKey "application"
-
 // ============================================================================
 // OPAQUE STRUCT DEFINITION
 // ============================================================================
-
 /**
  * @brief The opaque Dataset implementation structure
  *
@@ -68,27 +62,21 @@ struct impl_Dataset {
     OCMutableIndexArrayRef dimensionPrecedence;
     OCMutableDictionaryRef application;
 };
-
 // ============================================================================
 // INTERNAL FUNCTION DECLARATIONS
 // ============================================================================
-
 // Core infrastructure functions (Dataset_core.c)
 struct impl_Dataset *DatasetAllocate(void);
 void impl_InitDatasetFields(DatasetRef ds);
 bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
-                                   OCArrayRef dependentVariables,
-                                   OCStringRef *outError);
-
+                                    OCArrayRef dependentVariables,
+                                    OCStringRef *outError);
 // Core JSON functions (Dataset_core.c)
 DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError);
-
-
 DatumRef DatasetCreateDatumFromMemOffset(DatasetRef theDataset,
-                                             OCIndex dependentVariableIndex,
-                                             OCIndex componentIndex,
-                                             OCIndex memOffset);
-
+                                         OCIndex dependentVariableIndex,
+                                         OCIndex componentIndex,
+                                         OCIndex memOffset);
 // I/O utility functions (Dataset_io.c)
 bool ensure_directory(const char *dir, OCStringRef *outError);
 bool ensure_parent_dirs(const char *fullpath, OCStringRef *outError);
@@ -96,9 +84,7 @@ bool derive_directory_from_path(const char *filepath, char *output, size_t outpu
 uint8_t *read_file_bytes(const char *path, size_t *out_len);
 const char *parse_components_url_path(const char *url);
 bool join_path(char *dest, size_t dest_size, const char *dir, char sep, const char *filename);
-
 #ifdef __cplusplus
 }
 #endif
-
-#endif // DATASET_PRIVATE_H
+#endif  // DATASET_PRIVATE_H

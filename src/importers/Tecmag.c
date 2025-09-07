@@ -442,7 +442,10 @@ OCMutableDictionaryRef CreateTecmagStructureMetaData(Tecmag *tecmag, OCStringRef
     return tmagMetaData;
 }
 DatasetRef DatasetImportTecmagCreateWithFileData(OCDataRef contents, OCStringRef *error) {
-    IF_NO_OBJECT_EXISTS_RETURN(contents, NULL);
+    if (!contents) {
+        if (error) *error = STR("Tecmag import failed: file contents is NULL.");
+        return NULL;
+    }
     if (error && *error) return NULL;
     OCIndex totalFileLength = OCDataGetLength(contents);
     if (totalFileLength == 0) return NULL;

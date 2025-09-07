@@ -176,7 +176,6 @@ DatumCreateFromDictionary(OCDictionaryRef dictionary,
  * @return cJSON object or NULL on error.
  */
 cJSON *DatumCopyAsJSON(DatumRef theDatum, bool typed, OCStringRef *outError);
-
 /**
  * @brief Construct a DatumRef directly from cJSON.
  *

@@ -7,6 +7,7 @@
 // test_DimensionCreateAxisLabel
 // ----------------------------------------------------------------------------
 bool test_DimensionCreateAxisLabel(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCMutableArrayRef labels = NULL;
     LabeledDimensionRef ld = NULL;
@@ -73,13 +74,14 @@ cleanup:
     if (ld) OCRelease(ld);
     if (labels) OCRelease(labels);
     if (err) OCRelease(err);
-    printf("DimensionCreateAxisLabel test %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 // ----------------------------------------------------------------------------
 // test_Dimension_base
 // ----------------------------------------------------------------------------
 bool test_Dimension_base(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     DimensionRef dim = NULL, copy = NULL;
     OCMutableArrayRef labels = NULL;
@@ -149,13 +151,14 @@ cleanup:
     if (meta) OCRelease(meta);
     if (labels) OCRelease(labels);
     if (err) OCRelease(err);
-    printf("Dimension base public API test %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 // ----------------------------------------------------------------------------
 // test_LabeledDimension
 // ----------------------------------------------------------------------------
 bool test_LabeledDimension(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCMutableArrayRef labels = NULL;
     LabeledDimensionRef ld = NULL, ld2 = NULL;
@@ -211,13 +214,14 @@ cleanup:
     if (ld) OCRelease(ld);
     if (labels) OCRelease(labels);
     if (err) OCRelease(err);
-    printf("LabeledDimension basic tests %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 // ----------------------------------------------------------------------------
 // test_SIDimension
 // ----------------------------------------------------------------------------
 bool test_SIDimension(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     SIDimensionRef si = NULL, si2 = NULL;
     OCDictionaryRef dict = NULL;
@@ -276,14 +280,14 @@ cleanup:
     if (offset) OCRelease(offset);
     if (dict) OCRelease(dict);
     if (err) OCRelease(err);
-    printf("SIDimension public API test %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 // ----------------------------------------------------------------------------
 // test_SIMonotonic_and_SILinearDimension
 // ----------------------------------------------------------------------------
 bool test_SIMonotonic_and_SILinearDimension(void) {
-    fprintf(stderr, "%s begin...\n", __func__);
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCStringRef err = NULL;
     OCMutableArrayRef coords = NULL;
@@ -383,13 +387,14 @@ cleanup:
     if (lin) OCRelease(lin);
     if (rec) OCRelease(rec);
     if (err) OCRelease(err);
-    fprintf(stderr, "%s %s\n", __func__, ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 // ----------------------------------------------------------------------------
 // test_minimal_monotonic
 // ----------------------------------------------------------------------------
 bool test_minimal_monotonic(void) {
+    fprintf(stderr, "%s begin...", __func__);
     OCStringRef error = NULL;
     // Create coordinates array with SIScalar objects
     double values[] = {0.0, 1.5, 3.7, 8.2, 15.0};
@@ -422,23 +427,18 @@ bool test_minimal_monotonic(void) {
     }
     // Verify the dimension was created correctly
     OCArrayRef coords = SIMonotonicDimensionCopyCoordinates(monotonicDim);
-    OCIndex count = coords ? OCArrayGetCount(coords) : 0;
-    printf("✅ SIMonotonicDimensionCreateMinimal test passed!\n");
-    printf("   - Created dimension with %ld coordinates\n", (long)count);
-    printf("   - Quantity: Length\n");
-    printf("   - No reciprocal dimension\n");
     OCRelease(coords);
     // Clean up
     OCRelease(valueArray);
     OCRelease(monotonicDim);
-    fprintf(stderr, "%s %s\n", __func__, "passed.");
+    fprintf(stderr, " %s\n", "passed.");
     return true;
 }
 // ----------------------------------------------------------------------------
 // test_SILinearDimensionCreateCoordinates
 // ----------------------------------------------------------------------------
 bool test_SILinearDimensionCreateCoordinates(void) {
-    fprintf(stderr, "%s begin...\n", __func__);
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCStringRef err = NULL;
     SILinearDimensionRef lin = NULL;
@@ -488,8 +488,6 @@ bool test_SILinearDimensionCreateCoordinates(void) {
         double value = SIScalarDoubleValue(coord);
         double expected = expected_values[i];
         TEST_ASSERT(fabs(value - expected) < 1e-10);
-        printf("   Coordinate[%ld]: %.1f s (expected %.1f s) ✓\n",
-               (long)i, value, expected);
     }
     // Clean up test 1
     OCRelease(coords);
@@ -497,7 +495,6 @@ bool test_SILinearDimensionCreateCoordinates(void) {
     OCRelease(increment);
     OCRelease(offset);
     // Test case 2: Linear dimension with complex FFT
-    printf("   Testing with complex_fft=true...\n");
     // Create increment: 2.0 Hz
     increment = SIScalarCreateWithDouble(2.0, SIUnitWithSymbol(STR("Hz")));
     TEST_ASSERT(increment != NULL);
@@ -543,28 +540,22 @@ bool test_SILinearDimensionCreateCoordinates(void) {
         double value = SIScalarDoubleValue(coord);
         double expected = expected_fft_values[i];
         TEST_ASSERT(fabs(value - expected) < 1e-10);
-        printf("   FFT Coordinate[%ld]: %.1f Hz (expected %.1f Hz) ✓\n",
-               (long)i, value, expected);
     }
     ok = true;
-    printf("✅ SILinearDimensionCreateCoordinates test passed!\n");
-    printf("   - Verified CSDM coordinate formula implementation\n");
-    printf("   - Tested both normal and complex FFT modes\n");
-    printf("   - All coordinate values match expected results\n");
 cleanup:
     if (coords) OCRelease(coords);
     if (lin) OCRelease(lin);
     if (increment) OCRelease(increment);
     if (offset) OCRelease(offset);
     if (err) OCRelease(err);
-    fprintf(stderr, "%s %s\n", __func__, ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 // ----------------------------------------------------------------------------
 // test_AbsoluteCoordinates
 // ----------------------------------------------------------------------------
 bool test_AbsoluteCoordinates(void) {
-    fprintf(stderr, "%s begin...\n", __func__);
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCStringRef err = NULL;
     SILinearDimensionRef lin = NULL;
@@ -572,7 +563,6 @@ bool test_AbsoluteCoordinates(void) {
     SIScalarRef increment = NULL, origin_offset = NULL;
     OCArrayRef coords = NULL, abs_coords = NULL;
     OCMutableArrayRef mono_coords = NULL;
-    printf("=== Testing SILinearDimension Absolute Coordinates ===\n");
     // Test case 1: SILinearDimension with origin offset
     // Create increment: 1.0 meters
     increment = SIScalarCreateWithDouble(1.0, SIUnitWithSymbol(STR("m")));
@@ -613,8 +603,6 @@ bool test_AbsoluteCoordinates(void) {
         double value = SIScalarDoubleValue(coord);
         double expected = expected_regular[i];
         TEST_ASSERT(fabs(value - expected) < 1e-10);
-        printf("   Regular Coordinate[%ld]: %.1f m (expected %.1f m) ✓\n",
-               (long)i, value, expected);
     }
     // Get absolute coordinates
     abs_coords = SILinearDimensionCreateAbsoluteCoordinates(lin);
@@ -628,8 +616,6 @@ bool test_AbsoluteCoordinates(void) {
         double value = SIScalarDoubleValue(abs_coord);
         double expected = expected_absolute[i];
         TEST_ASSERT(fabs(value - expected) < 1e-10);
-        printf("   Absolute Coordinate[%ld]: %.1f m (expected %.1f m) ✓\n",
-               (long)i, value, expected);
     }
     // Clean up linear dimension test
     OCRelease(coords);
@@ -637,7 +623,6 @@ bool test_AbsoluteCoordinates(void) {
     OCRelease(lin);
     OCRelease(increment);
     OCRelease(origin_offset);
-    printf("=== Testing SIMonotonicDimension Absolute Coordinates ===\n");
     // Test case 2: SIMonotonicDimension with origin offset
     // Create monotonic coordinates: [0.0, 1.5, 3.5, 6.0] seconds
     mono_coords = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
@@ -681,8 +666,6 @@ bool test_AbsoluteCoordinates(void) {
         double value = SIScalarDoubleValue(coord);
         double expected = mono_values[i];
         TEST_ASSERT(fabs(value - expected) < 1e-10);
-        printf("   Regular Coordinate[%ld]: %.1f s (expected %.1f s) ✓\n",
-               (long)i, value, expected);
     }
     // Get absolute coordinates
     abs_coords = SIMonotonicDimensionCreateAbsoluteCoordinates(mono);
@@ -696,14 +679,8 @@ bool test_AbsoluteCoordinates(void) {
         double value = SIScalarDoubleValue(abs_coord);
         double expected = expected_mono_absolute[i];
         TEST_ASSERT(fabs(value - expected) < 1e-10);
-        printf("   Absolute Coordinate[%ld]: %.1f s (expected %.1f s) ✓\n",
-               (long)i, value, expected);
     }
     ok = true;
-    printf("✅ Absolute Coordinates test passed!\n");
-    printf("   - Verified CSDM absolute coordinate formula: X^abs_k = X_k + o_k\n");
-    printf("   - Tested both SILinearDimension and SIMonotonicDimension\n");
-    printf("   - All absolute coordinate values match expected results\n");
 cleanup:
     if (coords) OCRelease(coords);
     if (abs_coords) OCRelease(abs_coords);
@@ -711,13 +688,14 @@ cleanup:
     if (origin_offset) OCRelease(origin_offset);
     if (mono_coords) OCRelease(mono_coords);
     if (err) OCRelease(err);
-    fprintf(stderr, "%s %s\n", __func__, ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 // ----------------------------------------------------------------------------
 // test_DimensionPeriodOperations
 // ----------------------------------------------------------------------------
 bool test_DimensionPeriodOperations(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCStringRef error = NULL;
     SIScalarRef increment = NULL;
@@ -727,7 +705,6 @@ bool test_DimensionPeriodOperations(void) {
     SIScalarRef copiedPeriod = NULL;
     SILinearDimensionRef dim = NULL;
     SIDimensionRef siDim = NULL;
-    printf("Testing dimension period operations...\n");
     // Create test scalars
     increment = SIScalarCreateWithDouble(1.0, SIUnitWithSymbol(STR("Hz")));
     TEST_ASSERT(increment != NULL);
@@ -760,24 +737,19 @@ bool test_DimensionPeriodOperations(void) {
     siDim = (SIDimensionRef)dim;
     // Test 1: Initially should not be periodic (period is infinity)
     TEST_ASSERT(!SIDimensionIsPeriodic(siDim));
-    printf("✓ Initial dimension is not periodic\n");
     // Test 2: Copy period should return an infinite scalar
     copiedPeriod = SIDimensionCopyPeriod(siDim);
     TEST_ASSERT(copiedPeriod != NULL);
     double initialPeriodValue = SIScalarDoubleValue(copiedPeriod);
     TEST_ASSERT(isinf(initialPeriodValue));
-    printf("✓ Initial period is infinity: %f\n", initialPeriodValue);
     OCRelease(copiedPeriod);
     copiedPeriod = NULL;
     // Test 3: Set a finite period
     error = NULL;
     bool setResult = SIDimensionSetPeriod(siDim, testPeriod, &error);
     if (error) {
-        printf("Debug: Error message exists (cannot print OCString directly)\n");
         OCRelease(error);
         error = NULL;
-    } else {
-        printf("Debug: No error message\n");
     }
     // Test that setting the period was successful
     TEST_ASSERT(setResult == true);
@@ -789,20 +761,14 @@ bool test_DimensionPeriodOperations(void) {
     // Also test direct access - but note SIDimensionGetPeriod is private
     // For testing, let's just use the copy function twice to verify it's consistent
     SIScalarRef copiedPeriod2 = SIDimensionCopyPeriod(siDim);
-    if (copiedPeriod2) OCRelease(copiedPeriod2); // Release the second copy
+    if (copiedPeriod2) OCRelease(copiedPeriod2);  // Release the second copy
     if (copiedPeriod == NULL) {
-        printf("Debug: Period copy failed - this is the bug!\n");
-        // Let's try to debug further - check if the dimension is still periodic
-        bool stillPeriodic = SIDimensionIsPeriodic(siDim);
-        printf("Debug: Still periodic after set: %s\n", stillPeriodic ? "true" : "false");
         // The bug is in SIDimensionCopyPeriod itself
-        printf("Debug: Bug confirmed - SIDimensionCopyPeriod returns NULL even though dimension is periodic\n");
     }
     TEST_ASSERT(copiedPeriod != NULL);
     double finePeriodValue = SIScalarDoubleValue(copiedPeriod);
     TEST_ASSERT(!isinf(finePeriodValue));
     TEST_ASSERT(fabs(finePeriodValue - 10.0) < 1e-10);
-    printf("✓ Retrieved period value is correct: %f\n", finePeriodValue);
     OCRelease(copiedPeriod);
     copiedPeriod = NULL;
     // Test 6: Set period back to infinity using NULL
@@ -810,16 +776,13 @@ bool test_DimensionPeriodOperations(void) {
     setResult = SIDimensionSetPeriod(siDim, NULL, &error);
     TEST_ASSERT(setResult == true);
     TEST_ASSERT(error == NULL);
-    printf("✓ Successfully set period back to infinity\n");
     // Test 7: Should not be periodic again
     TEST_ASSERT(!SIDimensionIsPeriodic(siDim));
-    printf("✓ Dimension is not periodic after setting period to NULL\n");
     // Test 8: Copy period should return infinity again
     copiedPeriod = SIDimensionCopyPeriod(siDim);
     TEST_ASSERT(copiedPeriod != NULL);
     double finalPeriodValue = SIScalarDoubleValue(copiedPeriod);
     TEST_ASSERT(isinf(finalPeriodValue));
-    printf("✓ Final period is infinity again: %f\n", finalPeriodValue);
     ok = true;
 cleanup:
     if (copiedPeriod) OCRelease(copiedPeriod);
@@ -829,35 +792,31 @@ cleanup:
     if (increment) OCRelease(increment);
     if (dim) OCRelease(dim);
     if (error) OCRelease(error);
-    printf("Dimension period operations test %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
-
 // ----------------------------------------------------------------------------
 // test_monotonic_large_scale_values
 // Test monotonic dimensions with large-scale coordinate values
 // ----------------------------------------------------------------------------
 bool test_monotonic_large_scale_values(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCStringRef error = NULL;
     SIMonotonicDimensionRef monotonicDim = NULL;
     OCMutableArrayRef coordinates = NULL;
-
     // Test with a wide range of coordinate values including very large ones
     double values[] = {1.0, 100.0, 1000.0, 1000000.0, 2.36518262e15};
     int numValues = sizeof(values) / sizeof(values[0]);
-
     // Create coordinates array with SIScalar objects (dimensionless)
     coordinates = OCArrayCreateMutable(numValues, &kOCTypeArrayCallBacks);
     TEST_ASSERT(coordinates != NULL);
-
     for (int i = 0; i < numValues; i++) {
         SIScalarRef scalar = SIScalarCreateWithDouble(values[i], SIUnitDimensionlessAndUnderived());
         TEST_ASSERT(scalar != NULL);
         OCArrayAppendValue(coordinates, scalar);
-        OCRelease(scalar); // Release our reference, array retains it
+        OCRelease(scalar);  // Release our reference, array retains it
     }
-
     // Test 1: Full constructor
     error = NULL;
     monotonicDim = SIMonotonicDimensionCreate(
@@ -873,16 +832,12 @@ bool test_monotonic_large_scale_values(void) {
         NULL,                       // reciprocal
         &error                      // outError
     );
-
     TEST_ASSERT(monotonicDim != NULL && error == NULL);
-
     // Verify the dimension properties
     OCArrayRef retrievedCoords = SIMonotonicDimensionCopyCoordinates(monotonicDim);
     TEST_ASSERT(retrievedCoords != NULL);
-
     OCIndex coordCount = OCArrayGetCount(retrievedCoords);
     TEST_ASSERT(coordCount == numValues);
-
     // Verify coordinate values
     for (OCIndex i = 0; i < coordCount; i++) {
         SIScalarRef coord = (SIScalarRef)OCArrayGetValueAtIndex(retrievedCoords, i);
@@ -890,62 +845,52 @@ bool test_monotonic_large_scale_values(void) {
         TEST_ASSERT(fabs(coordValue - values[i]) < 1e-9);
     }
     OCRelease(retrievedCoords);
-
     // Verify dimension type
     OCStringRef dimType = DimensionGetType((DimensionRef)monotonicDim);
     TEST_ASSERT(OCStringEqual(dimType, STR("monotonic")));
-
     OCRelease(monotonicDim);
     monotonicDim = NULL;
-
     // Test 2: Minimal constructor
     error = NULL;
     monotonicDim = SIMonotonicDimensionCreateMinimal(
-        kSIQuantityDimensionless,   // quantityName
-        coordinates,                // coordinates
-        NULL,                       // reciprocal
-        &error                      // outError
+        kSIQuantityDimensionless,  // quantityName
+        coordinates,               // coordinates
+        NULL,                      // reciprocal
+        &error                     // outError
     );
-
     TEST_ASSERT(monotonicDim != NULL && error == NULL);
     OCRelease(monotonicDim);
     monotonicDim = NULL;
-
     ok = true;
-
 cleanup:
     if (coordinates) OCRelease(coordinates);
     if (monotonicDim) OCRelease(monotonicDim);
     if (error) OCRelease(error);
-
-    printf("Monotonic dimension large-scale values test %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
-
 // ----------------------------------------------------------------------------
 // test_DimensionMetadataRoundTrip
 // ----------------------------------------------------------------------------
 bool test_DimensionMetadataRoundTrip(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = false;
     OCMutableArrayRef labels = NULL;
     LabeledDimensionRef ld_original = NULL, ld_restored = NULL;
     OCDictionaryRef dict = NULL;
     OCMutableDictionaryRef metadata = NULL;
     OCStringRef err = NULL;
-
     // Create coordinate labels
     labels = OCArrayCreateMutable(3, &kOCTypeArrayCallBacks);
     TEST_ASSERT(labels != NULL);
     OCArrayAppendValue(labels, STR("red"));
     OCArrayAppendValue(labels, STR("green"));
     OCArrayAppendValue(labels, STR("blue"));
-
     // Create application metadata
     metadata = OCDictionaryCreateMutable(0);
     TEST_ASSERT(metadata != NULL);
     OCDictionarySetValue(metadata, STR("encoding"), STR("sRGB"));
     OCDictionarySetValue(metadata, STR("version"), STR("1.0"));
-
     // Create LabeledDimension with metadata
     err = NULL;
     ld_original = LabeledDimensionCreate(
@@ -957,65 +902,51 @@ bool test_DimensionMetadataRoundTrip(void) {
     );
     TEST_ASSERT(ld_original != NULL);
     TEST_ASSERT(err == NULL);
-
     // Verify original has metadata
     OCDictionaryRef orig_meta = DimensionGetApplicationMetaData((DimensionRef)ld_original);
     TEST_ASSERT(orig_meta != NULL);
     TEST_ASSERT(OCDictionaryGetCount(orig_meta) == 2);
-
     OCStringRef orig_encoding = (OCStringRef)OCDictionaryGetValue(orig_meta, STR("encoding"));
     TEST_ASSERT(orig_encoding != NULL);
     TEST_ASSERT(OCStringEqual(orig_encoding, STR("sRGB")));
-
     OCStringRef orig_version = (OCStringRef)OCDictionaryGetValue(orig_meta, STR("version"));
     TEST_ASSERT(orig_version != NULL);
     TEST_ASSERT(OCStringEqual(orig_version, STR("1.0")));
-
     // Convert to dictionary
     dict = LabeledDimensionCopyAsDictionary(ld_original);
     TEST_ASSERT(dict != NULL);
-
     // Verify metadata is in dictionary
     OCDictionaryRef dict_meta = (OCDictionaryRef)OCDictionaryGetValue(dict, STR("application"));
     TEST_ASSERT(dict_meta != NULL);
     TEST_ASSERT(OCDictionaryGetCount(dict_meta) == 2);
-
     OCStringRef dict_encoding = (OCStringRef)OCDictionaryGetValue(dict_meta, STR("encoding"));
     TEST_ASSERT(dict_encoding != NULL);
     TEST_ASSERT(OCStringEqual(dict_encoding, STR("sRGB")));
-
     // Create dimension from dictionary (round-trip)
     err = NULL;
     ld_restored = LabeledDimensionCreateFromDictionary(dict, &err);
     TEST_ASSERT(ld_restored != NULL);
     TEST_ASSERT(err == NULL);
-
     // Verify restored dimension has metadata
     OCDictionaryRef restored_meta = DimensionGetApplicationMetaData((DimensionRef)ld_restored);
     TEST_ASSERT(restored_meta != NULL);
     TEST_ASSERT(OCDictionaryGetCount(restored_meta) == 2);
-
     OCStringRef restored_encoding = (OCStringRef)OCDictionaryGetValue(restored_meta, STR("encoding"));
     TEST_ASSERT(restored_encoding != NULL);
     TEST_ASSERT(OCStringEqual(restored_encoding, STR("sRGB")));
-
     OCStringRef restored_version = (OCStringRef)OCDictionaryGetValue(restored_meta, STR("version"));
     TEST_ASSERT(restored_version != NULL);
     TEST_ASSERT(OCStringEqual(restored_version, STR("1.0")));
-
     // Verify that other properties are preserved too
     OCStringRef restored_label = DimensionCopyLabel((DimensionRef)ld_restored);
     TEST_ASSERT(restored_label != NULL);
     TEST_ASSERT(OCStringEqual(restored_label, STR("color_channel")));
     OCRelease(restored_label);
-
     OCStringRef restored_desc = DimensionCopyDescription((DimensionRef)ld_restored);
     TEST_ASSERT(restored_desc != NULL);
     TEST_ASSERT(OCStringEqual(restored_desc, STR("RGB color channels")));
     OCRelease(restored_desc);
-
     ok = true;
-
 cleanup:
     if (labels) OCRelease(labels);
     if (metadata) OCRelease(metadata);
@@ -1023,7 +954,6 @@ cleanup:
     if (ld_restored) OCRelease(ld_restored);
     if (dict) OCRelease(dict);
     if (err) OCRelease(err);
-
-    printf("Dimension metadata round-trip test %s\n", ok ? "passed." : "FAILED!");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }

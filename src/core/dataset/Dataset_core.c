@@ -12,35 +12,29 @@
  * - JSON serialization and deserialization
  * - Base field initialization
  */
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include "../../RMNLibrary.h"
-#include "Dataset_private.h"
 #include "../SparseSampling_private.h"
+#include "Dataset_private.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 // ============================================================================
 #pragma region Type Registration
 // ============================================================================
-
 static OCTypeID kDatasetID = kOCNotATypeID;
-
 OCTypeID DatasetGetTypeID(void) {
     if (kDatasetID == kOCNotATypeID)
         kDatasetID = OCRegisterType("Dataset", (OCTypeRef (*)(cJSON *, OCStringRef *))DatasetCreateFromJSON);
     return kDatasetID;
 }
-
 // ============================================================================
 #pragma region Lifecycle Management
 // ============================================================================
-
 static void impl_DatasetFinalize(const void *ptr) {
     if (!ptr) return;
     DatasetRef ds = (DatasetRef)ptr;
@@ -58,7 +52,6 @@ static void impl_DatasetFinalize(const void *ptr) {
     OCRelease(ds->geographicCoordinate);
     OCRelease(ds->application);
 }
-
 static bool impl_DatasetEqual(const void *a, const void *b) {
     const DatasetRef A = (const DatasetRef)a;
     const DatasetRef B = (const DatasetRef)b;
@@ -89,7 +82,6 @@ static bool impl_DatasetEqual(const void *a, const void *b) {
         !OCTypeEqual(A->application, B->application)) return false;
     return true;
 }
-
 static OCStringRef impl_DatasetCopyFormattingDesc(OCTypeRef cf) {
     DatasetRef ds = (DatasetRef)cf;
     if (!ds) return STR("<Dataset: NULL>");
@@ -100,11 +92,9 @@ static OCStringRef impl_DatasetCopyFormattingDesc(OCTypeRef cf) {
         (unsigned long)OCArrayGetCount(ds->tags),
         ds->title);
 }
-
 static cJSON *impl_DatasetCopyJSON(const void *obj, bool typed, OCStringRef *outError) {
     return DatasetCopyAsJSON((DatasetRef)obj, typed, outError);
 }
-
 static void *impl_DatasetDeepCopy(const void *ptr) {
     if (ptr == NULL) {
         return NULL;
@@ -160,11 +150,9 @@ static void *impl_DatasetDeepCopy(const void *ptr) {
                            : NULL;
     return dst;
 }
-
 // ============================================================================
 #pragma region Object Allocation and Initialization
 // ============================================================================
-
 struct impl_Dataset *DatasetAllocate(void) {
     return OCTypeAlloc(
         struct impl_Dataset,
@@ -176,7 +164,6 @@ struct impl_Dataset *DatasetAllocate(void) {
         impl_DatasetDeepCopy,
         impl_DatasetDeepCopy);
 }
-
 void impl_InitDatasetFields(DatasetRef ds) {
     // Initialize all required fields to non-NULL values
     ds->dimensions = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
@@ -189,21 +176,18 @@ void impl_InitDatasetFields(DatasetRef ds) {
     ds->timestamp = OCCreateISO8601Timestamp();
     ds->readOnly = false;
     ds->application = OCDictionaryCreateMutable(0);
-
     // These fields are conceptually optional and set to NULL initially
     // TODO: If strict no-NULL policy is required, consider creating empty/sentinel objects
     ds->focus = NULL;
     ds->previousFocus = NULL;
     ds->geographicCoordinate = NULL;
 }
-
 // ============================================================================
 #pragma region Validation Functions
 // ============================================================================
-
 bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
-                                   OCArrayRef dependentVariables,
-                                   OCStringRef *outError) {
+                                    OCArrayRef dependentVariables,
+                                    OCStringRef *outError) {
     // clear any prior error
     if (outError) *outError = NULL;
     // 1) must have at least one DV
@@ -289,11 +273,9 @@ bool impl_ValidateDatasetParameters(OCArrayRef dimensions,
     }
     return true;
 }
-
 // ============================================================================
 #pragma region Creation Functions
 // ============================================================================
-
 DatasetRef DatasetCreate(
     OCArrayRef dimensions,
     OCIndexArrayRef dimensionPrecedence,
@@ -401,39 +383,34 @@ DatasetRef DatasetCreate(
     OCRelease(ds->title);
     ds->description = description ? OCStringCreateCopy(description) : STR("");
     ds->title = title ? OCStringCreateCopy(title) : STR("");
-
     // For focus and previousFocus, keep existing NULL values from init if parameters are NULL
     // These are conceptually optional data points that may not exist
-    if(focus) {
+    if (focus) {
         OCIndex dependentVariableIndex = 0;
         OCIndex componentIndex = 0;
         OCIndex memOffset = 0;
         DatumRef testDatum = DatasetCreateDatumFromMemOffset(ds, dependentVariableIndex, componentIndex, memOffset);
-
-        if(DatumHasSameReducedDimensionalities(focus, testDatum)) {
-            ds->focus = (DatumRef) OCRetain(focus);
+        if (DatumHasSameReducedDimensionalities(focus, testDatum)) {
+            ds->focus = (DatumRef)OCRetain(focus);
         } else {
-            ds->focus = (DatumRef) OCRetain(testDatum);
+            ds->focus = (DatumRef)OCRetain(testDatum);
         }
         OCRelease(testDatum);
     }
     // If focus is NULL, keep ds->focus as NULL (already initialized to NULL)
-
-    if(previousFocus) {
+    if (previousFocus) {
         OCIndex dependentVariableIndex = 0;
         OCIndex componentIndex = 0;
         OCIndex memOffset = 0;
         DatumRef testDatum = DatasetCreateDatumFromMemOffset(ds, dependentVariableIndex, componentIndex, memOffset);
-
-        if(DatumHasSameReducedDimensionalities(previousFocus, testDatum)) {
-            ds->previousFocus = (DatumRef) OCRetain(previousFocus);
+        if (DatumHasSameReducedDimensionalities(previousFocus, testDatum)) {
+            ds->previousFocus = (DatumRef)OCRetain(previousFocus);
         } else {
-            ds->previousFocus = (DatumRef) OCRetain(testDatum);
+            ds->previousFocus = (DatumRef)OCRetain(testDatum);
         }
         OCRelease(testDatum);
     }
     // If previousFocus is NULL, keep ds->previousFocus as NULL (already initialized to NULL)
-
     // — copy metadata if present —
     if (application) {
         OCRelease(ds->application);
@@ -441,7 +418,6 @@ DatasetRef DatasetCreate(
     }
     return ds;
 }
-
 DatasetRef DatasetCreateMinimal(
     OCArrayRef dimensions,
     OCArrayRef dependentVariables,
@@ -460,7 +436,6 @@ DatasetRef DatasetCreateMinimal(
         outError             // outError
     );
 }
-
 DatasetRef DatasetCreateEmpty(OCStringRef *outError) {
     return DatasetCreate(
         NULL,  // dimensions
@@ -474,22 +449,16 @@ DatasetRef DatasetCreateEmpty(OCStringRef *outError) {
         NULL,  // metaData
         outError);
 }
-
 DatasetRef DatasetCreateCopy(DatasetRef ds) {
     if (!ds) return NULL;
     return (DatasetRef)impl_DatasetDeepCopy(ds);
 }
-
 // ============================================================================
 #pragma region JSON Helper Functions
 // ============================================================================
-
-
-
 // ============================================================================
 #pragma region Serialization Functions
 // ============================================================================
-
 OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
     if (!ds) return NULL;
     OCMutableDictionaryRef dict = OCDictionaryCreateMutable(0);
@@ -603,7 +572,6 @@ OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds) {
     }
     return (OCDictionaryRef)dict;
 }
-
 DatasetRef DatasetCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!dict) {
@@ -770,16 +738,11 @@ cleanup:
     OCRelease(metadata);
     return ds;
 }
-
-
-
 cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
     if (!ds) return cJSON_CreateNull();
-
     // Create the core dataset object
     cJSON *core = cJSON_CreateObject();
     if (!core) return cJSON_CreateNull();
-
     // CSDM-1.0 fields
     if (ds->version) {
         const char *versionStr = OCStringGetCString(ds->version);
@@ -787,18 +750,15 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
             cJSON_AddStringToObject(core, kDatasetVersionKey, versionStr);
         }
     }
-
     if (ds->timestamp) {
         const char *timestampStr = OCStringGetCString(ds->timestamp);
         if (timestampStr) {
             cJSON_AddStringToObject(core, kDatasetTimestampKey, timestampStr);
         }
     }
-
     if (ds->readOnly) {
         cJSON_AddBoolToObject(core, kDatasetReadOnlyKey, true);
     }
-
     // Use existing geographic coordinate if available
     if (ds->geographicCoordinate) {
         cJSON *geoJson = GeographicCoordinateCopyAsJSON(ds->geographicCoordinate, typed, outError);
@@ -806,7 +766,6 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
             cJSON_AddItemToObject(core, kDatasetGeoCoordinateKey, geoJson);
         }
     }
-
     // RMN extras
     if (ds->tags && OCArrayGetCount(ds->tags) > 0) {
         cJSON *tagsArray = cJSON_CreateArray();
@@ -824,21 +783,18 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
             cJSON_AddItemToObject(core, kDatasetTagsKey, tagsArray);
         }
     }
-
     if (ds->description) {
         const char *descStr = OCStringGetCString(ds->description);
         if (descStr) {
             cJSON_AddStringToObject(core, kDatasetDescriptionKey, descStr);
         }
     }
-
     if (ds->title) {
         const char *titleStr = OCStringGetCString(ds->title);
         if (titleStr) {
             cJSON_AddStringToObject(core, kDatasetTitleKey, titleStr);
         }
     }
-
     // dimensions
     if (ds->dimensions && OCArrayGetCount(ds->dimensions) > 0) {
         cJSON *dimsArray = cJSON_CreateArray();
@@ -856,7 +812,6 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
             cJSON_AddItemToObject(core, kDatasetDimensionsKey, dimsArray);
         }
     }
-
     // dimension_precedence
     if (ds->dimensionPrecedence && OCIndexArrayGetCount(ds->dimensionPrecedence) > 0) {
         cJSON *precArray = cJSON_CreateArray();
@@ -869,7 +824,6 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
             cJSON_AddItemToObject(core, kDatasetDimensionPrecedenceKey, precArray);
         }
     }
-
     // dependent_variables
     if (ds->dependentVariables && OCArrayGetCount(ds->dependentVariables) > 0) {
         cJSON *dvsArray = cJSON_CreateArray();
@@ -891,7 +845,6 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
             cJSON_AddItemToObject(core, kDatasetDependentVariablesKey, dvsArray);
         }
     }
-
     // focus
     if (ds->focus) {
         cJSON *focusJson = DatumCopyAsJSON(ds->focus, typed, outError);
@@ -899,7 +852,6 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
             cJSON_AddItemToObject(core, kDatasetFocusKey, focusJson);
         }
     }
-
     // previous_focus
     if (ds->previousFocus) {
         cJSON *pfJson = DatumCopyAsJSON(ds->previousFocus, typed, outError);
@@ -907,7 +859,6 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
             cJSON_AddItemToObject(core, kDatasetPreviousFocusKey, pfJson);
         }
     }
-
     // application metadata
     if (ds->application && OCDictionaryGetCount(ds->application) > 0) {
         // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded
@@ -918,16 +869,13 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
             cJSON_AddItemToObject(core, kDatasetApplicationKey, appJson);
         }
     }
-
     // Wrap under the "csdm" envelope
     cJSON *root = cJSON_CreateObject();
     if (!root) {
         cJSON_Delete(core);
         return cJSON_CreateNull();
     }
-
     cJSON_AddItemToObject(root, kDatasetCsdmEnvelopeKey, core);
-
     if (typed) {
         // Wrap in typed object format
         cJSON *wrapper = cJSON_CreateObject();
@@ -940,26 +888,20 @@ cJSON *DatasetCopyAsJSON(DatasetRef ds, bool typed, OCStringRef *outError) {
             return cJSON_CreateNull();
         }
     }
-
     return root;
 }
-
 DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
     if (outError) *outError = NULL;
-
     // Must have valid JSON object
     if (!root) {
         if (outError) *outError = STR("Input JSON is NULL");
         return NULL;
     }
-
     cJSON *actualJson = root;
-
     // Check if this is a typed JSON object (has "type" and "value" fields)
     if (cJSON_IsObject(root)) {
         cJSON *typeItem = cJSON_GetObjectItemCaseSensitive(root, "type");
         cJSON *valueItem = cJSON_GetObjectItemCaseSensitive(root, "value");
-
         if (typeItem && cJSON_IsString(typeItem) &&
             strcmp(typeItem->valuestring, "Dataset") == 0 &&
             valueItem && cJSON_IsObject(valueItem)) {
@@ -967,15 +909,12 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
             actualJson = valueItem;
         }
     }
-
     if (!cJSON_IsObject(actualJson)) {
         if (outError) *outError = STR("Expected a JSON object");
         return NULL;
     }
-
     // Use the actualJson directly (envelope should be handled by caller)
     cJSON *json = actualJson;
-
     // Initialize all local variables for cleanup
     OCStringRef version = NULL;
     OCStringRef timestamp = NULL;
@@ -991,10 +930,8 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
     OCMutableDictionaryRef application = NULL;
     DatasetRef ds = NULL;
     bool readOnly = false;
-
     // Parse fields directly from JSON
     cJSON *entry = NULL;
-
     // version (REQUIRED field in CSDM specification)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetVersionKey);
     if (!entry || !cJSON_IsString(entry)) {
@@ -1006,7 +943,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("Failed to create version string");
         goto cleanup;
     }
-
     // timestamp (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetTimestampKey);
     if (cJSON_IsString(entry)) {
@@ -1020,7 +956,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("timestamp field must be a string");
         goto cleanup;
     }
-
     // read_only (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetReadOnlyKey);
     if (cJSON_IsBool(entry)) {
@@ -1030,7 +965,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("read_only field must be a boolean");
         goto cleanup;
     }
-
     // geographic_coordinate (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetGeoCoordinateKey);
     if (cJSON_IsObject(entry)) {
@@ -1046,7 +980,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("geographic_coordinate field must be an object");
         goto cleanup;
     }
-
     // dimensions (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDimensionsKey);
     if (cJSON_IsArray(entry)) {
@@ -1075,7 +1008,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("dimensions field must be an array");
         goto cleanup;
     }
-
     // dependent_variables (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDependentVariablesKey);
     if (cJSON_IsArray(entry)) {
@@ -1104,7 +1036,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("dependent_variables field must be an array");
         goto cleanup;
     }
-
     // tags (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetTagsKey);
     if (cJSON_IsArray(entry)) {
@@ -1130,7 +1061,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("tags field must be an array");
         goto cleanup;
     }
-
     // description (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDescriptionKey);
     if (cJSON_IsString(entry)) {
@@ -1144,7 +1074,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("description field must be a string");
         goto cleanup;
     }
-
     // title (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetTitleKey);
     if (cJSON_IsString(entry)) {
@@ -1158,7 +1087,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("title field must be a string");
         goto cleanup;
     }
-
     // focus (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetFocusKey);
     if (cJSON_IsObject(entry)) {
@@ -1175,7 +1103,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("focus field must be an object");
         goto cleanup;
     }
-
     // previous_focus (optional)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetPreviousFocusKey);
     if (cJSON_IsObject(entry)) {
@@ -1192,7 +1119,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("previous_focus field must be an object");
         goto cleanup;
     }
-
     // dimension_precedence (optional array of integers)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetDimensionPrecedenceKey);
     if (cJSON_IsArray(entry)) {
@@ -1212,14 +1138,12 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("dimension_precedence field must be an array");
         goto cleanup;
     }
-
     // application metadata (optional generic object)
     entry = cJSON_GetObjectItemCaseSensitive(json, kDatasetApplicationKey);
     if (cJSON_IsObject(entry)) {
         // Since we ALWAYS serialize application metadata with typed=true, always use OCTypeCreateFromJSONTyped
         OCStringRef parseError = NULL;
         OCDictionaryRef parsedDict = (OCDictionaryRef)OCTypeCreateFromJSONTyped(entry, &parseError);
-
         if (!parsedDict) {
             if (outError) *outError = parseError ? parseError : STR("Failed to parse application metadata");
             goto cleanup;
@@ -1238,14 +1162,12 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         if (outError) *outError = STR("application field must be an object");
         goto cleanup;
     }
-
     // Create the Dataset
     ds = DatasetCreate(dimensions, dimensionPrecedence, dependentVariables, tags,
-                      description, title, focus, previousFocus, application, outError);
+                       description, title, focus, previousFocus, application, outError);
     if (!ds) {
         goto cleanup;
     }
-
     // Override envelope fields that were parsed from JSON
     if (version) {
         OCRelease(ds->version);
@@ -1260,7 +1182,6 @@ DatasetRef DatasetCreateFromJSON(cJSON *root, OCStringRef *outError) {
         OCRelease(ds->geographicCoordinate);
         ds->geographicCoordinate = (GeographicCoordinateRef)OCRetain(geographicCoordinate);
     }
-
 cleanup:
     // cleanup temporary allocations (OCRelease safely handles NULL)
     OCRelease(version);
@@ -1277,27 +1198,20 @@ cleanup:
     OCRelease(application);
     return ds;
 }
-
-
 DatumRef DatasetCreateDatumFromMemOffset(DatasetRef theDataset,
-                                             OCIndex dependentVariableIndex,
-                                             OCIndex componentIndex,
-                                             OCIndex memOffset)
-{
-    IF_NO_OBJECT_EXISTS_RETURN(theDataset,NULL);
-    DependentVariableRef theDV = (DependentVariableRef) OCArrayGetValueAtIndex(theDataset->dependentVariables, dependentVariableIndex);
+                                         OCIndex dependentVariableIndex,
+                                         OCIndex componentIndex,
+                                         OCIndex memOffset) {
+    if (!theDataset) return NULL;
+    DependentVariableRef theDV = (DependentVariableRef)OCArrayGetValueAtIndex(theDataset->dependentVariables, dependentVariableIndex);
     if (!theDV) return NULL;
     SIScalarRef response = DependentVariableCreateValueFromMemOffset(theDV, componentIndex, memOffset);
     if (!response) return NULL;
-
     DatumRef datum = DatumCreate(response, dependentVariableIndex, componentIndex, memOffset, (OCTypeRef)theDataset, NULL);
-    if(response) OCRelease(response);
+    if (response) OCRelease(response);
     return datum;
 }
-
-
 #pragma endregion
-
 #ifdef __cplusplus
 }
 #endif

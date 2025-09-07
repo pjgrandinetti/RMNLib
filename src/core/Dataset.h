@@ -118,7 +118,6 @@ DatasetCreateFromJSON(cJSON *json, OCStringRef *outError);
  * @return An OCDictionaryRef you must OCRelease() when done.
  */
 OCDictionaryRef DatasetCopyAsDictionary(DatasetRef ds);
-
 /**
  * @brief Convert a DatasetRef to cJSON representation.
  * @param ds The Dataset to convert.

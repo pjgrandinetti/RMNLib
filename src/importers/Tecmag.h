@@ -6,13 +6,10 @@
 //
 #ifndef TECMAG_H
 #define TECMAG_H
-
 #include "../RMNLibrary.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /**
  * @file Tecmag.h
  * @brief Interface for importing Tecmag NMR spectroscopy data files.
@@ -48,7 +45,6 @@ extern "C" {
  * @author Philip J. Grandinetti
  * @since RMNLib 2.0
  */
-
 /**
  * @brief Import a Tecmag format file and create a Dataset.
  *
@@ -111,9 +107,7 @@ extern "C" {
  * @since RMNLib 2.0
  */
 DatasetRef DatasetImportTecmagCreateWithFileData(OCDataRef contents, OCStringRef *error);
-
 #ifdef __cplusplus
 }
 #endif
-
-#endif // TECMAG_H
+#endif  // TECMAG_H

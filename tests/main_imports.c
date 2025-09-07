@@ -10,7 +10,6 @@
 #include "test_Image.h"
 #include "test_JCAMP.h"
 #include "test_Tecmag.h"
-
 // Cross-platform setenv function
 static int cross_platform_setenv(const char *name, const char *value, int overwrite) {
 #ifdef _WIN32
@@ -32,12 +31,9 @@ static int cross_platform_setenv(const char *name, const char *value, int overwr
     return setenv(name, value, overwrite);
 #endif
 }
-
 int main(void) {
     int failures = 0;
-
     fprintf(stderr, "\n=== Running Import Tests Only ===\n");
-
     fprintf(stderr, "\n=== Running CSDM Import Tests ===\n");
     if (!getenv("CSDM_TEST_ROOT")) {
         cross_platform_setenv("CSDM_TEST_ROOT",
@@ -48,7 +44,6 @@ int main(void) {
     fprintf(stderr, "[INFO] CSDM_TEST_ROOT = %s\n",
             getenv("CSDM_TEST_ROOT"));
     if (!test_Dataset_import_and_roundtrip()) failures++;
-
     fprintf(stderr, "\n=== Running JCAMP Import Tests ===\n");
     if (!getenv("JCAMP_TEST_ROOT")) {
         cross_platform_setenv("JCAMP_TEST_ROOT",
@@ -60,7 +55,6 @@ int main(void) {
             getenv("JCAMP_TEST_ROOT"));
     // if (!test_JCAMP_single_file()) failures++;
     if (!test_JCAMP_import_all()) failures++;
-
     fprintf(stderr, "\n=== Running Image Import Tests ===\n");
     if (!getenv("IMAGE_TEST_ROOT")) {
         cross_platform_setenv("IMAGE_TEST_ROOT",
@@ -77,7 +71,6 @@ int main(void) {
     if (!test_Image_rgb()) failures++;
     if (!test_Image_multiple_images()) failures++;
     if (!test_Image_import_all()) failures++;
-
     fprintf(stderr, "\n=== Running Tecmag Import Tests ===\n");
     if (!getenv("TECMAG_TEST_ROOT")) {
         cross_platform_setenv("TECMAG_TEST_ROOT",
@@ -89,7 +82,6 @@ int main(void) {
             getenv("TECMAG_TEST_ROOT"));
     // if (!test_Tecmag_single_file()) failures++;
     if (!test_Tecmag_import_all()) failures++;
-
     if (failures > 0) {
         fprintf(stderr, "\n%d import test%s failed.\n",
                 failures, failures > 1 ? "s" : "");

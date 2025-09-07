@@ -8,6 +8,7 @@
 #include "RMNLibrary.h"
 #include "test_utils.h"
 bool test_Datum_NULL_cases(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = true;
     int saved_err = dup(fileno(stderr));
     if (saved_err < 0) return false;
@@ -79,10 +80,11 @@ cleanup:
     dup2(saved_err, fileno(stderr));
     close(saved_err);
     fclose(nullf);
-    printf("Datum NULL-case tests %s.\n", ok ? "passed" : "FAILED");
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }
 bool test_Datum_functional(void) {
+    fprintf(stderr, "%s begin...", __func__);
     bool ok = true;
     SIScalarRef value = NULL;
     OCMutableArrayRef coords = NULL;
@@ -124,7 +126,7 @@ bool test_Datum_functional(void) {
         goto cleanup;
     }
     // Note: DatumGetCoordinateAtIndex returns NULL when owner is NULL
-    SIScalarRef fetched = (SIScalarRef) DatumGetCoordinateAtIndex(datum, 1);
+    SIScalarRef fetched = (SIScalarRef)DatumGetCoordinateAtIndex(datum, 1);
     if (fetched != NULL) {  // Should be NULL since no owner Dataset
         ok = false;
         goto cleanup;
@@ -162,15 +164,15 @@ bool test_Datum_functional(void) {
         ok = false;
     }
 cleanup:
-    if (datum)    OCRelease(datum);
-    if (copy)     OCRelease(copy);
+    if (datum) OCRelease(datum);
+    if (copy) OCRelease(copy);
     if (fromDict) OCRelease(fromDict);
-    if (dict)     OCRelease(dict);
-    if (coords)   OCRelease(coords);
-    if (value)    OCRelease(value);
-    if (c0)       OCRelease(c0);
-    if (c1)       OCRelease(c1);
-    if (error)    OCRelease(error);
-    printf("Datum functional tests %s.\n", ok ? "passed" : "FAILED");
+    if (dict) OCRelease(dict);
+    if (coords) OCRelease(coords);
+    if (value) OCRelease(value);
+    if (c0) OCRelease(c0);
+    if (c1) OCRelease(c1);
+    if (error) OCRelease(error);
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     return ok;
 }

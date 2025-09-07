@@ -11,13 +11,12 @@
 #include "test_Datum.h"
 #include "test_DependentVariable.h"
 #include "test_Dimension.h"
-#include "test_dimension_operations.h"
 #include "test_Image.h"
 #include "test_JCAMP.h"
 #include "test_SparseSampling.h"
 #include "test_Tecmag.h"
+#include "test_dimension_operations.h"
 #include "test_utils.h"
-
 // Cross-platform setenv function
 static int cross_platform_setenv(const char *name, const char *value, int overwrite) {
 #ifdef _WIN32
@@ -39,12 +38,9 @@ static int cross_platform_setenv(const char *name, const char *value, int overwr
     return setenv(name, value, overwrite);
 #endif
 }
-
 int main(void) {
     int failures = 0;
-
     printf("\n=== Running ALL Tests (Core + Imports) ===\n");
-
     printf("\n=== Running Datum Tests ===\n");
     if (!test_Datum_NULL_cases()) failures++;
     if (!test_Datum_functional()) failures++;
@@ -60,11 +56,9 @@ int main(void) {
     if (!test_DimensionPeriodOperations()) failures++;
     if (!test_monotonic_large_scale_values()) failures++;
     if (!test_DimensionMetadataRoundTrip()) failures++;
-
     fprintf(stderr, "\n=== Running Dimension Operations Tests ===\n");
     if (!test_SILinearDimensionCreateInverse()) failures++;
     if (!test_DimensionScalarMultiplication()) failures++;
-
     fprintf(stderr, "\n=== Running DependentVariable Tests ===\n");
     if (!test_DependentVariable_base()) failures++;
     if (!test_DependentVariable_components()) failures++;
@@ -104,7 +98,6 @@ int main(void) {
     if (!test_Dataset_mutators()) failures++;
     if (!test_Dataset_type_contract()) failures++;
     if (!test_Dataset_copy_and_roundtrip()) failures++;
-
     fprintf(stderr, "\n=== Running CSDM Import Tests ===\n");
     if (!getenv("CSDM_TEST_ROOT")) {
         cross_platform_setenv("CSDM_TEST_ROOT",
@@ -153,7 +146,6 @@ int main(void) {
             getenv("TECMAG_TEST_ROOT"));
     // if (!test_Tecmag_single_file()) failures++;
     if (!test_Tecmag_import_all()) failures++;
-
     if (failures > 0) {
         fprintf(stderr, "\n%d test%s failed.\n",
                 failures, failures > 1 ? "s" : "");

@@ -137,35 +137,28 @@ void setIndexesForReducedMemOffsetIgnoringDimensions(const OCIndex memOffset, OC
         }
     }
 }
-
-OCMutableArrayRef DimensionCreateCoordinateIndexesFromMemOffset(OCArrayRef dimensions, OCIndex memOffset)
-{
-   	IF_NO_OBJECT_EXISTS_RETURN(dimensions,NULL);
+OCMutableArrayRef DimensionCreateCoordinateIndexesFromMemOffset(OCArrayRef dimensions, OCIndex memOffset) {
+    if (!dimensions) return NULL;
     OCIndex dimensionsCount = OCArrayGetCount(dimensions);
-    if(dimensionsCount==0) return NULL;
-
+    if (dimensionsCount == 0) return NULL;
     OCMutableIndexArrayRef indexValues = OCIndexArrayCreateMutable(dimensionsCount);
     OCIndex hyperVolume = 1;
-    for(OCIndex idim = 0; idim<dimensionsCount; idim++) {
-        DimensionRef theDimension = (DimensionRef) OCArrayGetValueAtIndex(dimensions, idim);
+    for (OCIndex idim = 0; idim < dimensionsCount; idim++) {
+        DimensionRef theDimension = (DimensionRef)OCArrayGetValueAtIndex(dimensions, idim);
         OCIndex npts = DimensionGetCount(theDimension);
-        OCIndex coordinateIndex = (memOffset/hyperVolume)%(npts);
+        OCIndex coordinateIndex = (memOffset / hyperVolume) % (npts);
         OCIndexArraySetValueAtIndex(indexValues, idim, coordinateIndex);
         hyperVolume *= npts;
     }
     return (OCMutableArrayRef)indexValues;
 }
-
-OCArrayRef DimensionCreateCoordinatesFromIndexes(OCArrayRef dimensions, OCIndexArrayRef theIndexes)
-{
-  	IF_NO_OBJECT_EXISTS_RETURN(dimensions,NULL);
+OCArrayRef DimensionCreateCoordinatesFromIndexes(OCArrayRef dimensions, OCIndexArrayRef theIndexes) {
+    if (!dimensions) return NULL;
     OCIndex dimensionsCount = OCArrayGetCount(dimensions);
-    if(dimensionsCount==0) return NULL;
-
-    OCMutableArrayRef coordinateValues = OCArrayCreateMutable(sizeof(SIScalarRef)*dimensionsCount,&kOCTypeArrayCallBacks);
-
-    for(OCIndex idim = 0; idim<dimensionsCount; idim++) {
-        DimensionRef dimension = (DimensionRef) OCArrayGetValueAtIndex(dimensions, idim);
+    if (dimensionsCount == 0) return NULL;
+    OCMutableArrayRef coordinateValues = OCArrayCreateMutable(sizeof(SIScalarRef) * dimensionsCount, &kOCTypeArrayCallBacks);
+    for (OCIndex idim = 0; idim < dimensionsCount; idim++) {
+        DimensionRef dimension = (DimensionRef)OCArrayGetValueAtIndex(dimensions, idim);
         OCTypeRef coordinate = DimensionCopyCoordinateAtIndex(dimension, OCIndexArrayGetValueAtIndex(theIndexes, idim));
         OCArrayAppendValue(coordinateValues, coordinate);
         OCRelease(coordinate);

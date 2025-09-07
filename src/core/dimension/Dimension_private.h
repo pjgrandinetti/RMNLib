@@ -61,9 +61,9 @@ extern "C" {
  * shared by all dimension types.
  */
 struct impl_Dimension {
-    OCBase base;                      // OCTypes base object
-    OCStringRef label;                // Human-readable label
-    OCStringRef description;          // Extended description
+    OCBase base;                         // OCTypes base object
+    OCStringRef label;                   // Human-readable label
+    OCStringRef description;             // Extended description
     OCMutableDictionaryRef application;  // Application-specific metadata
 };
 // ----------------------------------------------------------------------------

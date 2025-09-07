@@ -15,7 +15,10 @@ bool DependentVariableConvertToUnit(DependentVariableRef dv,
                                     OCStringRef *error) {
     /* Bail if caller passed in an existing error string */
     if (error && *error) return false;
-    IF_NO_OBJECT_EXISTS_RETURN(dv, false);
+    if (!dv) {
+        if (error) *error = STR("Convert to Unit failed: DependentVariable is NULL.");
+        return false;
+    }
     /* Retrieve components and ensure there is data to convert */
     OCArrayRef comps = DependentVariableGetComponents(dv);
     uint64_t count = OCArrayGetCount(comps);
@@ -98,7 +101,7 @@ bool DependentVariableConvertToUnit(DependentVariableRef dv,
     return true;
 }
 bool DependentVariableSetValuesToZero(DependentVariableRef dv, int64_t componentIndex) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, false);
+    if (!dv) return false;
     OCArrayRef comps = DependentVariableGetComponents(dv);
     uint64_t nComps = OCArrayGetCount(comps);
     if (nComps == 0) return false;
@@ -231,7 +234,7 @@ bool DependentVariableZeroPartInRange(DependentVariableRef dv,
 }
 bool DependentVariableTakeAbsoluteValue(DependentVariableRef dv,
                                         int64_t componentIndex) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, false);
+    if (!dv) return false;
     OCArrayRef comps = DependentVariableGetComponents(dv);
     uint64_t nComps = OCArrayGetCount(comps);
     if (nComps == 0 ||
@@ -318,7 +321,7 @@ bool DependentVariableTakeAbsoluteValue(DependentVariableRef dv,
 bool DependentVariableMultiplyValuesByDimensionlessComplexConstant(DependentVariableRef dv,
                                                                    int64_t componentIndex,
                                                                    double complex constant) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, false);
+    if (!dv) return false;
     OCArrayRef comps = DependentVariableGetComponents(dv);
     uint64_t nComps = OCArrayGetCount(comps);
     if (nComps == 0 ||

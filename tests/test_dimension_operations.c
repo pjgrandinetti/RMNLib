@@ -15,7 +15,7 @@ bool test_SILinearDimensionCreateInverse(void) {
     SIScalarRef period = NULL;
     SILinearDimensionRef originalDim = NULL;
     SILinearDimensionRef inverseDim = NULL;
-    printf("Testing SILinearDimensionCreateInverse...\n");
+    fprintf(stderr, "%s begin...", __func__);
     // Create test scalars for dimensions with reciprocal relationship
     increment = SIScalarCreateWithDouble(0.5, SIUnitWithSymbol(STR("Hz")));
     TEST_ASSERT(increment != NULL);
@@ -48,10 +48,9 @@ bool test_SILinearDimensionCreateInverse(void) {
     inverseDim = SILinearDimensionCreateInverse(originalDim, &error);
     TEST_ASSERT(inverseDim != NULL);
     TEST_ASSERT(error == NULL);
-    printf("  ✓ Dimension with auto-generated reciprocal successfully created inverse\n");
     ok = true;
-    printf("✅ SILinearDimensionCreateInverse test passed!\n");
 cleanup:
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     if (increment) OCRelease(increment);
     if (coordinatesOffset) OCRelease(coordinatesOffset);
     if (originOffset) OCRelease(originOffset);
@@ -75,7 +74,7 @@ bool test_DimensionScalarMultiplication(void) {
     SIScalarRef newIncrement = NULL;
     SIScalarRef zeroScalar = NULL;
     SILinearDimensionRef zeroResult = NULL;
-    printf("Testing dimension scalar multiplication operations...\n");
+    fprintf(stderr, "%s begin...", __func__);
     // Create test dimension
     increment = SIScalarCreateWithDouble(1.0, SIUnitWithSymbol(STR("m")));
     TEST_ASSERT(increment != NULL);
@@ -109,7 +108,6 @@ bool test_DimensionScalarMultiplication(void) {
     TEST_ASSERT(newIncrement != NULL);
     double incrementValue = SIScalarDoubleValue(newIncrement);
     TEST_ASSERT(fabs(incrementValue - 2.0) < 1e-10);
-    printf("  ✓ Original increment: 1.0 m, New increment: %.1f m\n", incrementValue);
     // Test error case: multiplication by zero
     zeroScalar = SIScalarCreateWithDouble(0.0, SIUnitDimensionlessAndUnderived());
     error = NULL;
@@ -117,10 +115,9 @@ bool test_DimensionScalarMultiplication(void) {
     TEST_ASSERT(zeroResult == NULL);
     TEST_ASSERT(error != NULL);
     TEST_ASSERT(error != NULL && OCStringGetLength(error) > 0);
-    printf("  ✓ Zero multiplication correctly rejected\n");
     ok = true;
-    printf("✅ Dimension scalar multiplication test passed!\n");
 cleanup:
+    fprintf(stderr, " %s\n", ok ? "passed." : "FAILED!");
     if (increment) OCRelease(increment);
     if (coordinatesOffset) OCRelease(coordinatesOffset);
     if (multiplier) OCRelease(multiplier);

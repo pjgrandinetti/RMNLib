@@ -6,13 +6,10 @@
 //
 #ifndef JCAMP_H
 #define JCAMP_H
-
 #include "../RMNLibrary.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /**
  * @brief Parse JCAMP lines into a dictionary.
  * @param lines Array of OCStringRef lines.
@@ -20,9 +17,8 @@ extern "C" {
  * @return OCDictionaryRef with parsed JCAMP data.
  */
 OCDictionaryRef DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
-                                            OCIndex      *indexOut,
-                                            OCStringRef  *error);
-
+                                                            OCIndex *indexOut,
+                                                            OCStringRef *error);
 /**
  * @brief Create a Dataset from JCAMP data contents.
  * @param contents OCDataRef with JCAMP file contents.
@@ -30,9 +26,7 @@ OCDictionaryRef DatasetImportJCAMPCreateDictionaryWithLines(OCArrayRef lines,
  * @return DatasetRef or NULL on error.
  */
 DatasetRef DatasetImportJCAMPCreateSignalWithData(OCDataRef contents, OCStringRef *error);
-
 #ifdef __cplusplus
 }
 #endif
-
-#endif // JCAMP_H
+#endif  // JCAMP_H

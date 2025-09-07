@@ -1,7 +1,6 @@
+#include "../SparseSampling_private.h"
 #include "DependentVariable.h"
 #include "DependentVariable_private.h"
-#include "../SparseSampling_private.h"
-
 DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv, OCArrayRef dimensions, OCIndexPairSetRef indexPairs, OCStringRef *outError) {
     // 0) bail if caller already has an error
     if (outError && *outError) return NULL;
@@ -110,20 +109,16 @@ DependentVariableRef DependentVariableCreateCrossSection(DependentVariableRef dv
     OCRelease(fixedDims);
     return outDV;
 }
-
 OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableRef dv, OCArrayRef dimensions) {
     if (!dv || !dimensions) return NULL;
     SparseSamplingRef ss = DependentVariableGetSparseSampling(dv);
     if (!ss) return NULL;
-
     OCIndexSetRef dimIndexes = SparseSamplingGetDimensionIndexes(ss);
     OCDataRef vertexData = SparseSamplingGetSparseGridVertexes(ss);
     if (!dimIndexes || !vertexData) return NULL;
-
     OCIndex dimensionCount = SparseSamplingGetDimensionCount(ss);
     OCIndex vertexCount = SparseSamplingGetVertexCount(ss);
     if (dimensionCount == 0 || vertexCount == 0) return NULL;
-
     // 1) Build an "output" DV of exactly the right size (vertexCount)
     DependentVariableRef outDV =
         DependentVariableCreateWithSize(
@@ -137,7 +132,6 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
             vertexCount,
             /* owner */ NULL);
     if (!outDV) return NULL;
-
     // 2) Process each sparse vertex
     OCStringRef err = NULL;
     OCIndex *coords = malloc(dimensionCount * sizeof(OCIndex));
@@ -145,7 +139,6 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
         OCRelease(outDV);
         return NULL;
     }
-
     for (OCIndex v = 0; v < vertexCount; v++) {
         // Get vertex coordinates using our new efficient API
         if (!SparseSamplingGetVertexAtIndex(ss, v, coords)) {
@@ -153,7 +146,6 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
             OCRelease(outDV);
             return NULL;
         }
-
         // Convert vertex coordinates to OCIndexPairSet for cross-section
         OCMutableIndexPairSetRef singlePairs = OCIndexPairSetCreateMutable();
         if (!singlePairs) {
@@ -161,7 +153,6 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
             OCRelease(outDV);
             return NULL;
         }
-
         // Get the dimension indexes as an array for iteration
         OCArrayRef dimIndexArray = OCIndexSetCreateOCNumberArray(dimIndexes);
         if (!dimIndexArray) {
@@ -170,7 +161,6 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
             OCRelease(outDV);
             return NULL;
         }
-
         // Add each dimension index and its coordinate value to the pair set
         for (OCIndex d = 0; d < dimensionCount; d++) {
             OCNumberRef dimNum = OCArrayGetValueAtIndex(dimIndexArray, d);
@@ -179,9 +169,7 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
                 OCIndexPairSetAddIndexPair(singlePairs, (OCIndex)dimIndex, coords[d]);
             }
         }
-
         OCRelease(dimIndexArray);
-
         // Create cross-section for this vertex
         DependentVariableRef slice =
             DependentVariableCreateCrossSection(dv, dimensions, singlePairs, &err);
@@ -189,15 +177,12 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
             DependentVariableAppend(outDV, slice, &err);
             OCRelease(slice);
         }
-
         OCRelease(singlePairs);
-
         if (err) {
             OCRelease(err);
             break;
         }
     }
-
     free(coords);
     // 3) Extract & return a _deep_ mutable copy of the packed components
     OCArrayRef packed =
@@ -205,7 +190,6 @@ OCArrayRef DependentVariableCreatePackedSparseComponentsArray(DependentVariableR
     OCRelease(outDV);
     return packed;
 }
-
 OCDataRef DependentVariableCreateCSDMComponentsData(DependentVariableRef dv,
                                                     OCArrayRef dimensions) {
     if (!dv) return NULL;

@@ -130,7 +130,6 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict,
  * @return cJSON object or NULL on error.
  */
 cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed, OCStringRef *outError);
-
 /**
  * @brief Deserialize a SparseSampling from a cJSON object.
  *
@@ -269,8 +268,7 @@ SparseSamplingGetDimensionCount(SparseSamplingRef ss);
  * @param outCoords   Output array to store vertex coordinates (must be pre-allocated).
  * @returns           true on success, false on error or invalid index.
  */
-bool
-SparseSamplingGetVertexAtIndex(SparseSamplingRef ss, OCIndex vertexIndex, OCIndex *outCoords);
+bool SparseSamplingGetVertexAtIndex(SparseSamplingRef ss, OCIndex vertexIndex, OCIndex *outCoords);
 /**
  * @brief Set the metadata dictionary.
  *

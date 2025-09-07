@@ -85,7 +85,6 @@ bool test_DependentVariable_arithmetic_comprehensive_types(void) {
             bool success = DependentVariableAdd(dv1, dv2, &err);
             if (success) {
                 OCDataRef result = DependentVariableCopyComponentAtIndex(dv1, 0);
-
                 const float *resultData = (const float *)OCDataGetBytesPtr(result);
                 if (!verify_float_arrays(resultData, expected, 4, 1e-6f)) {
                     printf("Float32 + Float32 addition failed\\n");
@@ -113,7 +112,6 @@ bool test_DependentVariable_arithmetic_comprehensive_types(void) {
             bool success = DependentVariableAdd(dv1, dv2, &err);
             if (success) {
                 OCDataRef result = DependentVariableCopyComponentAtIndex(dv1, 0);
-
                 const double *resultData = (const double *)OCDataGetBytesPtr(result);
                 if (!verify_double_arrays(resultData, expected, 4, 1e-12)) {
                     printf("Float64 + Float64 addition failed\\n");
@@ -141,13 +139,12 @@ bool test_DependentVariable_arithmetic_comprehensive_types(void) {
             bool success = DependentVariableAdd(dv1, dv2, &err);
             if (success) {
                 OCDataRef result = DependentVariableCopyComponentAtIndex(dv1, 0);
-
                 const complex float *resultData = (const complex float *)OCDataGetBytesPtr(result);
                 if (!verify_complex_float_arrays(resultData, expected, 2, 1e-6f)) {
                     printf("Complex64 + Complex64 addition failed\\n");
                     ok = false;
                 }
-            OCRelease(result);
+                OCRelease(result);
             } else {
                 printf("Complex64 + Complex64 addition returned false\\n");
                 ok = false;
@@ -169,13 +166,12 @@ bool test_DependentVariable_arithmetic_comprehensive_types(void) {
             bool success = DependentVariableAdd(dv1, dv2, &err);
             if (success) {
                 OCDataRef result = DependentVariableCopyComponentAtIndex(dv1, 0);
-
                 const complex double *resultData = (const complex double *)OCDataGetBytesPtr(result);
                 if (!verify_complex_double_arrays(resultData, expected, 2, 1e-12)) {
                     printf("Complex128 + Complex128 addition failed\\n");
                     ok = false;
                 }
-            OCRelease(result);
+                OCRelease(result);
             } else {
                 printf("Complex128 + Complex128 addition returned false\\n");
                 ok = false;
@@ -196,14 +192,13 @@ bool test_DependentVariable_arithmetic_comprehensive_types(void) {
             bool success = DependentVariableAdd(dv1, dv2, &err);
             if (success) {
                 OCDataRef result = DependentVariableCopyComponentAtIndex(dv1, 0);
-
                 const double *resultData = (const double *)OCDataGetBytesPtr(result);
                 double expected[] = {1.5, 3.0, 4.5, 6.0};
                 if (!verify_double_arrays(resultData, expected, 4, 1e-12)) {
                     printf("Float64 + Float32 addition failed\\n");
                     ok = false;
                 }
-            OCRelease(result);
+                OCRelease(result);
             } else {
                 printf("Float64 + Float32 addition returned false\\n");
                 ok = false;
@@ -230,7 +225,6 @@ bool test_DependentVariable_arithmetic_error_cases(void) {
             bool success = DependentVariableDivide(dv1, dv2, &err);
             if (success) {
                 OCDataRef result = DependentVariableCopyComponentAtIndex(dv1, 0);
-
                 const float *resultData = (const float *)OCDataGetBytesPtr(result);
                 // Check that division by zero produces infinity
                 if (!isinf(resultData[0]) || !isinf(resultData[2])) {
@@ -296,13 +290,12 @@ bool test_DependentVariable_arithmetic_complex(void) {
             bool success = DependentVariableMultiply(dv1, dv2, &err);
             if (success) {
                 OCDataRef result = DependentVariableCopyComponentAtIndex(dv1, 0);
-
                 const complex float *resultData = (const complex float *)OCDataGetBytesPtr(result);
                 if (!verify_complex_float_arrays(resultData, expected, 1, 1e-6f)) {
                     printf("Complex multiplication failed\\n");
                     ok = false;
                 }
-            OCRelease(result);
+                OCRelease(result);
             } else {
                 printf("Complex multiplication returned false\\n");
                 ok = false;
@@ -324,13 +317,12 @@ bool test_DependentVariable_arithmetic_complex(void) {
             bool success = DependentVariableDivide(dv1, dv2, &err);
             if (success) {
                 OCDataRef result = DependentVariableCopyComponentAtIndex(dv1, 0);
-
                 const complex double *resultData = (const complex double *)OCDataGetBytesPtr(result);
                 if (!verify_complex_double_arrays(resultData, expected, 1, 1e-12)) {
                     printf("Complex division failed\\n");
                     ok = false;
                 }
-            OCRelease(result);
+                OCRelease(result);
             } else {
                 printf("Complex division returned false\\n");
                 ok = false;
@@ -376,7 +368,6 @@ bool test_DependentVariable_arithmetic_edge_cases(void) {
             bool success = DependentVariableAdd(dv1, dv2, &err);
             if (success) {
                 OCDataRef result = DependentVariableCopyComponentAtIndex(dv1, 0);
-
                 const double *resultData = (const double *)OCDataGetBytesPtr(result);
                 // Check for overflow to infinity
                 for (int i = 0; i < 2; i++) {
@@ -385,7 +376,7 @@ bool test_DependentVariable_arithmetic_edge_cases(void) {
                         break;
                     }
                 }
-            OCRelease(result);
+                OCRelease(result);
             } else {
                 printf("Large number addition returned false\\n");
                 ok = false;
@@ -430,7 +421,6 @@ bool test_DependentVariable_arithmetic_large_scale(void) {
     bool success = DependentVariableMultiply(dv1, dv2, &err);
     if (success) {
         OCDataRef result = DependentVariableCopyComponentAtIndex(dv1, 0);
-
         const float *resultData = (const float *)OCDataGetBytesPtr(result);
         // Verify a few sample results
         bool samples_ok = true;
@@ -445,7 +435,7 @@ bool test_DependentVariable_arithmetic_large_scale(void) {
         if (!samples_ok) {
             ok = false;
         }
-    OCRelease(result);
+        OCRelease(result);
     } else {
         printf("Large scale multiplication returned false\\n");
         if (err) {
@@ -475,7 +465,6 @@ bool test_DependentVariable_arithmetic_integer_types(void) {
         bool success = DependentVariableAdd(dv1, dv2, &err);
         if (success) {
             OCDataRef result = DependentVariableCopyComponentAtIndex(dv1, 0);
-
             const int32_t *resultData = (const int32_t *)OCDataGetBytesPtr(result);
             int32_t expected[] = {12, 24, 36, 48};
             bool arrays_match = true;
@@ -489,7 +478,7 @@ bool test_DependentVariable_arithmetic_integer_types(void) {
             if (!arrays_match) {
                 ok = false;
             }
-        OCRelease(result);
+            OCRelease(result);
         } else {
             printf("Integer addition returned false\\n");
             ok = false;

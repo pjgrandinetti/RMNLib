@@ -65,21 +65,21 @@ bool DependentVariableSetComponentsURL(DependentVariableRef dv, OCStringRef url)
     return true;
 }
 OCStringRef DependentVariableGetName(DependentVariableRef dv) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
+    if (!dv) return NULL;
     if (!dv->name) {
         return NULL;
     }
     return dv->name;
 }
 OCStringRef DependentVariableCopyName(DependentVariableRef dv) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
+    if (!dv) return NULL;
     if (!dv->name) {
         return NULL;
     }
     return OCStringCreateCopy(dv->name);
 }
 bool DependentVariableSetName(DependentVariableRef dv, OCStringRef newName) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, false);
+    if (!dv) return false;
     if (dv->name == newName) {
         return true;
     }
@@ -97,7 +97,7 @@ bool DependentVariableSetName(DependentVariableRef dv, OCStringRef newName) {
     return true;
 }
 OCStringRef DependentVariableGetDescription(DependentVariableRef dv) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
+    if (!dv) return NULL;
     // Description should never be NULL - if it is, the object is corrupted
     if (!dv->description) {
         return NULL;
@@ -105,7 +105,7 @@ OCStringRef DependentVariableGetDescription(DependentVariableRef dv) {
     return dv->description;
 }
 OCStringRef DependentVariableCopyDescription(DependentVariableRef dv) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
+    if (!dv) return NULL;
     // Description should never be NULL - if it is, the object is corrupted
     if (!dv->description) {
         return NULL;
@@ -113,7 +113,7 @@ OCStringRef DependentVariableCopyDescription(DependentVariableRef dv) {
     return OCStringCreateCopy(dv->description);
 }
 bool DependentVariableSetDescription(DependentVariableRef dv, OCStringRef newDesc) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, false);
+    if (!dv) return false;
     // If it's literally the same object, nothing to do
     if (dv->description == newDesc) {
         return true;
@@ -231,7 +231,7 @@ OCIndex DependentVariableComponentsCountFromQuantityType(OCStringRef quantityTyp
     return (OCIndex)kOCNotFound;
 }
 OCMutableArrayRef DependentVariableCreateQuantityTypesArray(DependentVariableRef dv) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
+    if (!dv) return NULL;
     OCIndex count = OCArrayGetCount(dv->components);
     OCMutableArrayRef types = OCArrayCreateMutable(0, &kOCTypeArrayCallBacks);
     if (!types) return NULL;
@@ -276,7 +276,7 @@ OCMutableArrayRef DependentVariableCreateQuantityTypesArray(DependentVariableRef
     return types;
 }
 OCStringRef DependentVariableGetQuantityType(DependentVariableRef dv) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
+    if (!dv) return NULL;
     // QuantityType should never be NULL - if it is, the object is corrupted
     if (!dv->quantityType) {
         return NULL;
@@ -284,7 +284,7 @@ OCStringRef DependentVariableGetQuantityType(DependentVariableRef dv) {
     return dv->quantityType;
 }
 OCStringRef DependentVariableCopyQuantityType(DependentVariableRef dv) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, NULL);
+    if (!dv) return NULL;
     // QuantityType should never be NULL - if it is, the object is corrupted
     if (!dv->quantityType) {
         return NULL;
@@ -292,7 +292,7 @@ OCStringRef DependentVariableCopyQuantityType(DependentVariableRef dv) {
     return OCStringCreateCopy(dv->quantityType);
 }
 bool DependentVariableSetQuantityType(DependentVariableRef dv, OCStringRef qt) {
-    IF_NO_OBJECT_EXISTS_RETURN(dv, false);
+    if (!dv) return false;
     if (!qt) return false;
     const char *cstr = OCStringGetCString(qt);
     if (!cstr) return false;

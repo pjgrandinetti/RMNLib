@@ -7,13 +7,10 @@
 //
 #ifndef IMAGE_H
 #define IMAGE_H
-
 #include "../RMNLibrary.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /**
  * @brief Create a dataset from multiple image data objects (for time series).
  * @param imageDataArray Array of OCDataRef objects containing image file data.
@@ -24,7 +21,6 @@ extern "C" {
 DatasetRef DatasetImportImageCreateSignalWithImageData(OCArrayRef imageDataArray,
                                                        double frameIncrementInSec,
                                                        OCStringRef *error);
-
 /**
  * @brief Create a dataset from a single image data object.
  * @param contents OCDataRef containing image file data (PNG, JPEG, etc.).
@@ -33,9 +29,7 @@ DatasetRef DatasetImportImageCreateSignalWithImageData(OCArrayRef imageDataArray
  */
 DatasetRef DatasetImportImageCreateSignalWithData(OCDataRef contents,
                                                   OCStringRef *error);
-
 #ifdef __cplusplus
 }
 #endif
-
-#endif // IMAGE_H
+#endif  // IMAGE_H

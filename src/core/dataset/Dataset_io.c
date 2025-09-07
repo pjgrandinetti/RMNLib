@@ -5,7 +5,6 @@
  * This module handles file import/export operations, directory creation,
  * and file path management for Dataset objects.
  */
-
 #include <errno.h>
 #include <libgen.h>
 #include <limits.h>
@@ -16,7 +15,6 @@
 #include <time.h>
 #include "../../RMNLibrary.h"
 #include "Dataset_private.h"
-
 #if defined(_WIN32)
 #include <direct.h>
 #define MKDIR(path) _mkdir(path)
@@ -26,19 +24,15 @@
 #define MKDIR(path) mkdir(path, 0755)
 #define PATH_SEPARATOR '/'
 #endif
-
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 // ============================================================================
 #pragma region Utility Functions
 // ============================================================================
-
 const char *parse_components_url_path(const char *url) {
     if (!url) return NULL;
     // Check if it starts with "file:"
@@ -55,13 +49,11 @@ const char *parse_components_url_path(const char *url) {
     // For any other scheme or plain paths, return as-is
     return url;
 }
-
 bool join_path(char *dest, size_t dest_size, const char *dir, char sep, const char *filename) {
     if (!dest || !dir || !filename) return false;
     int len = snprintf(dest, dest_size, "%s%c%s", dir, sep, filename);
     return len > 0 && (size_t)len < dest_size;
 }
-
 bool ensure_directory(const char *dir, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!dir || !*dir) {
@@ -100,7 +92,6 @@ bool ensure_directory(const char *dir, OCStringRef *outError) {
     }
     return true;
 }
-
 uint8_t *read_file_bytes(const char *path, size_t *out_len) {
     if (out_len) *out_len = 0;
     if (!path) return NULL;
@@ -127,7 +118,6 @@ uint8_t *read_file_bytes(const char *path, size_t *out_len) {
     if (out_len) *out_len = len;
     return buf;
 }
-
 bool ensure_parent_dirs(const char *fullpath, OCStringRef *outError) {
     if (!fullpath) {
         if (outError) *outError = STR("Invalid path");
@@ -148,7 +138,6 @@ bool ensure_parent_dirs(const char *fullpath, OCStringRef *outError) {
         return true;
     return ensure_directory(dir, outError);
 }
-
 bool derive_directory_from_path(const char *filepath, char *output, size_t output_size) {
     if (!filepath || !output || output_size == 0) return false;
     size_t len = strnlen(filepath, PATH_MAX);
@@ -174,11 +163,9 @@ bool derive_directory_from_path(const char *filepath, char *output, size_t outpu
     }
     return true;
 }
-
 // ============================================================================
 #pragma region Export Functions
 // ============================================================================
-
 bool DatasetExport(DatasetRef ds,
                    const char *json_path,
                    const char *binary_dir,
@@ -356,11 +343,9 @@ bool DatasetExport(DatasetRef ds,
     }
     return true;
 }
-
 // ============================================================================
 #pragma region Import Functions
 // ============================================================================
-
 DatasetRef DatasetCreateWithImport(const char *json_path,
                                    const char *binary_dir,
                                    OCStringRef *outError) {
@@ -423,7 +408,6 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         }
         return NULL;
     }
-
     // 2) Extract dataset JSON from CSDM envelope
     cJSON *csdm_envelope = cJSON_GetObjectItemCaseSensitive(root, kDatasetCsdmEnvelopeKey);
     if (!csdm_envelope) {
@@ -431,7 +415,6 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         if (outError) *outError = STR("Dataset import failed: missing CSDM envelope");
         return NULL;
     }
-
     // Create a copy of the dataset content and remove envelope-specific fields
     cJSON *dataset_json = cJSON_Duplicate(csdm_envelope, true);
     if (!dataset_json) {
@@ -439,12 +422,10 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
         if (outError) *outError = STR("Dataset import failed: cannot extract dataset from envelope");
         return NULL;
     }
-
     // Remove only envelope-specific fields, keep dataset core fields
     cJSON_DeleteItemFromObject(dataset_json, kDatasetTimestampKey);
     cJSON_DeleteItemFromObject(dataset_json, kDatasetReadOnlyKey);
     cJSON_DeleteItemFromObject(dataset_json, kDatasetGeoCoordinateKey);
-
     // 3) Create Dataset from cleaned JSON (without envelope)
     DatasetRef ds = DatasetCreateFromJSON(dataset_json, outError);
     cJSON_Delete(root);
@@ -554,7 +535,6 @@ DatasetRef DatasetCreateWithImport(const char *json_path,
     }
     return ds;
 }
-
 #ifdef __cplusplus
 }
 #endif

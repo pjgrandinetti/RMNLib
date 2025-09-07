@@ -5,7 +5,7 @@
 static OCTypeID kDependentVariableID = kOCNotATypeID;
 OCTypeID DependentVariableGetTypeID(void) {
     if (kDependentVariableID == kOCNotATypeID)
-        kDependentVariableID = OCRegisterType("DependentVariable",(OCTypeRef (*)(cJSON *, OCStringRef *))DependentVariableCreateFromJSON );
+        kDependentVariableID = OCRegisterType("DependentVariable", (OCTypeRef (*)(cJSON *, OCStringRef *))DependentVariableCreateFromJSON);
     return kDependentVariableID;
 }
 static void impl_DependentVariableFinalize(const void *ptr) {
@@ -304,14 +304,12 @@ static DependentVariableRef impl_DependentVariableCreate(
     OCDictionaryRef application,  // application‐specific annotations
     OCStringRef *outError) {
     bool isExternal = type && OCStringEqual(type, STR(kDependentVariableComponentTypeValueExternal));
-
     // 0) validate encoding constraints: raw encoding only allowed for external types
     if (encoding && OCStringEqual(encoding, STR(kDependentVariableEncodingValueRaw)) && !isExternal) {
         if (outError) *outError = STR(
                           "DependentVariable creation failed: 'raw' encoding is only valid for external dependent variables. Use 'base64' or 'none' encoding for internal variables, or change type to 'external'");
         return NULL;
     }
-
     // 1) internal must have either buffers or positive explicitSize
     if (!isExternal && !components && explicitSize <= 0) {
         if (outError) *outError = STR(
@@ -359,7 +357,6 @@ static DependentVariableRef impl_DependentVariableCreate(
                 return NULL;
             }
         }
-
         // Validate that the actual components count matches the expected count from quantity_type
         OCIndex expectedComponentsCount = DependentVariableComponentsCountFromQuantityType(quantityType);
         if (expectedComponentsCount != kOCNotFound && componentsCount != expectedComponentsCount) {
@@ -754,12 +751,10 @@ OCDictionaryRef DependentVariableCopyAsDictionary(DependentVariableRef dv) {
                 // Use optimized OCNumber array conversion functions
                 OCStringRef conversionError = NULL;
                 OCArrayRef numArr = OCNumberCreateArrayFromData(blob, et, &conversionError);
-
                 if (numArr) {
                     OCArrayAppendValue(compsArr, numArr);
                     OCRelease(numArr);
                 }
-
                 if (conversionError) {
                     OCRelease(conversionError);
                 }
@@ -930,16 +925,13 @@ DependentVariableRef DependentVariableCreateFromDictionary(OCDictionaryRef dict,
                 if (data) OCRelease(data);
             } else {
                 OCArrayRef numList = OCArrayGetValueAtIndex(compArr, i);
-
                 // Use optimized OCNumber array-to-data conversion
                 OCStringRef conversionError = NULL;
                 OCDataRef data = OCNumberCreateDataFromArray(numList, numericType, &conversionError);
-
                 if (data && OCDataGetLength(data) > 0) {
                     OCArrayAppendValue(components, data);
                     OCRelease(data);
                 }
-
                 if (conversionError) {
                     OCRelease(conversionError);
                 }
@@ -1005,10 +997,8 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
     if (!dv) {
         return cJSON_CreateNull();
     }
-
     cJSON *json = cJSON_CreateObject();
     if (!json) return cJSON_CreateNull();
-
     // 1) type (external vs. internal)
     if (dv->type) {
         const char *typeStr = OCStringGetCString(dv->type);
@@ -1018,9 +1008,7 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
     } else {
         cJSON_AddStringToObject(json, kDependentVariableTypeKey, kDependentVariableComponentTypeValueInternal);
     }
-
     bool isExternal = dv->type && OCStringEqual(dv->type, STR(kDependentVariableComponentTypeValueExternal));
-
     // 1a) if external, record the URL
     if (isExternal && dv->componentsURL) {
         const char *urlStr = OCStringGetCString(dv->componentsURL);
@@ -1028,7 +1016,6 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
             cJSON_AddStringToObject(json, kDependentVariableComponentsURLKey, urlStr);
         }
     }
-
     // 2) encoding (base64, none, or raw) - skip if typed=true
     if (!typed) {
         if (dv->encoding) {
@@ -1040,19 +1027,16 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
             cJSON_AddStringToObject(json, kDependentVariableEncodingKey, kDependentVariableEncodingValueBase64);
         }
     }
-
     // 3) components (always embed raw data for round-trip)
     if (dv->components && !isExternal) {
         OCNumberType et = DependentVariableGetNumericType(dv);
         bool isBase64 = dv->encoding && OCStringEqual(dv->encoding, STR(kDependentVariableEncodingValueBase64));
         OCIndex ncomps = DependentVariableGetComponentCount(dv);
-
         cJSON *compsArray = cJSON_CreateArray();
         if (compsArray) {
             for (OCIndex i = 0; i < ncomps; ++i) {
                 OCDataRef blob = DependentVariableGetComponentAtIndex(dv, i);
                 if (!blob) continue;
-
                 if (isBase64) {
                     OCStringRef b64 = OCDataCreateBase64EncodedString(blob, OCBase64EncodingOptionsNone);
                     if (b64) {
@@ -1066,7 +1050,6 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
                     // Use optimized OCNumber array conversion combined with OCArray JSON
                     OCStringRef conversionError = NULL;
                     OCArrayRef numArr = OCNumberCreateArrayFromData(blob, et, &conversionError);
-
                     if (numArr) {
                         cJSON *numArray = OCArrayCopyAsJSON(numArr, typed, outError);
                         if (numArray) {
@@ -1074,7 +1057,6 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
                         }
                         OCRelease(numArr);
                     }
-
                     if (conversionError) {
                         OCRelease(conversionError);
                     }
@@ -1083,7 +1065,6 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
             cJSON_AddItemToObject(json, kDependentVariableComponentsKey, compsArray);
         }
     }
-
     // 4) name, description
     if (dv->name) {
         const char *nameStr = OCStringGetCString(dv->name);
@@ -1097,7 +1078,6 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
             cJSON_AddStringToObject(json, kDependentVariableDescriptionKey, descStr);
         }
     }
-
     // 5) quantity_name, quantity_type, unit, numeric_type
     if (dv->quantityName) {
         const char *qnameStr = OCStringGetCString(dv->quantityName);
@@ -1121,12 +1101,10 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
             OCRelease(unitSymbol);
         }
     }
-
     const char *typeName = OCNumberGetTypeName(DependentVariableGetNumericType(dv));
     if (typeName) {
         cJSON_AddStringToObject(json, kDependentVariableNumericTypeKey, typeName);
     }
-
     // 6) component_labels
     if (dv->componentLabels) {
         cJSON *labelsArray = OCArrayCopyAsJSON(dv->componentLabels, typed, outError);
@@ -1134,7 +1112,6 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
             cJSON_AddItemToObject(json, kDependentVariableComponentLabelsKey, labelsArray);
         }
     }
-
     // 7) sparse_sampling
     if (dv->sparseSampling) {
         cJSON *spJson = SparseSamplingCopyAsJSON(dv->sparseSampling, typed, outError);
@@ -1142,7 +1119,6 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
             cJSON_AddItemToObject(json, kDependentVariableSparseSamplingKey, spJson);
         }
     }
-
     // 8) application
     if (dv->application && OCDictionaryGetCount(dv->application) > 0) {
         // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded
@@ -1153,7 +1129,6 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
             cJSON_AddItemToObject(json, kDependentVariableApplicationKey, appJson);
         }
     }
-
     if (typed) {
         // Wrap in typed object format
         cJSON *wrapper = cJSON_CreateObject();
@@ -1166,17 +1141,14 @@ cJSON *DependentVariableCopyAsJSON(DependentVariableRef dv, bool typed, OCString
             return cJSON_CreateNull();
         }
     }
-
     return json;
 }
-
 DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
     if (!json || !cJSON_IsObject(json)) {
         if (outError) *outError = STR("DependentVariable JSON parsing failed: Input must be a valid JSON object, but received null or non-object data");
         return NULL;
     }
-
     // Handle typed JSON format: {"type": "DependentVariable", "value": {...}}
     cJSON *valueJson = json;
     bool json_typed = false;
@@ -1190,7 +1162,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
         }
         json_typed = true;
     }
-
     // Initialize all variables for cleanup
     DependentVariableRef dv = NULL;
     OCStringRef type = NULL;
@@ -1207,7 +1178,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
     OCMutableArrayRef componentLabels = NULL;
     SparseSamplingRef sparseSampling = NULL;
     OCDictionaryRef application = NULL;
-
     // 1) Required: "type"
     cJSON *item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1220,7 +1190,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
         if (outError) *outError = STR("DependentVariable JSON parsing failed: Unable to process 'type' field value. This may indicate memory allocation issues");
         goto cleanup;
     }
-
     // 2) Optional: "components_url" - required for external, invalid for internal
     item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableComponentsURLKey);
     if (isExternal) {
@@ -1238,7 +1207,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
         if (outError) *outError = STR("DependentVariable JSON parsing failed: Internal dependent variables cannot have a 'components_url' field. Remove this field or change type to 'external'");
         goto cleanup;
     }
-
     // 3) Optional: "encoding" - only valid for internal, invalid for external
     if (!json_typed && !isExternal) {
         item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableEncodingKey);
@@ -1257,7 +1225,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             goto cleanup;
         }
     }
-
     // 4) Required: numeric_type (moved here to use in component processing)
     item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableNumericTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1279,7 +1246,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
         if (outError) *outError = STR("DependentVariable JSON parsing failed: Unable to process 'numeric_type' field value. This may indicate memory allocation issues");
         goto cleanup;
     }
-
     // 5) "components" — required for internal only, invalid for external
     if (isExternal) {
         // Check if components is present for external (which is invalid)
@@ -1300,7 +1266,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             if (outError) *outError = STR("DependentVariable JSON parsing failed: Unable to allocate memory for components array. This may indicate insufficient system memory");
             goto cleanup;
         }
-
         // Determine encoding behavior based on json_typed and encoding field
         bool isBase64;
         if (json_typed) {
@@ -1310,7 +1275,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             // When json_typed=false, use encoding field (default to "none" per CSDM spec)
             isBase64 = encoding ? OCStringEqual(encoding, STR(kDependentVariableEncodingValueBase64)) : false;
         }
-
         cJSON *comp = NULL;
         cJSON_ArrayForEach(comp, item) {
             if (cJSON_IsString(comp) && isBase64) {
@@ -1346,7 +1310,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
                     goto cleanup;
                 }
                 if (parseError) OCRelease(parseError);
-
                 // Convert number array to data using numericType
                 OCStringRef conversionError = NULL;
                 OCDataRef data = OCNumberCreateDataFromArray(numArr, numericType, &conversionError);
@@ -1381,7 +1344,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             }
         }
     }
-
     // 6) Optional: name
     item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableNameKey);
     if (cJSON_IsString(item)) {
@@ -1391,7 +1353,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             goto cleanup;
         }
     }
-
     // Optional: description
     item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableDescriptionKey);
     if (cJSON_IsString(item)) {
@@ -1401,7 +1362,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             goto cleanup;
         }
     }
-
     // 7) Optional: quantity_name
     item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableQuantityNameKey);
     if (cJSON_IsString(item) && item->valuestring[0] != '\0') {
@@ -1411,7 +1371,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             goto cleanup;
         }
     }
-
     // 7) Required: quantity_type
     item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableQuantityTypeKey);
     if (!cJSON_IsString(item)) {
@@ -1423,7 +1382,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
         if (outError) *outError = STR("DependentVariable JSON parsing failed: Unable to process 'quantity_type' field value. This may indicate memory allocation issues");
         goto cleanup;
     }
-
     // Validate quantity_type
     OCIndex componentCount = DependentVariableComponentsCountFromQuantityType(quantityType);
     if (componentCount == kOCNotFound) {
@@ -1435,7 +1393,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
         }
         goto cleanup;
     }
-
     // 8) Optional: unit
     item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableUnitKey);
     if (cJSON_IsString(item)) {
@@ -1455,7 +1412,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             }
         }
     }
-
     // Convert unit expression to SIUnitRef
     if (unitExpr) {
         double mult = 1.0;
@@ -1471,7 +1427,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             goto cleanup;
         }
     }
-
     // 10) Optional: component_labels
     item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableComponentLabelsKey);
     if (cJSON_IsArray(item)) {
@@ -1480,7 +1435,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             if (outError) *outError = STR("DependentVariable JSON parsing failed: Unable to allocate memory for component labels array. This may indicate insufficient system memory");
             goto cleanup;
         }
-
         cJSON *label = NULL;
         cJSON_ArrayForEach(label, item) {
             if (cJSON_IsString(label)) {
@@ -1509,12 +1463,10 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             if (outError) *outError = STR("DependentVariable JSON parsing failed: Unable to allocate memory for default component labels array. This may indicate insufficient system memory");
             goto cleanup;
         }
-
         for (OCIndex i = 0; i < n; ++i) {
             OCArrayAppendValue(componentLabels, STR(""));
         }
     }
-
     // 11) Optional: sparse_sampling
     item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableSparseSamplingKey);
     if (cJSON_IsObject(item)) {
@@ -1533,7 +1485,6 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             goto cleanup;
         }
     }
-
     // 12) Optional: application
     item = cJSON_GetObjectItemCaseSensitive(valueJson, kDependentVariableApplicationKey);
     if (cJSON_IsObject(item)) {
@@ -1552,27 +1503,25 @@ DependentVariableRef DependentVariableCreateFromJSON(cJSON *json, OCStringRef *o
             goto cleanup;
         }
     }
-
     // Now create the DependentVariable directly using impl_DependentVariableCreate
     dv = impl_DependentVariableCreate(
-        type,                    // type
-        name,                    // name
-        description,             // description
-        unit,                    // unit
-        quantityName,            // quantityName
-        quantityType,            // quantityType
-        numericType,             // numericType
-        encoding,                // encoding
-        componentsURL,           // componentsURL
-        components,              // components
-        false,                   // copyComponents - we already own the data
-        isExternal ? 0 : -1,     // explicitSize
-        componentLabels,         // componentLabels
-        sparseSampling,          // sparseSampling
-        false,                   // copySparseSampling - we already own it
-        application,             // application
-        outError);               // outError
-
+        type,                 // type
+        name,                 // name
+        description,          // description
+        unit,                 // unit
+        quantityName,         // quantityName
+        quantityType,         // quantityType
+        numericType,          // numericType
+        encoding,             // encoding
+        componentsURL,        // componentsURL
+        components,           // components
+        false,                // copyComponents - we already own the data
+        isExternal ? 0 : -1,  // explicitSize
+        componentLabels,      // componentLabels
+        sparseSampling,       // sparseSampling
+        false,                // copySparseSampling - we already own it
+        application,          // application
+        outError);            // outError
 cleanup:
     // cleanup temporary allocations (OCRelease safely handles NULL)
     OCRelease(type);

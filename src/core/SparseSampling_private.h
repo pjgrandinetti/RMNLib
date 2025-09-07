@@ -8,21 +8,17 @@
  */
 #ifndef SPARSESAMPLING_PRIVATE_H
 #define SPARSESAMPLING_PRIVATE_H
-
 // Include the public header for type declarations
 #include "SparseSampling.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /**
  * @name Private Direct Access Functions
  * These functions return direct references to internal data and should only
  * be used within SparseSampling implementation for performance-critical operations.
  * @{
  */
-
 /**
  * @brief Get direct reference to dimension indexes (internal use only).
  *
@@ -31,7 +27,6 @@ extern "C" {
  */
 OCIndexSetRef
 SparseSamplingGetDimensionIndexes(SparseSamplingRef ss);
-
 /**
  * @brief Get direct reference to sparse grid vertices (internal use only).
  *
@@ -40,7 +35,6 @@ SparseSamplingGetDimensionIndexes(SparseSamplingRef ss);
  */
 OCDataRef
 SparseSamplingGetSparseGridVertexes(SparseSamplingRef ss);
-
 /**
  * @brief Get direct reference to encoding string (internal use only).
  *
@@ -49,7 +43,6 @@ SparseSamplingGetSparseGridVertexes(SparseSamplingRef ss);
  */
 OCStringRef
 SparseSamplingGetEncoding(SparseSamplingRef ss);
-
 /**
  * @brief Get direct reference to description (internal use only).
  *
@@ -58,7 +51,6 @@ SparseSamplingGetEncoding(SparseSamplingRef ss);
  */
 OCStringRef
 SparseSamplingGetDescription(SparseSamplingRef ss);
-
 /**
  * @brief Get the number of vertices in the sparse grid.
  *
@@ -67,7 +59,6 @@ SparseSamplingGetDescription(SparseSamplingRef ss);
  */
 size_t
 SparseSamplingGetVertexCount(SparseSamplingRef ss);
-
 /**
  * @brief Get the number of dimensions in the sparse grid.
  *
@@ -76,7 +67,6 @@ SparseSamplingGetVertexCount(SparseSamplingRef ss);
  */
 OCIndex
 SparseSamplingGetDimensionCount(SparseSamplingRef ss);
-
 /**
  * @brief Get vertex coordinates at a specific index.
  *
@@ -85,13 +75,9 @@ SparseSamplingGetDimensionCount(SparseSamplingRef ss);
  * @param outCoords   Output array to store vertex coordinates (must be pre-allocated).
  * @returns           true on success, false on error or invalid index.
  */
-bool
-SparseSamplingGetVertexAtIndex(SparseSamplingRef ss, OCIndex vertexIndex, OCIndex *outCoords);
-
+bool SparseSamplingGetVertexAtIndex(SparseSamplingRef ss, OCIndex vertexIndex, OCIndex *outCoords);
 /** @} */
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif  // SPARSESAMPLING_PRIVATE_H

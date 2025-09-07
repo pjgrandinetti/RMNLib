@@ -22,10 +22,10 @@ OCTypeID SparseSamplingGetTypeID(void) {
 // ivar struct
 struct impl_SparseSampling {
     OCBase base;
-    OCIndexSetRef dimensionIndexes;        // Defines which dimensions are sparse (count = dimensionCount)
-    OCDataRef sparseGridVertexes;          // Flattened vertex coordinate data
-    OCNumberType unsignedIntegerType;      // UInt8/16/32/64 only
-    OCStringRef encoding;                  // "none" or "base64"
+    OCIndexSetRef dimensionIndexes;    // Defines which dimensions are sparse (count = dimensionCount)
+    OCDataRef sparseGridVertexes;      // Flattened vertex coordinate data
+    OCNumberType unsignedIntegerType;  // UInt8/16/32/64 only
+    OCStringRef encoding;              // "none" or "base64"
     OCStringRef description;
     OCMutableDictionaryRef application;
 };
@@ -46,25 +46,19 @@ OCIndex SparseSamplingGetDimensionCount(SparseSamplingRef ss) {
     if (!ss || !ss->dimensionIndexes) return 0;
     return OCIndexSetGetCount(ss->dimensionIndexes);
 }
-
 size_t SparseSamplingGetVertexCount(SparseSamplingRef ss) {
     if (!ss || !ss->sparseGridVertexes) {
         return 0;
     }
-
     OCIndex dimensionCount = SparseSamplingGetDimensionCount(ss);
     if (dimensionCount == 0) return 0;
-
     OCIndex elementSize = OCNumberTypeSize(ss->unsignedIntegerType);
     if (elementSize == 0) return 0;
-
     OCIndex totalBytes = OCDataGetLength(ss->sparseGridVertexes);
     OCIndex totalElements = totalBytes / elementSize;
-
     OCIndex result = totalElements / dimensionCount;
     return result;
 }
-
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
 static bool impl_SparseSamplingEqual(const void *a, const void *b) {
     const struct impl_SparseSampling *A = (const struct impl_SparseSampling *)a;
@@ -200,13 +194,11 @@ bool validateSparseSampling(SparseSamplingRef ss, OCStringRef *outError) {
             *outError = STR("SparseSampling validation error: sparseGridVertexes must be a valid OCDataRef");
         return false;
     }
-
     // 5) Validate that data size is consistent with dimension count and integer type
     OCIndex dimensionCount = SparseSamplingGetDimensionCount(ss);
     if (dimensionCount > 0) {
         OCIndex elementSize = OCNumberTypeSize(ss->unsignedIntegerType);
         OCIndex totalBytes = OCDataGetLength(ss->sparseGridVertexes);
-
         if (elementSize > 0 && (totalBytes % (dimensionCount * elementSize) != 0)) {
             if (outError)
                 *outError = STR("SparseSampling validation error: data size is not consistent with dimension count and integer type");
@@ -308,13 +300,10 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
     if (ss->sparseGridVertexes) {
         OCIndex dimensionCount = SparseSamplingGetDimensionCount(ss);
         OCIndex vertexCount = SparseSamplingGetVertexCount(ss);
-
         if (dimensionCount > 0 && vertexCount > 0) {
             OCMutableArrayRef vertexesArray = OCArrayCreateMutable(vertexCount, &kOCTypeArrayCallBacks);
-
             // Convert OCData to array based on encoding
             bool isBase64 = OCStringEqual(ss->encoding, STR(kSparseSamplingEncodingValueBase64));
-
             if (isBase64) {
                 // Store as base64 encoded string
                 OCStringRef b64String = OCDataCreateBase64EncodedString(ss->sparseGridVertexes, OCBase64EncodingOptionsNone);
@@ -326,7 +315,6 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
                 // Convert to array of arrays format: [[dim1, dim2, ...], [dim1, dim2, ...], ...]
                 OCStringRef conversionError = NULL;
                 OCArrayRef numberArray = OCNumberCreateArrayFromData(ss->sparseGridVertexes, ss->unsignedIntegerType, &conversionError);
-
                 if (numberArray && OCArrayGetCount(numberArray) == dimensionCount * vertexCount) {
                     for (OCIndex v = 0; v < vertexCount; v++) {
                         OCMutableArrayRef vertex = OCArrayCreateMutable(dimensionCount, &kOCTypeArrayCallBacks);
@@ -341,11 +329,9 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
                         OCRelease(vertex);
                     }
                 }
-
                 if (numberArray) OCRelease(numberArray);
                 if (conversionError) OCRelease(conversionError);
             }
-
             if (!isBase64) {
                 OCDictionarySetValue(dict, STR(kSparseSamplingSparseGridVertexesKey), vertexesArray);
             }
@@ -375,7 +361,6 @@ OCDictionaryRef SparseSamplingCopyAsDictionary(SparseSamplingRef ss) {
     }
     return dict;
 }
-
 // Dictionary → object
 SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStringRef *outError) {
     if (outError) *outError = NULL;
@@ -412,7 +397,6 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
     // 4. Parse sparse_grid_vertexes from array of arrays or base64 string
     OCDataRef sparseGridVerts = NULL;
     OCTypeRef sparseGridValue = OCDictionaryGetValue(dict, STR(kSparseSamplingSparseGridVertexesKey));
-
     if (sparseGridValue) {
         if (OCGetTypeID(sparseGridValue) == OCStringGetTypeID()) {
             // Base64 encoded string
@@ -421,11 +405,9 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
             // Array of vertex arrays: [[dim1, dim2, ...], [dim1, dim2, ...], ...]
             OCArrayRef vertexArray = (OCArrayRef)sparseGridValue;
             OCIndex vertexCount = OCArrayGetCount(vertexArray);
-
             if (vertexCount > 0 && ndim > 0) {
                 // Create flat array of all coordinates
                 OCMutableArrayRef flatNumbers = OCArrayCreateMutable(vertexCount * ndim, &kOCTypeArrayCallBacks);
-
                 for (OCIndex v = 0; v < vertexCount; v++) {
                     OCArrayRef vertex = OCArrayGetValueAtIndex(vertexArray, v);
                     if (vertex && OCGetTypeID(vertex) == OCArrayGetTypeID()) {
@@ -440,19 +422,16 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
                         }
                     }
                 }
-
                 // Convert flat number array to OCData
                 if (OCArrayGetCount(flatNumbers) == vertexCount * ndim) {
                     OCStringRef conversionError = NULL;
                     sparseGridVerts = OCNumberCreateDataFromArray(flatNumbers, utype, &conversionError);
                     if (conversionError) OCRelease(conversionError);
                 }
-
                 OCRelease(flatNumbers);
             }
         }
     }
-
     if (!sparseGridVerts) {
         sparseGridVerts = OCDataCreate(NULL, 0);
     }
@@ -474,13 +453,10 @@ SparseSamplingRef SparseSamplingCreateFromDictionary(OCDictionaryRef dict, OCStr
     }
     return ss;
 }
-
 cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed, OCStringRef *outError) {
     if (!ss) return cJSON_CreateNull();
-
     cJSON *json = cJSON_CreateObject();
     if (!json) return cJSON_CreateNull();
-
     // 1. dimension_indexes - use OCIndexSet's built-in JSON serialization
     if (ss->dimensionIndexes) {
         cJSON *dimArray = OCIndexSetCopyAsJSON(ss->dimensionIndexes, typed, outError);
@@ -488,13 +464,10 @@ cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed, OCStringRef *o
             cJSON_AddItemToObject(json, kSparseSamplingDimensionIndexesKey, dimArray);
         }
     }
-
-
     // 2. sparse_grid_vertexes - convert OCData to JSON format
     if (ss->sparseGridVertexes) {
         OCStringRef dataError = NULL;
         cJSON *vertexesJSON = NULL;
-
         if (ss->encoding && OCStringEqual(ss->encoding, STR(kSparseSamplingEncodingValueBase64))) {
             // For base64 encoding, use OCDataCopyAsJSON with base64 encoding
             OCJSONEncoding originalEncoding = OCDataCopyEncoding(ss->sparseGridVertexes);
@@ -520,14 +493,11 @@ cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed, OCStringRef *o
                 }
             }
         }
-
         if (vertexesJSON) {
             cJSON_AddItemToObject(json, kSparseSamplingSparseGridVertexesKey, vertexesJSON);
         }
-
         if (dataError) OCRelease(dataError);
     }
-
     // 3. encoding - always include for both typed and untyped to preserve round-trip accuracy
     if (ss->encoding) {
         const char *encStr = OCStringGetCString(ss->encoding);
@@ -535,13 +505,11 @@ cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed, OCStringRef *o
             cJSON_AddStringToObject(json, kSparseSamplingEncodingKey, encStr);
         }
     }
-
     // 4. unsigned_integer_type
     const char *typeName = OCNumberGetTypeName(ss->unsignedIntegerType);
     if (typeName) {
         cJSON_AddStringToObject(json, kSparseSamplingUnsignedIntegerTypeKey, typeName);
     }
-
     // 5. description
     if (ss->description) {
         const char *descStr = OCStringGetCString(ss->description);
@@ -549,7 +517,6 @@ cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed, OCStringRef *o
             cJSON_AddStringToObject(json, kSparseSamplingDescriptionKey, descStr);
         }
     }
-
     // 6. application metadata
     if (ss->application) {
         // CRITICAL REQUIREMENT: application ivar in ALL RMNLib types MUST ALWAYS be encoded
@@ -560,7 +527,6 @@ cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed, OCStringRef *o
             cJSON_AddItemToObject(json, kSparseSamplingApplicationKey, app);
         }
     }
-
     if (typed) {
         // Wrap in typed object format
         cJSON *wrapper = cJSON_CreateObject();
@@ -573,32 +539,25 @@ cJSON *SparseSamplingCopyAsJSON(SparseSamplingRef ss, bool typed, OCStringRef *o
             return cJSON_CreateNull();
         }
     }
-
     return json;
 }
-
 SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outError) {
     if (outError) *outError = NULL;
-
     if (!json) {
         if (outError) *outError = STR("Input JSON is NULL");
         return NULL;
     }
-
     // Declare variables at top to avoid uninitialized warnings with goto
     OCIndexSetRef dimensionIndexes = NULL;
     OCDataRef sparseGridVertexes = NULL;
-    OCStringRef encoding = STR(kSparseSamplingEncodingValueBase64); // Default encoding
+    OCStringRef encoding = STR(kSparseSamplingEncodingValueBase64);  // Default encoding
     OCStringRef description = NULL;
     OCDictionaryRef application = NULL;
-
     cJSON *actualJson = json;
-
     // Check if this is a typed JSON object (has "type" and "value" fields)
     if (cJSON_IsObject(json)) {
         cJSON *typeItem = cJSON_GetObjectItemCaseSensitive(json, "type");
         cJSON *valueItem = cJSON_GetObjectItemCaseSensitive(json, "value");
-
         if (typeItem && cJSON_IsString(typeItem) &&
             strcmp(typeItem->valuestring, "SparseSampling") == 0 &&
             valueItem && cJSON_IsObject(valueItem)) {
@@ -606,16 +565,13 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
             actualJson = valueItem;
         }
     }
-
     if (!cJSON_IsObject(actualJson)) {
         if (outError) *outError = STR("Expected top-level JSON object for SparseSampling");
         return NULL;
     }
-
     // Initialize all variables for cleanup
     SparseSamplingRef ss = NULL;
     OCNumberType unsignedIntegerType = kOCNumberUInt64Type;
-
     // Parse unsigned_integer_type FIRST (needed for sparse_grid_vertexes parsing)
     // This field is REQUIRED for sparse sampling objects
     cJSON *typeItem = cJSON_GetObjectItemCaseSensitive(actualJson, kSparseSamplingUnsignedIntegerTypeKey);
@@ -625,7 +581,6 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
         }
         goto cleanup;
     }
-
     const char *typeName = typeItem->valuestring;
     OCNumberType parsed = OCNumberTypeFromName(typeName);
     if (parsed == kOCNumberTypeInvalid) {
@@ -637,7 +592,6 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
         goto cleanup;
     }
     unsignedIntegerType = parsed;
-
     // Parse dimension_indexes using OCIndexSet's JSON parser
     cJSON *dimItem = cJSON_GetObjectItemCaseSensitive(actualJson, kSparseSamplingDimensionIndexesKey);
     if (dimItem) {
@@ -651,15 +605,12 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
     if (!dimensionIndexes) {
         dimensionIndexes = OCIndexSetCreateMutable();
     }
-
     // Parse sparse_grid_vertexes from JSON
     cJSON *vertsItem = cJSON_GetObjectItemCaseSensitive(actualJson, kSparseSamplingSparseGridVertexesKey);
     if (vertsItem) {
         OCStringRef dataParseError = NULL;
-
         // Determine if this is typed or untyped JSON
-        bool isTypedJSON = (actualJson != json); // If we unwrapped a typed object, this is typed JSON
-
+        bool isTypedJSON = (actualJson != json);  // If we unwrapped a typed object, this is typed JSON
         if (isTypedJSON) {
             // For typed JSON, first check if there's an explicit encoding field
             cJSON *encItem = cJSON_GetObjectItemCaseSensitive(actualJson, kSparseSamplingEncodingKey);
@@ -670,7 +621,6 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
                     encoding = STR(kSparseSamplingEncodingValueNone);
                 }
             }
-
             // For typed JSON, we need to handle both OCData and OCArray typed formats
             // Check if this is an OCData typed object
             if (cJSON_IsObject(vertsItem)) {
@@ -728,7 +678,6 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
             if (cJSON_IsString(encItem) && strcmp(encItem->valuestring, "base64") == 0) {
                 isBase64Encoding = true;
             }
-
             if (isBase64Encoding && cJSON_IsString(vertsItem)) {
                 // Base64 encoded string - use OCDataCreateFromJSON
                 sparseGridVertexes = OCDataCreateFromJSON(vertsItem, &dataParseError);
@@ -757,10 +706,8 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
                 goto cleanup;
             }
         }
-
         if (dataParseError) OCRelease(dataParseError);
     }
-
     // Parse optional description
     cJSON *descItem = cJSON_GetObjectItemCaseSensitive(actualJson, kSparseSamplingDescriptionKey);
     if (cJSON_IsString(descItem)) {
@@ -770,7 +717,6 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
             goto cleanup;
         }
     }
-
     // Parse optional application metadata using OCDictionary's JSON parser
     cJSON *appItem = cJSON_GetObjectItemCaseSensitive(actualJson, kSparseSamplingApplicationKey);
     if (cJSON_IsObject(appItem)) {
@@ -781,7 +727,6 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
             goto cleanup;
         }
     }
-
     // Create the SparseSampling object
     OCStringRef createError = NULL;
     ss = SparseSamplingCreate(
@@ -791,9 +736,7 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
         encoding,
         description,
         application,
-        &createError
-    );
-
+        &createError);
     // Propagate creation error if object creation failed
     if (!ss && outError) {
         if (createError) {
@@ -802,14 +745,12 @@ SparseSamplingRef SparseSamplingCreateFromJSON(cJSON *json, OCStringRef *outErro
             *outError = STR("Failed to create SparseSampling object");
         }
     }
-
 cleanup:
     // Clean up all allocated resources
     OCRelease(dimensionIndexes);
     OCRelease(sparseGridVertexes);
     OCRelease(description);
     OCRelease(application);
-
     return ss;
 }
 /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
@@ -829,7 +770,6 @@ bool SparseSamplingSetDimensionIndexes(SparseSamplingRef ss, OCIndexSetRef idxs)
                                : OCIndexSetCreateMutable();
     return ss->dimensionIndexes != NULL;
 }
-
 OCDataRef SparseSamplingGetSparseGridVertexes(SparseSamplingRef ss) {
     return ss ? ss->sparseGridVertexes : NULL;
 }
@@ -904,30 +844,21 @@ bool SparseSamplingSetApplicationMetaData(SparseSamplingRef ss, OCDictionaryRef 
                           : OCDictionaryCreateMutable(0);
     return ss->application != NULL;
 }
-
 // Note: SparseSamplingGetVertexCount and SparseSamplingGetDimensionCount are already defined as static helpers above
-
 bool SparseSamplingGetVertexAtIndex(SparseSamplingRef ss, OCIndex vertexIndex, OCIndex *outCoords) {
     if (!ss || !ss->sparseGridVertexes || !outCoords) return false;
-
     OCIndex dimensionCount = SparseSamplingGetDimensionCount(ss);
     OCIndex vertexCount = SparseSamplingGetVertexCount(ss);
-
     if (vertexIndex >= vertexCount || dimensionCount == 0) return false;
-
     // Get raw data pointer and element size
     const uint8_t *data = OCDataGetBytesPtr(ss->sparseGridVertexes);
     OCIndex elementSize = OCNumberTypeSize(ss->unsignedIntegerType);
-
     if (!data || elementSize == 0) return false;
-
     // Calculate offset to the vertex data
     OCIndex vertexOffset = vertexIndex * dimensionCount * elementSize;
-
     // Extract coordinates directly from raw data based on integer type
     for (OCIndex d = 0; d < dimensionCount; d++) {
         OCIndex coordOffset = vertexOffset + (d * elementSize);
-
         switch (ss->unsignedIntegerType) {
             case kOCNumberUInt8Type: {
                 const uint8_t *ptr = (const uint8_t *)(data + coordOffset);
@@ -953,6 +884,5 @@ bool SparseSamplingGetVertexAtIndex(SparseSamplingRef ss, OCIndex vertexIndex, O
                 return false;
         }
     }
-
     return true;
 }

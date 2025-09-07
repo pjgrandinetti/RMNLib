@@ -15,7 +15,6 @@ extern "C" {
  * SIMonotonicDimension, and SILinearDimension.  All can
  * be serialized to/from JSON or dictionaries.
  */
-
 /**
  * @defgroup Dimension Dimension
  * @brief Core types for axes and coordinate spaces.
@@ -40,7 +39,6 @@ typedef enum dimensionScaling {
  * @brief Get the OCTypeID for the base Dimension class.
  */
 OCTypeID DimensionGetTypeID(void);
-
 /**
  * @brief Create a basic Dimension instance.
  * @param label       Human-readable label for this dimension.
@@ -53,7 +51,6 @@ DimensionRef DimensionCreate(OCStringRef label,
                              OCStringRef description,
                              OCDictionaryRef metadata,
                              OCStringRef *outError);
-
 /**
  * @brief Retrieve a human-readable label for this dimension.
  * @param dim The Dimension instance.
@@ -705,7 +702,6 @@ bool DimensionIsQuantitative(DimensionRef dim);
  * @return A new OCDictionaryRef, or NULL on error. Caller must release.
  */
 OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim);
-
 /**
  * @brief Serialize a Dimension (any subclass) to JSON.
  *
@@ -716,7 +712,6 @@ OCDictionaryRef DimensionCopyAsDictionary(DimensionRef dim);
  * @return A new cJSON object, or NULL on error. Caller must release with cJSON_Delete.
  */
 cJSON *DimensionCopyAsJSON(DimensionRef dim, bool typed, OCStringRef *outError);
-
 /**
  * @brief Reconstruct a Dimension from a dictionary representation.
  *
@@ -752,19 +747,15 @@ OCIndex DimensionGetCount(DimensionRef dim);
 OCStringRef DimensionGetType(DimensionRef dim);
 bool SIDimensionIsPeriodic(SIDimensionRef dim);
 dimensionScaling SIDimensionGetScaling(SIDimensionRef dim);
-
 /**
  * @brief Get the quantity name for this SI dimension.
  * @param dim The SIDimension instance.
  * @return The quantity name string.
  */
 OCStringRef SIDimensionGetQuantityName(SIDimensionRef dim);
-
 bool SILinearDimensionGetComplexFFT(SILinearDimensionRef dim);
 OCTypeRef DimensionCopyCoordinateAtIndex(DimensionRef dim, double index);
 OCTypeRef DimensionCreateInterpolatedCoordinateAtIndex(SILinearDimensionRef dim, double dIndex);
-
-
 /**
  * @brief Compute the total number of samples implied by an array of DimensionRef.
  *
@@ -871,11 +862,7 @@ void setIndexesForReducedMemOffsetIgnoringDimension(OCIndex memOffset, OCIndex i
  * @param dimensionIndexSet    Set of dimension‐indices to skip.
  */
 void setIndexesForReducedMemOffsetIgnoringDimensions(OCIndex memOffset, OCIndex indexes[], OCIndex dimensionsCount, const OCIndex *npts, OCIndexSetRef dimensionIndexSet);
-
-
 OCMutableArrayRef DimensionCreateCoordinateIndexesFromMemOffset(OCArrayRef dimensions, OCIndex memOffset);
-
-
 #ifdef __cplusplus
 }
 #endif

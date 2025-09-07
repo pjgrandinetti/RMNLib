@@ -149,7 +149,6 @@ OCDataRef DependentVariableGetComponentAtIndex(DependentVariableRef dv, OCIndex 
         return NULL;
     return (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
 }
-
 OCDataRef DependentVariableCopyComponentAtIndex(DependentVariableRef dv, OCIndex componentIndex) {
     if (!dv || !dv->components ||
         componentIndex < 0 ||
@@ -158,7 +157,6 @@ OCDataRef DependentVariableCopyComponentAtIndex(DependentVariableRef dv, OCIndex
     OCDataRef component = (OCDataRef)OCArrayGetValueAtIndex(dv->components, componentIndex);
     return component ? (OCDataRef)OCTypeDeepCopy((OCTypeRef)component) : NULL;
 }
-
 bool DependentVariableSetComponentAtIndex(DependentVariableRef dv, OCDataRef newBuf, OCIndex componentIndex) {
     if (!dv || !dv->components || !newBuf) return false;
     OCIndex n = OCArrayGetCount(dv->components);

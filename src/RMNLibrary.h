@@ -71,11 +71,9 @@ as local modules (Datum, Dimension, Dataset).
 // Include the core SITypes definitions and utilities
 #include <SITypes.h>
 /** @cond INTERNAL */
-
 typedef struct impl_RMNBase {
-      void *(*copyAsDictionary)(const void *);
+    void *(*copyAsDictionary)(const void *);
 } RMNBase;
-
 // Centralized Ref typedefs
 typedef struct impl_GeographicCoordinate *GeographicCoordinateRef;
 typedef struct impl_Datum *DatumRef;
@@ -102,8 +100,6 @@ typedef struct impl_Dataset *DatasetRef;
 #include "importers/Tecmag.h"
 // Spectroscopy headers
 #include "spectroscopy/NMRSpectroscopy.h"
-
-
 /**
  * @defgroup UniversalAccessors Universal Property Accessors
  * @brief Universal getter and setter functions for RMNLib object properties.
@@ -113,7 +109,6 @@ typedef struct impl_Dataset *DatasetRef;
  * type-specific implementation based on the object's type ID.
  * @{
  */
-
 /**
  * @brief Universal getter for description property across RMNLib types.
  *
@@ -125,7 +120,6 @@ typedef struct impl_Dataset *DatasetRef;
  * @note Not supported: Datum, GeographicCoordinate
  */
 OCStringRef RMNLibGetDescription(OCTypeRef theType, OCStringRef *outError);
-
 /**
  * @brief Universal setter for description property across RMNLib types.
  *
@@ -138,7 +132,6 @@ OCStringRef RMNLibGetDescription(OCTypeRef theType, OCStringRef *outError);
  * @note Not supported: Datum, GeographicCoordinate
  */
 bool RMNLibSetDescription(OCTypeRef theType, OCStringRef description, OCStringRef *outError);
-
 /**
  * @brief Universal getter for application metadata across RMNLib types.
  *
@@ -149,7 +142,6 @@ bool RMNLibSetDescription(OCTypeRef theType, OCStringRef description, OCStringRe
  * @note Supported types: All RMNLib types except Datum
  */
 OCDictionaryRef RMNLibGetApplicationMetaData(OCTypeRef theType, OCStringRef *outError);
-
 /**
  * @brief Universal setter for application metadata across RMNLib types.
  *
@@ -161,9 +153,7 @@ OCDictionaryRef RMNLibGetApplicationMetaData(OCTypeRef theType, OCStringRef *out
  * @note Supported types: All RMNLib types except Datum
  */
 bool RMNLibSetApplicationMetaData(OCTypeRef theType, OCDictionaryRef metadata, OCStringRef *outError);
-
 /** @} */  // end of UniversalAccessors group
-
 /**
  * @defgroup LibraryManagement Library Management Functions
  * @brief Functions for managing the lifecycle of the RMNLib library.
