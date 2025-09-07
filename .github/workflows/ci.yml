@@ -145,7 +145,8 @@ jobs:
         run: |
           make install
           mkdir -p header-pkg
-          cd install && zip -qr ../header-pkg/libRMN-headers.zip include/
+          cp -r install/include/RMNLib header-pkg/
+          cd header-pkg && zip -r libRMN-headers.zip RMNLib/
 
       - name: Upload headers artifact
         if: runner.os == 'Linux'
