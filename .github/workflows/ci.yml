@@ -88,7 +88,7 @@ jobs:
 
       # ---------- Build cache (ccache) ----------
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.ccache
           key: ccache-${{ runner.os }}-${{ matrix.label }}-${{ github.sha }}
@@ -173,7 +173,7 @@ jobs:
             libcurl4-openssl-dev libopenblas-dev liblapacke-dev libomp-dev \
             ccache
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.ccache
           key: ccache-asan-${{ github.sha }}
