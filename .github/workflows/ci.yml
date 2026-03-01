@@ -133,7 +133,7 @@ jobs:
           ls -la install/lib/
 
       - name: Upload library artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: libRMN-${{ matrix.label }}
           path: install/lib/*
@@ -150,7 +150,7 @@ jobs:
 
       - name: Upload headers artifact
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: libRMN-headers
           path: header-pkg/libRMN-headers.zip
@@ -226,7 +226,7 @@ jobs:
               ls -la install/lib/"
 
       - name: Upload library artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: libRMN-ubuntu-latest.arm64
           path: install/lib/*
